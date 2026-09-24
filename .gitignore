@@ -1,0 +1,22 @@
+# Course material (copyrighted, large binaries)
+material-catedra/
+
+# Working spreadsheets live in the team's Google Drive
+*.xlsx
+*.ods
+
+# Office lock files
+.~lock.*#
+~$*
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Node
+node_modules/
+
+# Environment
+.env
