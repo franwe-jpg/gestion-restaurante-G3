@@ -14,7 +14,7 @@ La IA también se usa en la planificación: Claude Code genera el Product Backlo
 
 ## 2. Marco de trabajo
 
-Aplicamos Scrum sin Product Owner: el equipo completo cumple el rol de Scrum Master y toma las decisiones de producto a partir de la consigna. El trabajo es educativo, así que no hay cliente real; aun así, como lo pide la consigna, la estimación por Puntos de Función del Sprint 1 incluye una cotización. Las etapas de análisis y diseño se trabajan en sprints de 2 semanas y la implementación en sprints de 1 semana, todos con bastante carga de tareas. El Sprint 0 empieza hoy, 24/09/2026, y la entrega final se fija el 15/11/2026 (a confirmar con la cátedra).
+Aplicamos Scrum sin Product Owner: el equipo completo cumple el rol de Scrum Master y toma las decisiones de producto a partir de la consigna. Hacemos una daily meeting corta en cada clase y una review al cierre de cada sprint. El trabajo es educativo, así que no hay cliente real; aun así, como lo pide la consigna, la estimación por Puntos de Función del Sprint 1 incluye una cotización. Las etapas de análisis y diseño se trabajan en sprints de 2 semanas y la implementación en sprints de 1 semana, todos con bastante carga de tareas. El Sprint 0 empieza hoy, 24/09/2026, y la entrega final se fija el 15/11/2026 (a confirmar con la cátedra).
 
 ## 3. Qué pide la cátedra y qué cubre este sprint
 
@@ -51,9 +51,10 @@ Todas las tareas son individuales. La columna «Depende de» indica qué tarea t
 | S0-04 | Requerimientos No Funcionales (RNF) | Héctor Sánchez | — | 1 |
 | S0-05 | Decisiones de arquitectura y diseño | Héctor Sánchez | S0-04 | 1 |
 | S0-08 | Priorización del Product Backlog + DoR/DoD | Joaquín Cardoso Díaz | S0-M1b, S0-M2b, S0-M3b, S0-M4b, S0-M5b, S0-M6b | 2 |
-| S0-09 | Integración del diagrama de clases | Juan Ignacio Riquelme | S0-M1d, S0-M2d, S0-M3d, S0-M4d, S0-M5d, S0-M6d | 2 |
-| S0-10 | Consolidar matriz de riesgos y línea de corte | Giuliano Giannoncelli | S0-M1c, S0-M2c, S0-M3c, S0-M4c, S0-M5c, S0-M6c | 2 |
-| S0-11 | Gateway G0: revisión de artefactos | Todo el equipo | S0-01, S0-04, S0-05, S0-08, S0-09, S0-10 | 2 |
+| S0-09 | Integración del diagrama de clases | Todo el equipo | S0-M1d, S0-M2d, S0-M3d, S0-M4d, S0-M5d, S0-M6d | 2 |
+| S0-10 | Acomodar la tabla de riesgos y definir la línea de corte | Juan Ignacio Riquelme | S0-M1c, S0-M2c, S0-M3c, S0-M4c, S0-M5c, S0-M6c | 2 |
+| S0-11 | Review del Sprint 0 y gateway G0 (07/10) | Todo el equipo | S0-01, S0-04, S0-05, S0-08, S0-09, S0-10 | 2 |
+| S0-12 | Daily meeting en cada clase | Todo el equipo | — | 1 y 2 |
 
 ### Tareas por módulo
 
@@ -72,9 +73,9 @@ Por ejemplo, las tareas de Juan (Atención al Público) son S0-M4a, S0-M4b, S0-M
 
 El camino crítico empieza en S0-02 y S0-03 (Franco): sin el backlog base nadie puede revisar las HU de su módulo, así que conviene tenerlo en los primeros dos o tres días. En paralelo, sin depender de nadie, arrancan el plan (S0-01) y los RNF (S0-04). Los RNF alimentan las decisiones de arquitectura (S0-05), que después usan los estándares del Sprint 1. En la segunda semana, las tareas de cada módulo se integran en tres consolidaciones (los IDs S0-06 y S0-07 quedaron sin usar): priorización del backlog (S0-08), diagrama único (S0-09) y matriz de riesgos con línea de corte (S0-10). Todo converge en el gateway G0 (S0-11).
 
-### Gateway G0 (07/10)
+### Review y gateway G0 (07/10)
 
-El sprint se cierra con una revisión cruzada: cada integrante revisa el trabajo de otro módulo. Para aprobar G0 tiene que haber un Product Backlog priorizado con criterios de aceptación, una matriz de riesgos ordenada por exposición con la línea de corte justificada y un plan de reducción y otro de contingencia para cada riesgo, como pide la consigna, el plan de desarrollo con roles e hitos, los RNF, las decisiones de arquitectura y el diagrama de clases integrado.
+El sprint se cierra con la review, que incluye una revisión cruzada: cada integrante revisa el trabajo de otro módulo. Para aprobar G0 tiene que haber un Product Backlog priorizado con criterios de aceptación, una matriz de riesgos ordenada por exposición con la línea de corte justificada y un plan de reducción y otro de contingencia para cada riesgo, como pide la consigna, el plan de desarrollo con roles e hitos, los RNF, las decisiones de arquitectura y el diagrama de clases integrado.
 
 Para el análisis de riesgos se usa lo visto en la Unidad 2: probabilidad entre 0 y 1, impacto de 1 (despreciable) a 4 (catastrófico) y exposición E = P × I. La probabilidad se estima a ciegas (Delphi de banda ancha) para evitar el anclaje, y la línea de corte se traza donde se acaba la capacidad del equipo de gestionar riesgos activamente.
 
