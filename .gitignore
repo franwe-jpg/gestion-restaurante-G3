@@ -1,6 +1,3 @@
-# Course material (copyrighted, large binaries)
-material-catedra/
-
 # Working spreadsheets live in the team's Google Drive
 *.xlsx
 *.ods
@@ -20,3 +17,10 @@ node_modules/
 
 # Environment
 .env
+
+# Generated Drive copies of the plan
+SPRINT-0/*.docx
+
+# Copyrighted textbooks: shared through the team's Drive, not the public repo
+material-catedra/Ingeniería de Software - Ian Sommerville - 7º edición.pdf
+material-catedra/Ingenieria del Software - Roger Pressman - 7º edición.pdf
