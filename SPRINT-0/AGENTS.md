@@ -57,7 +57,7 @@ Si dos fuentes se contradicen, el issue de GitHub gana para HU y tareas, y el pl
 - Se integra por Pull Request hacia `develop`, revisado por otro integrante. El PR menciona el issue de la tarea (`#<número>`).
 - **No volver a correr `SPRINT-0/cargar_github.py`**: la carga ya se hizo, y repetirla duplica los issues.
 - No crear, cerrar ni editar issues, comentarios o PR sin confirmación explícita de la persona.
-- No versionar las planillas (`.xlsx`, `.ods`), los docx generados ni los libros de texto: están en `.gitignore`.
+- No versionar las planillas ni los docx de `SPRINT-0/` (viven en el Drive) ni los libros de texto: están en `.gitignore`.
 
 ## Revisión humana
 
