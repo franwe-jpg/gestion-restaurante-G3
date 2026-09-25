@@ -50,19 +50,18 @@ Todas las tareas son individuales. La columna «Depende de» indica qué tarea t
 | S0-03 | Generar Product Backlog base con Claude Code | Franco Martín Soler | S0-02 | 1 |
 | S0-04 | Requerimientos No Funcionales (RNF) | Héctor Sánchez | — | 1 |
 | S0-05 | Decisiones de arquitectura y diseño | Héctor Sánchez | S0-04 | 1 |
-| S0-08 | Priorización del Product Backlog + DoR/DoD | Joaquín Cardoso Díaz | S0-M1b, S0-M2b, S0-M3b, S0-M4b, S0-M5b, S0-M6b | 2 |
 | S0-09 | Integración del diagrama de clases | Todo el equipo | S0-M1d, S0-M2d, S0-M3d, S0-M4d, S0-M5d, S0-M6d | 2 |
 | S0-10 | Acomodar la tabla de riesgos y definir la línea de corte | Juan Ignacio Riquelme | S0-M1c, S0-M2c, S0-M3c, S0-M4c, S0-M5c, S0-M6c | 2 |
-| S0-11 | Review del Sprint 0 y gateway G0 (07/10) | Todo el equipo | S0-01, S0-04, S0-05, S0-08, S0-09, S0-10 | 2 |
+| S0-11 | Review del Sprint 0 y gateway G0 (07/10) | Todo el equipo | S0-01, S0-04, S0-05, S0-09, S0-10 | 2 |
 | S0-12 | Daily meeting en cada clase | Todo el equipo | — | 1 y 2 |
 
 ### Tareas por módulo
 
-Cada responsable hace las cuatro tareas de su módulo: revisar las HU (a), definir el reporte (b), identificar sus riesgos (c) y diseñar su parte del diagrama de clases (d).
+Cada responsable hace las cuatro tareas de su módulo: revisar las HU y su prioridad (a), definir el reporte (b), identificar sus riesgos (c) y diseñar su parte del diagrama de clases (d).
 
 | Tarea | Depende de | Semana |
 | --- | --- | --- |
-| a · Revisar y ajustar HU del módulo | S0-03 | 1 |
+| a · Revisar y ajustar HU del módulo, con su prioridad | S0-03 | 1 |
 | b · Definir el reporte del módulo | a | 2 |
 | c · Riesgos del módulo | a | 2 |
 | d · Diagrama de clases del módulo | a | 2 |
@@ -71,11 +70,11 @@ Por ejemplo, las tareas de Juan (Atención al Público) son S0-M4a, S0-M4b, S0-M
 
 ### Orden de las dependencias
 
-El camino crítico empieza en S0-02 y S0-03 (Franco): sin el backlog base nadie puede revisar las HU de su módulo, así que conviene tenerlo en los primeros dos o tres días. En paralelo, sin depender de nadie, arrancan el plan (S0-01) y los RNF (S0-04). Los RNF alimentan las decisiones de arquitectura (S0-05), que después usan los estándares del Sprint 1. En la segunda semana, las tareas de cada módulo se integran en tres consolidaciones (los IDs S0-06 y S0-07 quedaron sin usar): priorización del backlog (S0-08), diagrama único (S0-09) y matriz de riesgos con línea de corte (S0-10). Todo converge en el gateway G0 (S0-11).
+El camino crítico empieza en S0-02 y S0-03 (Franco): sin el backlog base nadie puede revisar las HU de su módulo, así que conviene tenerlo en los primeros dos o tres días. En paralelo, sin depender de nadie, arrancan el plan (S0-01) y los RNF (S0-04). Los RNF alimentan las decisiones de arquitectura (S0-05), que después usan los estándares del Sprint 1. En la segunda semana, las tareas de cada módulo se integran en dos consolidaciones: el diagrama único (S0-09) y la tabla de riesgos con la línea de corte (S0-10). Todo converge en la review y el gateway G0 (S0-11). Los IDs S0-06, S0-07 y S0-08 quedaron sin usar.
 
 ### Review y gateway G0 (07/10)
 
-El sprint se cierra con la review, que incluye una revisión cruzada: cada integrante revisa el trabajo de otro módulo. Para aprobar G0 tiene que haber un Product Backlog priorizado con criterios de aceptación, una matriz de riesgos ordenada por exposición con la línea de corte justificada y un plan de reducción y otro de contingencia para cada riesgo, como pide la consigna, el plan de desarrollo con roles e hitos, los RNF, las decisiones de arquitectura y el diagrama de clases integrado.
+El sprint se cierra con la review, que incluye una revisión cruzada: cada integrante revisa el trabajo de otro módulo. Para aprobar G0 tiene que haber un Product Backlog priorizado con criterios de aceptación (cada módulo prioriza sus HU en su tarea «a»), una matriz de riesgos ordenada por exposición con la línea de corte justificada y un plan de reducción y otro de contingencia para cada riesgo, como pide la consigna, el plan de desarrollo con roles e hitos, los RNF, las decisiones de arquitectura y el diagrama de clases integrado.
 
 Para el análisis de riesgos se usa lo visto en la Unidad 2: probabilidad entre 0 y 1, impacto de 1 (despreciable) a 4 (catastrófico) y exposición E = P × I. La probabilidad se estima a ciegas (Delphi de banda ancha) para evitar el anclaje, y la línea de corte se traza donde se acaba la capacidad del equipo de gestionar riesgos activamente.
 
