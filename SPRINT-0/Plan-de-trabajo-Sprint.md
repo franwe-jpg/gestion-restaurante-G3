@@ -35,7 +35,7 @@ Los requerimientos de la consigna se agrupan en 6 módulos, uno por integrante. 
 | M5 Reservas | Federico Cabaña | Reservas, cancelaciones y comanda con reserva (6 RF) | Reservas y ausentismo por período |
 | M6 Pagos | Héctor Sánchez | Facturas, cobros, comprobantes y medios de pago (7 RF) | Recaudación por medio de pago y deuda pendiente |
 
-Los reportes son una propuesta inicial: cada responsable la valida o la cambia en su tarea «Definir el reporte del módulo». Federico toma Reservas, el módulo más liviano, y también las tareas transversales más livianas (plantilla de riesgos y convenciones del diagrama). El resto de las tareas transversales se reparte según la carga de cada módulo.
+Los reportes son una propuesta inicial: cada responsable la valida o la cambia en su tarea «Definir el reporte del módulo». Las tareas transversales se reparten según la carga de cada módulo. Las escalas de riesgo son las de la Unidad 2 y el diagrama se hace en UML, así que no hacen falta tareas aparte para definirlos.
 
 ## 5. Backlog del Sprint 0 (24/09 – 07/10)
 
@@ -50,8 +50,6 @@ Todas las tareas son individuales. La columna «Depende de» indica qué tarea t
 | S0-03 | Generar Product Backlog base con Claude Code | Franco Martín Soler | S0-02 | 1 |
 | S0-04 | Requerimientos No Funcionales (RNF) | Héctor Sánchez | — | 1 |
 | S0-05 | Decisiones de arquitectura y diseño | Héctor Sánchez | S0-04 | 1 |
-| S0-06 | Escalas y plantilla de riesgos + riesgos de proyecto | Federico Cabaña | — | 1 |
-| S0-07 | Convenciones del diagrama de clases | Federico Cabaña | — | 1 |
 | S0-08 | Priorización del Product Backlog + DoR/DoD | Joaquín Cardoso Díaz | S0-M1b, S0-M2b, S0-M3b, S0-M4b, S0-M5b, S0-M6b | 2 |
 | S0-09 | Integración del diagrama de clases | Juan Ignacio Riquelme | S0-M1d, S0-M2d, S0-M3d, S0-M4d, S0-M5d, S0-M6d | 2 |
 | S0-10 | Consolidar matriz de riesgos y línea de corte | Giuliano Giannoncelli | S0-M1c, S0-M2c, S0-M3c, S0-M4c, S0-M5c, S0-M6c | 2 |
@@ -65,14 +63,14 @@ Cada responsable hace las cuatro tareas de su módulo: revisar las HU (a), defin
 | --- | --- | --- |
 | a · Revisar y ajustar HU del módulo | S0-03 | 1 |
 | b · Definir el reporte del módulo | a | 2 |
-| c · Riesgos del módulo | S0-06, a | 2 |
-| d · Diagrama de clases del módulo | S0-07, a | 2 |
+| c · Riesgos del módulo | a | 2 |
+| d · Diagrama de clases del módulo | a | 2 |
 
 Por ejemplo, las tareas de Juan (Atención al Público) son S0-M4a, S0-M4b, S0-M4c y S0-M4d.
 
 ### Orden de las dependencias
 
-El camino crítico empieza en S0-02 y S0-03 (Franco): sin el backlog base nadie puede revisar las HU de su módulo, así que conviene tenerlo en los primeros dos o tres días. En paralelo, sin depender de nadie, arrancan el plan (S0-01), los RNF (S0-04), la plantilla de riesgos (S0-06) y las convenciones del diagrama (S0-07). Los RNF alimentan las decisiones de arquitectura (S0-05), que después usan los estándares del Sprint 1. En la segunda semana, las tareas de cada módulo se integran en tres consolidaciones: priorización del backlog (S0-08), diagrama único (S0-09) y matriz de riesgos con línea de corte (S0-10). Todo converge en el gateway G0 (S0-11).
+El camino crítico empieza en S0-02 y S0-03 (Franco): sin el backlog base nadie puede revisar las HU de su módulo, así que conviene tenerlo en los primeros dos o tres días. En paralelo, sin depender de nadie, arrancan el plan (S0-01) y los RNF (S0-04). Los RNF alimentan las decisiones de arquitectura (S0-05), que después usan los estándares del Sprint 1. En la segunda semana, las tareas de cada módulo se integran en tres consolidaciones (los IDs S0-06 y S0-07 quedaron sin usar): priorización del backlog (S0-08), diagrama único (S0-09) y matriz de riesgos con línea de corte (S0-10). Todo converge en el gateway G0 (S0-11).
 
 ### Gateway G0 (07/10)
 

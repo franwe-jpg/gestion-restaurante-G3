@@ -41,8 +41,8 @@ Si dos fuentes se contradicen, el issue de GitHub gana para HU y tareas, y el pl
 
 ### Diagrama de clases
 
-- Seguir las convenciones de la tarea S0-07.
-- Las clases compartidas entre módulos (por ejemplo Producto, Cliente o Comanda) no se redefinen en cada módulo: se referencian.
+- Notación UML.
+- Las clases compartidas entre módulos (por ejemplo Producto, Cliente o Comanda) se unifican en la integración del diagrama (S0-09).
 
 ### Documentos
 
