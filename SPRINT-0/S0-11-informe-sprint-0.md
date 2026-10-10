@@ -24,7 +24,7 @@ Los cinco criterios del gateway G0 están cumplidos (sección 4). Lo único que 
 El equipo son seis personas que trabajan, con un módulo por integrante. Cada uno hizo las mismas cuatro tareas sobre su módulo (revisar las HU, definir el reporte, cargar los riesgos y dibujar el diagrama de clases) en una rama propia, con un pull request hacia `develop` revisado por otro integrante. Después se integró lo de todos:
 
 - **Diagrama de clases.** Cada integrante dibujó su módulo y esos dibujos originales se conservan en `G3 - Diagramas por modulo.drawio`: una página por módulo (M1 y M2 comparten página, además de M3, M4, M5 y M6). De la integración salió `G3 - Diagrama de clases unificado.drawio`, con el dominio sin clases duplicadas y una página aparte para los reportes. Los cambios que aparecieron al unificar (tipos de promoción, factura junto al primer cobro, cliente creado con la reserva, turnos) se aplicaron en las HU del tablero.
-- **Riesgos.** Cada integrante cargó los riesgos de su módulo y se conserva esa versión original. La consolidación pasó de 34 filas a 23 riesgos: se fusionaron los que describían lo mismo desde distintos módulos, se descartaron o dieron por resueltos los que no eran riesgos del proyecto o ya los resolvía el diagrama, y se agregaron siete riesgos generales (equipo, uso de IA, plazo). Quedaron en `S0-10-riesgos.md` y en la planilla `G3_Riesgos_Sprint0.xlsx` (Drive).
+- **Riesgos.** Cada integrante cargó los riesgos de su módulo y se conserva esa versión original. La consolidación pasó de 34 filas a 23 riesgos: se fusionaron los que describían lo mismo desde distintos módulos, se descartaron o dieron por resueltos los que no eran riesgos del proyecto o ya los resolvía el diagrama, y se agregaron siete riesgos generales (equipo, uso de IA, plazo). Quedaron en `S0-10-riesgos.md` y en la planilla `G3_Riesgos.xlsx` (raíz del repositorio).
 - **Uso de IA.** Los agentes de IA generaron borradores (las 64 HU base, la redacción de riesgos y varios documentos) y una persona revisó y aprobó todo lo que se integró. Las probabilidades de los riesgos de cada módulo las puso cada integrante; las de los siete riesgos generales son una propuesta que el equipo debe validar.
 - **Rituales.** Daily al inicio de cada clase y review de cierre del sprint.
 
@@ -72,7 +72,7 @@ Los tres riesgos más expuestos son la baja disponibilidad de un responsable de 
 | Decisiones de arquitectura | `SPRINT-0/S0-05-arquitectura.md` |
 | Diagrama de clases unificado | `SPRINT-0/G3 - Diagrama de clases unificado.drawio` |
 | Diagramas originales por módulo | `SPRINT-0/G3 - Diagramas por modulo.drawio` |
-| Análisis de riesgos | `SPRINT-0/S0-10-riesgos.md` y planilla `G3_Riesgos_Sprint0.xlsx` (Drive) |
+| Análisis de riesgos | `SPRINT-0/S0-10-riesgos.md` y planilla `G3_Riesgos.xlsx` (raíz del repositorio) |
 | Este informe y su burndown | `SPRINT-0/S0-11-informe-sprint-0.md` y `SPRINT-0/S0-11-burndown.png` |
 
 ## 7. Paso al Sprint 1
