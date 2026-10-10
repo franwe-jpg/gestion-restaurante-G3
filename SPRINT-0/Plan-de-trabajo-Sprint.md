@@ -25,7 +25,7 @@ La consigna organiza los entregables en tres etapas, más una evaluación de cie
 | | Decisiones de arquitectura y diseño justificadas | Sprint 0: S0-05 |
 | | Diagrama de clases del dominio | Sprint 0: tarea «d» de cada módulo y S0-09 |
 | | Estimación por Puntos de Función (PFNA, 14 factores, PFA, LDC, esfuerzo y cotización) | Sprint 1 |
-| Implementación, Pruebas y Despliegue | Estándares de codificación frontend y backend | Sprint 1: S1-01 y S1-02 |
+| Implementación, Pruebas y Despliegue | Estándares de codificación frontend y backend | Sprint 1: S1-02 y S1-03 |
 | | Criterios de conformidad (checklists), casos de prueba automatizados, GitFlow y CI | Sprint 1 |
 | | Implementación y pruebas | Sprints 2 a 4 |
 | Cierre post-desarrollo | Métricas LDC vs. estimación, análisis estático de calidad y retrospectiva de riesgos | Cierre |
@@ -40,7 +40,7 @@ Para no sobrecargar el Sprint 0, los estándares de codificación, `AGENTS.md`, 
 | Backend | Python con FastAPI | Expone una API REST y concentra las reglas de negocio. |
 | Base de datos | SQLite | Un solo archivo y una sola escritura a la vez: condiciona los RNF de concurrencia y rendimiento. |
 
-Las decisiones de arquitectura concretas (capas, estructura de carpetas y diseño de la API) se toman y justifican en S0-05 a partir de los RNF de S0-04. Los esqueletos que corren vacíos se arman en S1-05.
+Las decisiones de arquitectura concretas (capas, estructura de carpetas y diseño de la API) se toman y justifican en S0-05 a partir de los RNF de S0-04. Los esqueletos que corren vacíos se arman en S1-05 (backend) y S1-06 (frontend).
 
 ## 4. Marco de trabajo
 
@@ -62,7 +62,7 @@ El equipo trabaja con Spec Driven Development (SDD) asistido por agentes de IA: 
 | Paso | Qué se produce | Quién decide |
 | --- | --- | --- |
 | 1. Especificar | HU con criterios de aceptación, modelo de dominio y RNF (Sprint 0) | El responsable del módulo |
-| 2. Detallar | Spec de la HU: contrato de la API, datos y casos de prueba (formato definido en S1-03) | El responsable del módulo, con apoyo del agente |
+| 2. Detallar | Spec de la HU: contrato de la API, datos y casos de prueba (formato definido en S1-04) | El responsable del módulo, con apoyo del agente |
 | 3. Implementar | Código y tests generados a partir de la spec | El agente, dentro de las reglas de `AGENTS.md` |
 | 4. Verificar | Tests en verde, lint y CI sin errores | La CI (Sprint 1) |
 | 5. Revisar e integrar | Pull Request hacia `develop` revisado por otro integrante | Una persona, siempre |
@@ -71,7 +71,7 @@ El equipo trabaja con Spec Driven Development (SDD) asistido por agentes de IA: 
 
 - Cada integrante usa un agente que lea el repositorio, integrado en el editor o en la terminal: OpenCode (gratuito), Freebuff o Claude Code, entre otros.
 - Como no todos usamos la misma herramienta, las reglas viven en un único `AGENTS.md`, que la mayoría de los agentes reconoce. `CLAUDE.md` solo remite a `AGENTS.md` y agrega lo específico de Claude Code.
-- Durante el Sprint 0 rigen las reglas temporales de `SPRINT-0/AGENTS.md`. El `AGENTS.md` definitivo, en la raíz del repositorio, se escribe en S1-03 e incluye los estándares, el formato de las specs y la estructura de carpetas.
+- Durante el Sprint 0 rigen las reglas temporales de `SPRINT-0/AGENTS.md`. El `AGENTS.md` definitivo, en la raíz del repositorio, se escribe en S1-04 e incluye los estándares, el formato de las specs y la estructura de carpetas.
 - Todo lo que genera un agente es un borrador. Lo que se entrega a la cátedra es responsabilidad del equipo: una persona lo revisa y lo aprueba antes de integrarlo.
 
 ### Uso de IA en este sprint
@@ -158,7 +158,7 @@ Se usa el método de la Unidad 2:
 - La línea de corte se traza donde se acaba la capacidad del equipo de gestionar riesgos activamente, y se justifica.
 - Cada riesgo lleva categoría, disparador, plan de reducción y plan de contingencia, aunque quede debajo de la línea de corte.
 
-Los riesgos se cargan en la hoja «Riesgos» de la planilla `G3_Backlog_Sprint0.xlsx`, en la carpeta G3 del Drive del equipo. Además de los de cada módulo, la tabla tiene que incluir los riesgos generales del proyecto (plazo, equipo y uso de IA, sección 5). El más evidente es el plazo: tres sprints de una semana para implementar 64 HU.
+Cada integrante cargó los riesgos de su módulo y después se consolidaron en la planilla `G3_Riesgos_Sprint0.xlsx`, en la carpeta G3 del Drive del equipo (informe en `SPRINT-0/S0-10-riesgos.md`). Además de los de cada módulo, la tabla tiene que incluir los riesgos generales del proyecto (plazo, equipo y uso de IA, sección 5). El más evidente es el plazo: tres sprints de una semana para implementar 64 HU.
 
 ## 9. Organización en GitHub
 
@@ -188,7 +188,7 @@ Los riesgos se cargan en la hoja «Riesgos» de la planilla `G3_Backlog_Sprint0.
 | `HU-Mx-nn` | Historia de usuario del módulo x | HU-M1-01 Crear un plato |
 | `S0-nn` | Tarea general del Sprint 0 | S0-04 RNF |
 | `S0-Mxy` | Tarea y del módulo x en el Sprint 0 | S0-M4a Revisar las HU de M4 |
-| `S1-nn` | Tarea del Sprint 1 | S1-01 Estándares frontend |
+| `S1-nn` | Tarea del Sprint 1 | S1-02 Estándares frontend |
 
 El ID de la tarea aparece en el nombre de la rama y en el PR, así cada cambio se puede rastrear hasta su tarjeta y su HU.
 
@@ -197,7 +197,8 @@ El ID de la tarea aparece en el nombre de la rama y en el PR, así cada cambio s
 | Qué | Dónde |
 | --- | --- |
 | HU, tareas, responsables y estado | Issues del GitHub Project. Desde la carga inicial se editan ahí y no en la planilla. |
-| Riesgos y roadmap | Planilla `G3_Backlog_Sprint0.xlsx`, en la carpeta G3 del Drive. |
+| Riesgos | Planilla `G3_Riesgos_Sprint0.xlsx` (Drive) e informe `SPRINT-0/S0-10-riesgos.md`. |
+| Roadmap y tareas de cada sprint | Planilla `G3_Backlog.xlsx`, en la raíz del repositorio (una hoja por sprint). |
 | Alcance, fechas y reglas del sprint | Este plan y `SPRINT-0/AGENTS.md`. |
 
 El script `SPRINT-0/cargar_github.py` hizo la carga inicial de issues y no se vuelve a correr, porque duplica los issues.
@@ -215,14 +216,20 @@ El script `SPRINT-0/cargar_github.py` hizo la carga inicial de issues y no se vu
 
 En todas las etapas se mantiene la división por módulos: en el Sprint 1 cada uno cuenta los Puntos de Función de su módulo, y en la implementación cada uno construye y prueba el suyo.
 
-### Tareas ya definidas del Sprint 1
+### Tareas del Sprint 1
 
-El resto de las tareas del Sprint 1 se definen en su planificación.
+Las 16 tareas del Sprint 1 están cargadas en el tablero y en la hoja «Sprint 1» de `G3_Backlog.xlsx`. Una tarea depende de otra solo cuando no se puede hacer sin que la otra esté terminada.
 
 | ID | Tarea | Responsable | Depende de | Semana |
 | --- | --- | --- | --- | --- |
-| S1-01 | Estándares y guía de estilo frontend | Joaquín Cardoso Díaz | S0-05 | 1 |
-| S1-02 | Estándares y guía de estilo backend | Héctor Sánchez | S0-05 | 1 |
-| S1-03 | AGENTS.md (SDD + reglas del equipo) | Joaquín Cardoso Díaz | S1-01, S1-02 | 2 |
-| S1-04 | CLAUDE.md | Franco Martín Soler | S1-03 | 2 |
-| S1-05 | Esqueletos frontend y backend | Franco Martín Soler | S0-02, S0-05, S1-01, S1-02 | 2 |
+| S1-01 | Instalar OpenCode y Gentle AI | Todo el equipo | — | 1 |
+| S1-02 | Estándares y guía de estilo frontend | Joaquín Cardoso Díaz | S1-01 | 1 |
+| S1-03 | Estándares y guía de estilo backend | Héctor Sánchez | S1-01 | 1 |
+| S1-04 | AGENTS.md y CLAUDE.md (SDD con OpenCode y Claude Code) | Franco Martín Soler | S1-02, S1-03 | 2 |
+| S1-05 | Esqueleto del backend | Héctor Sánchez | S1-01 | 2 |
+| S1-06 | Esqueleto del frontend | Joaquín Cardoso Díaz | S1-01 | 2 |
+| S1-07 | Diseño de pruebas: escribir los casos de prueba | Giuliano Giannoncelli | — | 1 y 2 |
+| S1-M1 a S1-M6 | Contar los Puntos de Función del módulo | El dueño de cada módulo | — | 1 |
+| S1-08 | Estimación de Puntos de Función del proyecto | Juan Ignacio Riquelme | S1-M1 a S1-M6 | 2 |
+| S1-09 | Criterios de conformidad | Federico Cabaña | S1-02, S1-03 | 2 |
+| S1-10 | GitFlow y CI | Franco Martín Soler | S1-05, S1-06 | 2 |
