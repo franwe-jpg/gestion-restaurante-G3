@@ -15,7 +15,7 @@ Reglas mínimas para cualquier agente de IA que trabaje en este repositorio dura
 | Alcance, módulos, tareas, dependencias y criterios del gateway G0 | `SPRINT-0/Plan-de-trabajo-Sprint.md` |
 | HU, épicas y tareas (estado, responsable, criterios de aceptación) | Issues del repo, en el GitHub Project https://github.com/users/franwe-jpg/projects/2 |
 | Riesgos | Planilla `G3_Riesgos.xlsx`, en la raíz del repositorio, e informe `SPRINT-0/S0-10-riesgos.md` |
-| Roadmap y tareas de cada sprint | Planilla `G3_gestion.xlsx`, en la raíz del repositorio (una hoja por sprint) |
+| Roadmap y tareas de cada sprint | Planilla `G3_Backlog.xlsx`, en la raíz del repositorio (una hoja por sprint) |
 | Consigna y material de la cátedra | `material-catedra/` (consigna en `propuesta-ISFPP-2026.pdf`). Los libros de Sommerville y Pressman están en el Drive del equipo |
 
 Si dos fuentes se contradicen, el issue de GitHub gana para HU y tareas, y el plan gana para alcance y fechas. Si la contradicción es con la consigna, gana la consigna: señalarla a la persona, no resolverla por cuenta propia.
@@ -58,7 +58,7 @@ Si dos fuentes se contradicen, el issue de GitHub gana para HU y tareas, y el pl
 - Se integra por Pull Request hacia `develop`, revisado por otro integrante. El PR menciona el issue de la tarea (`#<número>`).
 - **No volver a correr `SPRINT-0/cargar_github.py`**: la carga ya se hizo, y repetirla duplica los issues.
 - No crear, cerrar ni editar issues, comentarios o PR sin confirmación explícita de la persona.
-- No versionar las planillas ni los docx de `SPRINT-0/` (viven en el Drive) ni los libros de texto: están en `.gitignore`. Las planillas de la raíz (`G3_gestion.xlsx` y `G3_Riesgos.xlsx`) sí se versionan.
+- No versionar las planillas ni los docx de `SPRINT-0/` (viven en el Drive) ni los libros de texto: están en `.gitignore`. Las planillas de la raíz (`G3_Backlog.xlsx` y `G3_Riesgos.xlsx`) sí se versionan.
 
 ## Revisión humana
 
