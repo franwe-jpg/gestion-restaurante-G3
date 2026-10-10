@@ -8,7 +8,7 @@ Responsable: Héctor Sánchez · Sprint 0, semana 1 · Issue #94 · Depende de S
 Este documento define la arquitectura del sistema: capas, estructura de carpetas del frontend y del backend, y estilo de la API. Cada decisión indica qué se eligió, qué alternativa se descartó y por qué, y se relaciona con los RNF de `S0-04-rnf.md`.
 
 - **La arquitectura se adapta a los RNF, no al revés.** Cuando una decisión de diseño choca con un RNF, se cambia la decisión.
-- No se escribe código de la aplicación: los esqueletos son la tarea S1-05.
+- No se escribe código de la aplicación: los esqueletos son las tareas S1-05 (backend) y S1-06 (frontend).
 - Las decisiones que la consigna no fija y que dependen del criterio del equipo están marcadas como `Supuesto:` y se listan en la sección 8.
 - Principio rector: **empezar por la estructura más simple que cumpla los RNF, y agregar abstracciones solo cuando exista una necesidad concreta.**
 
@@ -37,7 +37,7 @@ gestion-restaurante-G3/
 ├── frontend/            # React (sección 4)
 ├── SPRINT-0/            # documentos del Sprint 0
 ├── material-catedra/
-├── AGENTS.md            # reglas del equipo (S1-03)
+├── AGENTS.md            # reglas del equipo (S1-04)
 ├── README.md
 └── .gitignore
 ```
@@ -203,7 +203,7 @@ frontend/
 
 ### Recursos por módulo
 
-Es una guía, no un contrato: el detalle de cada endpoint se define en la spec de cada HU (S1-03).
+Es una guía, no un contrato: el detalle de cada endpoint se define en la spec de cada HU (S1-04).
 
 | Módulo | Carpeta | Recursos principales |
 | --- | --- | --- |
@@ -242,7 +242,7 @@ Es una guía, no un contrato: el detalle de cada endpoint se define en la spec d
 | RNF-MAN-09 | D-03, D-04, D-05, D-15, D-16 |
 | RNF-MAN-10 | D-01, D-05 |
 
-Los RNF que no figuran (RNF-SEG-08, RNF-SEG-10, RNF-SEG-11, RNF-MAN-05) no dependen de la estructura del sistema: se cumplen con el diseño de datos (S0-09), la CI o las guías de estilo (S1-01 y S1-02).
+Los RNF que no figuran (RNF-SEG-08, RNF-SEG-10, RNF-SEG-11, RNF-MAN-05) no dependen de la estructura del sistema: se cumplen con el diseño de datos (S0-09), la CI o las guías de estilo (S1-02 y S1-03).
 
 ## 7. Evolución prevista
 

@@ -1,0 +1,732 @@
+<mxfile host="app.diagrams.net" pages="2">
+  <diagram name="Dominio (unificado)" id="dom">
+    <mxGraphModel dx="848" dy="509" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="dom-Seccion" parent="1" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#dae8fc;strokeColor=#6c8ebf;swimlaneFillColor=#ffffff;" value="&lt;b&gt;Seccion&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;M1 · Productos y Carta&lt;/font&gt;" vertex="1">
+          <mxGeometry height="208" width="300" x="40" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-a1" parent="dom-Seccion" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="- id: int&lt;br&gt;- nombre: str {≤50, único}&lt;br&gt;- orden: int {&amp;gt;0, único entre habilitadas}&lt;br&gt;- estado: Estado = HABILITADO" vertex="1">
+          <mxGeometry height="80" width="300" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-l2" parent="dom-Seccion" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;" value="" vertex="1">
+          <mxGeometry height="8" width="300" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-m3" parent="dom-Seccion" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="+ agregarProducto(p: Producto)&lt;br&gt;+ modificar(datos)&lt;br&gt;+ deshabilitar()&lt;br&gt;+ habilitar()" vertex="1">
+          <mxGeometry height="80" width="300" y="128" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-Producto" parent="1" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#dae8fc;strokeColor=#6c8ebf;swimlaneFillColor=#ffffff;" value="&lt;b&gt;Producto&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;M1 · Productos y Carta&lt;/font&gt;" vertex="1">
+          <mxGeometry height="280" width="340" x="440" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-a4" parent="dom-Producto" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="- id: int&lt;br&gt;- nombre: str {≤100, único por categoría}&lt;br&gt;- categoria: Categoria&lt;br&gt;- precio: Decimal {&amp;gt;0, 2 decimales}&lt;br&gt;- ingredientes: str [0..*] {≥1 salvo BEBIDA}&lt;br&gt;- descripcion: str [0..1] {≤500}&lt;br&gt;- imagen: str [0..1] {JPG/PNG/HEIC, ≤5MB}&lt;br&gt;- etiquetas: str [0..*] {≤30, sin repetir}&lt;br&gt;- estado: Estado = HABILITADO" vertex="1">
+          <mxGeometry height="170" width="340" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-l5" parent="dom-Producto" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;" value="" vertex="1">
+          <mxGeometry height="8" width="340" y="210" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-m6" parent="dom-Producto" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="+ modificar(datos)&lt;br&gt;+ deshabilitar()&lt;br&gt;+ habilitar()" vertex="1">
+          <mxGeometry height="62" width="340" y="218" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-MenuEjecutivo" parent="1" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#d5e8d4;strokeColor=#82b366;swimlaneFillColor=#ffffff;" value="&lt;b&gt;MenuEjecutivo&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;M2 · Menús y Promociones&lt;/font&gt;" vertex="1">
+          <mxGeometry height="208" width="300" x="40" y="470" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-a7" parent="dom-MenuEjecutivo" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="- id: int&lt;br&gt;- nombre: str {único}&lt;br&gt;- descripcion: str [0..1]&lt;br&gt;- precioFijo: Decimal {&amp;gt;0}&lt;br&gt;- estado: Estado = HABILITADO" vertex="1">
+          <mxGeometry height="98" width="300" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-l8" parent="dom-MenuEjecutivo" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;" value="" vertex="1">
+          <mxGeometry height="8" width="300" y="138" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-m9" parent="dom-MenuEjecutivo" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="+ modificar(datos)&lt;br&gt;+ deshabilitar()&lt;br&gt;+ habilitar()" vertex="1">
+          <mxGeometry height="62" width="300" y="146" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-Promocion" parent="1" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#d5e8d4;strokeColor=#82b366;swimlaneFillColor=#ffffff;" value="&lt;b&gt;Promocion&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;M2 · Menús y Promociones&lt;/font&gt;" vertex="1">
+          <mxGeometry height="388" width="340" x="440" y="560" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-a10" parent="dom-Promocion" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="- id: int&lt;br&gt;- nombre: str {≤100, único}&lt;br&gt;- tipo: TipoPromocion&lt;br&gt;- descripcion: str [0..1]&lt;br&gt;- fechaDesde: date&lt;br&gt;- fechaHasta: date {≥ fechaDesde}&lt;br&gt;- diasSemana: DiaSemana [1..*]&lt;br&gt;- horaDesde: time [0..1]&lt;br&gt;- horaHasta: time [0..1] {&amp;gt; horaDesde}&lt;br&gt;- descuentoPorcentaje: int [0..1] {1..100, si PORCENTAJE}&lt;br&gt;- precioFijo: Decimal [0..1] {&amp;gt;0, si PRECIO_FIJO}&lt;br&gt;- cantLleva: int [0..1] {&amp;gt;0, si NXM}&lt;br&gt;- cantPaga: int [0..1] {&amp;gt;0, &amp;lt; cantLleva, si NXM}&lt;br&gt;- estado: Estado = HABILITADO&lt;br&gt;- fechaHoraFinalizacion: datetime [0..1]" vertex="1">
+          <mxGeometry height="278" width="340" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-l11" parent="dom-Promocion" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;" value="" vertex="1">
+          <mxGeometry height="8" width="340" y="318" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-m12" parent="dom-Promocion" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="+ modificar(datos)&lt;br&gt;+ finalizar()&lt;br&gt;+ estaVigente(fechaHora): bool" vertex="1">
+          <mxGeometry height="62" width="340" y="326" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-DetalleComanda" parent="1" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#ffe6cc;strokeColor=#d79b00;swimlaneFillColor=#ffffff;" value="&lt;b&gt;DetalleComanda&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;M4 · Atención al Público&lt;/font&gt;" vertex="1">
+          <mxGeometry height="208" width="320" x="940" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-a13" parent="dom-DetalleComanda" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="- id: int&lt;br&gt;- cantidad: int {&amp;gt;0}&lt;br&gt;- precioUnitario: Decimal {copia al pedir}&lt;br&gt;- descuento: Decimal = 0 {calculado al pedir}&lt;br&gt;- estadoEntrega: EstadoEntrega = PENDIENTE&lt;br&gt;{xor} producto o menuEjecutivo" vertex="1">
+          <mxGeometry height="116" width="320" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-l14" parent="dom-DetalleComanda" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;" value="" vertex="1">
+          <mxGeometry height="8" width="320" y="156" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-m15" parent="dom-DetalleComanda" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="+ subtotal(): Decimal&lt;br&gt;+ marcarEntregado()" vertex="1">
+          <mxGeometry height="44" width="320" y="164" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-Comanda" parent="1" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#ffe6cc;strokeColor=#d79b00;swimlaneFillColor=#ffffff;" value="&lt;b&gt;Comanda&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;M4 · Atención al Público&lt;/font&gt;" vertex="1">
+          <mxGeometry height="244" width="300" x="1360" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-a16" parent="dom-Comanda" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="- id: int&lt;br&gt;- fechaHora: datetime&lt;br&gt;- /turno: Turno [0..1] {derivado de fechaHora}&lt;br&gt;- observaciones: str [0..1]&lt;br&gt;- estado: EstadoComanda = ABIERTA" vertex="1">
+          <mxGeometry height="98" width="300" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-l17" parent="dom-Comanda" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;" value="" vertex="1">
+          <mxGeometry height="8" width="300" y="138" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-m18" parent="dom-Comanda" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="+ modificar(datos)&lt;br&gt;+ total(): Decimal&lt;br&gt;+ anular()&lt;br&gt;+ cerrar()&lt;br&gt;+ reabrir()" vertex="1">
+          <mxGeometry height="98" width="300" y="146" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-Cliente" parent="1" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#ffe6cc;strokeColor=#d79b00;swimlaneFillColor=#ffffff;" value="&lt;b&gt;Cliente&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;M4 · Atención al Público&lt;/font&gt;" vertex="1">
+          <mxGeometry height="136" width="300" x="1360" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-a19" parent="dom-Cliente" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="- id: int&lt;br&gt;- nombre: str {solo letras}&lt;br&gt;- telefono: str [0..1]" vertex="1">
+          <mxGeometry height="62" width="300" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-l20" parent="dom-Cliente" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;" value="" vertex="1">
+          <mxGeometry height="8" width="300" y="102" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-m21" parent="dom-Cliente" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="+ modificar(datos)" vertex="1">
+          <mxGeometry height="26" width="300" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-Reserva" parent="1" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#e1d5e7;strokeColor=#9673a6;swimlaneFillColor=#ffffff;" value="&lt;b&gt;Reserva&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;M5 · Reservas&lt;/font&gt;" vertex="1">
+          <mxGeometry height="244" width="380" x="1780" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-a22" parent="dom-Reserva" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="- id: int&lt;br&gt;- fecha: date {≥ hoy}&lt;br&gt;- hora: time&lt;br&gt;- cantidadPersonas: int {&amp;gt;0}&lt;br&gt;- estado: EstadoReserva = ACTIVA&lt;br&gt;{sin otra reserva ACTIVA en igual mesa, fecha y hora}" vertex="1">
+          <mxGeometry height="116" width="380" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-l23" parent="dom-Reserva" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;" value="" vertex="1">
+          <mxGeometry height="8" width="380" y="156" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-m24" parent="dom-Reserva" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="+ modificar(fecha, hora, cantidadPersonas)&lt;br&gt;+ cancelarAnticipada()&lt;br&gt;+ cancelarPorAusencia()&lt;br&gt;+ crearComanda(): Comanda" vertex="1">
+          <mxGeometry height="80" width="380" y="164" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-Mozo" parent="1" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#fff2cc;strokeColor=#d6b656;swimlaneFillColor=#ffffff;" value="&lt;b&gt;Mozo&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;M3 · Salón y Mozos&lt;/font&gt;" vertex="1">
+          <mxGeometry height="226" width="300" x="1780" y="560" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-a25" parent="dom-Mozo" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="- id: int&lt;br&gt;- dni: str {7-8 dígitos, único}&lt;br&gt;- nombre: str&lt;br&gt;- apellido: str&lt;br&gt;- telefono: str [0..1]&lt;br&gt;- estado: Estado = HABILITADO" vertex="1">
+          <mxGeometry height="116" width="300" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-l26" parent="dom-Mozo" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;" value="" vertex="1">
+          <mxGeometry height="8" width="300" y="156" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-m27" parent="dom-Mozo" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="+ modificar(datos)&lt;br&gt;+ deshabilitar()&lt;br&gt;+ habilitar()" vertex="1">
+          <mxGeometry height="62" width="300" y="164" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-Mesa" parent="1" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#fff2cc;strokeColor=#d6b656;swimlaneFillColor=#ffffff;" value="&lt;b&gt;Mesa&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;M3 · Salón y Mozos&lt;/font&gt;" vertex="1">
+          <mxGeometry height="208" width="300" x="2240" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-a28" parent="dom-Mesa" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="- id: int&lt;br&gt;- numero: int {&amp;gt;0, único por sector}&lt;br&gt;- capacidad: int {&amp;gt;0}&lt;br&gt;- estado: EstadoMesa = LIBRE" vertex="1">
+          <mxGeometry height="80" width="300" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-l29" parent="dom-Mesa" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;" value="" vertex="1">
+          <mxGeometry height="8" width="300" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-m30" parent="dom-Mesa" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="+ modificar(datos)&lt;br&gt;+ ocupar()&lt;br&gt;+ liberar()&lt;br&gt;+ ponerFueraDeServicio()" vertex="1">
+          <mxGeometry height="80" width="300" y="128" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-Sector" parent="1" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#fff2cc;strokeColor=#d6b656;swimlaneFillColor=#ffffff;" value="&lt;b&gt;Sector&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;M3 · Salón y Mozos&lt;/font&gt;" vertex="1">
+          <mxGeometry height="190" width="300" x="2240" y="680" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-a31" parent="dom-Sector" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="- id: int&lt;br&gt;- nombre: str {≤30, único}&lt;br&gt;- descripcion: str [0..1]&lt;br&gt;- estado: Estado = HABILITADO" vertex="1">
+          <mxGeometry height="80" width="300" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-l32" parent="dom-Sector" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;" value="" vertex="1">
+          <mxGeometry height="8" width="300" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-m33" parent="dom-Sector" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="+ modificar(datos)&lt;br&gt;+ deshabilitar()&lt;br&gt;+ eliminar() {sin mesas}" vertex="1">
+          <mxGeometry height="62" width="300" y="128" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-DetalleFactura" parent="1" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#f8cecc;strokeColor=#b85450;swimlaneFillColor=#ffffff;" value="&lt;b&gt;DetalleFactura&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;M6 · Pagos&lt;/font&gt;" vertex="1">
+          <mxGeometry height="138" width="320" x="940" y="900" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-a34" parent="dom-DetalleFactura" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="- cantidad: int {&amp;gt;0}&lt;br&gt;- precioUnitario: Decimal {copia al emitir}&lt;br&gt;- descuento: Decimal = 0 {copia al emitir}&lt;br&gt;- subtotal: Decimal {cantidad × precio − descuento}&lt;br&gt;{xor} producto o menuEjecutivo" vertex="1">
+          <mxGeometry height="98" width="320" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-Factura" parent="1" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#f8cecc;strokeColor=#b85450;swimlaneFillColor=#ffffff;" value="&lt;b&gt;Factura&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;M6 · Pagos&lt;/font&gt;" vertex="1">
+          <mxGeometry height="190" width="300" x="1360" y="900" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-a35" parent="dom-Factura" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="- id: int&lt;br&gt;- fechaEmision: datetime&lt;br&gt;- total: Decimal&lt;br&gt;- saldoPendiente: Decimal&lt;br&gt;- estado: EstadoFactura = ADEUDADA&lt;br&gt;{un cobro por medio de pago}" vertex="1">
+          <mxGeometry height="116" width="300" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-l36" parent="dom-Factura" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;" value="" vertex="1">
+          <mxGeometry height="8" width="300" y="156" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-m37" parent="dom-Factura" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="+ registrarCobro(monto, medio): Cobro" vertex="1">
+          <mxGeometry height="26" width="300" y="164" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-Cobro" parent="1" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#f8cecc;strokeColor=#b85450;swimlaneFillColor=#ffffff;" value="&lt;b&gt;Cobro&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;M6 · Pagos&lt;/font&gt;" vertex="1">
+          <mxGeometry height="154" width="320" x="1780" y="960" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-a38" parent="dom-Cobro" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="- id: int&lt;br&gt;- numeroComprobante: int {único}&lt;br&gt;- monto: Decimal {&amp;gt;0, ≤ saldoPendiente}&lt;br&gt;- fechaHora: datetime" vertex="1">
+          <mxGeometry height="80" width="320" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-l39" parent="dom-Cobro" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;" value="" vertex="1">
+          <mxGeometry height="8" width="320" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-m40" parent="dom-Cobro" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="+ verComprobante()" vertex="1">
+          <mxGeometry height="26" width="320" y="128" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-MedioPago" parent="1" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#f8cecc;strokeColor=#b85450;swimlaneFillColor=#ffffff;" value="&lt;b&gt;MedioPago&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;M6 · Pagos&lt;/font&gt;" vertex="1">
+          <mxGeometry height="244" width="300" x="2240" y="960" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-a41" parent="dom-MedioPago" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="- id: int&lt;br&gt;- nombre: str {3..50, único}&lt;br&gt;- tipo: TipoMedioPago&lt;br&gt;- descripcion: str [0..1] {≤200}&lt;br&gt;- estado: Estado = HABILITADO&lt;br&gt;- eliminado: bool = false {baja lógica}" vertex="1">
+          <mxGeometry height="116" width="300" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-l42" parent="dom-MedioPago" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;" value="" vertex="1">
+          <mxGeometry height="8" width="300" y="156" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-m43" parent="dom-MedioPago" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="+ modificar(datos)&lt;br&gt;+ deshabilitar()&lt;br&gt;+ habilitar()&lt;br&gt;+ eliminar()" vertex="1">
+          <mxGeometry height="80" width="300" y="164" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-enumEstado" parent="1" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;" value="&lt;b&gt;Estado&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;«enumeration»&lt;/font&gt;" vertex="1">
+          <mxGeometry height="84" width="220" x="40" y="1080" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-a44" parent="dom-enumEstado" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="  HABILITADO&lt;br&gt;  DESHABILITADO" vertex="1">
+          <mxGeometry height="44" width="220" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-enumCategoria" parent="1" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;" value="&lt;b&gt;Categoria&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;«enumeration»&lt;/font&gt;" vertex="1">
+          <mxGeometry height="120" width="220" x="290" y="1080" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-a45" parent="dom-enumCategoria" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="  PLATO&lt;br&gt;  POSTRE&lt;br&gt;  BEBIDA&lt;br&gt;  MENU_DEL_DIA" vertex="1">
+          <mxGeometry height="80" width="220" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-enumTipoPromocion" parent="1" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;" value="&lt;b&gt;TipoPromocion&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;«enumeration»&lt;/font&gt;" vertex="1">
+          <mxGeometry height="102" width="220" x="540" y="1080" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-a46" parent="dom-enumTipoPromocion" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="  PORCENTAJE&lt;br&gt;  PRECIO_FIJO&lt;br&gt;  NXM" vertex="1">
+          <mxGeometry height="62" width="220" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-enumDiaSemana" parent="1" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;" value="&lt;b&gt;DiaSemana&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;«enumeration»&lt;/font&gt;" vertex="1">
+          <mxGeometry height="174" width="220" x="790" y="1080" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-a47" parent="dom-enumDiaSemana" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="  LUNES&lt;br&gt;  MARTES&lt;br&gt;  MIERCOLES&lt;br&gt;  JUEVES&lt;br&gt;  VIERNES&lt;br&gt;  SABADO&lt;br&gt;  DOMINGO" vertex="1">
+          <mxGeometry height="134" width="220" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-enumTurno" parent="1" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;" value="&lt;b&gt;Turno&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;«enumeration»&lt;/font&gt;" vertex="1">
+          <mxGeometry height="84" width="220" x="1040" y="1080" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-a48" parent="dom-enumTurno" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="  ALMUERZO {12:00-16:00}&lt;br&gt;  NOCHE {20:00-00:00}" vertex="1">
+          <mxGeometry height="44" width="220" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-enumEstadoMesa" parent="1" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;" value="&lt;b&gt;EstadoMesa&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;«enumeration»&lt;/font&gt;" vertex="1">
+          <mxGeometry height="102" width="220" x="40" y="1310" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-a49" parent="dom-enumEstadoMesa" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="  LIBRE&lt;br&gt;  OCUPADA&lt;br&gt;  FUERA_DE_SERVICIO" vertex="1">
+          <mxGeometry height="62" width="220" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-enumEstadoComanda" parent="1" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;" value="&lt;b&gt;EstadoComanda&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;«enumeration»&lt;/font&gt;" vertex="1">
+          <mxGeometry height="102" width="220" x="290" y="1310" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-a50" parent="dom-enumEstadoComanda" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="  ABIERTA&lt;br&gt;  CERRADA&lt;br&gt;  ANULADA" vertex="1">
+          <mxGeometry height="62" width="220" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-enumEstadoEntrega" parent="1" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;" value="&lt;b&gt;EstadoEntrega&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;«enumeration»&lt;/font&gt;" vertex="1">
+          <mxGeometry height="84" width="220" x="540" y="1310" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-a51" parent="dom-enumEstadoEntrega" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="  PENDIENTE&lt;br&gt;  ENTREGADO" vertex="1">
+          <mxGeometry height="44" width="220" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-enumEstadoReserva" parent="1" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;" value="&lt;b&gt;EstadoReserva&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;«enumeration»&lt;/font&gt;" vertex="1">
+          <mxGeometry height="120" width="220" x="790" y="1310" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-a52" parent="dom-enumEstadoReserva" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="  ACTIVA&lt;br&gt;  ATENDIDA&lt;br&gt;  CANCELADA_ANTICIPADA&lt;br&gt;  CANCELADA_POR_AUSENCIA" vertex="1">
+          <mxGeometry height="80" width="220" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-enumEstadoFactura" parent="1" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;" value="&lt;b&gt;EstadoFactura&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;«enumeration»&lt;/font&gt;" vertex="1">
+          <mxGeometry height="84" width="220" x="1040" y="1310" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-a53" parent="dom-enumEstadoFactura" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="  ADEUDADA&lt;br&gt;  PAGADA" vertex="1">
+          <mxGeometry height="44" width="220" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-enumTipoMedioPago" parent="1" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;" value="&lt;b&gt;TipoMedioPago&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;«enumeration»&lt;/font&gt;" vertex="1">
+          <mxGeometry height="120" width="220" x="40" y="1540" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-a54" parent="dom-enumTipoMedioPago" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="  EFECTIVO&lt;br&gt;  TARJETA&lt;br&gt;  TRANSFERENCIA&lt;br&gt;  BILLETERA_VIRTUAL" vertex="1">
+          <mxGeometry height="80" width="220" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-legend" parent="1" style="shape=note;html=1;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;size=14;fillColor=#fffbe6;strokeColor=#b3a14a;fontSize=11;" value="&lt;b&gt;Leyenda&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#6c8ebf&quot;&gt;■&lt;/font&gt; M1 · Productos y Carta&lt;br&gt;&lt;font color=&quot;#82b366&quot;&gt;■&lt;/font&gt; M2 · Menús y Promociones&lt;br&gt;&lt;font color=&quot;#d6b656&quot;&gt;■&lt;/font&gt; M3 · Salón y Mozos&lt;br&gt;&lt;font color=&quot;#d79b00&quot;&gt;■&lt;/font&gt; M4 · Atención al Público&lt;br&gt;&lt;font color=&quot;#9673a6&quot;&gt;■&lt;/font&gt; M5 · Reservas&lt;br&gt;&lt;font color=&quot;#b85450&quot;&gt;■&lt;/font&gt; M6 · Pagos&lt;br&gt;&lt;br&gt;◆ composición · ⟶ punteada: dependencia&lt;br&gt;Las clases de reportes están en la página «Reportes»." vertex="1">
+          <mxGeometry height="230" width="340" x="1360" y="1340" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-e55" edge="1" parent="1" source="dom-Seccion" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;endArrow=none;" target="dom-Producto" value="agrupa">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-m56" connectable="0" parent="dom-e55" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="1" vertex="1">
+          <mxGeometry relative="1" x="-0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-m57" connectable="0" parent="dom-e55" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="0..*" vertex="1">
+          <mxGeometry relative="1" x="0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-e58" edge="1" parent="1" source="dom-Seccion" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;endArrow=none;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="dom-MenuEjecutivo" value="agrupa">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-m59" connectable="0" parent="dom-e58" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="1" vertex="1">
+          <mxGeometry relative="1" x="-0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-m60" connectable="0" parent="dom-e58" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="0..*" vertex="1">
+          <mxGeometry relative="1" x="0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-e61" edge="1" parent="1" source="dom-MenuEjecutivo" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;endArrow=none;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;" target="dom-Producto" value="incluye">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-m62" connectable="0" parent="dom-e61" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="0..*" vertex="1">
+          <mxGeometry relative="1" x="-0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-m63" connectable="0" parent="dom-e61" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="1..*" vertex="1">
+          <mxGeometry relative="1" x="0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-e64" edge="1" parent="1" source="dom-Promocion" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;endArrow=none;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="dom-Producto" value="aplica a">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-m65" connectable="0" parent="dom-e64" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="0..*" vertex="1">
+          <mxGeometry relative="1" x="-0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-m66" connectable="0" parent="dom-e64" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="1..*" vertex="1">
+          <mxGeometry relative="1" x="0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-e67" edge="1" parent="1" source="dom-DetalleComanda" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;endArrow=none;exitX=0;exitY=0.25;exitDx=0;exitDy=0;entryX=1;entryY=0.75;entryDx=0;entryDy=0;" target="dom-Producto" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-m68" connectable="0" parent="dom-e67" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="0..*" vertex="1">
+          <mxGeometry relative="1" x="-0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-m69" connectable="0" parent="dom-e67" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="0..1" vertex="1">
+          <mxGeometry relative="1" x="0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-e70" edge="1" parent="1" source="dom-DetalleComanda" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;endArrow=none;exitX=0;exitY=0.6;exitDx=0;exitDy=0;entryX=1;entryY=0.15;entryDx=0;entryDy=0;" target="dom-MenuEjecutivo" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-m71" connectable="0" parent="dom-e70" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="0..*" vertex="1">
+          <mxGeometry relative="1" x="-0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-m72" connectable="0" parent="dom-e70" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="0..1" vertex="1">
+          <mxGeometry relative="1" x="0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-e73" edge="1" parent="1" source="dom-DetalleComanda" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;endArrow=none;exitX=0;exitY=0.85;exitDx=0;exitDy=0;entryX=1;entryY=0.3;entryDx=0;entryDy=0;" target="dom-Promocion" value="aplica">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-m74" connectable="0" parent="dom-e73" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="0..*" vertex="1">
+          <mxGeometry relative="1" x="-0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-m75" connectable="0" parent="dom-e73" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="0..1" vertex="1">
+          <mxGeometry relative="1" x="0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-e76" edge="1" parent="1" source="dom-Comanda" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;startArrow=diamondThin;startFill=1;startSize=14;endArrow=none;exitX=0;exitY=0.3;exitDx=0;exitDy=0;entryX=1;entryY=0.3;entryDx=0;entryDy=0;" target="dom-DetalleComanda" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-m77" connectable="0" parent="dom-e76" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="1" vertex="1">
+          <mxGeometry relative="1" x="-0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-m78" connectable="0" parent="dom-e76" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="1..*" vertex="1">
+          <mxGeometry relative="1" x="0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-e79" edge="1" parent="1" source="dom-Mesa" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;endArrow=none;exitX=0;exitY=0.3;exitDx=0;exitDy=0;entryX=1;entryY=0.3;entryDx=0;entryDy=0;" target="dom-Comanda" value="se registra en">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-m80" connectable="0" parent="dom-e79" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="1" vertex="1">
+          <mxGeometry relative="1" x="-0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-m81" connectable="0" parent="dom-e79" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="0..*" vertex="1">
+          <mxGeometry relative="1" x="0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-e82" edge="1" parent="1" source="dom-Mozo" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;endArrow=none;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.8;entryDx=0;entryDy=0;" target="dom-Comanda" value="atiende">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-m83" connectable="0" parent="dom-e82" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="1" vertex="1">
+          <mxGeometry relative="1" x="-0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-m84" connectable="0" parent="dom-e82" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="0..*" vertex="1">
+          <mxGeometry relative="1" x="0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-e85" edge="1" parent="1" source="dom-Cliente" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;endArrow=none;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="dom-Reserva" value="realiza">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-m86" connectable="0" parent="dom-e85" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="1" vertex="1">
+          <mxGeometry relative="1" x="-0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-m87" connectable="0" parent="dom-e85" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="1..*" vertex="1">
+          <mxGeometry relative="1" x="0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-e88" edge="1" parent="1" source="dom-Mesa" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;endArrow=none;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="dom-Reserva" value="se asigna">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-m89" connectable="0" parent="dom-e88" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="1" vertex="1">
+          <mxGeometry relative="1" x="-0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-m90" connectable="0" parent="dom-e88" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="0..*" vertex="1">
+          <mxGeometry relative="1" x="0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-e91" edge="1" parent="1" source="dom-Reserva" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;endArrow=none;exitX=0.3;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.05;entryDx=0;entryDy=0;" target="dom-Comanda" value="genera">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-m92" connectable="0" parent="dom-e91" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="0..1" vertex="1">
+          <mxGeometry relative="1" x="-0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-m93" connectable="0" parent="dom-e91" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="0..1" vertex="1">
+          <mxGeometry relative="1" x="0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-e94" edge="1" parent="1" source="dom-Sector" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;endArrow=none;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="dom-Mesa" value="contiene">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-m95" connectable="0" parent="dom-e94" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="1" vertex="1">
+          <mxGeometry relative="1" x="-0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-m96" connectable="0" parent="dom-e94" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="0..*" vertex="1">
+          <mxGeometry relative="1" x="0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-e97" edge="1" parent="1" source="dom-Comanda" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;endArrow=none;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="dom-Factura" value="se factura en">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-m98" connectable="0" parent="dom-e97" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="1" vertex="1">
+          <mxGeometry relative="1" x="-0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-m99" connectable="0" parent="dom-e97" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="0..1" vertex="1">
+          <mxGeometry relative="1" x="0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-e100" edge="1" parent="1" source="dom-Factura" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;startArrow=diamondThin;startFill=1;startSize=14;endArrow=none;exitX=0;exitY=0.4;exitDx=0;exitDy=0;entryX=1;entryY=0.4;entryDx=0;entryDy=0;" target="dom-DetalleFactura" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-m101" connectable="0" parent="dom-e100" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="1" vertex="1">
+          <mxGeometry relative="1" x="-0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-m102" connectable="0" parent="dom-e100" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="1..*" vertex="1">
+          <mxGeometry relative="1" x="0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-e103" edge="1" parent="1" source="dom-DetalleFactura" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;endArrow=none;exitX=0.15;exitY=0;exitDx=0;exitDy=0;entryX=1;entryY=0.9;entryDx=0;entryDy=0;" target="dom-Producto" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="988" y="860" />
+              <mxPoint x="820" y="860" />
+              <mxPoint x="820" y="292" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-m104" connectable="0" parent="dom-e103" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="0..*" vertex="1">
+          <mxGeometry relative="1" x="-0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-m105" connectable="0" parent="dom-e103" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="0..1" vertex="1">
+          <mxGeometry relative="1" x="0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-e106" edge="1" parent="1" source="dom-DetalleFactura" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;endArrow=none;exitX=0;exitY=0.75;exitDx=0;exitDy=0;entryX=1;entryY=0.9;entryDx=0;entryDy=0;" target="dom-MenuEjecutivo" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="390" y="1004" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-m107" connectable="0" parent="dom-e106" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="0..*" vertex="1">
+          <mxGeometry relative="1" x="-0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-m108" connectable="0" parent="dom-e106" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="0..1" vertex="1">
+          <mxGeometry relative="1" x="0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-e109" edge="1" parent="1" source="dom-Factura" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;endArrow=none;exitX=1;exitY=0.6;exitDx=0;exitDy=0;entryX=0;entryY=0.3;entryDx=0;entryDy=0;" target="dom-Cobro" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-m110" connectable="0" parent="dom-e109" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="1" vertex="1">
+          <mxGeometry relative="1" x="-0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-m111" connectable="0" parent="dom-e109" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="1..*" vertex="1">
+          <mxGeometry relative="1" x="0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-e112" edge="1" parent="1" source="dom-Cobro" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;endArrow=none;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0;entryY=0.3;entryDx=0;entryDy=0;" target="dom-MedioPago" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-m113" connectable="0" parent="dom-e112" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="0..*" vertex="1">
+          <mxGeometry relative="1" x="-0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-m114" connectable="0" parent="dom-e112" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="1" vertex="1">
+          <mxGeometry relative="1" x="0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="Reportes" id="rep">
+    <mxGraphModel dx="1600" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="rep-Producto" value="&lt;b&gt;Producto&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;M1 · Productos y Carta&lt;/font&gt;" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#dae8fc;strokeColor=#6c8ebf;swimlaneFillColor=#ffffff;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="170" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-MenuEjecutivo" value="&lt;b&gt;MenuEjecutivo&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;M2 · Menús y Promociones&lt;/font&gt;" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#d5e8d4;strokeColor=#82b366;swimlaneFillColor=#ffffff;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="240" y="40" width="170" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-Promocion" value="&lt;b&gt;Promocion&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;M2 · Menús y Promociones&lt;/font&gt;" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#d5e8d4;strokeColor=#82b366;swimlaneFillColor=#ffffff;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="440" y="40" width="170" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-DetalleComanda" value="&lt;b&gt;DetalleComanda&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;M4 · Atención al Público&lt;/font&gt;" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#ffe6cc;strokeColor=#d79b00;swimlaneFillColor=#ffffff;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="640" y="40" width="170" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-Comanda" value="&lt;b&gt;Comanda&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;M4 · Atención al Público&lt;/font&gt;" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#ffe6cc;strokeColor=#d79b00;swimlaneFillColor=#ffffff;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="840" y="40" width="170" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-Mozo" value="&lt;b&gt;Mozo&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;M3 · Salón y Mozos&lt;/font&gt;" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#fff2cc;strokeColor=#d6b656;swimlaneFillColor=#ffffff;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1040" y="40" width="170" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-Mesa" value="&lt;b&gt;Mesa&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;M3 · Salón y Mozos&lt;/font&gt;" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#fff2cc;strokeColor=#d6b656;swimlaneFillColor=#ffffff;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1240" y="40" width="170" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-Reserva" value="&lt;b&gt;Reserva&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;M5 · Reservas&lt;/font&gt;" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#e1d5e7;strokeColor=#9673a6;swimlaneFillColor=#ffffff;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1440" y="40" width="170" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-Factura" value="&lt;b&gt;Factura&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;M6 · Pagos&lt;/font&gt;" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#f8cecc;strokeColor=#b85450;swimlaneFillColor=#ffffff;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1640" y="40" width="170" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-Cobro" value="&lt;b&gt;Cobro&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;M6 · Pagos&lt;/font&gt;" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#f8cecc;strokeColor=#b85450;swimlaneFillColor=#ffffff;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1840" y="40" width="170" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-MedioPago" value="&lt;b&gt;MedioPago&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;M6 · Pagos&lt;/font&gt;" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#f8cecc;strokeColor=#b85450;swimlaneFillColor=#ffffff;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="2040" y="40" width="170" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-rM1" value="&lt;b&gt;ReporteProductosMasVendidos&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;«servicio» · M1 · Productos y Carta&lt;/font&gt;" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry x="40" y="360" width="340" height="118" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-a1" value="- fechaDesde: date&lt;br&gt;- fechaHasta: date {≥ fechaDesde}" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" vertex="1" parent="rep-rM1">
+          <mxGeometry y="40" width="340" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-l2" value="" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;" vertex="1" parent="rep-rM1">
+          <mxGeometry y="84" width="340" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-m3" value="+ generar(): List[LineaReporteProductos]" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" vertex="1" parent="rep-rM1">
+          <mxGeometry y="92" width="340" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-rM1dto" value="&lt;b&gt;LineaReporteProductos&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;«DTO»&lt;/font&gt;" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry x="40" y="600" width="340" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-a4" value="- producto: Producto&lt;br&gt;- cantidadPedida: int&lt;br&gt;- diasMasPedidos: DiaSemana [1..*]&lt;br&gt;- franjasMasPedidas: int [1..*] {hora 0-23}" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" vertex="1" parent="rep-rM1dto">
+          <mxGeometry y="40" width="340" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-e5" value="devuelve" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;dashed=1;endArrow=open;endSize=10;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="rep-rM1" target="rep-rM1dto">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-e6" value="«lee»" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;dashed=1;endArrow=open;endSize=10;exitX=0.2;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="rep-rM1" target="rep-DetalleComanda">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-e7" value="" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;dashed=1;endArrow=open;endSize=10;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="rep-rM1" target="rep-Comanda">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-e8" value="" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;dashed=1;endArrow=open;endSize=10;exitX=0.8;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="rep-rM1" target="rep-Producto">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-rM2" value="&lt;b&gt;ReporteVentasMenusPromociones&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;«servicio» · M2 · Menús y Promociones&lt;/font&gt;" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry x="410" y="360" width="340" height="118" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-a9" value="- fechaDesde: date&lt;br&gt;- fechaHasta: date {≥ fechaDesde}" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" vertex="1" parent="rep-rM2">
+          <mxGeometry y="40" width="340" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-l10" value="" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;" vertex="1" parent="rep-rM2">
+          <mxGeometry y="84" width="340" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-m11" value="+ generar(): List[LineaReporteMenusPromociones]" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" vertex="1" parent="rep-rM2">
+          <mxGeometry y="92" width="340" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-rM2dto" value="&lt;b&gt;LineaReporteMenusPromociones&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;«DTO»&lt;/font&gt;" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry x="410" y="600" width="340" height="102" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-a12" value="- item: str&lt;br&gt;- cantidadVendida: int&lt;br&gt;- totalVendido: Decimal" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" vertex="1" parent="rep-rM2dto">
+          <mxGeometry y="40" width="340" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-e13" value="devuelve" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;dashed=1;endArrow=open;endSize=10;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="rep-rM2" target="rep-rM2dto">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-e14" value="«lee»" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;dashed=1;endArrow=open;endSize=10;exitX=0.2;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="rep-rM2" target="rep-DetalleComanda">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-e15" value="" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;dashed=1;endArrow=open;endSize=10;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="rep-rM2" target="rep-MenuEjecutivo">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-e16" value="" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;dashed=1;endArrow=open;endSize=10;exitX=0.8;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="rep-rM2" target="rep-Promocion">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-rM3" value="&lt;b&gt;ReporteMesasVentasPorMozo&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;«servicio» · M3 · Salón y Mozos&lt;/font&gt;" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry x="780" y="360" width="340" height="118" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-a17" value="- fechaDesde: date&lt;br&gt;- fechaHasta: date {≥ fechaDesde}" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" vertex="1" parent="rep-rM3">
+          <mxGeometry y="40" width="340" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-l18" value="" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;" vertex="1" parent="rep-rM3">
+          <mxGeometry y="84" width="340" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-m19" value="+ generar(): List[LineaReporteMozo]" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" vertex="1" parent="rep-rM3">
+          <mxGeometry y="92" width="340" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-rM3dto" value="&lt;b&gt;LineaReporteMozo&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;«DTO»&lt;/font&gt;" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry x="780" y="600" width="340" height="102" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-a20" value="- mozo: Mozo&lt;br&gt;- mesasAtendidas: int&lt;br&gt;- totalVentas: Decimal" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" vertex="1" parent="rep-rM3dto">
+          <mxGeometry y="40" width="340" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-e21" value="devuelve" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;dashed=1;endArrow=open;endSize=10;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="rep-rM3" target="rep-rM3dto">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-e22" value="«lee»" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;dashed=1;endArrow=open;endSize=10;exitX=0.2;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="rep-rM3" target="rep-Comanda">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-e23" value="" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;dashed=1;endArrow=open;endSize=10;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="rep-rM3" target="rep-Mozo">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-e24" value="" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;dashed=1;endArrow=open;endSize=10;exitX=0.8;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="rep-rM3" target="rep-Mesa">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-rM4" value="&lt;b&gt;ReporteComandasTicketPromedio&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;«servicio» · M4 · Atención al Público&lt;/font&gt;" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry x="1150" y="360" width="340" height="118" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-a25" value="- fechaDesde: date&lt;br&gt;- fechaHasta: date {≥ fechaDesde}" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" vertex="1" parent="rep-rM4">
+          <mxGeometry y="40" width="340" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-l26" value="" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;" vertex="1" parent="rep-rM4">
+          <mxGeometry y="84" width="340" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-m27" value="+ generar(): List[LineaReporteComandas]" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" vertex="1" parent="rep-rM4">
+          <mxGeometry y="92" width="340" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-rM4dto" value="&lt;b&gt;LineaReporteComandas&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;«DTO»&lt;/font&gt;" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry x="1150" y="600" width="340" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-a28" value="- fecha: date&lt;br&gt;- turno: Turno&lt;br&gt;- cantidadComandas: int&lt;br&gt;- ticketPromedio: Decimal" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" vertex="1" parent="rep-rM4dto">
+          <mxGeometry y="40" width="340" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-e29" value="devuelve" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;dashed=1;endArrow=open;endSize=10;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="rep-rM4" target="rep-rM4dto">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-e30" value="«lee»" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;dashed=1;endArrow=open;endSize=10;exitX=0.2;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="rep-rM4" target="rep-Comanda">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-rM5" value="&lt;b&gt;ReporteReservasAusentismo&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;«servicio» · M5 · Reservas&lt;/font&gt;" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry x="1520" y="360" width="340" height="118" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-a31" value="- fechaDesde: date&lt;br&gt;- fechaHasta: date {≥ fechaDesde}" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" vertex="1" parent="rep-rM5">
+          <mxGeometry y="40" width="340" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-l32" value="" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;" vertex="1" parent="rep-rM5">
+          <mxGeometry y="84" width="340" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-m33" value="+ generar(): ResumenReservas" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" vertex="1" parent="rep-rM5">
+          <mxGeometry y="92" width="340" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-rM5dto" value="&lt;b&gt;ResumenReservas&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;«DTO»&lt;/font&gt;" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry x="1520" y="600" width="340" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-a34" value="- totalReservas: int&lt;br&gt;- canceladasAnticipada: int&lt;br&gt;- canceladasPorAusencia: int&lt;br&gt;- porcentajeAusentismo: Decimal" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" vertex="1" parent="rep-rM5dto">
+          <mxGeometry y="40" width="340" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-e35" value="devuelve" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;dashed=1;endArrow=open;endSize=10;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="rep-rM5" target="rep-rM5dto">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-e36" value="«lee»" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;dashed=1;endArrow=open;endSize=10;exitX=0.2;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="rep-rM5" target="rep-Reserva">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-rM6" value="&lt;b&gt;ReporteRecaudacion&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;«servicio» · M6 · Pagos&lt;/font&gt;" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry x="1890" y="360" width="340" height="118" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-a37" value="- fechaDesde: date&lt;br&gt;- fechaHasta: date {≥ fechaDesde}" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" vertex="1" parent="rep-rM6">
+          <mxGeometry y="40" width="340" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-l38" value="" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;" vertex="1" parent="rep-rM6">
+          <mxGeometry y="84" width="340" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-m39" value="+ generar(): ResumenRecaudacion" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" vertex="1" parent="rep-rM6">
+          <mxGeometry y="92" width="340" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-rM6dto" value="&lt;b&gt;ResumenRecaudacion&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;«DTO»&lt;/font&gt;" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry x="1890" y="600" width="340" height="84" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-a40" value="- totalPorMedioPago: Map[MedioPago, Decimal]&lt;br&gt;- totalAdeudado: Decimal" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" vertex="1" parent="rep-rM6dto">
+          <mxGeometry y="40" width="340" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-e41" value="devuelve" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;dashed=1;endArrow=open;endSize=10;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="rep-rM6" target="rep-rM6dto">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-e42" value="«lee»" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;dashed=1;endArrow=open;endSize=10;exitX=0.2;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="rep-rM6" target="rep-Cobro">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-e43" value="" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;dashed=1;endArrow=open;endSize=10;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="rep-rM6" target="rep-MedioPago">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rep-e44" value="" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;dashed=1;endArrow=open;endSize=10;exitX=0.8;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="rep-rM6" target="rep-Factura">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
