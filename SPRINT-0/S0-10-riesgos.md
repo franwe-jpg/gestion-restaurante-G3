@@ -1,7 +1,7 @@
 # S0-10 · Análisis de riesgos y línea de corte
 
 **ISFPP 2026 · Sistema de Gestión de Restaurante · Grupo 3**\
-Sprint 0 · Consolida las tareas S0-M1c a S0-M6c · Detalle completo en la planilla `G3_Riesgos_Sprint0.xlsx` (Drive del equipo)
+Sprint 0 · Consolida las tareas S0-M1c a S0-M6c · Detalle completo en la planilla `G3_Riesgos.xlsx` (raíz del repositorio)
 
 ## 1. Método y escala
 
