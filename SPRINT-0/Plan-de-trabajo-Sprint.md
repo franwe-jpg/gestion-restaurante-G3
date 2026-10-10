@@ -198,7 +198,7 @@ El ID de la tarea aparece en el nombre de la rama y en el PR, así cada cambio s
 | --- | --- |
 | HU, tareas, responsables y estado | Issues del GitHub Project. Desde la carga inicial se editan ahí y no en la planilla. |
 | Riesgos | Planilla `G3_Riesgos.xlsx`, en la raíz del repositorio, e informe `SPRINT-0/S0-10-riesgos.md`. |
-| Roadmap y tareas de cada sprint | Planilla `G3_gestion.xlsx`, en la raíz del repositorio (una hoja por sprint). |
+| Roadmap y tareas de cada sprint | Planilla `G3_Backlog.xlsx`, en la raíz del repositorio (una hoja por sprint). |
 | Alcance, fechas y reglas del sprint | Este plan y `SPRINT-0/AGENTS.md`. |
 
 El script `SPRINT-0/cargar_github.py` hizo la carga inicial de issues y no se vuelve a correr, porque duplica los issues.
@@ -218,7 +218,7 @@ En todas las etapas se mantiene la división por módulos: en el Sprint 1 cada u
 
 ### Tareas del Sprint 1
 
-Las 16 tareas del Sprint 1 están cargadas en el tablero y en la hoja «Sprint 1» de `G3_gestion.xlsx`. Una tarea depende de otra solo cuando no se puede hacer sin que la otra esté terminada.
+Las 16 tareas del Sprint 1 están cargadas en el tablero y en la hoja «Sprint 1» de `G3_Backlog.xlsx`. Una tarea depende de otra solo cuando no se puede hacer sin que la otra esté terminada.
 
 | ID | Tarea | Responsable | Depende de | Semana |
 | --- | --- | --- | --- | --- |
