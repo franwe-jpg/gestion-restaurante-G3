@@ -1,0 +1,1 @@
+"""pagos: tablas del modulo."""
