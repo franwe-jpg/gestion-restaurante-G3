@@ -1,6 +1,6 @@
 # Frontend · Sistema de Gestión de Restaurante
 
-Aplicación React con TypeScript, Vite, Tailwind CSS y componentes reutilizables al estilo shadcn/ui. La estructura está definida en `SPRINT-0/S0-05-arquitectura.md` (secciones 2.1 y 4.1). Los estándares de estilo se documentarán en `SPRINT-1/S1-02-estandares-frontend.md`.
+Aplicación React con TypeScript, Vite, Tailwind CSS y componentes reutilizables al estilo shadcn/ui. La estructura está definida en `SPRINT-0/S0-05-arquitectura.md` (secciones 2.1 y 4.1). Los estándares de estilo están en `SPRINT-1/S1-02-estandares-frontend.md`.
 
 Todos los comandos se ejecutan desde la carpeta `frontend/`. Requiere Node.js 22.12 o más nuevo.
 
