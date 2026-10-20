@@ -38,6 +38,9 @@ Para ver el estado `ok` tiene que estar corriendo el backend (`GET /api/v1/salud
 | `/pagos`       | M6 · Pagos (placeholder)                                                         |
 | `/componentes` | Guía visual completa: formularios, feedback, tablas, reportes, overlays y layout |
 | `/salud`       | Estado del backend                                                               |
+| `/403`         | Acceso denegado                                                                  |
+| `/500`         | Error interno del servidor                                                       |
+| `/503`         | Servicio no disponible                                                           |
 
 ## Lint y formato
 

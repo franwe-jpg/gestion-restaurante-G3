@@ -1111,15 +1111,24 @@ export function ComponentesPage() {
 
       <Seccion
         titulo="Páginas de error"
-        descripcion="Ruta 404 reutilizable y límite de errores por módulo."
+        descripcion="Rutas reutilizables para 403, 404, 500 y 503, más el límite de errores por módulo."
       >
         <Card>
-          <CardContent className="flex flex-wrap items-center gap-3 pt-6">
+          <CardContent className="flex flex-wrap items-center gap-4 pt-6">
             <Link
               to="/ruta-inexistente"
               className="text-sm font-medium text-amber-800 hover:underline"
             >
               Ver página 404
+            </Link>
+            <Link to="/403" className="text-sm font-medium text-amber-800 hover:underline">
+              Ver página 403
+            </Link>
+            <Link to="/500" className="text-sm font-medium text-amber-800 hover:underline">
+              Ver página 500
+            </Link>
+            <Link to="/503" className="text-sm font-medium text-amber-800 hover:underline">
+              Ver página 503
             </Link>
             <span className="text-sm text-slate-500">
               El ErrorBoundary envuelve el contenido de cada módulo.

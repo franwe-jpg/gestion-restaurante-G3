@@ -4,9 +4,12 @@ import { Route, Routes } from 'react-router-dom';
 import { ComponentesPage } from './shared/components/ComponentesPage';
 import { AppProviders } from './shared/components/AppProviders';
 import { EstadoBackend } from './shared/components/EstadoBackend';
+import { ForbiddenPage } from './shared/components/ForbiddenPage';
 import { Inicio } from './shared/components/Inicio';
 import { AppShell } from './shared/components/layout/AppShell';
 import { NotFoundPage } from './shared/components/NotFoundPage';
+import { ServerErrorPage } from './shared/components/ServerErrorPage';
+import { ServiceUnavailablePage } from './shared/components/ServiceUnavailablePage';
 
 const ProductosPage = lazy(() =>
   import('./modules/productos/pages/ProductosPage').then((modulo) => ({
@@ -58,6 +61,9 @@ export default function App() {
           <Route path="pagos" element={<PagosPage />} />
           <Route path="componentes" element={<ComponentesPage />} />
           <Route path="salud" element={<EstadoBackend />} />
+          <Route path="403" element={<ForbiddenPage />} />
+          <Route path="500" element={<ServerErrorPage />} />
+          <Route path="503" element={<ServiceUnavailablePage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>
