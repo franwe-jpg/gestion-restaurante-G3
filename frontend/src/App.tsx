@@ -1,0 +1,66 @@
+import { lazy } from 'react';
+import { Route, Routes } from 'react-router-dom';
+
+import { ComponentesPage } from './shared/components/ComponentesPage';
+import { AppProviders } from './shared/components/AppProviders';
+import { EstadoBackend } from './shared/components/EstadoBackend';
+import { Inicio } from './shared/components/Inicio';
+import { AppShell } from './shared/components/layout/AppShell';
+import { NotFoundPage } from './shared/components/NotFoundPage';
+
+const ProductosPage = lazy(() =>
+  import('./modules/productos/pages/ProductosPage').then((modulo) => ({
+    default: modulo.ProductosPage,
+  })),
+);
+
+const MenusPage = lazy(() =>
+  import('./modules/menus/pages/MenusPage').then((modulo) => ({
+    default: modulo.MenusPage,
+  })),
+);
+
+const SalonPage = lazy(() =>
+  import('./modules/salon/pages/SalonPage').then((modulo) => ({
+    default: modulo.SalonPage,
+  })),
+);
+
+const AtencionPage = lazy(() =>
+  import('./modules/atencion/pages/AtencionPage').then((modulo) => ({
+    default: modulo.AtencionPage,
+  })),
+);
+
+const ReservasPage = lazy(() =>
+  import('./modules/reservas/pages/ReservasPage').then((modulo) => ({
+    default: modulo.ReservasPage,
+  })),
+);
+
+const PagosPage = lazy(() =>
+  import('./modules/pagos/pages/PagosPage').then((modulo) => ({
+    default: modulo.PagosPage,
+  })),
+);
+
+export default function App() {
+  return (
+    <AppProviders>
+      <Routes>
+        <Route path="/" element={<AppShell />}>
+          <Route index element={<Inicio />} />
+          <Route path="productos" element={<ProductosPage />} />
+          <Route path="menus" element={<MenusPage />} />
+          <Route path="salon" element={<SalonPage />} />
+          <Route path="atencion" element={<AtencionPage />} />
+          <Route path="reservas" element={<ReservasPage />} />
+          <Route path="pagos" element={<PagosPage />} />
+          <Route path="componentes" element={<ComponentesPage />} />
+          <Route path="salud" element={<EstadoBackend />} />
+          <Route path="*" element={<NotFoundPage />} />
+        </Route>
+      </Routes>
+    </AppProviders>
+  );
+}
