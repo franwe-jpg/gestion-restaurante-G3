@@ -44,7 +44,7 @@ Un módulo solo puede llamar al `service` de otro, nunca a su `router`, `reposit
 ```python
 # Bien: el router solo delega
 @router.get("/{mesa_id}", response_model=MesaSalida)
-def obtener_mesa(mesa_id: int, db: Session = Depends(get_db)) -> Mesa:
+def obtener_mesa(mesa_id: int, db: Session = Depends(get_db)) -> MesaSalida:
     return service.obtener_mesa(db, mesa_id)
 ```
 
@@ -101,7 +101,7 @@ class MesaCrear(BaseModel):
     capacidad: int = Field(gt=0, le=20)
 
 @router.post("", response_model=MesaSalida, status_code=201)
-def crear_mesa(datos: MesaCrear, db: Session = Depends(get_db)) -> Mesa:
+def crear_mesa(datos: MesaCrear, db: Session = Depends(get_db)) -> MesaSalida:
     return service.crear_mesa(db, datos)
 ```
 
@@ -116,7 +116,7 @@ def crear_mesa(datos: dict, db=Depends(get_db)):
 
 - Los errores de negocio se lanzan con las excepciones de `shared/excepciones.py`. Un manejador global las convierte en respuesta.
 - Formato de la respuesta: `{"detalle": "mensaje"}`, sin trazas, rutas ni SQL (D-26, RNF-SEG-09).
-- Códigos (D-25): `404` no existe (`NoEncontradoError`), `409` choca con una regla de negocio (`ReglaDeNegocioError`), `422` datos inválidos (lo devuelve Pydantic).
+- Códigos (D-25): `404` no existe (`NoEncontradoError`), `409` choca con una regla de negocio (`ReglaDeNegocioError`), `422` datos inválidos (lo detecta Pydantic y un manejador global lo devuelve con el mismo formato).
 
 ```python
 # Bien: el service no conoce HTTP
