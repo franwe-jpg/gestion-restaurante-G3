@@ -1,0 +1,35 @@
+# Tablero (S1-10): al integrar un PR en develop, mueve la tarjeta de su tarea a «En Testing».
+# El detalle está en SPRINT-1/S1-10-gitflow-ci.md, sección 2.
+name: Tablero
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [develop]
+
+permissions:
+  contents: read
+
+jobs:
+  mover-tarjeta:
+    name: mover-tarjeta
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Descargar el script
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+          sparse-checkout: .github/scripts
+
+      - name: Mover la tarjeta a «En Testing»
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          REPO: ${{ github.repository }}
+          PROJECT_OWNER: ${{ github.repository_owner }}
+          PROJECT_NUMBER: "2"
+          STATUS_NAME: En Testing
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: bash .github/scripts/mover-tarjeta.sh
