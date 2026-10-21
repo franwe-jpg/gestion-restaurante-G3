@@ -7,6 +7,8 @@ from alembic import command
 from app.config import get_settings
 from app.database import crear_motor
 
+ALEMBIC_INI = Path(__file__).resolve().parents[1] / "alembic.ini"
+
 
 def test_sqlite_usa_wal_busy_timeout_y_claves_foraneas(tmp_path: Path) -> None:
     motor = crear_motor(f"sqlite:///{tmp_path / 'prueba.db'}")
@@ -27,7 +29,7 @@ def test_migraciones_crean_la_base_desde_cero(tmp_path: Path, monkeypatch) -> No
     monkeypatch.setenv("DATABASE_URL", url)
     get_settings.cache_clear()
 
-    command.upgrade(Config("alembic.ini"), "head")
+    command.upgrade(Config(str(ALEMBIC_INI)), "head")
 
     motor = crear_motor(url)
     tablas = inspect(motor).get_table_names()
