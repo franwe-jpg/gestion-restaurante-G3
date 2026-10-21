@@ -1,0 +1,45 @@
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["."]
+extend-exclude = ["alembic/versions"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",   # estilo PEP 8
+    "F",        # errores (imports sin usar, nombres no definidos)
+    "I",        # orden de imports
+    "N",        # nombres
+    "UP",       # sintaxis moderna de Python
+    "B",        # errores comunes
+    "C90",      # complejidad ciclomatica
+    "ANN",      # type hints
+    "S",        # seguridad (incluye SQL armado con texto)
+    "SIM",      # simplificaciones
+    "PLR0915",  # maximo de sentencias por funcion
+]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.pylint]
+max-statements = 50
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI usa Depends() y Query() como valores por defecto
+extend-immutable-calls = [
+    "fastapi.Depends", "fastapi.Query", "fastapi.Path", "fastapi.Body",
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "ANN"]   # assert y funciones de prueba sin tipos de retorno
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=app --cov-report=term-missing --cov-fail-under=70"
+
+[tool.coverage.run]
+source = ["app"]

@@ -1,0 +1,1 @@
+"""salon: acceso a datos."""
