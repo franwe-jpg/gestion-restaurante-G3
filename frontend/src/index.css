@@ -1,0 +1,91 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-display:
+    'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Marca del sistema */
+  --color-brand: #b45309;
+  --color-brand-hover: #92400e;
+  --color-brand-subtle: #fffbeb;
+  --color-brand-border: #fde68a;
+  --color-brand-foreground: #ffffff;
+
+  /* Paleta semántica del sistema: primary es un alias de la marca */
+  --color-primary: #b45309;
+  --color-primary-hover: #92400e;
+  --color-primary-subtle: #fffbeb;
+  --color-primary-border: #fde68a;
+  --color-primary-strong: #78350f;
+  --color-primary-foreground: #ffffff;
+
+  --color-secondary: #475569;
+  --color-secondary-hover: #334155;
+  --color-secondary-subtle: #f1f5f9;
+  --color-secondary-border: #e2e8f0;
+  --color-secondary-strong: #1e293b;
+  --color-secondary-foreground: #ffffff;
+
+  --color-success: #047857;
+  --color-success-hover: #065f46;
+  --color-success-subtle: #ecfdf5;
+  --color-success-border: #a7f3d0;
+  --color-success-strong: #064e3b;
+  --color-success-foreground: #ffffff;
+
+  --color-danger: #be123c;
+  --color-danger-hover: #9f1239;
+  --color-danger-subtle: #fff1f2;
+  --color-danger-border: #fecdd3;
+  --color-danger-strong: #881337;
+  --color-danger-foreground: #ffffff;
+
+  --color-warning: #f59e0b;
+  --color-warning-hover: #d97706;
+  --color-warning-subtle: #fffbeb;
+  --color-warning-border: #fde68a;
+  --color-warning-strong: #78350f;
+  --color-warning-foreground: #000000;
+
+  --color-info: #0369a1;
+  --color-info-hover: #075985;
+  --color-info-subtle: #f0f9ff;
+  --color-info-border: #bae6fd;
+  --color-info-strong: #0c4a6e;
+  --color-info-foreground: #ffffff;
+
+  --color-light: #f8fafc;
+  --color-light-hover: #f1f5f9;
+  --color-light-subtle: #f8fafc;
+  --color-light-border: #e2e8f0;
+  --color-light-strong: #475569;
+  --color-light-foreground: #000000;
+
+  --color-dark: #0f172a;
+  --color-dark-hover: #020617;
+  --color-dark-subtle: #e2e8f0;
+  --color-dark-border: #cbd5e1;
+  --color-dark-strong: #0f172a;
+  --color-dark-foreground: #ffffff;
+}
+
+/* Custom scrollbars for clean dashboards */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.4);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.6);
+}
