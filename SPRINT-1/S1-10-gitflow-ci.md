@@ -45,27 +45,15 @@ Regla propuesta por este documento: si se encuentra un error en `main` que no pu
 
 ### 2.1 Tablero
 
-| Estado | Cuándo | Quién lo mueve |
+Cada integrante mueve sus tarjetas a mano:
+
+| Estado | Cuándo | Quién la mueve |
 | --- | --- | --- |
-| «In Progress» | Al empezar la tarea. | El responsable, a mano. |
-| «En Testing» | Cuando el PR se integra en `develop`. | El workflow `.github/workflows/tablero.yml`, solo. |
-| «Done» | Cuando el cambio llega a `main` en el cierre del gateway. | GitHub, al cerrar el issue (workflow «Item closed» del tablero). |
-
-El workflow `tablero.yml` corre cuando se integra un PR hacia `develop` y busca la tarjeta de dos formas:
-
-1. Por el ID de la tarea en la rama: `feature/S1-10-gitflow-ci` mueve el issue cuyo título empieza con `S1-10 `.
-2. Por los issues citados en la descripción del PR con `Closes`, `Fixes`, `Resolves` o `Refs` (por ejemplo, `Refs #128 #129`). Una mención suelta, como `Depende de #101`, no mueve nada.
-
-Si no encuentra ningún issue, o el issue no está en el tablero, deja un aviso en la ejecución y no falla. El script está en `.github/scripts/mover-tarjeta.sh` y se puede probar en local sin modificar el tablero con `DRY_RUN=1` (las variables que usa están al principio del script).
+| «In Progress» | Al empezar la tarea. | El responsable. |
+| «En Testing» | Cuando su PR se integra en `develop`. | El autor del PR. |
+| «Done» | Cuando el cambio llega a `main` en el cierre del gateway. | El autor del PR. |
 
 Como `main` es la rama por defecto del repositorio, GitHub cierra el issue mencionado con `Closes #<número>` recién cuando el cambio llega a `main`. Si el PR no usó `Closes`, el issue se cierra a mano después del gateway.
-
-**Token del tablero.** El `GITHUB_TOKEN` de Actions no puede modificar un Project de usuario, así que el workflow usa el secreto `PROJECT_TOKEN`. Lo configura el dueño del repositorio una sola vez:
-
-1. En GitHub, Settings → Developer settings → Personal access tokens → Tokens (classic), crear un token con los scopes `project` y `public_repo`, con vencimiento posterior a la entrega.
-2. En el repositorio, Settings → Secrets and variables → Actions → New repository secret, nombre `PROJECT_TOKEN` y como valor el token.
-
-Sin el secreto, el workflow falla con un mensaje que apunta a esta sección; la CI no se ve afectada.
 
 ## 3. Integración continua
 
