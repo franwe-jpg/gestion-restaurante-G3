@@ -71,7 +71,7 @@ El equipo trabaja con Spec Driven Development (SDD) asistido por agentes de IA: 
 
 - Cada integrante usa un agente que lea el repositorio, integrado en el editor o en la terminal: OpenCode (gratuito), Freebuff o Claude Code, entre otros.
 - Como no todos usamos la misma herramienta, las reglas viven en un único `AGENTS.md`, que la mayoría de los agentes reconoce. `CLAUDE.md` solo remite a `AGENTS.md` y agrega lo específico de Claude Code.
-- Durante el Sprint 0 rigen las reglas temporales de `SPRINT-0/AGENTS.md`. El `AGENTS.md` definitivo, en la raíz del repositorio, se escribe en S1-04 e incluye los estándares, el formato de las specs y la estructura de carpetas.
+- Durante el Sprint 0 rigieron reglas temporales para los agentes. En S1-04 se reemplazaron por el `AGENTS.md` definitivo, en la raíz del repositorio, que incluye los estándares, el formato de las specs y la estructura de carpetas.
 - Todo lo que genera un agente es un borrador. Lo que se entrega a la cátedra es responsabilidad del equipo: una persona lo revisa y lo aprueba antes de integrarlo.
 
 ### Uso de IA en este sprint
@@ -199,7 +199,7 @@ El ID de la tarea aparece en el nombre de la rama y en el PR, así cada cambio s
 | HU, tareas, responsables y estado | Issues del GitHub Project. Desde la carga inicial se editan ahí y no en la planilla. |
 | Riesgos | Planilla `G3_Riesgos.xlsx`, en la raíz del repositorio, e informe `SPRINT-0/S0-10-riesgos.md`. |
 | Roadmap y tareas de cada sprint | Planilla `G3_Backlog.xlsx`, en la raíz del repositorio (una hoja por sprint). |
-| Alcance, fechas y reglas del sprint | Este plan y `SPRINT-0/AGENTS.md`. |
+| Alcance, fechas y reglas del sprint | Este plan y `AGENTS.md`, en la raíz del repositorio. |
 
 El script `SPRINT-0/cargar_github.py` hizo la carga inicial de issues y no se vuelve a correr, porque duplica los issues.
 
