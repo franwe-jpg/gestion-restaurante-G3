@@ -27,7 +27,10 @@ Para comprobar que funciona: abrir http://127.0.0.1:8000/api/v1/salud (responde 
 ```bash
 ruff check .
 ruff format --check .
+lint-imports
 ```
+
+`lint-imports` verifica las reglas de dependencia entre capas y módulos definidas en `pyproject.toml` (D-04): un módulo solo puede importar el `service` de otro.
 
 Para corregir automáticamente: `ruff check --fix .` y `ruff format .`.
 
