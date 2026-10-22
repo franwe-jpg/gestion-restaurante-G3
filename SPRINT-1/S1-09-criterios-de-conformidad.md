@@ -7,7 +7,7 @@ Un criterio de conformidad es una pregunta de sí o no que comprueba que un docu
 
 ## 1. Historias de usuario
 
-Fuente: `SPRINT-0/AGENTS.md`, sección «Historias de usuario». Se responde para cada HU.
+Fuente: `AGENTS.md`, sección «Historias de usuario». Se responde para cada HU.
 
 | # | Pregunta | Sí | No |
 | --- | --- | --- | --- |
@@ -20,7 +20,7 @@ Fuente: `SPRINT-0/AGENTS.md`, sección «Historias de usuario». Se responde par
 
 ## 2. Diagrama de clases
 
-Fuentes: `SPRINT-0/AGENTS.md`, sección «Diagrama de clases», y el issue #145. Se responde sobre el diagrama unificado.
+Fuente: el issue #145. Se responde sobre el diagrama unificado.
 
 | # | Pregunta | Sí | No |
 | --- | --- | --- | --- |
