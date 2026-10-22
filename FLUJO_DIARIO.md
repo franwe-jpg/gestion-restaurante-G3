@@ -18,10 +18,19 @@ Todo desde la raíz del repositorio.
 4. Frontend (terminal 2):       cd frontend; npm run dev
 5. Abrir http://localhost:5173
 
+## Con Docker (opcional)
 
+Levanta backend y frontend con un solo comando, sin instalar Python ni Node. Requiere Docker: Docker Desktop en Windows y macOS; en Linux o WSL, Docker Engine con tu usuario en el grupo `docker`.
 
+1. Levantar:      docker compose up --build
+2. Abrir http://localhost:5173 (frontend) y http://localhost:8000/docs (API)
+3. Detener:      Ctrl+C, o `docker compose down` si lo levantaste con `-d`
 
+- El backend aplica `alembic upgrade head` al arrancar. La base queda en un volumen de Docker: `docker compose down -v` la borra.
+- Los cambios en el código se recargan solos, sin reconstruir.
+### Me trabé con...
 
+- **`permission denied ... /var/run/docker.sock`** (Linux o WSL): tu usuario no está en el grupo `docker`. Corré `sudo usermod -aG docker $USER` y reiniciá la sesión. En WSL, ejecutá `wsl --shutdown` desde PowerShell de Windows (no desde Ubuntu) y abrí la terminal de nuevo. Verificá con `docker ps`.
 
 ## Primera vez
 
