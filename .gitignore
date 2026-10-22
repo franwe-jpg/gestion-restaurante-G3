@@ -24,3 +24,6 @@ SPRINT-0/*.docx
 # Copyrighted textbooks: shared through the team's Drive, not the public repo
 material-catedra/Ingeniería de Software - Ian Sommerville - 7º edición.pdf
 material-catedra/Ingenieria del Software - Roger Pressman - 7º edición.pdf
+
+# Registro de skills de Gentle AI: es propio de cada compu (rutas absolutas) y se regenera solo
+.atl/
