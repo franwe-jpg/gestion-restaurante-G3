@@ -233,3 +233,41 @@ Las 16 tareas del Sprint 1 están cargadas en el tablero y en la hoja «Sprint 1
 | S1-08 | Estimación de Puntos de Función del proyecto | Juan Ignacio Riquelme | S1-M1 a S1-M6 | 2 |
 | S1-09 | Criterios de conformidad | Federico Cabaña | S1-02, S1-03 | 2 |
 | S1-10 | GitFlow y CI | Franco Martín Soler | S1-05, S1-06 | 2 |
+
+### Tareas del Sprint 2
+
+Las 9 tareas del Sprint 2 (22/10 – 28/10) están en la hoja «Sprint 2» de `G3_Backlog.xlsx`. Es el primer sprint de implementación: cada módulo construye sus entidades base y su ABM, con pruebas. Las HU de cada módulo y los tiempos son un supuesto que valida cada responsable en la daily.
+
+| ID | Tarea | Responsable | Depende de | Semana |
+| --- | --- | --- | --- | --- |
+| S2-01 | Congelar el contrato de Comanda | Juan Ignacio Riquelme | — | 1 |
+| S2-02 | Confirmar con los docentes los supuestos y la fecha de entrega | Franco Martín Soler | — | 1 |
+| S2-03 | Review del Sprint 2 y revisión de riesgos (28/10) | Todo el equipo | S2-M1 a S2-M6 | 1 |
+| S2-M1 | Entidades base y ABM de productos y carta | Franco Martín Soler | — | 1 |
+| S2-M2 | Entidades base y ABM de menús | Joaquín Cardoso Díaz | S2-M1 | 1 |
+| S2-M3 | Entidades base y ABM del salón | Giuliano Giannoncelli | — | 1 |
+| S2-M4 | Entidades base y comanda | Juan Ignacio Riquelme | S2-01, S2-M1, S2-M3 | 1 |
+| S2-M5 | Entidad base y ABM de reservas | Federico Cabaña | S2-M3, S2-M4 | 1 |
+| S2-M6 | Entidades base y ABM de medios de pago | Héctor Sánchez | — | 1 |
+
+Reparto de las HU (44 en total). Las promociones, las cancelaciones, la factura y el cobro, y el resto de la comanda son flujos y quedan para el Sprint 3; los reportes, para el Sprint 4.
+
+| Módulo | HU del Sprint 2 | Cantidad |
+| --- | --- | --- |
+| M1 Productos y Carta | HU-M1-01 a HU-M1-13 | 13 |
+| M2 Menús y Promociones | HU-M2-01 a HU-M2-06 | 6 |
+| M3 Salón y Mozos | HU-M3-01 a HU-M3-12 | 12 |
+| M4 Atención al Público | HU-M4-01 a HU-M4-03, HU-M4-04, HU-M4-07, HU-M4-09 | 6 |
+| M5 Reservas | HU-M5-01 a HU-M5-03 | 3 |
+| M6 Pagos | HU-M6-04 a HU-M6-07 | 4 |
+
+### Camino crítico del Sprint 2
+
+Las dependencias salen de los datos de las HU: un Menú se arma con productos y una sección de la carta (M1), una Comanda se crea sobre una Mesa (M3) y una Reserva necesita un Cliente (M4) y una Mesa (M3). Por eso M1 y M3 son la base del sprint y deben dejar primero la sección y el producto (HU-M1-10, HU-M1-01, 04 y 07) y el sector y la mesa (HU-M3-01 y HU-M3-05). M4 deja el contrato de Comanda (S2-01) y el cliente (HU-M4-01), y M5 y M6 usan el stub hasta que Comanda esté lista. M1 y M3 tienen más HU que el resto (13 y 12), así que M5 y M6 revisan primero sus pull requests (riesgo R02). Si el 26/10 un módulo viene atrasado, se prioriza Crear y Listar sobre Modificar y Dar de baja (riesgo R01).
+
+### Criterios de cierre del Sprint 2 (28/10, sin gateway)
+
+- [ ] El ABM de cada módulo está en `develop`, con sus pruebas y la CI en verde. Como mínimo, crear y listar.
+- [ ] Comanda permite crear, listar y cerrar, y su contrato está publicado (riesgo R04).
+- [ ] Los supuestos y la fecha de entrega están confirmados con los docentes, o está anotado qué falta (riesgos R06 y R20).
+- [ ] Informe del Sprint 2 con burndown.
