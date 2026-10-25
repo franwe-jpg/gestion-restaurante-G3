@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reservas</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="estilos.css">
+<style>
+/* Rules for this page only. A rule with the same selector as in estilos.css overrides it here. */
+.ib.bx{border:1px solid #e2e8f0;background:#ffffff}
+.tbl{width:100%;border-collapse:collapse;font-size:14px;min-width:680px}
+.tbl td{padding:10px 16px;border-bottom:1px solid #f1f5f9;color:#1e293b;vertical-align:middle}
+.cli{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 12px;border:1px solid #fcd34d;background:#fffbeb;border-radius:8px;font-size:14px}
+</style>
+</head>
+<body>
+<div style="min-height: 100vh; display: flex; flex-wrap: wrap; align-items: stretch; background: #f8fafc">
+<aside aria-label="Navegación principal" style="flex: 1 1 240px; min-width: 0; background: #ffffff; border-right: 1px solid #e2e8f0; display: flex; flex-direction: column; justify-content: space-between">
+<div>
+<a href="index.html" style="display: flex; align-items: center; gap: 10px; height: 64px; padding: 0 16px; text-decoration: none; color: #0f172a">
+<span style="width: 36px; height: 36px; border-radius: 8px; background: #b45309; color: #ffffff; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21a1 1 0 0 0 1-1v-5.35c0-.457.316-.844.727-1.041a4 4 0 0 0-2.134-7.589 5 5 0 0 0-9.186 0 4 4 0 0 0-2.134 7.588c.411.198.727.585.727 1.041V20a1 1 0 0 0 1 1Z"></path><path d="M6 17h12"></path></svg></span>
+<span class="h" style="font-size: 16px; font-weight: 700">GastroAdmin</span>
+</a>
+<nav aria-label="Módulos del restaurante" style="display: flex; flex-direction: column; gap: 4px; padding: 8px; border-top: 1px solid #e2e8f0">
+<a class="nav" href="index.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="9" x="3" y="3" rx="1"></rect><rect width="7" height="5" x="14" y="3" rx="1"></rect><rect width="7" height="9" x="14" y="12" rx="1"></rect><rect width="7" height="5" x="3" y="16" rx="1"></rect></svg>Inicio</a>
+<a class="nav" href="productos.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"></path><path d="M7 2v20"></path><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"></path></svg>Productos y Carta</a>
+<a class="nav" href="menus.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>Menús y Promociones</a>
+<a class="nav" href="salon.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>Salón y Mozos</a>
+<a class="nav" href="comandas.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M12 11h4"></path><path d="M12 16h4"></path><path d="M8 11h.01"></path><path d="M8 16h.01"></path></svg>Atención al Público</a>
+<a class="nav on" href="reservas.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M16 2v4"></path><path d="M8 2v4"></path><path d="M3 10h18"></path></svg>Reservas</a>
+<a class="nav" href="pagos.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="14" x="2" y="5" rx="2"></rect><path d="M2 10h20"></path></svg>Pagos</a>
+</nav>
+</div>
+<div style="padding: 12px 16px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #64748b">Turno Noche · 24/10/2026</div>
+</aside>
+<div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+<header style="min-height: 64px; background: #ffffff; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 8px 24px">
+<nav aria-label="Ruta" style="display: flex; gap: 8px; align-items: center; font-size: 14px; color: #64748b"><br></nav>
+<div style="display: flex; align-items: center; gap: 12px">
+<span class="sup">SUPUESTO #172</span>
+<span style="width: 36px; height: 36px; border-radius: 999px; background: #fde68a; color: #78350f; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700">LG</span>
+<span style="display: flex; flex-direction: column; line-height: 1.25"><span style="font-size: 14px; font-weight: 600">Laura Gómez</span><span style="font-size: 12px; color: #64748b">Encargado</span></span>
+<a class="ib" href="login.html" aria-label="Cerrar sesión"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><path d="m16 17 5-5-5-5"></path><path d="M21 12H9"></path></svg></a>
+</div>
+</header>
+<main style="width: 100%; max-width: 1280px; padding: 24px; display: flex; flex-direction: column; gap: 20px">
+<div style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 12px">
+<div>
+<h1 class="h" style="margin: 0; font-size: 26px; font-weight: 800">Reservas</h1>
+
+</div>
+<button type="button" class="btn bp" data-action="alternar"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>Nueva reserva</button>
+</div>
+<div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
+<button type="button" class="ib bx" aria-label="Día anterior"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg></button>
+<input class="inp" type="date" value="2026-10-24" aria-label="Día" style="width: 180px">
+<button type="button" class="ib bx" aria-label="Día siguiente"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg></button>
+<button type="button" class="btn bo">Hoy</button>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+<div class="card tw" style="flex: 999 1 520px; min-width: 0">
+<table class="tbl">
+<thead><tr><th>Hora</th><th>Cliente</th><th>Teléfono</th><th class="num">Personas</th><th>Mesa</th><th>Estado</th><th><span style="position: absolute; left: -9999px">Acciones</span></th></tr></thead>
+<tbody id="lista-reservas"></tbody>
+</table>
+</div>
+<form id="form-reserva" class="card" aria-labelledby="titulo-reserva" style="flex: 1 1 340px; min-width: 0; padding: 20px; display: flex; flex-direction: column; gap: 16px">
+<div style="display: flex; justify-content: space-between; align-items: center">
+<h2 id="titulo-reserva" class="h" style="margin: 0; font-size: 18px; font-weight: 700">Nueva reserva</h2>
+<button type="button" class="ib" aria-label="Cerrar formulario" data-action="alternar"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button>
+</div>
+<div>
+<label class="lbl" for="buscar-cliente">Cliente</label>
+<input class="inp" id="buscar-cliente" type="search" placeholder="Buscar por nombre o teléfono">
+<div class="cli" style="margin-top: 8px"><span><strong>María Pérez</strong> · 280 455-1020</span><button type="button" class="ib" aria-label="Quitar cliente" style="width: 32px; height: 32px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button></div>
+<div class="hint">¿No está? <a href="#cliente-nuevo">Cargar un cliente nuevo</a> con nombre y teléfono.</div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+<div><label class="lbl" for="fecha">Fecha</label><input class="inp" id="fecha" type="date" value="2026-10-24"></div>
+<div><label class="lbl" for="hora">Hora</label><input class="inp" id="hora" type="time" value="21:30"></div>
+</div>
+<div><label class="lbl" for="personas">Cantidad de personas</label><input class="inp" id="personas" type="number" min="1" value="5"></div>
+<div>
+<label class="lbl" for="mesa">Mesa</label>
+<select class="inp" id="mesa"><option>Salón principal · Mesa 5 (6 pers.)</option><option>Salón principal · Mesa 10 (8 pers.)</option></select>
+
+</div>
+<div style="display: flex; gap: 8px; justify-content: flex-end">
+<button type="button" class="btn bo" data-action="alternar">Cancelar</button>
+<button type="button" class="btn bp">Guardar reserva</button>
+</div>
+</form>
+</div>
+</main>
+</div>
+</div>
+<script>
+(function () {
+  var BADGES = { 'Activa': 'bdg info', 'Atendida': 'bdg ok', 'Cancelada anticipada': 'bdg off', 'Cancelada por ausencia': 'bdg err' };
+  // Sample reservations: [time, customer, phone, people, table, state].
+  var datos = [
+    ['13:00', 'Carlos Pérez', '280 421-7745', 4, 'Salón principal · Mesa 5', 'Atendida'],
+    ['13:30', 'Valeria Gómez', '280 499-3110', 2, 'Terraza · Mesa 3', 'Cancelada anticipada'],
+    ['21:00', 'Andrés Ruiz', '280 410-5566', 2, 'Salón principal · Mesa 6', 'Cancelada por ausencia'],
+    ['21:30', 'María Pérez', '280 455-1020', 5, 'Salón principal · Mesa 5', 'Activa'],
+    ['22:00', 'Jorge Díaz', '280 433-8812', 4, 'Salón principal · Mesa 9', 'Activa'],
+    ['22:30', 'Lucía Sosa', '280 466-2301', 3, 'Terraza · Mesa 6', 'Activa']
+  ];
+
+  // The new-reservation panel starts open.
+  var state = { abierto: true };
+
+  var ACCIONES_ACTIVA = `<button type="button" class="ib" aria-label="Modificar reserva"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path></svg></button>
+<button type="button" class="ib del" aria-label="Cancelar reserva"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="m15 9-6 6"></path><path d="m9 9 6 6"></path></svg></button>`;
+
+  function esc(v) {
+    return String(v).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function fila(d) {
+    return `<tr>
+<td style="font-weight: 700; font-variant-numeric: tabular-nums">${esc(d[0])}</td>
+<td style="font-weight: 600">${esc(d[1])}</td>
+<td style="color: #475569">${esc(d[2])}</td>
+<td class="num">${d[3]}</td>
+<td>${esc(d[4])}</td>
+<td><span class="${BADGES[d[5]]}">${esc(d[5])}</span></td>
+<td style="text-align: right; white-space: nowrap">
+${d[5] === 'Activa' ? ACCIONES_ACTIVA : ''}
+</td>
+</tr>`;
+  }
+
+  function render() {
+    document.getElementById('lista-reservas').innerHTML = datos.map(fila).join('\n');
+    document.getElementById('form-reserva').hidden = !state.abierto;
+  }
+
+  document.addEventListener('click', function (ev) {
+    if (!ev.target.closest('[data-action="alternar"]')) return;
+    state.abierto = !state.abierto;
+    render();
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

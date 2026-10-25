@@ -29,8 +29,9 @@ Reglas que sigue cualquier agente de IA (OpenCode, Claude Code u otro) que traba
 | Roadmap y tareas de cada sprint | `G3_Backlog.xlsx` (una hoja por sprint) |
 | Riesgos | `G3_Riesgos.xlsx` y `SPRINT-0/S0-10-riesgos.md` |
 | Consigna de la cátedra | `material-catedra/propuesta-ISFPP-2026.pdf` |
+| Maqueta de las pantallas (guía visual, no contrato) | `SPRINT-2/S2-04-maqueta/` (abrir `index.html`) |
 
-Si dos fuentes se contradicen: el issue gana para HU y tareas, y el plan gana para alcance y fechas. Si la contradicción es con la consigna, gana la consigna. Señalar la contradicción a la persona; no resolverla por cuenta propia.
+Si dos fuentes se contradicen: el issue gana para HU y tareas, y el plan gana para alcance y fechas. Si la contradicción es con la consigna, gana la consigna. La maqueta tiene la prioridad más baja: si la HU, la spec revisada o un diseño posterior dicen otra cosa, gana lo que dicen ellos. Señalar la contradicción a la persona; no resolverla por cuenta propia.
 
 ## 3. Antes de empezar
 
@@ -75,6 +76,7 @@ Las reglas que más se rompen:
 - **Backend:** el esquema cambia solo con migraciones de Alembic, y los `models` de un módulo nuevo se registran en `backend/alembic/env.py` (RNF-MAN-06).
 - **Frontend:** toda llamada a la API pasa por el `api.ts` del módulo; los componentes no usan `fetch` (D-16). Prohibido `any`.
 - **Frontend:** antes de crear un componente, buscarlo en `frontend/src/shared/components/` (la guía visual está en la ruta `/componentes`).
+- **Frontend:** las pantallas se guían por la maqueta `SPRINT-2/S2-04-maqueta/`: menú lateral, encabezado, distribución de listados y formularios, colores y textos. Es una referencia, no un límite. Si la HU, la spec o un diseño posterior difieren, o la función no está en la maqueta, se implementa lo que corresponde con el mismo estilo, y la diferencia se anota en el PR.
 - Funciones de hasta 50 líneas y complejidad ciclomática 10 (RNF-MAN-05).
 
 ### Historias de usuario
@@ -91,6 +93,7 @@ gestion-restaurante-G3/
 ├── frontend/         # React: src/modules/<modulo>/{pages,components,api.ts,types.ts}, src/shared/
 ├── SPRINT-0/         # documentos del Sprint 0 (plan, RNF, arquitectura, riesgos, diagramas)
 ├── SPRINT-1/         # documentos del Sprint 1 (estándares, GitFlow y CI)
+├── SPRINT-2/         # documentos del Sprint 2 (supuestos y maqueta de las pantallas)
 ├── material-catedra/ # consigna y apuntes de la cátedra
 ├── openspec/         # artefactos de SDD (se crea con /sdd-init)
 ├── G3_Backlog.xlsx · G3_Riesgos.xlsx
