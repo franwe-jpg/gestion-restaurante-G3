@@ -1,14 +1,17 @@
 """Punto de entrada: crea la aplicacion FastAPI y registra los routers de cada modulo."""
 
+from pathlib import Path
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import API_PREFIX, get_settings
 from app.modules.productos.router import router as productos_router
-from app.shared.excepciones import NoEncontradoError, ReglaDeNegocioError
+from app.shared.excepciones import DatosInvalidosError, NoEncontradoError, ReglaDeNegocioError
 
 app = FastAPI(title="Sistema de Gestion de Restaurante", docs_url="/docs")
 
@@ -22,6 +25,14 @@ app.add_middleware(
 app.include_router(productos_router, prefix=API_PREFIX)
 
 
+def montar_media(aplicacion: FastAPI, directorio: str | Path) -> None:
+    """Sirve las imagenes guardadas en /media. No crea la carpeta: la crea quien escribe (B8)."""
+    aplicacion.mount("/media", StaticFiles(directory=directorio, check_dir=False), name="media")
+
+
+montar_media(app, get_settings().media_dir)
+
+
 @app.exception_handler(NoEncontradoError)
 def manejar_no_encontrado(_solicitud: Request, error: NoEncontradoError) -> JSONResponse:
     return JSONResponse(status_code=404, content={"detalle": str(error)})
@@ -30,6 +41,13 @@ def manejar_no_encontrado(_solicitud: Request, error: NoEncontradoError) -> JSON
 @app.exception_handler(ReglaDeNegocioError)
 def manejar_regla_de_negocio(_solicitud: Request, error: ReglaDeNegocioError) -> JSONResponse:
     return JSONResponse(status_code=409, content={"detalle": str(error)})
+
+
+@app.exception_handler(DatosInvalidosError)
+def manejar_datos_invalidos_de_negocio(
+    _solicitud: Request, error: DatosInvalidosError
+) -> JSONResponse:
+    return JSONResponse(status_code=422, content={"detalle": str(error)})
 
 
 @app.exception_handler(RequestValidationError)
