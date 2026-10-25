@@ -4,7 +4,7 @@ from decimal import Decimal
 import pytest
 from pydantic import ValidationError
 
-from app.modules.productos.schemas import PlatoCrear, ProductoSalida, SeccionResumen
+from app.modules.productos.schemas import PlatoCrear, PostreCrear, ProductoSalida, SeccionResumen
 from app.shared.models import Categoria, Estado
 
 
@@ -99,6 +99,43 @@ def test_etiquetas_invalidas(etiquetas: list[str]) -> None:
 @pytest.mark.parametrize("campo, valor", [("estado", "DESHABILITADO"), ("categoria", "POSTRE")])
 def test_campos_desconocidos_se_rechazan(campo: str, valor: str) -> None:
     assert _campos_con_error(**{campo: valor}) == {campo}
+
+
+# HU-M1-04: las dos categorias comparten reglas; cada una fija categoria y mensaje (S13)
+CATEGORIAS = [
+    (PlatoCrear, Categoria.PLATO, "El plato ya está registrado"),
+    (PostreCrear, Categoria.POSTRE, "El postre ya está registrado"),
+]
+DATOS_MINIMOS = {"nombre": "Flan", "seccion_id": 1, "precio": "900", "ingredientes": ["Huevo"]}
+
+
+@pytest.mark.parametrize("esquema, categoria, mensaje", CATEGORIAS, ids=["plato", "postre"])
+def test_cada_esquema_fija_su_categoria_y_su_mensaje(esquema, categoria, mensaje) -> None:
+    datos = esquema.model_validate(DATOS_MINIMOS)
+
+    assert categoria == datos.CATEGORIA
+    assert mensaje == datos.MENSAJE_NOMBRE_REPETIDO
+
+
+@pytest.mark.parametrize("esquema", [PlatoCrear, PostreCrear], ids=["plato", "postre"])
+@pytest.mark.parametrize("ingredientes", [None, []], ids=["ausentes", "vacios"])
+def test_ingredientes_son_obligatorios_en_platos_y_postres(esquema, ingredientes) -> None:
+    datos = {k: v for k, v in DATOS_MINIMOS.items() if k != "ingredientes"}
+    if ingredientes is not None:
+        datos["ingredientes"] = ingredientes
+
+    with pytest.raises(ValidationError) as error:
+        esquema.model_validate(datos)
+
+    assert {str(falla["loc"][0]) for falla in error.value.errors()} == {"ingredientes"}
+
+
+@pytest.mark.parametrize("campo, valor", [("estado", "DESHABILITADO"), ("categoria", "PLATO")])
+def test_postre_rechaza_campos_desconocidos(campo: str, valor: str) -> None:
+    with pytest.raises(ValidationError) as error:
+        PostreCrear.model_validate(DATOS_MINIMOS | {campo: valor})
+
+    assert {str(falla["loc"][0]) for falla in error.value.errors()} == {campo}
 
 
 def test_seccion_id_debe_ser_entero_positivo() -> None:

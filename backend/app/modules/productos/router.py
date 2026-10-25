@@ -13,6 +13,7 @@ from app.modules.productos import imagenes, service
 from app.modules.productos.schemas import (
     FiltroSecciones,
     PlatoCrear,
+    PostreCrear,
     ProductoSalida,
     ProductoSeleccionable,
     SeccionCrear,
@@ -57,6 +58,15 @@ def leer_imagen(imagen: UploadFile | None) -> bytes | None:
 @router.post("/platos", status_code=status.HTTP_201_CREATED)
 def crear_plato(
     datos: Annotated[PlatoCrear, Depends(datos_de(PlatoCrear))],
+    db: Sesion,
+    imagen: Annotated[UploadFile | None, File()] = None,
+) -> ProductoSalida:
+    return service.crear_producto(db, datos, leer_imagen(imagen))
+
+
+@router.post("/postres", status_code=status.HTTP_201_CREATED)
+def crear_postre(
+    datos: Annotated[PostreCrear, Depends(datos_de(PostreCrear))],
     db: Sesion,
     imagen: Annotated[UploadFile | None, File()] = None,
 ) -> ProductoSalida:

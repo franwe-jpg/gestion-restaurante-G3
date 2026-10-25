@@ -1,6 +1,7 @@
 import io
 import json
 import os
+from dataclasses import dataclass
 from pathlib import Path
 
 import pillow_heif
@@ -179,11 +180,30 @@ def test_listar_productos_sin_datos_devuelve_pagina_vacia(cliente: TestClient) -
 
 
 # ---------------------------------------------------------------------------
-# HU-M1-01: POST /platos y filtro de /secciones
+# HU-M1-01 y HU-M1-04: POST /platos, POST /postres y filtro de /secciones
 # ---------------------------------------------------------------------------
 
-RUTA_PLATOS = "/api/v1/platos"
 MAXIMO_BYTES = 5 * 1024 * 1024
+
+
+@dataclass(frozen=True)
+class Alta:
+    """Lo que cambia entre las altas de cada categoria (C2)."""
+
+    ruta: str
+    categoria: str
+    mensaje_nombre_repetido: str
+
+
+@pytest.fixture(
+    params=[
+        Alta("/api/v1/platos", "PLATO", "El plato ya está registrado"),
+        Alta("/api/v1/postres", "POSTRE", "El postre ya está registrado"),
+    ],
+    ids=["plato", "postre"],
+)
+def alta(request: pytest.FixtureRequest) -> Alta:
+    return request.param
 
 
 def _imagen(formato: str = "JPEG", tamano: tuple[int, int] = (8, 4)) -> bytes:
@@ -202,24 +222,24 @@ def _datos(seccion_id: int, **cambios) -> dict:
     return base | cambios
 
 
-def _crear(cliente: TestClient, datos: dict, imagen: tuple | None = None, **formulario):
+def _crear(cliente: TestClient, alta: Alta, datos: dict, imagen: tuple | None = None, **formulario):
     archivos = {"imagen": imagen} if imagen else None
-    return cliente.post(RUTA_PLATOS, data={"datos": json.dumps(datos)} | formulario, files=archivos)
+    return cliente.post(alta.ruta, data={"datos": json.dumps(datos)} | formulario, files=archivos)
 
 
 # CA 1 y CA 14
-def test_crear_plato_responde_201_con_la_forma_de_producto_salida(
-    cliente: TestClient, fabrica_seccion, directorio_media: Path
+def test_crear_producto_responde_201_con_la_forma_de_producto_salida(
+    alta: Alta, cliente: TestClient, fabrica_seccion, directorio_media: Path
 ) -> None:
     seccion = fabrica_seccion("Platos")
 
-    respuesta = _crear(cliente, _datos(seccion.id, nombre="  Milanesa "))
+    respuesta = _crear(cliente, alta, _datos(seccion.id, nombre="  Milanesa "))
 
     assert respuesta.status_code == 201
     assert respuesta.json() == {
         "id": 1,
         "nombre": "Milanesa",
-        "categoria": "PLATO",
+        "categoria": alta.categoria,
         "precio": "1500.50",
         "ingredientes": ["Carne", "Pan"],
         "descripcion": None,
@@ -230,13 +250,13 @@ def test_crear_plato_responde_201_con_la_forma_de_producto_salida(
     }
 
 
-def test_crear_plato_completo_con_imagen_devuelve_su_url(
-    cliente: TestClient, fabrica_seccion, directorio_media: Path
+def test_crear_producto_completo_con_imagen_devuelve_su_url(
+    alta: Alta, cliente: TestClient, fabrica_seccion, directorio_media: Path
 ) -> None:
     seccion = fabrica_seccion("Platos")
     datos = _datos(seccion.id, descripcion="Con papas", etiquetas=["Sin TACC", "Casero"])
 
-    respuesta = _crear(cliente, datos, ("mi foto.jpg", _imagen(), "image/jpeg"))
+    respuesta = _crear(cliente, alta, datos, ("mi foto.jpg", _imagen(), "image/jpeg"))
 
     cuerpo = respuesta.json()
     assert respuesta.status_code == 201
@@ -246,8 +266,8 @@ def test_crear_plato_completo_con_imagen_devuelve_su_url(
     assert len(list(directorio_media.iterdir())) == 1
 
 
-def test_crear_plato_con_imagen_de_2_mb_la_deja_servida(
-    cliente: TestClient, fabrica_seccion, directorio_media: Path
+def test_crear_producto_con_imagen_de_2_mb_la_deja_servida(
+    alta: Alta, cliente: TestClient, fabrica_seccion, directorio_media: Path
 ) -> None:
     seccion = fabrica_seccion("Platos")
     ruido = Image.frombytes("RGB", (840, 840), os.urandom(840 * 840 * 3))
@@ -255,7 +275,9 @@ def test_crear_plato_con_imagen_de_2_mb_la_deja_servida(
     ruido.save(buffer, "PNG")
     assert 2_000_000 < len(buffer.getvalue()) < MAXIMO_BYTES
 
-    respuesta = _crear(cliente, _datos(seccion.id), ("plato.png", buffer.getvalue(), "image/png"))
+    respuesta = _crear(
+        cliente, alta, _datos(seccion.id), ("plato.png", buffer.getvalue(), "image/png")
+    )
 
     aplicacion = FastAPI()
     montar_media(aplicacion, directorio_media)
@@ -266,13 +288,15 @@ def test_crear_plato_con_imagen_de_2_mb_la_deja_servida(
 
 
 # CA 12
-def test_crear_plato_con_heic_lo_sirve_como_jpeg(
-    cliente: TestClient, fabrica_seccion, directorio_media: Path
+def test_crear_producto_con_heic_lo_sirve_como_jpeg(
+    alta: Alta, cliente: TestClient, fabrica_seccion, directorio_media: Path
 ) -> None:
     pillow_heif.register_heif_opener()
     seccion = fabrica_seccion("Platos")
 
-    respuesta = _crear(cliente, _datos(seccion.id), ("foto.heic", _imagen("HEIF"), "image/heic"))
+    respuesta = _crear(
+        cliente, alta, _datos(seccion.id), ("foto.heic", _imagen("HEIF"), "image/heic")
+    )
 
     aplicacion = FastAPI()
     montar_media(aplicacion, directorio_media)
@@ -284,25 +308,25 @@ def test_crear_plato_con_heic_lo_sirve_como_jpeg(
 
 
 # CA 2
-def test_crear_plato_sin_seccion_ni_precio_indica_los_dos_campos(
-    cliente: TestClient, fabrica_seccion
+def test_crear_producto_sin_seccion_ni_precio_indica_los_dos_campos(
+    alta: Alta, cliente: TestClient, fabrica_seccion
 ) -> None:
     datos = _datos(fabrica_seccion("Platos").id)
     del datos["seccion_id"], datos["precio"]
 
-    respuesta = _crear(cliente, datos)
+    respuesta = _crear(cliente, alta, datos)
 
     assert respuesta.status_code == 422
     assert "seccion_id" in respuesta.json()["detalle"]
     assert "precio" in respuesta.json()["detalle"]
 
 
-def test_crear_plato_con_parte_imagen_vacia_equivale_a_sin_imagen(
-    cliente: TestClient, fabrica_seccion, directorio_media: Path
+def test_crear_producto_con_parte_imagen_vacia_equivale_a_sin_imagen(
+    alta: Alta, cliente: TestClient, fabrica_seccion, directorio_media: Path
 ) -> None:
     seccion = fabrica_seccion("Platos")
 
-    respuesta = _crear(cliente, _datos(seccion.id), ("", b"", "application/octet-stream"))
+    respuesta = _crear(cliente, alta, _datos(seccion.id), ("", b"", "application/octet-stream"))
 
     assert respuesta.status_code == 201
     assert respuesta.json()["imagen_url"] is None
@@ -326,12 +350,17 @@ def test_crear_plato_con_parte_imagen_vacia_equivale_a_sin_imagen(
         ({"categoria": "POSTRE"}, "categoria"),
     ],
 )
-def test_crear_plato_con_datos_invalidos_responde_422_sin_guardar(
-    cliente: TestClient, fabrica_seccion, directorio_media: Path, cambios: dict, campo: str
+def test_crear_producto_con_datos_invalidos_responde_422_sin_guardar(
+    alta: Alta,
+    cliente: TestClient,
+    fabrica_seccion,
+    directorio_media: Path,
+    cambios: dict,
+    campo: str,
 ) -> None:
     seccion = fabrica_seccion("Platos")
 
-    respuesta = _crear(cliente, _datos(seccion.id, **cambios))
+    respuesta = _crear(cliente, alta, _datos(seccion.id, **cambios))
 
     assert respuesta.status_code == 422
     assert campo in respuesta.json()["detalle"]
@@ -339,64 +368,114 @@ def test_crear_plato_con_datos_invalidos_responde_422_sin_guardar(
 
 
 @pytest.mark.parametrize("faltante", ["nombre", "seccion_id", "precio", "ingredientes"])
-def test_crear_plato_sin_campos_obligatorios_responde_422_e_indica_el_campo(
-    cliente: TestClient, fabrica_seccion, faltante: str
+def test_crear_producto_sin_campos_obligatorios_responde_422_e_indica_el_campo(
+    alta: Alta, cliente: TestClient, fabrica_seccion, faltante: str
 ) -> None:
     datos = _datos(fabrica_seccion("Platos").id)
     del datos[faltante]
 
-    respuesta = _crear(cliente, datos)
+    respuesta = _crear(cliente, alta, datos)
 
     assert respuesta.status_code == 422
     assert faltante in respuesta.json()["detalle"]
 
 
-def test_crear_plato_con_json_invalido_responde_422(cliente: TestClient) -> None:
-    respuesta = cliente.post(RUTA_PLATOS, data={"datos": "{no es json"})
+def test_crear_producto_con_json_invalido_responde_422(alta: Alta, cliente: TestClient) -> None:
+    respuesta = cliente.post(alta.ruta, data={"datos": "{no es json"})
 
     assert respuesta.status_code == 422
     assert list(respuesta.json()) == ["detalle"]
 
 
 # S10: estado y categoria enviados como campos del formulario se ignoran
-def test_crear_plato_ignora_estado_y_categoria_enviados_fuera_de_datos(
-    cliente: TestClient, fabrica_seccion, directorio_media: Path
+def test_crear_producto_ignora_estado_y_categoria_enviados_fuera_de_datos(
+    alta: Alta, cliente: TestClient, fabrica_seccion, directorio_media: Path
 ) -> None:
     seccion = fabrica_seccion("Platos")
 
-    respuesta = _crear(cliente, _datos(seccion.id), estado="DESHABILITADO", categoria="BEBIDA")
+    respuesta = _crear(
+        cliente, alta, _datos(seccion.id), estado="DESHABILITADO", categoria="BEBIDA"
+    )
 
     assert respuesta.status_code == 201
-    assert (respuesta.json()["estado"], respuesta.json()["categoria"]) == ("HABILITADO", "PLATO")
+    assert (respuesta.json()["estado"], respuesta.json()["categoria"]) == (
+        "HABILITADO",
+        alta.categoria,
+    )
 
 
 # CA 9
-def test_crear_plato_con_seccion_inexistente_responde_404(cliente: TestClient) -> None:
-    respuesta = _crear(cliente, _datos(999))
+def test_crear_producto_con_seccion_inexistente_responde_404(
+    alta: Alta, cliente: TestClient
+) -> None:
+    respuesta = _crear(cliente, alta, _datos(999))
 
     assert respuesta.status_code == 404
     assert "detalle" in respuesta.json()
 
 
-def test_crear_plato_con_seccion_deshabilitada_responde_409(
-    cliente: TestClient, fabrica_seccion
+def test_crear_producto_con_seccion_deshabilitada_responde_409(
+    alta: Alta, cliente: TestClient, fabrica_seccion
 ) -> None:
     seccion = fabrica_seccion("Viejos", estado=Estado.DESHABILITADO)
 
-    respuesta = _crear(cliente, _datos(seccion.id))
+    respuesta = _crear(cliente, alta, _datos(seccion.id))
 
     assert respuesta.status_code == 409
 
 
 # CA 3
-def test_crear_plato_con_nombre_repetido_responde_409(cliente: TestClient, fabrica_seccion) -> None:
+def test_crear_producto_con_nombre_repetido_responde_409(
+    alta: Alta, cliente: TestClient, fabrica_seccion
+) -> None:
     seccion = fabrica_seccion("Platos")
-    _crear(cliente, _datos(seccion.id, nombre="Milanesa"))
+    _crear(cliente, alta, _datos(seccion.id, nombre="Milanesa"))
 
-    respuesta = _crear(cliente, _datos(seccion.id, nombre="  milanesa "))
+    respuesta = _crear(cliente, alta, _datos(seccion.id, nombre="  milanesa "))
 
     assert respuesta.status_code == 409
-    assert respuesta.json() == {"detalle": "El plato ya está registrado"}
+    assert respuesta.json() == {"detalle": alta.mensaje_nombre_repetido}
+
+
+# CA 3, S13 y S14: el nombre es unico por categoria
+ALTA_PLATO = Alta("/api/v1/platos", "PLATO", "El plato ya está registrado")
+ALTA_POSTRE = Alta("/api/v1/postres", "POSTRE", "El postre ya está registrado")
+
+
+def test_crear_postre_con_nombre_de_plato_convive_y_el_plato_repetido_da_409(
+    cliente: TestClient, fabrica_seccion
+) -> None:
+    seccion = fabrica_seccion("Carta")
+    _crear(cliente, ALTA_PLATO, _datos(seccion.id, nombre="Flan"))
+
+    postre = _crear(cliente, ALTA_POSTRE, _datos(seccion.id, nombre="Flan"))
+    plato_repetido = _crear(cliente, ALTA_PLATO, _datos(seccion.id, nombre="flan"))
+
+    assert postre.status_code == 201
+    assert postre.json()["categoria"] == "POSTRE"
+    assert plato_repetido.status_code == 409
+    assert plato_repetido.json() == {"detalle": "El plato ya está registrado"}
+
+
+def test_crear_postre_con_nombre_repetido_dice_postre(cliente: TestClient, fabrica_seccion) -> None:
+    seccion = fabrica_seccion("Carta")
+    _crear(cliente, ALTA_POSTRE, _datos(seccion.id, nombre="Flan"))
+
+    respuesta = _crear(cliente, ALTA_POSTRE, _datos(seccion.id, nombre="  flan "))
+
+    assert respuesta.status_code == 409
+    assert respuesta.json() == {"detalle": "El postre ya está registrado"}
+
+
+# CA 6: los ingredientes son obligatorios en postres
+def test_crear_postre_sin_ingredientes_responde_422(cliente: TestClient, fabrica_seccion) -> None:
+    datos = _datos(fabrica_seccion("Carta").id)
+    del datos["ingredientes"]
+
+    respuesta = _crear(cliente, ALTA_POSTRE, datos)
+
+    assert respuesta.status_code == 422
+    assert "ingredientes" in respuesta.json()["detalle"]
 
 
 # CA 10
@@ -409,12 +488,12 @@ def test_crear_plato_con_nombre_repetido_responde_409(cliente: TestClient, fabri
     ],
     ids=["extension-falsa", "pdf", "mas-de-5-mb"],
 )
-def test_crear_plato_con_imagen_invalida_responde_422_y_no_guarda_nada(
-    cliente: TestClient, fabrica_seccion, directorio_media: Path, archivo: tuple
+def test_crear_producto_con_imagen_invalida_responde_422_y_no_guarda_nada(
+    alta: Alta, cliente: TestClient, fabrica_seccion, directorio_media: Path, archivo: tuple
 ) -> None:
     seccion = fabrica_seccion("Platos")
 
-    respuesta = _crear(cliente, _datos(seccion.id), archivo)
+    respuesta = _crear(cliente, alta, _datos(seccion.id), archivo)
 
     assert respuesta.status_code == 422
     assert "JPG, PNG o HEIC" in respuesta.json()["detalle"]
@@ -423,13 +502,13 @@ def test_crear_plato_con_imagen_invalida_responde_422_y_no_guarda_nada(
 
 
 # CA 12
-def test_crear_plato_ignora_el_nombre_original_de_la_imagen(
-    cliente: TestClient, fabrica_seccion, directorio_media: Path
+def test_crear_producto_ignora_el_nombre_original_de_la_imagen(
+    alta: Alta, cliente: TestClient, fabrica_seccion, directorio_media: Path
 ) -> None:
     seccion = fabrica_seccion("Platos")
 
     respuesta = _crear(
-        cliente, _datos(seccion.id), ("../../mi foto.png", _imagen("PNG"), "image/png")
+        cliente, alta, _datos(seccion.id), ("../../mi foto.png", _imagen("PNG"), "image/png")
     )
 
     assert respuesta.status_code == 201
