@@ -12,35 +12,39 @@ import { Spinner } from '../../../shared/components/ui/spinner';
 import { Textarea } from '../../../shared/components/ui/textarea';
 import { useApi } from '../../../shared/hooks/useApi';
 import { listarSeccionesHabilitadas } from '../api';
+import { CONFIGURACIONES } from '../categorias';
+import type { CategoriaAlta, ConfiguracionAlta } from '../categorias';
 import { ListaDeTextos } from '../components/ListaDeTextos';
 import { SelectorImagen } from '../components/SelectorImagen';
-import { useFormularioPlato } from '../components/useFormularioPlato';
+import { useFormularioProducto } from '../components/useFormularioProducto';
 import {
   DESCRIPCION_MAXIMA,
   ETIQUETA_MAXIMA,
   ETIQUETAS_TOPE,
   INGREDIENTE_MAXIMO,
   INGREDIENTES_TOPE,
-} from '../components/validarPlato';
+} from '../components/validarProducto';
 import type { SeccionListado } from '../types';
 
-type Formulario = ReturnType<typeof useFormularioPlato>;
+type Formulario = ReturnType<typeof useFormularioProducto>;
 
-const MIGAS = [{ etiqueta: 'Productos y Carta', ruta: '/productos' }, { etiqueta: 'Nuevo plato' }];
+function migasDe(titulo: string) {
+  return [{ etiqueta: 'Productos y Carta', ruta: '/productos' }, { etiqueta: titulo }];
+}
 
 function CamposPrincipales({ f, secciones }: { f: Formulario; secciones: SeccionListado[] }) {
   return (
     <div className="grid gap-4 sm:grid-cols-2">
-      <FormField id="plato-nombre" label="Nombre" required error={f.errores.nombre}>
+      <FormField id="producto-nombre" label="Nombre" required error={f.errores.nombre}>
         <Input
-          id="plato-nombre"
+          id="producto-nombre"
           value={f.nombre}
           onChange={(evento) => f.setNombre(evento.target.value)}
         />
       </FormField>
-      <FormField id="plato-seccion" label="Sección" required error={f.errores.seccionId}>
+      <FormField id="producto-seccion" label="Sección" required error={f.errores.seccionId}>
         <Select
-          id="plato-seccion"
+          id="producto-seccion"
           value={f.seccionId}
           onChange={(evento) => f.setSeccionId(evento.target.value)}
         >
@@ -52,11 +56,11 @@ function CamposPrincipales({ f, secciones }: { f: Formulario; secciones: Seccion
           ))}
         </Select>
       </FormField>
-      <FormField id="plato-precio" label="Precio" required error={f.errores.precio}>
+      <FormField id="producto-precio" label="Precio" required error={f.errores.precio}>
         <div className="relative flex items-center">
           <span className="absolute left-3 text-sm text-slate-600">$</span>
           <Input
-            id="plato-precio"
+            id="producto-precio"
             inputMode="decimal"
             placeholder="12.500,00"
             className="pl-7"
@@ -77,7 +81,7 @@ function CamposDeTexto({ f }: { f: Formulario }) {
   return (
     <>
       <ListaDeTextos
-        id="plato-ingredientes"
+        id="producto-ingredientes"
         etiqueta="Ingredientes"
         singular="ingrediente"
         plural="ingredientes"
@@ -89,9 +93,9 @@ function CamposDeTexto({ f }: { f: Formulario }) {
         required
         error={f.errores.ingredientes}
       />
-      <FormField id="plato-descripcion" label="Descripción" error={f.errores.descripcion}>
+      <FormField id="producto-descripcion" label="Descripción" error={f.errores.descripcion}>
         <Textarea
-          id="plato-descripcion"
+          id="producto-descripcion"
           rows={3}
           value={f.descripcion}
           onChange={(evento) => f.setDescripcion(evento.target.value)}
@@ -101,7 +105,7 @@ function CamposDeTexto({ f }: { f: Formulario }) {
         </p>
       </FormField>
       <ListaDeTextos
-        id="plato-etiquetas"
+        id="producto-etiquetas"
         etiqueta="Etiquetas"
         singular="etiqueta"
         plural="etiquetas"
@@ -115,10 +119,10 @@ function CamposDeTexto({ f }: { f: Formulario }) {
   );
 }
 
-function AvisoSinSecciones() {
+function AvisoSinSecciones({ mensaje }: { mensaje: string }) {
   return (
     <Alert variant="warning" titulo="Primero hay que crear una sección">
-      El plato necesita una sección habilitada.{' '}
+      {mensaje}{' '}
       <Link to="/productos?pestania=secciones" className="font-medium underline">
         Ir a Secciones
       </Link>
@@ -126,13 +130,19 @@ function AvisoSinSecciones() {
   );
 }
 
-interface FormularioPlatoProps {
+interface FormularioProductoProps {
   f: Formulario;
+  configuracion: ConfiguracionAlta;
   secciones: SeccionListado[];
   errorDeCarga: string | null;
 }
 
-function FormularioPlato({ f, secciones, errorDeCarga }: FormularioPlatoProps) {
+function FormularioProducto({
+  f,
+  configuracion,
+  secciones,
+  errorDeCarga,
+}: FormularioProductoProps) {
   const navigate = useNavigate();
   const sinSecciones = secciones.length === 0;
 
@@ -148,7 +158,9 @@ function FormularioPlato({ f, secciones, errorDeCarga }: FormularioPlatoProps) {
       <Card className="min-w-0 flex-[999_1_480px]">
         <CardContent className="space-y-5 pt-6">
           {errorDeCarga && <Alert variant="danger">{errorDeCarga}</Alert>}
-          {!errorDeCarga && sinSecciones && <AvisoSinSecciones />}
+          {!errorDeCarga && sinSecciones && (
+            <AvisoSinSecciones mensaje={configuracion.avisoSinSecciones} />
+          )}
           {f.errores.general && <Alert variant="danger">{f.errores.general}</Alert>}
           <CamposPrincipales f={f} secciones={secciones} />
           <CamposDeTexto f={f} />
@@ -157,7 +169,7 @@ function FormularioPlato({ f, secciones, errorDeCarga }: FormularioPlatoProps) {
               Cancelar
             </Button>
             <Button type="submit" disabled={sinSecciones || f.enviando}>
-              Guardar plato
+              {configuracion.botonGuardar}
             </Button>
           </div>
         </CardContent>
@@ -172,22 +184,31 @@ function FormularioPlato({ f, secciones, errorDeCarga }: FormularioPlatoProps) {
   );
 }
 
-export function PlatoNuevoPage() {
+export function ProductoNuevoPage({ categoria }: { categoria: CategoriaAlta }) {
+  const configuracion = CONFIGURACIONES[categoria];
   const navigate = useNavigate();
   const consulta = useApi(listarSeccionesHabilitadas, 'secciones-habilitadas');
-  const formulario = useFormularioPlato({ onCreado: () => navigate('/productos') });
+  const formulario = useFormularioProducto({
+    categoria,
+    onCreado: () => navigate('/productos'),
+  });
   const secciones = (consulta.datos?.items ?? []).filter(
     (seccion) => seccion.estado === 'HABILITADO',
   );
 
   return (
     <div className="space-y-4">
-      <Breadcrumbs items={MIGAS} />
-      <PageHeader titulo="Nuevo plato" />
+      <Breadcrumbs items={migasDe(configuracion.titulo)} />
+      <PageHeader titulo={configuracion.titulo} />
       {consulta.cargando ? (
         <Spinner etiqueta="Cargando secciones..." />
       ) : (
-        <FormularioPlato f={formulario} secciones={secciones} errorDeCarga={consulta.error} />
+        <FormularioProducto
+          f={formulario}
+          configuracion={configuracion}
+          secciones={secciones}
+          errorDeCarga={consulta.error}
+        />
       )}
     </div>
   );

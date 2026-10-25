@@ -1,7 +1,8 @@
 import { clienteHttp } from '../../shared/api/client';
 import type { Pagina, RespuestaApi } from '../../shared/types';
+import type { CategoriaAlta } from './categorias';
 import type {
-  PlatoCrear,
+  ProductoCrear,
   ProductoSalida,
   ProductoSeleccionable,
   Seccion,
@@ -10,6 +11,11 @@ import type {
 } from './types';
 
 const LIMITE_SELECTOR = 100;
+
+const ENDPOINTS_ALTA: Record<CategoriaAlta, string> = {
+  PLATO: '/platos',
+  POSTRE: '/postres',
+};
 
 export function listarSecciones(
   limit: number,
@@ -35,12 +41,13 @@ export function listarSeccionesHabilitadas(): Promise<RespuestaApi<Pagina<Seccio
 }
 
 /** Una sola solicitud multipart: la parte `datos` lleva el JSON y `imagen` el archivo opcional. */
-export function crearPlato(
-  datos: PlatoCrear,
+export function crearProducto(
+  categoria: CategoriaAlta,
+  datos: ProductoCrear,
   imagen: File | null,
 ): Promise<RespuestaApi<ProductoSalida>> {
   const formulario = new FormData();
   formulario.append('datos', JSON.stringify(datos));
   if (imagen) formulario.append('imagen', imagen);
-  return clienteHttp.postFormulario<ProductoSalida>('/platos', formulario);
+  return clienteHttp.postFormulario<ProductoSalida>(ENDPOINTS_ALTA[categoria], formulario);
 }

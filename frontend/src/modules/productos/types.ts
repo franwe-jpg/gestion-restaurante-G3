@@ -40,7 +40,7 @@ export interface ProductoSeleccionable {
 }
 
 // HU-M1-01: alta de platos. `precio` viaja como texto decimal con punto ("12500.50").
-export interface PlatoCrear {
+export interface ProductoCrear {
   nombre: string;
   seccion_id: number;
   precio: string;

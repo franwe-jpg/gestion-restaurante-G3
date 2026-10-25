@@ -1,5 +1,5 @@
 import { lazy } from 'react';
-import { Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 
 import { ComponentesPage } from './shared/components/ComponentesPage';
 import { AppProviders } from './shared/components/AppProviders';
@@ -17,9 +17,9 @@ const ProductosPage = lazy(() =>
   })),
 );
 
-const PlatoNuevoPage = lazy(() =>
-  import('./modules/productos/pages/PlatoNuevoPage').then((modulo) => ({
-    default: modulo.PlatoNuevoPage,
+const ProductoNuevoPage = lazy(() =>
+  import('./modules/productos/pages/ProductoNuevoPage').then((modulo) => ({
+    default: modulo.ProductoNuevoPage,
   })),
 );
 
@@ -60,7 +60,15 @@ export default function App() {
         <Route path="/" element={<AppShell />}>
           <Route index element={<Inicio />} />
           <Route path="productos" element={<ProductosPage />} />
-          <Route path="productos/nuevo" element={<PlatoNuevoPage />} />
+          <Route path="productos/platos/nuevo" element={<ProductoNuevoPage categoria="PLATO" />} />
+          <Route
+            path="productos/postres/nuevo"
+            element={<ProductoNuevoPage categoria="POSTRE" />}
+          />
+          <Route
+            path="productos/nuevo"
+            element={<Navigate to="/productos/platos/nuevo" replace />}
+          />
           <Route path="menus" element={<MenusPage />} />
           <Route path="salon" element={<SalonPage />} />
           <Route path="atencion" element={<AtencionPage />} />

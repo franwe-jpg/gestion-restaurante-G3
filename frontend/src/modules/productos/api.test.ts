@@ -3,13 +3,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { clienteHttp } from '../../shared/api/client';
 
 import {
-  crearPlato,
+  crearProducto,
   crearSeccion,
   listarProductosHabilitados,
   listarSecciones,
   listarSeccionesHabilitadas,
 } from './api';
-import type { PlatoCrear, SeccionCrear } from './types';
+import type { ProductoCrear, SeccionCrear } from './types';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -63,8 +63,8 @@ describe('api de productos', () => {
   });
 });
 
-describe('crearPlato', () => {
-  const DATOS: PlatoCrear = {
+describe('crearProducto', () => {
+  const DATOS: ProductoCrear = {
     nombre: 'Milanesa',
     seccion_id: 3,
     precio: '12500.50',
@@ -73,27 +73,33 @@ describe('crearPlato', () => {
     etiquetas: ['Casero'],
   };
 
-  it('envia una sola solicitud multipart con `datos` como JSON y la imagen', async () => {
-    const post = vi
-      .spyOn(clienteHttp, 'postFormulario')
-      .mockResolvedValue({ datos: null, exito: false, error: 'x' });
-    const imagen = new File(['x'], 'foto.jpg', { type: 'image/jpeg' });
+  it.each([
+    ['PLATO', '/platos'],
+    ['POSTRE', '/postres'],
+  ] as const)(
+    'envia una sola solicitud multipart de %s con `datos` como JSON y la imagen',
+    async (categoria, endpoint) => {
+      const post = vi
+        .spyOn(clienteHttp, 'postFormulario')
+        .mockResolvedValue({ datos: null, exito: false, error: 'x' });
+      const imagen = new File(['x'], 'foto.jpg', { type: 'image/jpeg' });
 
-    await crearPlato(DATOS, imagen);
+      await crearProducto(categoria, DATOS, imagen);
 
-    expect(post).toHaveBeenCalledTimes(1);
-    const [ruta, formulario] = post.mock.calls[0] ?? [];
-    expect(ruta).toBe('/platos');
-    expect(JSON.parse(String(formulario?.get('datos')))).toEqual(DATOS);
-    expect(formulario?.get('imagen')).toBe(imagen);
-  });
+      expect(post).toHaveBeenCalledTimes(1);
+      const [ruta, formulario] = post.mock.calls[0] ?? [];
+      expect(ruta).toBe(endpoint);
+      expect(JSON.parse(String(formulario?.get('datos')))).toEqual(DATOS);
+      expect(formulario?.get('imagen')).toBe(imagen);
+    },
+  );
 
   it('no agrega la parte `imagen` si no se eligio ninguna', async () => {
     const post = vi
       .spyOn(clienteHttp, 'postFormulario')
       .mockResolvedValue({ datos: null, exito: false, error: 'x' });
 
-    await crearPlato(DATOS, null);
+    await crearProducto('POSTRE', DATOS, null);
 
     const [, formulario] = post.mock.calls[0] ?? [];
     expect(formulario?.has('imagen')).toBe(false);

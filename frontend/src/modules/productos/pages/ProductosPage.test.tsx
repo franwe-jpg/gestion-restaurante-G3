@@ -13,7 +13,8 @@ function abrir(ruta = '/productos') {
     <MemoryRouter initialEntries={[ruta]}>
       <Routes>
         <Route path="/productos" element={<ProductosPage />} />
-        <Route path="/productos/nuevo" element={<p>Formulario de plato</p>} />
+        <Route path="/productos/platos/nuevo" element={<p>Formulario de plato</p>} />
+        <Route path="/productos/postres/nuevo" element={<p>Formulario de postre</p>} />
       </Routes>
     </MemoryRouter>,
   );
@@ -51,12 +52,15 @@ describe('ProductosPage', () => {
     expect(listarSecciones).toHaveBeenCalledTimes(1);
   });
 
-  it('ofrece «Nuevo plato» en la pestaña Productos y lleva al formulario (CA 1)', () => {
+  it.each([
+    ['Nuevo plato', 'Formulario de plato'],
+    ['Nuevo postre', 'Formulario de postre'],
+  ])('ofrece «%s» en la pestaña Productos y lleva al formulario (CA 1)', (boton, formulario) => {
     abrir();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Nuevo plato' }));
+    fireEvent.click(screen.getByRole('button', { name: boton }));
 
-    expect(screen.getByText('Formulario de plato')).toBeInTheDocument();
+    expect(screen.getByText(formulario)).toBeInTheDocument();
   });
 
   it('abre la pestaña Secciones cuando la ruta trae ?pestania=secciones (CA 8)', async () => {
@@ -66,6 +70,7 @@ describe('ProductosPage', () => {
     expect(screen.getByRole('tab', { name: 'Secciones' })).toHaveAttribute('aria-selected', 'true');
     expect(await screen.findByRole('button', { name: 'Nueva sección' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Nuevo plato' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Nuevo postre' })).not.toBeInTheDocument();
   });
 
   it('ignora un valor desconocido de ?pestania= y abre Productos', () => {

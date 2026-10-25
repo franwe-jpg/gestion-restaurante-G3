@@ -2,10 +2,12 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { crearPlato, listarSeccionesHabilitadas } from '../api';
+import { crearProducto, listarSeccionesHabilitadas } from '../api';
+import { CONFIGURACIONES } from '../categorias';
+import type { CategoriaAlta } from '../categorias';
 import type { ProductoSalida, SeccionListado } from '../types';
 
-import { PlatoNuevoPage } from './PlatoNuevoPage';
+import { ProductoNuevoPage } from './ProductoNuevoPage';
 
 vi.mock('../api');
 
@@ -24,6 +26,8 @@ const VIEJOS: SeccionListado = {
   orden: 3,
   estado: 'DESHABILITADO',
 };
+
+const CATEGORIAS: CategoriaAlta[] = ['PLATO', 'POSTRE'];
 
 const CREADO: ProductoSalida = {
   id: 1,
@@ -45,11 +49,11 @@ function secciones(items: SeccionListado[]) {
   });
 }
 
-async function abrir() {
+async function abrir(categoria: CategoriaAlta) {
   render(
     <MemoryRouter initialEntries={['/productos/nuevo']}>
       <Routes>
-        <Route path="/productos/nuevo" element={<PlatoNuevoPage />} />
+        <Route path="/productos/nuevo" element={<ProductoNuevoPage categoria={categoria} />} />
         <Route path="/productos" element={<p>Listado de productos</p>} />
       </Routes>
     </MemoryRouter>,
@@ -83,18 +87,21 @@ afterEach(() => {
   vi.resetAllMocks();
 });
 
-describe('PlatoNuevoPage: alta', () => {
-  it('da de alta el plato mínimo, avisa y vuelve al listado (CA 1 y CA 14)', async () => {
+describe.each(CATEGORIAS)('ProductoNuevoPage %s: alta', (categoria) => {
+  const config = CONFIGURACIONES[categoria];
+
+  it('da de alta el mínimo, avisa y vuelve al listado (CA 1 y CA 14)', async () => {
     secciones([PLATOS, ENTRADAS]);
-    vi.mocked(crearPlato).mockResolvedValue({ datos: CREADO, exito: true });
-    await abrir();
+    vi.mocked(crearProducto).mockResolvedValue({ datos: CREADO, exito: true });
+    await abrir(categoria);
     completarMinimo();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Guardar plato' }));
+    fireEvent.click(screen.getByRole('button', { name: config.botonGuardar }));
 
     expect(await screen.findByText('Listado de productos')).toBeInTheDocument();
-    expect(crearPlato).toHaveBeenCalledTimes(1);
-    expect(crearPlato).toHaveBeenCalledWith(
+    expect(crearProducto).toHaveBeenCalledTimes(1);
+    expect(crearProducto).toHaveBeenCalledWith(
+      categoria,
       {
         nombre: 'Milanesa',
         seccion_id: 3,
@@ -107,61 +114,66 @@ describe('PlatoNuevoPage: alta', () => {
     );
   });
 
-  it('da de alta el plato completo con descripción, etiquetas e imagen', async () => {
+  it('da de alta el completo con descripción, etiquetas e imagen', async () => {
     secciones([PLATOS]);
-    vi.mocked(crearPlato).mockResolvedValue({ datos: CREADO, exito: true });
-    await abrir();
+    vi.mocked(crearProducto).mockResolvedValue({ datos: CREADO, exito: true });
+    await abrir(categoria);
     completarMinimo();
     fireEvent.change(screen.getByLabelText(/Descripción/), { target: { value: 'Con papas' } });
     agregar(/Etiquetas/, 'Casero');
     const foto = new File(['x'], 'foto.jpg', { type: 'image/jpeg' });
     fireEvent.change(screen.getByLabelText('Archivo de imagen'), { target: { files: [foto] } });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Guardar plato' }));
+    fireEvent.click(screen.getByRole('button', { name: config.botonGuardar }));
 
-    await waitFor(() => expect(crearPlato).toHaveBeenCalledTimes(1));
-    expect(crearPlato).toHaveBeenCalledWith(
+    await waitFor(() => expect(crearProducto).toHaveBeenCalledTimes(1));
+    expect(crearProducto).toHaveBeenCalledWith(
+      categoria,
       expect.objectContaining({ descripcion: 'Con papas', etiquetas: ['Casero'] }),
       foto,
     );
   });
 });
 
-describe('PlatoNuevoPage: validaciones', () => {
+describe.each(CATEGORIAS)('ProductoNuevoPage %s: validaciones', (categoria) => {
+  const config = CONFIGURACIONES[categoria];
+
   it('con campos vacíos no envía y marca cada campo obligatorio (CA 2)', async () => {
     secciones([PLATOS]);
-    await abrir();
+    await abrir(categoria);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Guardar plato' }));
+    fireEvent.click(screen.getByRole('button', { name: config.botonGuardar }));
 
     expect(screen.getByText('El nombre es obligatorio.')).toBeInTheDocument();
     expect(screen.getByText('La sección es obligatoria.')).toBeInTheDocument();
     expect(screen.getByText('El precio es obligatorio.')).toBeInTheDocument();
     expect(screen.getByText('Agregue al menos un ingrediente.')).toBeInTheDocument();
-    expect(crearPlato).not.toHaveBeenCalled();
+    expect(crearProducto).not.toHaveBeenCalled();
   });
 
   it('advierte el 409 de nombre repetido en el campo y no sale de la página (CA 3)', async () => {
     secciones([PLATOS]);
-    vi.mocked(crearPlato).mockResolvedValue({
+    vi.mocked(crearProducto).mockResolvedValue({
       datos: null,
       exito: false,
-      error: 'El plato ya está registrado',
+      error: `El ${categoria === 'PLATO' ? 'plato' : 'postre'} ya está registrado`,
     });
-    await abrir();
+    await abrir(categoria);
     completarMinimo();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Guardar plato' }));
+    fireEvent.click(screen.getByRole('button', { name: config.botonGuardar }));
 
-    expect(await screen.findByText('El plato ya está registrado.')).toBeInTheDocument();
+    expect(await screen.findByText(config.nombreRepetido)).toBeInTheDocument();
     expect(screen.queryByText('Listado de productos')).not.toBeInTheDocument();
   });
 });
 
-describe('PlatoNuevoPage: formulario', () => {
+describe.each(CATEGORIAS)('ProductoNuevoPage %s: formulario', (categoria) => {
+  const config = CONFIGURACIONES[categoria];
+
   it('muestra el estado fijo «Habilitado» sin control para cambiarlo (S10)', async () => {
     secciones([PLATOS]);
-    await abrir();
+    await abrir(categoria);
 
     expect(screen.getByText('Estado')).toBeInTheDocument();
     expect(screen.getByText('Habilitado')).toBeInTheDocument();
@@ -170,7 +182,7 @@ describe('PlatoNuevoPage: formulario', () => {
 
   it('el selector lista solo las secciones habilitadas, por orden (CA 9)', async () => {
     secciones([PLATOS, VIEJOS, ENTRADAS]);
-    await abrir();
+    await abrir(categoria);
 
     const opciones = within(screen.getByLabelText(/Sección/)).getAllByRole('option');
 
@@ -182,9 +194,35 @@ describe('PlatoNuevoPage: formulario', () => {
     expect(listarSeccionesHabilitadas).toHaveBeenCalledTimes(1);
   });
 
+  it('muestra el título y las migas de la categoría', async () => {
+    secciones([PLATOS]);
+    await abrir(categoria);
+
+    expect(screen.getAllByText(config.titulo)).toHaveLength(2);
+    expect(screen.getByRole('button', { name: config.botonGuardar })).toBeInTheDocument();
+  });
+
+  it('exige ingredientes y rechaza un chip repetido (CA 6)', async () => {
+    secciones([PLATOS]);
+    await abrir(categoria);
+    agregar(/Ingredientes/, 'Huevo');
+
+    agregar(/Ingredientes/, 'huevo');
+
+    expect(screen.getByText('"huevo" ya está en la lista.')).toBeInTheDocument();
+  });
+
+  it('ofrece elegir archivo o sacar foto (CA 11)', async () => {
+    secciones([PLATOS]);
+    await abrir(categoria);
+
+    expect(screen.getByRole('button', { name: 'Elegir archivo' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sacar foto' })).toBeInTheDocument();
+  });
+
   it('cuenta los caracteres de la descripción (CA 7)', async () => {
     secciones([PLATOS]);
-    await abrir();
+    await abrir(categoria);
     expect(screen.getByText('0 / 500')).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText(/Descripción/), { target: { value: 'Con papas' } });
@@ -193,34 +231,40 @@ describe('PlatoNuevoPage: formulario', () => {
   });
 });
 
-describe('PlatoNuevoPage: sin secciones habilitadas', () => {
+describe.each(CATEGORIAS)('ProductoNuevoPage %s: sin secciones habilitadas', (categoria) => {
+  const config = CONFIGURACIONES[categoria];
+
   const AVISO = 'Primero hay que crear una sección';
 
   it.each([
     ['no hay ninguna', [] as SeccionListado[]],
     ['todas están deshabilitadas', [VIEJOS]],
-  ])('avisa, enlaza a «Secciones» y deshabilita «Guardar plato» si %s (CA 8)', async (_, items) => {
-    secciones(items);
-    render(
-      <MemoryRouter>
-        <PlatoNuevoPage />
-      </MemoryRouter>,
-    );
+  ])(
+    'avisa, enlaza a «Secciones» y deshabilita el botón de guardar si %s (CA 8)',
+    async (_, items) => {
+      secciones(items);
+      render(
+        <MemoryRouter>
+          <ProductoNuevoPage categoria={categoria} />
+        </MemoryRouter>,
+      );
 
-    expect(await screen.findByText(AVISO)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Ir a Secciones' })).toHaveAttribute(
-      'href',
-      '/productos?pestania=secciones',
-    );
-    expect(screen.getByRole('button', { name: 'Guardar plato' })).toBeDisabled();
-  });
+      expect(await screen.findByText(AVISO)).toBeInTheDocument();
+      expect(screen.getByText(config.avisoSinSecciones, { exact: false })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Ir a Secciones' })).toHaveAttribute(
+        'href',
+        '/productos?pestania=secciones',
+      );
+      expect(screen.getByRole('button', { name: config.botonGuardar })).toBeDisabled();
+    },
+  );
 
   it('con secciones habilitadas no muestra el aviso y habilita el botón', async () => {
     secciones([PLATOS]);
-    await abrir();
+    await abrir(categoria);
 
     expect(screen.queryByText(AVISO)).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Guardar plato' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: config.botonGuardar })).toBeEnabled();
   });
 
   it('muestra el error si no se pueden cargar las secciones', async () => {
@@ -231,11 +275,11 @@ describe('PlatoNuevoPage: sin secciones habilitadas', () => {
     });
     render(
       <MemoryRouter>
-        <PlatoNuevoPage />
+        <ProductoNuevoPage categoria={categoria} />
       </MemoryRouter>,
     );
 
     expect(await screen.findByText('No se pudo conectar con el backend')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Guardar plato' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: config.botonGuardar })).toBeDisabled();
   });
 });

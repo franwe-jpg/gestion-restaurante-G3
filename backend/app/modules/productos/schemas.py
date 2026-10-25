@@ -137,6 +137,13 @@ class PlatoCrear(ProductoCrear):
     ingredientes: list[Texto[1, 100]] = Field(min_length=1, max_length=50)
 
 
+class PostreCrear(ProductoCrear):
+    CATEGORIA = Categoria.POSTRE
+    MENSAJE_NOMBRE_REPETIDO = "El postre ya está registrado"  # S13
+
+    ingredientes: list[Texto[1, 100]] = Field(min_length=1, max_length=50)
+
+
 class ProductoSalida(BaseModel):
     id: int
     nombre: str
