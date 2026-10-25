@@ -9,3 +9,10 @@ export interface RespuestaApi<T> {
   exito: boolean;
   error?: string;
 }
+
+export interface Pagina<T> {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
+}
