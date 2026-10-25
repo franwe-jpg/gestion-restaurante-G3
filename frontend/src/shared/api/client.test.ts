@@ -100,4 +100,39 @@ describe('ClienteApi', () => {
       body: JSON.stringify({ nombre: 'Milanesa' }),
     });
   });
+
+  it('envia un FormData sin Content-Type para que el navegador fije el boundary', async () => {
+    vi.stubEnv('VITE_API_URL', 'http://api.test');
+    const fetchMock = vi.fn().mockResolvedValue(respuestaJson({ id: 7 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const formulario = new FormData();
+    formulario.append('datos', '{"nombre":"Milanesa"}');
+
+    const respuesta = await new ClienteApi().postFormulario<{ id: number }>('/platos', formulario);
+
+    expect(respuesta).toEqual({ datos: { id: 7 }, exito: true });
+    expect(fetchMock).toHaveBeenCalledWith('http://api.test/api/v1/platos', {
+      method: 'POST',
+      body: formulario,
+    });
+  });
+
+  it('devuelve el detalle del error de un envio de formulario', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          respuestaJson({ detalle: 'El plato ya está registrado' }, 409, 'Conflict'),
+        ),
+    );
+
+    const respuesta = await new ClienteApi().postFormulario('/platos', new FormData());
+
+    expect(respuesta).toEqual({
+      datos: null,
+      exito: false,
+      error: 'El plato ya está registrado',
+    });
+  });
 });

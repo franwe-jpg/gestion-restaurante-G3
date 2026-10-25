@@ -38,3 +38,26 @@ export interface ProductoSeleccionable {
   categoria: Categoria;
   seccion: { id: number; nombre: string };
 }
+
+// HU-M1-01: alta de platos. `precio` viaja como texto decimal con punto ("12500.50").
+export interface PlatoCrear {
+  nombre: string;
+  seccion_id: number;
+  precio: string;
+  ingredientes: string[];
+  descripcion: string | null;
+  etiquetas: string[];
+}
+
+export interface ProductoSalida {
+  id: number;
+  nombre: string;
+  categoria: Categoria;
+  precio: string;
+  ingredientes: string[];
+  descripcion: string | null;
+  etiquetas: string[];
+  estado: Estado;
+  seccion: { id: number; nombre: string };
+  imagen_url: string | null;
+}

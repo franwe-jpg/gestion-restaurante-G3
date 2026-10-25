@@ -53,6 +53,11 @@ export class ClienteApi {
       body: JSON.stringify(body),
     });
   }
+
+  /** Sin `Content-Type`: el navegador lo fija con el `boundary` del multipart. */
+  postFormulario<T>(endpoint: string, formulario: FormData): Promise<RespuestaApi<T>> {
+    return this.solicitar<T>(endpoint, { method: 'POST', body: formulario });
+  }
 }
 
 export const clienteHttp = new ClienteApi();
