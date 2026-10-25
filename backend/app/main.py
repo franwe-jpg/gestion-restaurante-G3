@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import API_PREFIX, get_settings
+from app.modules.productos.router import router as productos_router
 from app.shared.excepciones import NoEncontradoError, ReglaDeNegocioError
 
 app = FastAPI(title="Sistema de Gestion de Restaurante", docs_url="/docs")
@@ -17,6 +18,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(productos_router, prefix=API_PREFIX)
 
 
 @app.exception_handler(NoEncontradoError)
