@@ -69,4 +69,25 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: 'Productos y Carta' })).toBeInTheDocument();
     expect(screen.getByText('Módulo pendiente de implementación')).toBeInTheDocument();
   });
+
+  it('monta el formulario de alta de platos en /productos/nuevo', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        json: () => Promise.resolve({ items: [], total: 0, limit: 100, offset: 0 }),
+      } as Response),
+    );
+
+    render(
+      <MemoryRouter initialEntries={['/productos/nuevo']}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole('heading', { name: 'Nuevo plato' })).toBeInTheDocument();
+    expect(await screen.findByText('Primero hay que crear una sección')).toBeInTheDocument();
+  });
 });

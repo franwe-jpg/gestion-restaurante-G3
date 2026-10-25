@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.modules.productos.models import Seccion
-from app.shared.models import Estado, Producto
+from app.shared.models import Categoria, Estado, Producto
 from app.shared.paginacion import ParametrosPaginacion, aplicar, contar
 
 
@@ -28,23 +28,41 @@ def obtener_nombre_de_seccion(db: Session, seccion_id: int) -> str:
     return db.scalar(select(Seccion.nombre).where(Seccion.id == seccion_id)) or ""
 
 
-def agregar(db: Session, seccion: Seccion) -> None:
-    db.add(seccion)
+def obtener_seccion(db: Session, seccion_id: int) -> Seccion | None:
+    return db.get(Seccion, seccion_id)
+
+
+def existe_producto(db: Session, categoria: Categoria, nombre_normalizado: str) -> bool:
+    consulta = select(Producto.id).where(
+        Producto.categoria == categoria, Producto.nombre_normalizado == nombre_normalizado
+    )
+    return db.scalar(consulta.limit(1)) is not None
+
+
+def agregar(db: Session, entidad: Seccion | Producto) -> None:
+    db.add(entidad)
     db.flush()
 
 
 def listar_secciones(
-    db: Session, parametros: ParametrosPaginacion
+    db: Session, parametros: ParametrosPaginacion, estado: Estado | None = None
 ) -> tuple[list[tuple[Seccion, int]], int]:
-    """Devuelve la pagina de secciones con su cantidad de productos y el total."""
+    """Devuelve la pagina de secciones con su cantidad de productos y el total.
+
+    Con `estado`, el listado y el total cuentan solo las secciones en ese estado.
+    """
     consulta = (
         select(Seccion, func.count(Producto.id))
         .outerjoin(Producto, Producto.seccion_id == Seccion.id)
         .group_by(Seccion.id)
         .order_by(Seccion.orden, Seccion.id)
     )
+    total = select(Seccion)
+    if estado is not None:
+        consulta = consulta.where(Seccion.estado == estado)
+        total = total.where(Seccion.estado == estado)
     filas = db.execute(aplicar(consulta, parametros)).all()
-    return [(seccion, cantidad) for seccion, cantidad in filas], contar(db, select(Seccion))
+    return [(seccion, cantidad) for seccion, cantidad in filas], contar(db, total)
 
 
 def listar_productos_habilitados(

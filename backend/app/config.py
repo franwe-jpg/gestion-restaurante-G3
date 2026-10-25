@@ -12,6 +12,7 @@ class Settings(BaseSettings):
 
     database_url: str = "sqlite:///./restaurante.db"
     cors_origin: str = "http://localhost:5173"
+    media_dir: str = "./media"  # carpeta de las imagenes subidas (se sirve en /media)
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

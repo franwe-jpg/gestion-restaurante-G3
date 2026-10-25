@@ -1,11 +1,13 @@
 """Fabricas de datos para las pruebas del modulo productos."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from decimal import Decimal
+from pathlib import Path
 
 import pytest
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
 from app.modules.productos.models import Seccion
 from app.shared.models import Categoria, Estado, Producto
 
@@ -26,10 +28,15 @@ def fabrica_seccion(db: Session) -> FabricaSeccion:
 
 @pytest.fixture
 def fabrica_producto(db: Session) -> FabricaProducto:
-    def crear(seccion: Seccion, nombre: str = "Flan", estado: Estado = Estado.HABILITADO):
+    def crear(
+        seccion: Seccion,
+        nombre: str = "Flan",
+        estado: Estado = Estado.HABILITADO,
+        categoria: Categoria = Categoria.POSTRE,
+    ):
         producto = Producto(
             nombre=nombre,
-            categoria=Categoria.POSTRE,
+            categoria=categoria,
             precio=Decimal("1500.00"),
             estado=estado,
             seccion_id=seccion.id,
@@ -39,3 +46,13 @@ def fabrica_producto(db: Session) -> FabricaProducto:
         return producto
 
     return crear
+
+
+@pytest.fixture
+def directorio_media(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
+    """Apunta MEDIA_DIR a una carpeta temporal: las pruebas no escriben en la carpeta real."""
+    carpeta = tmp_path / "media"
+    monkeypatch.setenv("MEDIA_DIR", str(carpeta))
+    get_settings.cache_clear()
+    yield carpeta
+    get_settings.cache_clear()

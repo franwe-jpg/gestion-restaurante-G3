@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.shared.excepciones import NoEncontradoError, ReglaDeNegocioError
+from app.shared.excepciones import DatosInvalidosError, NoEncontradoError, ReglaDeNegocioError
 
 cliente = TestClient(app)
 
@@ -14,6 +14,11 @@ def _no_encontrado() -> None:
 @app.get("/_prueba/regla-de-negocio")
 def _regla_de_negocio() -> None:
     raise ReglaDeNegocioError("La comanda ya esta cerrada")
+
+
+@app.get("/_prueba/datos-invalidos")
+def _datos_invalidos() -> None:
+    raise DatosInvalidosError("La imagen no es valida")
 
 
 @app.get("/_prueba/validacion/{numero}")
@@ -40,6 +45,13 @@ def test_regla_de_negocio_devuelve_409_con_detalle() -> None:
 
     assert respuesta.status_code == 409
     assert respuesta.json() == {"detalle": "La comanda ya esta cerrada"}
+
+
+def test_datos_invalidos_del_service_devuelven_422_con_detalle() -> None:
+    respuesta = cliente.get("/_prueba/datos-invalidos")
+
+    assert respuesta.status_code == 422
+    assert respuesta.json() == {"detalle": "La imagen no es valida"}
 
 
 def test_datos_invalidos_devuelven_422_con_detalle() -> None:

@@ -3,9 +3,11 @@
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.modules.productos import repository
+from app.modules.productos import imagenes, repository
 from app.modules.productos.models import Seccion
 from app.modules.productos.schemas import (
+    ProductoCrear,
+    ProductoSalida,
     ProductoSeleccionable,
     SeccionCrear,
     SeccionListado,
@@ -14,6 +16,7 @@ from app.modules.productos.schemas import (
 )
 from app.shared.excepciones import NoEncontradoError, ReglaDeNegocioError
 from app.shared.models import Estado, Producto
+from app.shared.models.producto import normalizar_nombre
 from app.shared.paginacion import Pagina, ParametrosPaginacion
 
 
@@ -73,8 +76,84 @@ def crear_seccion(db: Session, datos: SeccionCrear) -> SeccionSalida:
     return SeccionSalida.model_validate(_guardar(db, datos, productos))
 
 
-def listar_secciones(db: Session, parametros: ParametrosPaginacion) -> Pagina[SeccionListado]:
-    filas, total = repository.listar_secciones(db, parametros)
+def _validar_seccion_habilitada(db: Session, seccion_id: int) -> Seccion:
+    seccion = repository.obtener_seccion(db, seccion_id)
+    if seccion is None:
+        raise NoEncontradoError(f"La sección {seccion_id} no existe")
+    if seccion.estado != Estado.HABILITADO:
+        raise ReglaDeNegocioError(f"La sección {seccion.nombre} está deshabilitada")
+    return seccion
+
+
+def _validar_producto_libre(db: Session, datos: ProductoCrear) -> None:
+    if repository.existe_producto(db, datos.CATEGORIA, normalizar_nombre(datos.nombre)):
+        raise ReglaDeNegocioError(datos.MENSAJE_NOMBRE_REPETIDO)
+
+
+def _armar_producto(datos: ProductoCrear, archivo: str | None) -> Producto:
+    return Producto(
+        nombre=datos.nombre,
+        categoria=datos.CATEGORIA,
+        precio=datos.precio,
+        ingredientes=datos.ingredientes,
+        descripcion=datos.descripcion,
+        imagen=archivo,
+        etiquetas=datos.etiquetas,
+        estado=Estado.HABILITADO,
+        seccion_id=datos.seccion_id,
+    )
+
+
+def _guardar_producto(db: Session, producto: Producto, mensaje_repetido: str) -> None:
+    """Confirma el alta; ante cualquier error deshace la transaccion y borra la imagen (S7)."""
+    archivo = producto.imagen
+    try:
+        repository.agregar(db, producto)
+        db.commit()
+    except IntegrityError as error:
+        _descartar(db, archivo)
+        raise ReglaDeNegocioError(mensaje_repetido) from error
+    except Exception:
+        _descartar(db, archivo)
+        raise
+
+
+def _descartar(db: Session, archivo: str | None) -> None:
+    db.rollback()
+    if archivo:
+        imagenes.borrar(archivo)
+
+
+def _a_salida(producto: Producto, seccion: Seccion) -> ProductoSalida:
+    return ProductoSalida(
+        id=producto.id,
+        nombre=producto.nombre,
+        categoria=producto.categoria,
+        precio=producto.precio,
+        ingredientes=producto.ingredientes,
+        descripcion=producto.descripcion,
+        etiquetas=producto.etiquetas,
+        estado=producto.estado,
+        seccion=SeccionResumen(id=seccion.id, nombre=seccion.nombre),
+        imagen_url=f"/media/{producto.imagen}" if producto.imagen else None,
+    )
+
+
+def crear_producto(db: Session, datos: ProductoCrear, imagen: bytes | None) -> ProductoSalida:
+    """Alta compartida de platos, postres y bebidas. Orden de validacion: B6."""
+    procesada = imagenes.procesar(imagen) if imagen is not None else None
+    seccion = _validar_seccion_habilitada(db, datos.seccion_id)
+    _validar_producto_libre(db, datos)
+    archivo = imagenes.guardar(procesada) if procesada else None
+    producto = _armar_producto(datos, archivo)
+    _guardar_producto(db, producto, datos.MENSAJE_NOMBRE_REPETIDO)
+    return _a_salida(producto, seccion)
+
+
+def listar_secciones(
+    db: Session, parametros: ParametrosPaginacion, estado: Estado | None = None
+) -> Pagina[SeccionListado]:
+    filas, total = repository.listar_secciones(db, parametros, estado)
     items = [
         SeccionListado(
             id=seccion.id,

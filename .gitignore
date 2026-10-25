@@ -18,6 +18,9 @@ node_modules/
 # Environment
 .env
 
+# Imagenes subidas por la aplicacion (MEDIA_DIR)
+backend/media/
+
 # Sprint 0 documents shared through the team's Drive
 SPRINT-0/*.docx
 
