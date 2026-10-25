@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from PIL import Image
 
 from app.main import montar_media
+from app.modules.productos.models import Seccion
 from app.shared.models import Estado, Producto
 
 RUTA = "/api/v1/secciones"
@@ -602,3 +603,351 @@ def test_consultar_plato_deshabilitado_200(cliente: TestClient, fabrica_seccion,
 
     assert respuesta.status_code == 200
     assert respuesta.json()["estado"] == "DESHABILITADO"
+
+
+# Modificar un plato
+def _modificar(cliente: TestClient, plato_id: int, datos: dict, imagen: tuple | None = None):
+    archivos = {"imagen": imagen} if imagen else None
+    return cliente.put(
+        f"{RUTA_PLATOS}/{plato_id}", data={"datos": json.dumps(datos)}, files=archivos
+    )
+
+
+def _sirve(directorio_media: Path, imagen_url: str) -> int:
+    aplicacion = FastAPI()
+    montar_media(aplicacion, directorio_media)
+    return TestClient(aplicacion).get(imagen_url).status_code
+
+
+def _plato_con_imagen(cliente: TestClient, seccion_id: int, **cambios) -> dict:
+    return _crear_plato(cliente, seccion_id, ("foto.jpg", _imagen(), "image/jpeg"), **cambios)
+
+
+# CA 1
+def test_modificar_plato_datos_validos(cliente: TestClient, fabrica_seccion) -> None:
+    origen = fabrica_seccion("Platos", 1)
+    destino = fabrica_seccion("Minutas", 2)
+    plato = _crear_plato(cliente, origen.id)
+
+    respuesta = _modificar(
+        cliente,
+        plato["id"],
+        _datos(destino.id, nombre="  Suprema ", precio="2000", descripcion="Con puré"),
+    )
+
+    assert respuesta.status_code == 200
+    cuerpo = respuesta.json()
+    assert cuerpo["id"] == plato["id"]
+    assert cuerpo["nombre"] == "Suprema"
+    assert cuerpo["precio"] == "2000.00"
+    assert cuerpo["descripcion"] == "Con puré"
+    assert cuerpo["seccion"] == {"id": destino.id, "nombre": "Minutas"}
+    assert cliente.get(f"{RUTA_PLATOS}/{plato['id']}").json() == cuerpo
+
+
+def test_modificar_plato_mismo_nombre_200(cliente: TestClient, fabrica_seccion) -> None:
+    seccion = fabrica_seccion("Platos")
+    plato = _crear_plato(cliente, seccion.id, nombre="Milanesa")
+
+    respuesta = _modificar(cliente, plato["id"], _datos(seccion.id, nombre="milanesa", precio="9"))
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["precio"] == "9.00"
+
+
+# CA 2
+def test_modificar_plato_ingredientes_y_etiquetas(cliente: TestClient, fabrica_seccion) -> None:
+    seccion = fabrica_seccion("Platos")
+    plato = _crear_plato(cliente, seccion.id, ingredientes=["Pan", "Huevo"], etiquetas=["Casero"])
+
+    respuesta = _modificar(cliente, plato["id"], _datos(seccion.id, ingredientes=["Pan", "Queso"]))
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["ingredientes"] == ["Pan", "Queso"]
+    assert respuesta.json()["etiquetas"] == []
+
+
+def test_modificar_plato_imagen_conservada(
+    cliente: TestClient, fabrica_seccion, directorio_media: Path
+) -> None:
+    seccion = fabrica_seccion("Platos")
+    plato = _plato_con_imagen(cliente, seccion.id)
+
+    respuesta = _modificar(cliente, plato["id"], _datos(seccion.id, precio="10"))
+
+    assert respuesta.json()["imagen_url"] == plato["imagen_url"]
+    assert _sirve(directorio_media, plato["imagen_url"]) == 200
+
+
+def test_modificar_plato_imagen_reemplazada(
+    cliente: TestClient, fabrica_seccion, directorio_media: Path
+) -> None:
+    seccion = fabrica_seccion("Platos")
+    plato = _plato_con_imagen(cliente, seccion.id)
+
+    respuesta = _modificar(
+        cliente, plato["id"], _datos(seccion.id), ("nueva.png", _imagen("PNG"), "image/png")
+    )
+
+    nueva = respuesta.json()["imagen_url"]
+    assert respuesta.status_code == 200
+    assert nueva != plato["imagen_url"]
+    assert _sirve(directorio_media, nueva) == 200
+    assert _sirve(directorio_media, plato["imagen_url"]) == 404
+    assert len(list(directorio_media.iterdir())) == 1
+
+
+def test_modificar_plato_imagen_quitada(
+    cliente: TestClient, fabrica_seccion, directorio_media: Path
+) -> None:
+    seccion = fabrica_seccion("Platos")
+    plato = _plato_con_imagen(cliente, seccion.id)
+
+    respuesta = _modificar(cliente, plato["id"], _datos(seccion.id, quitar_imagen=True))
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["imagen_url"] is None
+    assert list(directorio_media.iterdir()) == []
+
+
+def test_modificar_plato_quitar_y_reemplazar_422(
+    cliente: TestClient, fabrica_seccion, directorio_media: Path
+) -> None:
+    seccion = fabrica_seccion("Platos")
+    plato = _plato_con_imagen(cliente, seccion.id)
+
+    respuesta = _modificar(
+        cliente,
+        plato["id"],
+        _datos(seccion.id, nombre="Otro", quitar_imagen=True),
+        ("nueva.png", _imagen("PNG"), "image/png"),
+    )
+
+    assert respuesta.status_code == 422
+    assert cliente.get(f"{RUTA_PLATOS}/{plato['id']}").json() == plato
+    assert len(list(directorio_media.iterdir())) == 1
+
+
+# CA 3: validaciones; el plato conserva sus datos
+@pytest.mark.parametrize(
+    "cambios, campo",
+    [
+        ({"nombre": "   "}, "nombre"),
+        ({"nombre": "a" * 101}, "nombre"),
+    ],
+)
+def test_modificar_plato_nombre_invalido_422(
+    cliente: TestClient, fabrica_seccion, cambios: dict, campo: str
+) -> None:
+    seccion = fabrica_seccion("Platos")
+    plato = _crear_plato(cliente, seccion.id)
+
+    respuesta = _modificar(cliente, plato["id"], _datos(seccion.id, **cambios))
+
+    assert respuesta.status_code == 422
+    assert campo in respuesta.json()["detalle"]
+    assert cliente.get(f"{RUTA_PLATOS}/{plato['id']}").json() == plato
+
+
+@pytest.mark.parametrize("precio", ["0", "-5", "mil", "1500.555"])
+def test_modificar_plato_precio_invalido_422(
+    cliente: TestClient, fabrica_seccion, precio: str
+) -> None:
+    seccion = fabrica_seccion("Platos")
+    plato = _crear_plato(cliente, seccion.id)
+
+    respuesta = _modificar(cliente, plato["id"], _datos(seccion.id, precio=precio))
+
+    assert respuesta.status_code == 422
+    assert "precio" in respuesta.json()["detalle"]
+    assert cliente.get(f"{RUTA_PLATOS}/{plato['id']}").json()["precio"] == plato["precio"]
+
+
+@pytest.mark.parametrize("ingredientes", [[], ["Huevo", " huevo "]], ids=["vacios", "repetidos"])
+def test_modificar_plato_ingredientes_invalidos_422(
+    cliente: TestClient, fabrica_seccion, ingredientes: list
+) -> None:
+    seccion = fabrica_seccion("Platos")
+    plato = _crear_plato(cliente, seccion.id)
+
+    respuesta = _modificar(cliente, plato["id"], _datos(seccion.id, ingredientes=ingredientes))
+
+    assert respuesta.status_code == 422
+    assert "ingredientes" in respuesta.json()["detalle"]
+
+
+@pytest.mark.parametrize(
+    "cambios, campo",
+    [
+        ({"etiquetas": ["a" * 31]}, "etiquetas"),
+        ({"etiquetas": ["casero", "Casero"]}, "etiquetas"),
+        ({"descripcion": "a" * 501}, "descripcion"),
+    ],
+)
+def test_modificar_plato_etiquetas_y_descripcion_invalidas_422(
+    cliente: TestClient, fabrica_seccion, cambios: dict, campo: str
+) -> None:
+    seccion = fabrica_seccion("Platos")
+    plato = _crear_plato(cliente, seccion.id)
+
+    respuesta = _modificar(cliente, plato["id"], _datos(seccion.id, **cambios))
+
+    assert respuesta.status_code == 422
+    assert campo in respuesta.json()["detalle"]
+
+
+@pytest.mark.parametrize(
+    "archivo",
+    [
+        ("plato.jpg", b"texto con extension falsa", "image/jpeg"),
+        ("plato.pdf", b"%PDF-1.4\n", "application/pdf"),
+        ("plato.jpg", b"\0" * (MAXIMO_BYTES + 1), "image/jpeg"),
+    ],
+    ids=["extension-falsa", "pdf", "mas-de-5-mb"],
+)
+def test_modificar_plato_imagen_invalida_422(
+    cliente: TestClient, fabrica_seccion, directorio_media: Path, archivo: tuple
+) -> None:
+    seccion = fabrica_seccion("Platos")
+    plato = _plato_con_imagen(cliente, seccion.id)
+    anterior = {archivo.name for archivo in directorio_media.iterdir()}
+
+    respuesta = _modificar(cliente, plato["id"], _datos(seccion.id, nombre="Otro"), archivo)
+
+    assert respuesta.status_code == 422
+    assert "JPG, PNG o HEIC" in respuesta.json()["detalle"]
+    assert {archivo.name for archivo in directorio_media.iterdir()} == anterior
+    assert cliente.get(f"{RUTA_PLATOS}/{plato['id']}").json() == plato
+
+
+def test_modificar_plato_nombre_duplicado_409(cliente: TestClient, fabrica_seccion, db) -> None:
+    seccion = fabrica_seccion("Platos")
+    milanesa = _crear_plato(cliente, seccion.id, nombre="Milanesa")
+    flan = _crear_plato(cliente, seccion.id, nombre="Flan casero")
+    _deshabilitar(db, flan["id"])
+
+    respuesta = _modificar(cliente, milanesa["id"], _datos(seccion.id, nombre=" flan casero "))
+
+    assert respuesta.status_code == 409
+    assert respuesta.json() == {"detalle": "El plato ya está registrado"}
+    assert cliente.get(f"{RUTA_PLATOS}/{milanesa['id']}").json() == milanesa
+
+
+def test_modificar_plato_mismo_nombre_que_postre_200(cliente: TestClient, fabrica_seccion) -> None:
+    seccion = fabrica_seccion("Carta")
+    _crear(cliente, ALTA_POSTRE, _datos(seccion.id, nombre="Tiramisú"))
+    plato = _crear_plato(cliente, seccion.id, nombre="Milanesa")
+
+    respuesta = _modificar(cliente, plato["id"], _datos(seccion.id, nombre="Tiramisú"))
+
+    assert respuesta.status_code == 200
+
+
+def test_modificar_plato_seccion_inexistente_404(cliente: TestClient, fabrica_seccion) -> None:
+    seccion = fabrica_seccion("Platos")
+    plato = _crear_plato(cliente, seccion.id)
+
+    respuesta = _modificar(cliente, plato["id"], _datos(999))
+
+    assert respuesta.status_code == 404
+    assert cliente.get(f"{RUTA_PLATOS}/{plato['id']}").json() == plato
+
+
+def test_modificar_plato_seccion_deshabilitada_409(cliente: TestClient, fabrica_seccion) -> None:
+    seccion = fabrica_seccion("Platos", 1)
+    vieja = fabrica_seccion("Viejos", 2, Estado.DESHABILITADO)
+    plato = _crear_plato(cliente, seccion.id)
+
+    respuesta = _modificar(cliente, plato["id"], _datos(vieja.id))
+
+    assert respuesta.status_code == 409
+    assert cliente.get(f"{RUTA_PLATOS}/{plato['id']}").json() == plato
+
+
+def test_modificar_plato_inexistente_404(cliente: TestClient, fabrica_seccion) -> None:
+    seccion = fabrica_seccion("Platos")
+
+    respuesta = _modificar(cliente, 999, _datos(seccion.id))
+
+    assert respuesta.status_code == 404
+    assert "detalle" in respuesta.json()
+
+
+def test_modificar_plato_de_postre_404(cliente: TestClient, fabrica_seccion) -> None:
+    seccion = fabrica_seccion("Carta")
+    postre = _crear(cliente, ALTA_POSTRE, _datos(seccion.id, nombre="Flan")).json()
+
+    respuesta = _modificar(cliente, postre["id"], _datos(seccion.id, nombre="Flan 2"))
+
+    assert respuesta.status_code == 404
+
+
+# CA 5: reactivar
+def test_modificar_plato_reactivar_200(cliente: TestClient, fabrica_seccion, db) -> None:
+    seccion = fabrica_seccion("Platos")
+    plato = _crear_plato(cliente, seccion.id)
+    _deshabilitar(db, plato["id"])
+    assert cliente.get("/api/v1/productos").json()["total"] == 0
+
+    respuesta = _modificar(cliente, plato["id"], _datos(seccion.id, estado="HABILITADO"))
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["estado"] == "HABILITADO"
+    assert cliente.get("/api/v1/productos").json()["total"] == 1
+
+
+def test_modificar_plato_sin_estado_conserva_el_actual(
+    cliente: TestClient, fabrica_seccion, db
+) -> None:
+    seccion = fabrica_seccion("Platos")
+    plato = _crear_plato(cliente, seccion.id)
+    _deshabilitar(db, plato["id"])
+
+    respuesta = _modificar(cliente, plato["id"], _datos(seccion.id, precio="11"))
+
+    assert respuesta.json()["estado"] == "DESHABILITADO"
+
+
+def test_modificar_plato_deshabilitar_con_estado_200(cliente: TestClient, fabrica_seccion) -> None:
+    seccion = fabrica_seccion("Platos")
+    plato = _crear_plato(cliente, seccion.id)
+
+    respuesta = _modificar(cliente, plato["id"], _datos(seccion.id, estado="DESHABILITADO"))
+
+    assert respuesta.json()["estado"] == "DESHABILITADO"
+    assert cliente.get("/api/v1/productos").json()["total"] == 0
+
+
+def test_modificar_plato_reactivar_en_seccion_deshabilitada_200(
+    cliente: TestClient, fabrica_seccion, db
+) -> None:
+    seccion = fabrica_seccion("Platos")
+    plato = _crear_plato(cliente, seccion.id)
+    _deshabilitar(db, plato["id"])
+    db.get(Seccion, seccion.id).estado = Estado.DESHABILITADO
+    db.commit()
+
+    respuesta = _modificar(cliente, plato["id"], _datos(seccion.id, estado="HABILITADO"))
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["estado"] == "HABILITADO"
+
+
+def test_modificar_plato_estado_invalido_422(cliente: TestClient, fabrica_seccion) -> None:
+    seccion = fabrica_seccion("Platos")
+    plato = _crear_plato(cliente, seccion.id)
+
+    respuesta = _modificar(cliente, plato["id"], _datos(seccion.id, estado="ANULADO"))
+
+    assert respuesta.status_code == 422
+    assert "estado" in respuesta.json()["detalle"]
+
+
+def test_modificar_plato_con_categoria_enviada_422(cliente: TestClient, fabrica_seccion) -> None:
+    seccion = fabrica_seccion("Platos")
+    plato = _crear_plato(cliente, seccion.id)
+
+    respuesta = _modificar(cliente, plato["id"], _datos(seccion.id, categoria="POSTRE"))
+
+    assert respuesta.status_code == 422
+    assert "categoria" in respuesta.json()["detalle"]

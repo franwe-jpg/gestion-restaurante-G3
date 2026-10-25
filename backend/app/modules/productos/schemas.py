@@ -137,6 +137,17 @@ class PlatoCrear(ProductoCrear):
     ingredientes: list[Texto[1, 100]] = Field(min_length=1, max_length=50)
 
 
+class ProductoModificar(ProductoCrear):
+    """Base de la modificacion: reemplazo completo del alta, con estado y quitar_imagen (S24)."""
+
+    estado: Estado | None = None  # ausente: conserva el actual
+    quitar_imagen: StrictBool = False
+
+
+class PlatoModificar(PlatoCrear, ProductoModificar):
+    """Modificacion de un plato: las reglas y los mensajes salen de PlatoCrear (E2)."""
+
+
 class PostreCrear(ProductoCrear):
     CATEGORIA = Categoria.POSTRE
     MENSAJE_NOMBRE_REPETIDO = "El postre ya está registrado"  # S13

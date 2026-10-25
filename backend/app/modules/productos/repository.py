@@ -32,10 +32,14 @@ def obtener_seccion(db: Session, seccion_id: int) -> Seccion | None:
     return db.get(Seccion, seccion_id)
 
 
-def existe_producto(db: Session, categoria: Categoria, nombre_normalizado: str) -> bool:
+def existe_producto(
+    db: Session, categoria: Categoria, nombre_normalizado: str, excluir_id: int | None = None
+) -> bool:
     consulta = select(Producto.id).where(
         Producto.categoria == categoria, Producto.nombre_normalizado == nombre_normalizado
     )
+    if excluir_id is not None:
+        consulta = consulta.where(Producto.id != excluir_id)
     return db.scalar(consulta.limit(1)) is not None
 
 

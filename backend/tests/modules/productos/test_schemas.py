@@ -4,7 +4,14 @@ from decimal import Decimal
 import pytest
 from pydantic import ValidationError
 
-from app.modules.productos.schemas import PlatoCrear, PostreCrear, ProductoSalida, SeccionResumen
+from app.modules.productos.schemas import (
+    PlatoCrear,
+    PlatoModificar,
+    PostreCrear,
+    ProductoModificar,
+    ProductoSalida,
+    SeccionResumen,
+)
 from app.shared.models import Categoria, Estado
 
 
@@ -159,3 +166,80 @@ def test_producto_salida_serializa_el_precio_como_texto_con_dos_decimales() -> N
     )
 
     assert salida.model_dump(mode="json")["precio"] == "1500.50"
+
+
+# HU-M1-02-03: PlatoModificar hereda las reglas del alta
+def _modificar(**cambios) -> PlatoModificar:
+    base = {"nombre": "Milanesa", "seccion_id": 1, "precio": "1500.50", "ingredientes": ["Carne"]}
+    return PlatoModificar.model_validate_json(json.dumps(base | cambios))
+
+
+def _campos_modificar_con_error(**cambios) -> set[str]:
+    with pytest.raises(ValidationError) as error:
+        _modificar(**cambios)
+    return {str(falla["loc"][0]) for falla in error.value.errors()}
+
+
+def test_plato_modificar_hereda_categoria_mensaje_y_tipo_base() -> None:
+    datos = _modificar()
+
+    assert datos.CATEGORIA == Categoria.PLATO
+    assert datos.MENSAJE_NOMBRE_REPETIDO == "El plato ya está registrado"
+    assert isinstance(datos, ProductoModificar)
+
+
+def test_plato_modificar_toma_valores_por_defecto() -> None:
+    datos = _modificar()
+
+    assert datos.estado is None
+    assert datos.quitar_imagen is False
+    assert datos.descripcion is None
+    assert datos.etiquetas == []
+
+
+@pytest.mark.parametrize(
+    "cambios, campo",
+    [
+        ({"nombre": "   "}, "nombre"),
+        ({"precio": "0"}, "precio"),
+        ({"ingredientes": []}, "ingredientes"),
+        ({"ingredientes": ["Huevo", " huevo "]}, "ingredientes"),
+        ({"etiquetas": ["casero", "Casero"]}, "etiquetas"),
+        ({"descripcion": "a" * 501}, "descripcion"),
+        ({"seccion_id": 0}, "seccion_id"),
+    ],
+)
+def test_plato_modificar_aplica_las_reglas_del_alta(cambios: dict, campo: str) -> None:
+    assert _campos_modificar_con_error(**cambios) == {campo}
+
+
+def test_plato_modificar_sin_ingredientes_es_invalido() -> None:
+    datos = {"nombre": "Milanesa", "seccion_id": 1, "precio": "10"}
+
+    with pytest.raises(ValidationError) as error:
+        PlatoModificar.model_validate(datos)
+
+    assert {str(falla["loc"][0]) for falla in error.value.errors()} == {"ingredientes"}
+
+
+@pytest.mark.parametrize("estado", ["HABILITADO", "DESHABILITADO"])
+def test_plato_modificar_acepta_estado_valido(estado: str) -> None:
+    assert _modificar(estado=estado).estado == Estado(estado)
+
+
+@pytest.mark.parametrize("estado", ["ANULADO", "habilitado", 1])
+def test_plato_modificar_estado_invalido(estado) -> None:
+    assert _campos_modificar_con_error(estado=estado) == {"estado"}
+
+
+@pytest.mark.parametrize("valor", ["si", 1, "true"])
+def test_plato_modificar_quitar_imagen_es_estricto(valor) -> None:
+    assert _campos_modificar_con_error(quitar_imagen=valor) == {"quitar_imagen"}
+
+
+def test_plato_modificar_acepta_quitar_imagen_booleano() -> None:
+    assert _modificar(quitar_imagen=True).quitar_imagen is True
+
+
+def test_plato_modificar_rechaza_categoria_desconocida() -> None:
+    assert _campos_modificar_con_error(categoria="POSTRE") == {"categoria"}
