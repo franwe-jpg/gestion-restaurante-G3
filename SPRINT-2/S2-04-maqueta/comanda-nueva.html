@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nueva comanda</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="estilos.css">
+<style>
+/* Rules for this page only. A rule with the same selector as in estilos.css overrides it here. */
+.pill{min-height:36px;padding:0 14px;border:1px solid #e2e8f0;border-radius:999px;background:#ffffff;font-family:inherit;font-size:13px;font-weight:600;color:#475569;cursor:pointer}
+.pill:hover{background:#f8fafc;color:#0f172a}
+.pill.on{background:#0f172a;border-color:#0f172a;color:#ffffff}
+.prod{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 12px;border:1px solid #f1f5f9;border-radius:10px}
+.add{width:40px;height:40px;border-radius:8px;border:1px solid #fcd34d;background:#fffbeb;color:#92400e;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.add:hover{background:#fef3c7}
+.qty{display:inline-flex;align-items:center;border:1px solid #e2e8f0;border-radius:8px}
+.qty button{width:32px;height:32px;border:0;background:transparent;color:#334155;cursor:pointer;font-size:16px;font-weight:600;font-family:inherit}
+.qty span{min-width:28px;text-align:center;font-weight:700;font-size:14px}
+</style>
+</head>
+<body>
+<div style="min-height: 100vh; display: flex; flex-wrap: wrap; align-items: stretch; background: #f8fafc">
+<aside aria-label="Navegación principal" style="flex: 1 1 240px; min-width: 0; background: #ffffff; border-right: 1px solid #e2e8f0; display: flex; flex-direction: column; justify-content: space-between">
+<div>
+<a href="index.html" style="display: flex; align-items: center; gap: 10px; height: 64px; padding: 0 16px; text-decoration: none; color: #0f172a">
+<span style="width: 36px; height: 36px; border-radius: 8px; background: #b45309; color: #ffffff; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21a1 1 0 0 0 1-1v-5.35c0-.457.316-.844.727-1.041a4 4 0 0 0-2.134-7.589 5 5 0 0 0-9.186 0 4 4 0 0 0-2.134 7.588c.411.198.727.585.727 1.041V20a1 1 0 0 0 1 1Z"></path><path d="M6 17h12"></path></svg></span>
+<span class="h" style="font-size: 16px; font-weight: 700">GastroAdmin</span>
+</a>
+<nav aria-label="Módulos del restaurante" style="display: flex; flex-direction: column; gap: 4px; padding: 8px; border-top: 1px solid #e2e8f0">
+<a class="nav" href="index.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="9" x="3" y="3" rx="1"></rect><rect width="7" height="5" x="14" y="3" rx="1"></rect><rect width="7" height="9" x="14" y="12" rx="1"></rect><rect width="7" height="5" x="3" y="16" rx="1"></rect></svg>Inicio</a>
+<a class="nav" href="productos.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"></path><path d="M7 2v20"></path><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"></path></svg>Productos y Carta</a>
+<a class="nav" href="menus.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>Menús y Promociones</a>
+<a class="nav" href="salon.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>Salón y Mozos</a>
+<a class="nav on" href="comandas.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M12 11h4"></path><path d="M12 16h4"></path><path d="M8 11h.01"></path><path d="M8 16h.01"></path></svg>Atención al Público</a>
+<a class="nav" href="reservas.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M16 2v4"></path><path d="M8 2v4"></path><path d="M3 10h18"></path></svg>Reservas</a>
+<a class="nav" href="pagos.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="14" x="2" y="5" rx="2"></rect><path d="M2 10h20"></path></svg>Pagos</a>
+</nav>
+</div>
+<div style="padding: 12px 16px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #64748b">Turno Noche · 24/10/2026</div>
+</aside>
+<div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+<header style="min-height: 64px; background: #ffffff; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 8px 24px">
+<nav aria-label="Ruta" style="display: flex; gap: 8px; align-items: center; font-size: 14px; color: #64748b"><br></nav>
+<div style="display: flex; align-items: center; gap: 12px">
+<span class="sup">SUPUESTO #172</span>
+<span style="width: 36px; height: 36px; border-radius: 999px; background: #bae6fd; color: #0c4a6e; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700">JF</span>
+<span style="display: flex; flex-direction: column; line-height: 1.25"><span style="font-size: 14px; font-weight: 600">Juan Fernández</span><span style="font-size: 12px; color: #64748b">Mozo</span></span>
+<a class="ib" href="login.html" aria-label="Cerrar sesión"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><path d="m16 17 5-5-5-5"></path><path d="M21 12H9"></path></svg></a>
+</div>
+</header>
+<main style="width: 100%; max-width: 1280px; padding: 24px; display: flex; flex-direction: column; gap: 20px">
+<div>
+<h1 class="h" style="margin: 0; font-size: 26px; font-weight: 800">Nueva comanda</h1>
+
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+<section style="flex: 999 1 460px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+<div class="card" style="padding: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px">
+<div>
+<label class="lbl" for="mesa">Mesa</label>
+<select class="inp" id="mesa">
+<option>Salón principal · Mesa 3 (4 pers.)</option>
+<option>Salón principal · Mesa 1 (2 pers.)</option>
+<option>Salón principal · Mesa 10 (8 pers.)</option>
+<option>Terraza · Mesa 1 (4 pers.)</option>
+</select>
+
+</div>
+<div>
+<label class="lbl" for="obs">Observaciones</label>
+<textarea class="inp" id="obs" rows="2" style="resize: vertical">Milanesa sin jamón.</textarea>
+</div>
+</div>
+<div class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 14px">
+<label style="position: relative; display: flex; align-items: center">
+<span style="position: absolute; left: 12px; color: #64748b; display: flex"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg></span>
+<input class="inp" type="search" placeholder="Buscar producto o menú" aria-label="Buscar producto" style="padding-left: 36px">
+</label>
+<div role="group" aria-label="Categoría" id="categorias" style="display: flex; gap: 8px; flex-wrap: wrap"></div>
+<div id="catalogo" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px"></div>
+</div>
+</section>
+<aside class="card" style="flex: 1 1 340px; min-width: 0; padding: 20px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; justify-content: space-between; align-items: center">
+<h2 class="h" style="margin: 0; font-size: 18px; font-weight: 700">Detalle</h2>
+<span id="cant-items" style="font-size: 13px; color: #475569">5 ítems</span>
+</div>
+<p id="vacio" hidden style="margin: 0; padding: 24px 12px; text-align: center; font-size: 14px; color: #475569; border: 1px dashed #cbd5e1; border-radius: 10px">Todavía no agregaste productos.</p>
+<!-- display: contents keeps each order line a direct flex item of this panel -->
+<div id="lineas" style="display: contents"></div>
+<div style="display: flex; justify-content: space-between; align-items: baseline; padding-top: 4px">
+<span style="font-size: 15px; font-weight: 600">Total</span>
+<span class="h" style="font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums" id="total">$ 32.800</span>
+</div>
+<div style="display: flex; gap: 8px">
+<a class="btn bo" href="comandas.html" style="flex: 1">Cancelar</a>
+<a class="btn bp" href="comandas.html" style="flex: 2">Crear comanda</a>
+</div>
+</aside>
+</div>
+</main>
+</div>
+</div>
+<script>
+(function () {
+  // Sample catalog: [id, category, name, price].
+  var prods = [
+    ['mila', 'platos', 'Milanesa napolitana', 12500], ['ravi', 'platos', 'Ravioles de verdura', 9800],
+    ['cesar', 'platos', 'Ensalada César', 7200], ['bife', 'platos', 'Bife de chorizo', 16900],
+    ['flan', 'postres', 'Flan casero', 4200],
+    ['agua', 'bebidas', 'Agua sin gas 500 ml', 1800], ['limo', 'bebidas', 'Limonada con menta', 3200],
+    ['ejmd', 'menus', 'Ejecutivo del mediodía', 14900], ['ejpa', 'menus', 'Ejecutivo pastas', 11500],
+    ['guiso', 'dia', 'Guiso de lentejas', 9900]
+  ];
+  var categorias = [['platos', 'Platos'], ['postres', 'Postres'], ['bebidas', 'Bebidas'], ['menus', 'Menús ejecutivos'], ['dia', 'Menú del día']];
+
+  // items maps a product id to its quantity in the order.
+  var state = { cat: 'platos', items: { mila: 2, agua: 2, flan: 1 } };
+
+  var ICONO_MAS = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>';
+  var ICONO_BORRAR = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>';
+
+  function esc(v) {
+    return String(v).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function fmt(n) { return '$ ' + n.toLocaleString('es-AR'); }
+
+  function poner(id, q) {
+    if (q > 0) state.items[id] = q;
+    else delete state.items[id];
+  }
+
+  function plantillaLinea(p, q) {
+    return `<div style="display: flex; flex-direction: column; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid #f1f5f9">
+<div style="display: flex; justify-content: space-between; gap: 8px">
+<span style="font-size: 14px; font-weight: 600">${esc(p[2])}</span>
+<span style="font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums">${esc(fmt(q * p[3]))}</span>
+</div>
+<div style="display: flex; justify-content: space-between; align-items: center">
+<div class="qty"><button type="button" aria-label="Restar uno" data-restar="${p[0]}">−</button><span>${q}</span><button type="button" aria-label="Sumar uno" data-sumar="${p[0]}">+</button></div>
+<span style="font-size: 12px; color: #64748b">${esc(fmt(p[3]))} c/u</span>
+<button type="button" class="ib del" aria-label="Quitar ${esc(p[2])}" data-quitar="${p[0]}">${ICONO_BORRAR}</button>
+</div>
+</div>`;
+  }
+
+  function render() {
+    document.getElementById('categorias').innerHTML = categorias.map(function (c) {
+      return `<button type="button" class="${c[0] === state.cat ? 'pill on' : 'pill'}" data-cat="${c[0]}">${esc(c[1])}</button>`;
+    }).join('\n');
+    document.getElementById('catalogo').innerHTML = prods.filter(function (p) { return p[1] === state.cat; }).map(function (p) {
+      return `<div class="prod">
+<div style="min-width: 0">
+<div style="font-size: 14px; font-weight: 600">${esc(p[2])}</div>
+<div style="font-size: 13px; color: #475569">${esc(fmt(p[3]))}</div>
+</div>
+<button type="button" class="add" aria-label="Agregar ${esc(p[2])}" data-agregar="${p[0]}">${ICONO_MAS}</button>
+</div>`;
+    }).join('\n');
+    var total = 0, unidades = 0;
+    var lineas = prods.filter(function (p) { return state.items[p[0]]; }).map(function (p) {
+      var q = state.items[p[0]];
+      total += q * p[3];
+      unidades += q;
+      return plantillaLinea(p, q);
+    });
+    document.getElementById('lineas').innerHTML = lineas.join('\n');
+    document.getElementById('vacio').hidden = lineas.length > 0;
+    document.getElementById('cant-items').textContent = unidades === 1 ? '1 ítem' : unidades + ' ítems';
+    document.getElementById('total').textContent = fmt(total);
+  }
+
+  document.addEventListener('click', function (ev) {
+    var el = ev.target.closest('[data-cat], [data-agregar], [data-sumar], [data-restar], [data-quitar]');
+    if (!el) return;
+    var id;
+    if (el.hasAttribute('data-cat')) state.cat = el.getAttribute('data-cat');
+    if ((id = el.getAttribute('data-agregar')) || (id = el.getAttribute('data-sumar'))) poner(id, (state.items[id] || 0) + 1);
+    if ((id = el.getAttribute('data-restar'))) poner(id, state.items[id] - 1);
+    if ((id = el.getAttribute('data-quitar'))) poner(id, 0);
+    render();
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

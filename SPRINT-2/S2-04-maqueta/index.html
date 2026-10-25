@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inicio</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="estilos.css">
+<style>
+/* Rules for this page only. A rule with the same selector as in estilos.css overrides it here. */
+.big{min-height:76px;font-size:18px;border-radius:12px;gap:12px;padding:0 16px}
+.bigd{background:#0f172a;color:#ffffff}.bigd:hover{background:#1e293b;color:#ffffff}
+.bdg{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.ok{background:#dcfce7;color:#166534}.off{background:#f3f4f6;color:#4b5563}.err{background:#fee2e2;color:#991b1b}
+.tab{min-height:40px;padding:0 14px;border:1px solid #e2e8f0;border-radius:8px;background:#ffffff;font-family:inherit;font-size:14px;font-weight:600;color:#475569;cursor:pointer}
+.tab:hover{color:#0f172a;background:#f8fafc}
+.tab.on{background:#fffbeb;border-color:#fcd34d;color:#78350f}
+.fch{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 12px;border:1px solid #e2e8f0;border-radius:999px;background:#ffffff;font-family:inherit;font-size:13px;font-weight:600;color:#475569;cursor:pointer}
+.fch:hover{color:#0f172a}
+.fch.on{border-color:#0f172a;color:#0f172a;box-shadow:inset 0 0 0 1px #0f172a}
+.dt{width:14px;height:14px;border-radius:4px;display:inline-block;flex:none;border:2px solid #9ca3af;background:#e5e7eb}
+.dt-o{background:#fee2e2;border-color:#f87171}
+.dt-r{background:#e5e7eb;border-color:#4ade80}
+.dt-f{background:#f3f4f6;border:2px dashed #9ca3af}
+.dt-t{background:linear-gradient(90deg,#e5e7eb 50%,#fee2e2 50%);border-color:#9ca3af}
+.mapa{position:relative;z-index:0;flex:1;min-height:0;background:#f3f4f6;border:1px solid #d1d5db;border-radius:12px;overflow:hidden}
+.mesa{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;justify-content:center;border:2px solid #9ca3af;background:#e5e7eb;color:#1f2937;cursor:pointer;font-family:inherit;padding:0;border-radius:10px;transition:opacity .15s}
+.mesa::before,.mesa::after{content:'';position:absolute;width:14px;height:14px;border-radius:4px;background:#d1d5db;z-index:-1}
+.mesa:hover{box-shadow:0 0 0 4px rgba(15,23,42,.10)}
+.t2{width:46px;height:46px;border-radius:999px}
+.t2::before{left:-20px;top:16px;box-shadow:72px 0 0 #d1d5db}
+.t2::after{display:none}
+.t4{width:56px;height:56px}
+.t4::before{top:-20px;left:21px;box-shadow:0 82px 0 #d1d5db}
+.t4::after{left:-20px;top:21px;box-shadow:82px 0 0 #d1d5db}
+.t6{width:96px;height:56px}
+.t6::before{top:-20px;left:18px;box-shadow:46px 0 0 #d1d5db,0 82px 0 #d1d5db,46px 82px 0 #d1d5db}
+.t6::after{left:-20px;top:21px;box-shadow:122px 0 0 #d1d5db}
+.t8{width:128px;height:56px}
+.t8::before{top:-20px;left:16px;box-shadow:41px 0 0 #d1d5db,82px 0 0 #d1d5db,0 82px 0 #d1d5db,41px 82px 0 #d1d5db,82px 82px 0 #d1d5db}
+.t8::after{left:-20px;top:21px;box-shadow:154px 0 0 #d1d5db}
+.e-o{background:#fee2e2;border-color:#f87171;color:#991b1b}
+.e-r{border:3px solid #4ade80}
+.e-f{background:repeating-linear-gradient(45deg,#f3f4f6 0 6px,#e5e7eb 6px 12px);border:2px dashed #9ca3af;color:#4b5563}
+.dim{opacity:.25}
+.sel{outline:3px solid #0f172a;outline-offset:4px}
+.nm{font-family:'Plus Jakarta Sans','DM Sans',sans-serif;font-size:17px;font-weight:800;line-height:1}
+.cp{font-size:10px;font-weight:600;margin-top:2px}
+.pill{position:absolute;top:-36px;left:50%;transform:translateX(-50%);background:#dcfce7;color:#166534;border:1px solid #86efac;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap;display:flex;align-items:center;gap:4px;z-index:2}
+.sp1{left:18%;top:14%}.sp2{left:50%;top:14%}.sp3{left:82%;top:14%}
+.sp6{left:18%;top:38%}.sp4{left:50%;top:38%}.sp12{left:82%;top:38%}
+.sp5{left:18%;top:62%}.sp9{left:50%;top:62%}.sp11{left:82%;top:62%}
+.sp7{left:18%;top:86%}.sp10{left:50%;top:86%}.sp8{left:82%;top:86%}
+.te1{left:28%;top:20%}.te2{left:72%;top:20%}
+.te3{left:28%;top:50%}.te4{left:72%;top:50%}
+.te5{left:28%;top:80%}.te6{left:72%;top:80%}
+.compacto .mesa{transform:translate(-50%,-50%) scale(.78)}
+.csp1{left:18%;top:11%}.csp2{left:50%;top:11%}.csp3{left:82%;top:11%}
+.csp6{left:18%;top:25%}.csp4{left:50%;top:25%}.csp12{left:82%;top:25%}
+.csp5{left:18%;top:39%}.csp9{left:50%;top:39%}.csp11{left:82%;top:39%}
+.csp7{left:18%;top:53%}.csp10{left:50%;top:53%}.csp8{left:82%;top:53%}
+.cte1{left:18%;top:76%}.cte2{left:50%;top:76%}.cte3{left:82%;top:76%}
+.cte4{left:18%;top:91%}.cte5{left:50%;top:91%}.cte6{left:82%;top:91%}
+.zl{position:absolute;left:12px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#6b7280;z-index:1}
+.dd{min-height:40px;border:1px solid #cbd5e1;border-radius:8px;padding:0 12px;font-family:inherit;font-size:14px;font-weight:600;color:#0f172a;background:#ffffff;cursor:pointer}
+.blk{flex:1;height:8px;border-radius:4px;background:#e5e7eb}
+.blk.on{background:#4ade80}
+.it{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:14px}
+</style>
+</head>
+<body>
+<div style="position: relative; height: 100vh; overflow: auto; display: flex; flex-wrap: wrap; align-items: stretch; background: #f8fafc">
+<aside aria-label="Navegación principal" style="flex: 1 1 240px; min-width: 0; background: #ffffff; border-right: 1px solid #e2e8f0; display: flex; flex-direction: column; justify-content: space-between">
+<div>
+<a href="index.html" style="display: flex; align-items: center; gap: 10px; height: 64px; padding: 0 16px; text-decoration: none; color: #0f172a">
+<span style="width: 36px; height: 36px; border-radius: 8px; background: #b45309; color: #ffffff; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21a1 1 0 0 0 1-1v-5.35c0-.457.316-.844.727-1.041a4 4 0 0 0-2.134-7.589 5 5 0 0 0-9.186 0 4 4 0 0 0-2.134 7.588c.411.198.727.585.727 1.041V20a1 1 0 0 0 1 1Z"></path><path d="M6 17h12"></path></svg></span>
+<span class="h" style="font-size: 16px; font-weight: 700">GastroAdmin</span>
+</a>
+<nav aria-label="Módulos del restaurante" style="display: flex; flex-direction: column; gap: 4px; padding: 8px; border-top: 1px solid #e2e8f0">
+<a class="nav on" href="index.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="9" x="3" y="3" rx="1"></rect><rect width="7" height="5" x="14" y="3" rx="1"></rect><rect width="7" height="9" x="14" y="12" rx="1"></rect><rect width="7" height="5" x="3" y="16" rx="1"></rect></svg>Inicio</a>
+<a class="nav" href="productos.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"></path><path d="M7 2v20"></path><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"></path></svg>Productos y Carta</a>
+<a class="nav" href="menus.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>Menús y Promociones</a>
+<a class="nav" href="salon.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>Salón y Mozos</a>
+<a class="nav" href="comandas.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M12 11h4"></path><path d="M12 16h4"></path><path d="M8 11h.01"></path><path d="M8 16h.01"></path></svg>Atención al Público</a>
+<a class="nav" href="reservas.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M16 2v4"></path><path d="M8 2v4"></path><path d="M3 10h18"></path></svg>Reservas</a>
+<a class="nav" href="pagos.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="14" x="2" y="5" rx="2"></rect><path d="M2 10h20"></path></svg>Pagos</a>
+</nav>
+</div>
+<div style="padding: 12px 16px; border-top: 1px solid #e2e8f0; font-size: 19px; color: #64748b">HORA - 24/10/2026</div>
+</aside>
+<div style="flex: 999 1 560px; min-width: 0; height: 100%; display: flex; flex-direction: column">
+<header style="min-height: 64px; background: #ffffff; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 8px 24px">
+<span style="font-size: 14px; font-weight: 600; color: #0f172a">Inicio</span>
+<div style="display: flex; align-items: center; gap: 12px">
+<span class="sup">SUPUESTO #172</span>
+<span style="width: 36px; height: 36px; border-radius: 999px; background: #fde68a; color: #78350f; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700">LG</span>
+<span style="display: flex; flex-direction: column; line-height: 1.25"><span style="font-size: 14px; font-weight: 600">Laura Gómez</span><span style="font-size: 12px; color: #64748b">Encargado</span></span>
+<a class="ib" href="login.html" aria-label="Cerrar sesión"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><path d="m16 17 5-5-5-5"></path><path d="M21 12H9"></path></svg></a>
+</div>
+</header>
+<main style="flex: 1; min-height: 0; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px">
+<h1 class="h" style="margin: 0; font-size: 26px; font-weight: 800">Inicio</h1>
+<div style="flex: 1; min-height: 0; display: flex; flex-wrap: wrap; gap: 20px; align-items: stretch">
+
+<div style="flex: 1 1 360px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+<a class="btn bp big" href="comanda-nueva.html"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M12 11v6"></path><path d="M9 14h6"></path></svg>Nueva comanda</a>
+<a class="btn bigd big" href="reservas.html"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M16 2v4"></path><path d="M8 2v4"></path><path d="M3 10h18"></path><path d="M12 14v4"></path><path d="M10 16h4"></path></svg>Nueva reserva</a>
+</div>
+<section class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 8px">
+<h2 class="h" style="margin: 0; font-size: 16px; font-weight: 700">Estado de la caja</h2>
+<span class="sup">SUPUESTO</span>
+</div>
+<div class="h" style="font-size: 30px; font-weight: 800; font-variant-numeric: tabular-nums">$ 184.500</div>
+<dl style="margin: 0; display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; font-size: 14px">
+<dt style="color: #475569">Efectivo</dt><dd style="margin: 0; font-variant-numeric: tabular-nums">$ 62.000</dd>
+<dt style="color: #475569">Tarjeta</dt><dd style="margin: 0; font-variant-numeric: tabular-nums">$ 81.500</dd>
+<dt style="color: #475569">Transferencia</dt><dd style="margin: 0; font-variant-numeric: tabular-nums">$ 28.000</dd>
+<dt style="color: #475569">Billetera virtual</dt><dd style="margin: 0; font-variant-numeric: tabular-nums">$ 13.000</dd>
+</dl>
+<div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-radius: 8px; background: #fef2f2; color: #991b1b; font-size: 14px; font-weight: 600"><span>Adeudado · 2 facturas</span><span style="font-variant-numeric: tabular-nums">$ 23.400</span></div>
+<a href="pagos.html" style="font-size: 14px; font-weight: 600">Ir a Pagos</a>
+</section>
+</div>
+
+<section class="card" style="flex: 1 1 360px; min-width: 0; min-height: 0; padding: 18px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px">
+<h2 class="h" style="margin: 0; font-size: 18px; font-weight: 700">Mapa del local</h2>
+<div style="display: flex; gap: 8px; flex-wrap: wrap">
+<select class="dd" id="filtro-lugar" aria-label="Lugar">
+<option value="todos">Todos los lugares</option>
+<option value="principal">Salón principal</option>
+<option value="terraza">Terraza</option>
+</select>
+<select class="dd" id="filtro-estado" aria-label="Estado de la mesa">
+<option value="todas">Todos los estados (18)</option>
+<option value="libres">Libres (11)</option>
+<option value="ocupadas">Ocupadas (5)</option>
+<option value="reserva">Con reserva (3)</option>
+<option value="fuera">Fuera de servicio (2)</option>
+</select>
+</div>
+</div>
+<!-- Rendered by render(): zone labels and tables -->
+<div class="mapa compacto" id="mapa"></div>
+</section>
+</div>
+</main>
+</div>
+
+<div id="detalle" hidden style="position: absolute; inset: 0; background: rgba(15,23,42,.40); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 10">
+<!-- Rendered by render() for the selected table -->
+<div role="dialog" aria-modal="true" aria-labelledby="titulo-mesa" class="card" id="detalle-mesa" style="width: 100%; max-width: 460px; max-height: 100%; overflow: auto; padding: 24px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 20px 40px rgba(15,23,42,.2)"></div>
+</div>
+</div>
+<script>
+(function () {
+  // Sample data. Each table is [number, capacity, state]:
+  // l = free, o = occupied, r = free with a reservation today, f = out of service.
+  var mapas = {
+    principal: [[1, 2, 'l'], [2, 4, 'o'], [3, 4, 'l'], [6, 2, 'l'], [4, 4, 'o'], [12, 4, 'l'], [5, 6, 'r'], [9, 4, 'r'], [11, 2, 'o'], [7, 6, 'o'], [10, 8, 'l'], [8, 4, 'f']],
+    terraza: [[1, 4, 'l'], [2, 4, 'o'], [3, 2, 'l'], [4, 6, 'f'], [5, 4, 'l'], [6, 4, 'r']]
+  };
+  // Open orders by table: [order number, start time, [[quantity, product, unit price, delivered]]].
+  var comandas = {
+    'principal-2': ['128', '20:15', [[2, 'Milanesa napolitana', 12500, true], [2, 'Agua sin gas 500 ml', 1800, true], [2, 'Flan casero', 4200, false]]],
+    'principal-4': ['130', '20:45', [[1, 'Ensalada César', 7200, true], [2, 'Ravioles de verdura', 9800, false], [1, 'Limonada con menta', 3200, false]]],
+    'principal-7': ['131', '21:05', [[3, 'Ejecutivo del mediodía', 14900, false]]],
+    'principal-11': ['129', '20:30', [[1, 'Bife de chorizo', 16900, true], [2, 'Limonada con menta', 3200, true]]],
+    'terraza-2': ['132', '21:10', [[1, 'Guiso de lentejas', 9900, true], [1, 'Agua sin gas 500 ml', 1800, true]]]
+  };
+  // Today's reservations by table: [time, customer, people].
+  var reservas = { 'principal-5': ['21:30', 'María Pérez', 5], 'principal-9': ['22:00', 'Jorge Díaz', 4], 'terraza-6': ['22:30', 'Lucía Sosa', 3] };
+  var nombresSector = { principal: 'Salón principal', terraza: 'Terraza' };
+  var textos = { l: 'libre', o: 'ocupada', r: 'libre con reserva', f: 'fuera de servicio' };
+  var etiquetas = { l: ['Libre', 'bdg off'], o: ['Ocupada', 'bdg err'], r: ['Libre · con reserva', 'bdg ok'], f: ['Fuera de servicio', 'bdg off'] };
+  var opcionesEstado = { todas: 'Todos los estados', libres: 'Libres', ocupadas: 'Ocupadas', reserva: 'Con reserva', fuera: 'Fuera de servicio' };
+
+  var state = { lugar: 'todos', filtro: 'todas', sel: null };
+
+  var lugarEl = document.getElementById('filtro-lugar');
+  var estadoEl = document.getElementById('filtro-estado');
+  var mapaEl = document.getElementById('mapa');
+  var detalleEl = document.getElementById('detalle');
+  var detalleMesaEl = document.getElementById('detalle-mesa');
+
+  function esc(v) {
+    return String(v).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function fmt(n) { return '$ ' + n.toLocaleString('es-AR'); }
+
+  function cumple(e) {
+    if (state.filtro === 'libres') return e === 'l' || e === 'r';
+    if (state.filtro === 'ocupadas') return e === 'o';
+    if (state.filtro === 'reserva') return e === 'r';
+    if (state.filtro === 'fuera') return e === 'f';
+    return true;
+  }
+
+  function plantillaMesa(sector, m) {
+    var key = sector + '-' + m[0];
+    var pre = (state.lugar === 'todos' ? 'c' : '') + (sector === 'principal' ? 'sp' : 'te');
+    var cls = 'mesa t' + m[1] + ' e-' + m[2] + ' ' + pre + m[0];
+    if (!cumple(m[2])) cls += ' dim';
+    if (state.sel === key) cls += ' sel';
+    var pill = m[2] === 'r'
+      ? `<span class="pill"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg>${esc(reservas[key][0])}</span>`
+      : '';
+    return `<button type="button" class="${cls}" data-mesa="${key}" aria-label="${esc('Mesa ' + m[0] + ', ' + nombresSector[sector] + ', ' + textos[m[2]])}">
+${pill}<span class="nm">${m[0]}</span>
+<span class="cp">${m[1]} pers.</span>
+</button>`;
+  }
+
+  function renderMapa() {
+    var visibles = state.lugar === 'todos' ? ['principal', 'terraza'] : [state.lugar];
+    var cuenta = { l: 0, o: 0, r: 0, f: 0 };
+    var html = '';
+    if (state.lugar === 'todos') {
+      html += `<span class="zl" style="top: 8px">Salón principal</span>
+<span style="position: absolute; left: 12px; right: 12px; top: 62%; border-top: 2px dashed #d1d5db"></span>
+<span class="zl" style="top: calc(62% + 8px)">Terraza</span>`;
+    }
+    visibles.forEach(function (sector) {
+      mapas[sector].forEach(function (m) {
+        cuenta[m[2]] += 1;
+        html += plantillaMesa(sector, m);
+      });
+    });
+    mapaEl.className = state.lugar === 'todos' ? 'mapa compacto' : 'mapa';
+    mapaEl.innerHTML = html;
+    // The state filter shows how many tables of each state the chosen place has.
+    var n = { todas: cuenta.l + cuenta.o + cuenta.r + cuenta.f, libres: cuenta.l + cuenta.r, ocupadas: cuenta.o, reserva: cuenta.r, fuera: cuenta.f };
+    Array.prototype.forEach.call(estadoEl.options, function (opt) {
+      opt.textContent = opcionesEstado[opt.value] + ' (' + n[opt.value] + ')';
+    });
+    lugarEl.value = state.lugar;
+    estadoEl.value = state.filtro;
+  }
+
+  function plantillaOcupada(key) {
+    var c = comandas[key];
+    var total = 0, unidades = 0, entregadas = 0, bloques = '', items = '';
+    c[2].forEach(function (it) {
+      total += it[0] * it[2];
+      unidades += it[0];
+      if (it[3]) entregadas += it[0];
+      for (var k = 0; k < it[0]; k++) bloques += `<span class="${it[3] ? 'blk on' : 'blk'}"></span>`;
+      items += `<div class="it"><span>${esc(it[0] + '× ' + it[1])}</span><span style="display: flex; align-items: center; gap: 10px"><span class="${it[3] ? 'bdg ok' : 'bdg warn'}">${it[3] ? 'Entregado' : 'Pendiente'}</span><span style="font-variant-numeric: tabular-nums; min-width: 72px; text-align: right">${esc(fmt(it[0] * it[2]))}</span></span></div>\n`;
+    });
+    var pend = unidades - entregadas;
+    var aviso = pend === 1 ? 'Hay 1 producto sin entregar. Al cerrar, el sistema te lo va a advertir.' : 'Hay ' + pend + ' productos sin entregar. Al cerrar, el sistema te lo va a advertir.';
+    return `<div style="display: flex; flex-direction: column; gap: 14px">
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+<div style="padding: 12px; border-radius: 10px; background: #f8fafc"><div style="font-size: 12px; color: #64748b">Comanda</div><div style="font-size: 16px; font-weight: 700">N° ${esc(c[0])}</div></div>
+<div style="padding: 12px; border-radius: 10px; background: #f8fafc"><div style="font-size: 12px; color: #64748b">Empezó</div><div style="font-size: 16px; font-weight: 700">${esc(c[1])} h</div></div>
+</div>
+<div>
+<div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px"><span style="color: #475569">Entregados</span><span style="font-weight: 700">${entregadas} de ${unidades}</span></div>
+<div style="display: flex; gap: 4px">${bloques}</div>
+</div>
+<div>
+${items}</div>
+${pend > 0 ? `<div style="padding: 10px 12px; border-radius: 8px; background: #fffbeb; color: #78350f; font-size: 13px">${esc(aviso)}</div>` : ''}
+<div style="display: flex; justify-content: space-between; align-items: baseline"><span style="font-size: 15px; font-weight: 600">Total a pagar</span><span class="h" style="font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums">${esc(fmt(total))}</span></div>
+<div style="display: flex; gap: 8px">
+<a class="btn bo" href="comandas.html" style="flex: 1">Ver comanda</a>
+<a class="btn bp" href="pagos.html" style="flex: 2">Cerrar y cobrar</a>
+</div>
+</div>`;
+  }
+
+  function plantillaLibre(key, conReserva) {
+    var r = reservas[key];
+    var aviso = conReserva
+      ? `<div style="padding: 12px 14px; border-radius: 10px; background: #f0fdf4; border: 1px solid #86efac; color: #14532d; font-size: 14px; line-height: 1.5"><strong>Reservada hoy a las ${esc(r[0])}</strong><br>${esc(r[1])} · ${esc(r[2])} personas. Mientras tanto la mesa se puede usar.</div>`
+      : '';
+    return `<div style="display: flex; flex-direction: column; gap: 14px">
+${aviso}
+<p style="margin: 0; font-size: 14px; color: #475569">La mesa está libre y no tiene una comanda abierta.</p>
+<a class="btn bp" href="comanda-nueva.html">Abrir comanda</a>
+</div>`;
+  }
+
+  function renderDetalle() {
+    detalleEl.hidden = !state.sel;
+    if (!state.sel) {
+      detalleMesaEl.innerHTML = '';
+      return;
+    }
+    var partes = state.sel.split('-');
+    var fila = mapas[partes[0]].filter(function (m) { return String(m[0]) === partes[1]; })[0];
+    var e = fila[2];
+    var cuerpo = '';
+    if (e === 'o') cuerpo = plantillaOcupada(state.sel);
+    if (e === 'l' || e === 'r') cuerpo = plantillaLibre(state.sel, e === 'r');
+    if (e === 'f') cuerpo = '<p style="margin: 0; font-size: 14px; color: #475569">La mesa está fuera de servicio. Se habilita desde Salón y Mozos.</p>';
+    detalleMesaEl.innerHTML = `<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px">
+<div>
+<h2 id="titulo-mesa" class="h" style="margin: 0; font-size: 22px; font-weight: 800">Mesa ${fila[0]}</h2>
+<p style="margin: 4px 0 0; font-size: 14px; color: #475569">${esc(nombresSector[partes[0]] + ' · ' + fila[1] + ' personas')}</p>
+</div>
+<div style="display: flex; align-items: center; gap: 8px">
+<span class="${etiquetas[e][1]}">${esc(etiquetas[e][0])}</span>
+<button type="button" class="ib" aria-label="Cerrar" data-action="cerrar"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button>
+</div>
+</div>
+${cuerpo}`;
+  }
+
+  function render() {
+    renderMapa();
+    renderDetalle();
+  }
+
+  lugarEl.addEventListener('change', function () {
+    state.lugar = lugarEl.value;
+    state.sel = null;
+    render();
+  });
+  estadoEl.addEventListener('change', function () {
+    state.filtro = estadoEl.value;
+    render();
+  });
+  mapaEl.addEventListener('click', function (ev) {
+    var mesa = ev.target.closest('[data-mesa]');
+    if (!mesa) return;
+    state.sel = mesa.getAttribute('data-mesa');
+    render();
+  });
+  detalleEl.addEventListener('click', function (ev) {
+    if (!ev.target.closest('[data-action="cerrar"]')) return;
+    state.sel = null;
+    render();
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

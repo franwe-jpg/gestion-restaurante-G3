@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Carta del restaurante</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="estilos.css">
+<style>
+/* Rules for this page only. A rule with the same selector as in estilos.css overrides it here. */
+/* 390px phone mockup, centered on a light grey page */
+body{background:#e2e8f0}
+.telefono{margin:0 auto}
+.tabc{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border-radius:999px;font-size:14px;font-weight:600;color:#334155;text-decoration:none;white-space:nowrap;border:1px solid #e2e8f0;background:#ffffff}
+.tabc:hover{color:#0f172a;background:#f8fafc}
+.tabc.on{background:#0f172a;border-color:#0f172a;color:#ffffff}
+.item{display:flex;gap:12px;align-items:flex-start;padding:14px 0;border-bottom:1px solid #f1f5f9}
+.foto{width:76px;height:76px;border-radius:12px;background:#fef3c7;color:#b45309;display:flex;align-items:center;justify-content:center;flex:none}
+.ej{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:999px;font-size:11px;font-weight:700;background:#fffbeb;color:#78350f;border:1px solid #fde68a}
+.sup{display:inline-flex;align-items:center;font-size:11px;font-weight:700;color:#075985;background:#f0f9ff;border:1px dashed #0369a1;border-radius:4px;padding:2px 6px;letter-spacing:.02em;white-space:normal}
+</style>
+</head>
+<body>
+<div class="telefono" style="width: 390px; min-height: 1700px; background: #ffffff; display: flex; flex-direction: column">
+<header style="padding: 28px 20px 16px; background: #0f172a; color: #f8fafc; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; align-items: center; gap: 10px">
+<span style="width: 36px; height: 36px; border-radius: 10px; background: #b45309; color: #ffffff; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21a1 1 0 0 0 1-1v-5.35c0-.457.316-.844.727-1.041a4 4 0 0 0-2.134-7.589 5 5 0 0 0-9.186 0 4 4 0 0 0-2.134 7.588c.411.198.727.585.727 1.041V20a1 1 0 0 0 1 1Z"></path><path d="M6 17h12"></path></svg></span>
+<span style="font-size: 14px; color: #cbd5e1">[Nombre del restaurante]</span>
+</div>
+<h1 class="h" style="margin: 0; font-size: 30px; font-weight: 800">Nuestra carta</h1>
+<span class="sup" style="align-self: flex-start">SUPUESTO · CARTA PÚBLICA</span>
+</header>
+<nav aria-label="Secciones de la carta" id="pills" style="display: flex; gap: 8px; overflow-x: auto; padding: 12px 20px; border-bottom: 1px solid #e2e8f0; background: #ffffff"></nav>
+<main style="padding: 16px 20px 32px; display: flex; flex-direction: column; gap: 24px">
+<section aria-labelledby="titulo-dia" style="border-radius: 16px; background: #fffbeb; border: 1px solid #fde68a; padding: 16px; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; align-items: center; gap: 8px; color: #92400e"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.12 2.12 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.12 2.12 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.12 2.12 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.12 2.12 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.12 2.12 0 0 0 1.597-1.16z"></path></svg><span id="titulo-dia" style="font-size: 13px; font-weight: 700; letter-spacing: .04em">MENÚ DEL DÍA</span></div>
+<div style="height: 140px; border-radius: 12px; background: #fde68a; color: #92400e; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 13px; font-weight: 600"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path></svg>Imagen del producto</div>
+<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px">
+<div>
+<div class="h" style="font-size: 19px; font-weight: 700">Guiso de lentejas</div>
+<p style="margin: 4px 0 0; font-size: 14px; line-height: 1.45; color: #475569">Con chorizo colorado y panceta. Incluye pan.</p>
+</div>
+<span class="h" style="font-size: 20px; font-weight: 800; white-space: nowrap">$ 9.900</span>
+</div>
+</section>
+<!-- display: contents keeps each section a direct flex item of <main> -->
+<div id="secciones" style="display: contents"></div>
+
+</main>
+</div>
+<script>
+(function () {
+  function it(nombre, descripcion, precio, etiquetas, esMenu) {
+    return { nombre: nombre, descripcion: descripcion, precio: precio, etiquetas: etiquetas || [], esMenu: !!esMenu };
+  }
+  // Sample menu: [anchor id, section title, items].
+  var datos = [
+    ['entradas', 'Entradas', [
+      it('Ensalada César', 'Lechuga, pollo grillado, croutones y parmesano.', '$ 7.200')
+    ]],
+    ['principales', 'Platos principales', [
+      it('Milanesa napolitana', 'Milanesa de ternera con salsa de tomate, jamón y muzzarella gratinada.', '$ 12.500'),
+      it('Bife de chorizo', 'Con papas fritas o ensalada.', '$ 16.900', ['Sin TACC']),
+      it('Ejecutivo del mediodía', 'Milanesa napolitana, agua sin gas 500 ml y flan casero.', '$ 14.900', [], true)
+    ]],
+    ['pastas', 'Pastas', [
+      it('Ravioles de verdura', 'Con salsa fileto o crema.', '$ 9.800', ['Vegetariano']),
+      it('Ejecutivo pastas', 'Ravioles de verdura y limonada con menta.', '$ 11.500', [], true)
+    ]],
+    ['postres', 'Postres', [
+      it('Flan casero', 'Con dulce de leche o crema.', '$ 4.200')
+    ]],
+    ['bebidas', 'Bebidas', [
+      it('Agua sin gas 500 ml', '', '$ 1.800', ['Sin TACC']),
+      it('Limonada con menta', 'Exprimida en el momento.', '$ 3.200', ['Vegano', 'Sin TACC'])
+    ]]
+  ];
+
+  var state = { seccion: 'entradas' };
+
+  var ICONO_IMAGEN = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path></svg>';
+
+  function esc(v) {
+    return String(v).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function plantillaItem(p) {
+    var menu = p.esMenu ? '<span class="ej" style="align-self: flex-start">Menú ejecutivo</span>' : '';
+    var tags = p.etiquetas.map(function (e) { return `<span class="tag">${esc(e)}</span>`; }).join('');
+    return `<div class="item">
+<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px">
+${menu}<span style="font-size: 16px; font-weight: 700">${esc(p.nombre)}</span>
+<span style="font-size: 13px; line-height: 1.45; color: #475569">${esc(p.descripcion)}</span>
+<div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 4px">
+<span style="font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums">${esc(p.precio)}</span>
+${tags}
+</div>
+</div>
+<div class="foto">${ICONO_IMAGEN}</div>
+</div>`;
+  }
+
+  // Builds the section pills and the menu sections from the data above.
+  function construir() {
+    document.getElementById('pills').innerHTML = datos.map(function (s) {
+      return `<a class="tabc" href="#${s[0]}" data-seccion="${s[0]}">${esc(s[1])}</a>`;
+    }).join('\n');
+    document.getElementById('secciones').innerHTML = datos.map(function (s) {
+      return `<section id="${s[0]}" aria-labelledby="t-${s[0]}">
+<h2 id="t-${s[0]}" class="h" style="margin: 0 0 4px; font-size: 20px; font-weight: 800">${esc(s[1])}</h2>
+${s[2].map(plantillaItem).join('\n')}
+</section>`;
+    }).join('\n');
+  }
+
+  // Only the active pill changes, so the clicked link stays in the page and still scrolls.
+  function render() {
+    document.querySelectorAll('[data-seccion]').forEach(function (a) {
+      a.className = a.getAttribute('data-seccion') === state.seccion ? 'tabc on' : 'tabc';
+    });
+  }
+
+  document.getElementById('pills').addEventListener('click', function (ev) {
+    var a = ev.target.closest('[data-seccion]');
+    if (!a) return;
+    state.seccion = a.getAttribute('data-seccion');
+    render();
+  });
+
+  construir();
+  render();
+})();
+</script>
+</body>
+</html>
