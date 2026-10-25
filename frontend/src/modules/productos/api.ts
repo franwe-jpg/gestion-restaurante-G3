@@ -1,8 +1,9 @@
-import { clienteHttp } from '../../shared/api/client';
+import { clienteHttp, urlDelBackend } from '../../shared/api/client';
 import type { Pagina, RespuestaApi } from '../../shared/types';
-import type { CategoriaAlta } from './categorias';
+import type { CategoriaAlta, CategoriaEdicion } from './categorias';
 import type {
   ProductoCrear,
+  ProductoModificar,
   ProductoSalida,
   ProductoSeleccionable,
   Seccion,
@@ -12,7 +13,7 @@ import type {
 
 const LIMITE_SELECTOR = 100;
 
-const ENDPOINTS_ALTA: Record<CategoriaAlta, string> = {
+const ENDPOINTS: Record<CategoriaAlta, string> = {
   PLATO: '/platos',
   POSTRE: '/postres',
 };
@@ -49,5 +50,40 @@ export function crearProducto(
   const formulario = new FormData();
   formulario.append('datos', JSON.stringify(datos));
   if (imagen) formulario.append('imagen', imagen);
-  return clienteHttp.postFormulario<ProductoSalida>(ENDPOINTS_ALTA[categoria], formulario);
+  return clienteHttp.postFormulario<ProductoSalida>(ENDPOINTS[categoria], formulario);
+}
+
+export function obtenerProducto(
+  categoria: CategoriaEdicion,
+  id: number,
+): Promise<RespuestaApi<ProductoSalida>> {
+  return clienteHttp.get<ProductoSalida>(`${ENDPOINTS[categoria]}/${id}`);
+}
+
+/** Una sola solicitud multipart `PUT`: `datos` lleva el JSON e `imagen` el archivo nuevo opcional. */
+export function modificarProducto(
+  categoria: CategoriaEdicion,
+  id: number,
+  datos: ProductoModificar,
+  imagen: File | null,
+): Promise<RespuestaApi<ProductoSalida>> {
+  const formulario = new FormData();
+  formulario.append('datos', JSON.stringify(datos));
+  if (imagen) formulario.append('imagen', imagen);
+  return clienteHttp.putFormulario<ProductoSalida>(`${ENDPOINTS[categoria]}/${id}`, formulario);
+}
+
+export function darDeBajaProducto(
+  categoria: CategoriaEdicion,
+  id: number,
+): Promise<RespuestaApi<ProductoSalida>> {
+  return clienteHttp.post<ProductoSalida, Record<string, never>>(
+    `${ENDPOINTS[categoria]}/${id}/baja`,
+    {},
+  );
+}
+
+/** `imagen_url` es relativa al backend; el navegador necesita la URL absoluta. */
+export function urlDeImagen(imagenUrl: string | null): string | null {
+  return imagenUrl === null ? null : urlDelBackend(imagenUrl);
 }

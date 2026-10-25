@@ -12,6 +12,10 @@ function esDetalle(valor: unknown): valor is { detalle: string } {
   return typeof valor === 'object' && valor !== null && 'detalle' in valor;
 }
 
+export function urlDelBackend(ruta: string): string {
+  return `${urlBase()}${ruta}`;
+}
+
 export class ClienteApi {
   private readonly baseUrl?: string;
 
@@ -57,6 +61,11 @@ export class ClienteApi {
   /** Sin `Content-Type`: el navegador lo fija con el `boundary` del multipart. */
   postFormulario<T>(endpoint: string, formulario: FormData): Promise<RespuestaApi<T>> {
     return this.solicitar<T>(endpoint, { method: 'POST', body: formulario });
+  }
+
+  /** Igual que `postFormulario`, con `PUT`. */
+  putFormulario<T>(endpoint: string, formulario: FormData): Promise<RespuestaApi<T>> {
+    return this.solicitar<T>(endpoint, { method: 'PUT', body: formulario });
   }
 }
 

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { EstadoServicio } from '../types';
 
-import { ClienteApi } from './client';
+import { ClienteApi, urlDelBackend } from './client';
 
 function respuestaJson(cuerpo: unknown, status = 200, statusText = 'OK'): Response {
   return {
@@ -134,5 +134,33 @@ describe('ClienteApi', () => {
       exito: false,
       error: 'El plato ya está registrado',
     });
+  });
+
+  it('envia un formulario con PUT y sin Content-Type', async () => {
+    vi.stubEnv('VITE_API_URL', 'http://api.test');
+    const fetchMock = vi.fn().mockResolvedValue(respuestaJson({ id: 7 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const formulario = new FormData();
+    formulario.append('datos', '{"nombre":"Milanesa"}');
+
+    const respuesta = await new ClienteApi().putFormulario<{ id: number }>('/platos/7', formulario);
+
+    expect(respuesta).toEqual({ datos: { id: 7 }, exito: true });
+    expect(fetchMock).toHaveBeenCalledWith('http://api.test/api/v1/platos/7', {
+      method: 'PUT',
+      body: formulario,
+    });
+  });
+});
+
+describe('urlDelBackend', () => {
+  it('arma la URL absoluta con la URL base por defecto', () => {
+    vi.stubEnv('VITE_API_URL', '');
+    expect(urlDelBackend('/media/a.jpg')).toBe('http://127.0.0.1:8000/media/a.jpg');
+  });
+
+  it('usa VITE_API_URL sin la barra final', () => {
+    vi.stubEnv('VITE_API_URL', 'http://api.test/');
+    expect(urlDelBackend('/media/a.jpg')).toBe('http://api.test/media/a.jpg');
   });
 });

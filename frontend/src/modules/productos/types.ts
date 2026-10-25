@@ -49,6 +49,12 @@ export interface ProductoCrear {
   etiquetas: string[];
 }
 
+// HU-M1-02: modificación. `estado` es editable y `quitar_imagen` deja al plato sin imagen.
+export interface ProductoModificar extends ProductoCrear {
+  estado: Estado;
+  quitar_imagen: boolean;
+}
+
 export interface ProductoSalida {
   id: number;
   nombre: string;

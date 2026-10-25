@@ -33,6 +33,13 @@ export function convertirPrecio(texto: string): string | null {
   return normalizado;
 }
 
+/** Convierte "12500.50" (API) en "12.500,50" (formulario); es la inversa de `convertirPrecio`. */
+export function precioParaEditar(precio: string): string {
+  const [enteros = '', decimales] = precio.split('.');
+  const conMiles = enteros.replace(/\B(?=(\d{3})+$)/g, '.');
+  return decimales === undefined ? conMiles : `${conMiles},${decimales}`;
+}
+
 function errorDeNombre(nombre: string): string | undefined {
   const limpio = nombre.trim();
   if (limpio === '') return 'El nombre es obligatorio.';

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { convertirPrecio, errorDelServidor, validarProducto } from './validarProducto';
+import {
+  convertirPrecio,
+  errorDelServidor,
+  precioParaEditar,
+  validarProducto,
+} from './validarProducto';
 import { CONFIGURACIONES } from '../categorias';
 import type { DatosFormularioProducto } from './validarProducto';
 
@@ -124,4 +129,23 @@ describe('errorDelServidor', () => {
       general: 'La imagen debe ser JPG, PNG o HEIC y pesar hasta 5 MB',
     });
   });
+});
+
+describe('precioParaEditar', () => {
+  it.each([
+    ['12500.50', '12.500,50'],
+    ['12500.00', '12.500,00'],
+    ['500.5', '500,5'],
+    ['500', '500'],
+    ['1234567.89', '1.234.567,89'],
+  ])('convierte %s a %s', (entrada, esperado) => {
+    expect(precioParaEditar(entrada)).toBe(esperado);
+  });
+
+  it.each(['12500.50', '1.50', '1234567.89', '99'])(
+    'ida y vuelta con convertirPrecio para %s',
+    (precio) => {
+      expect(convertirPrecio(precioParaEditar(precio))).toBe(precio);
+    },
+  );
 });
