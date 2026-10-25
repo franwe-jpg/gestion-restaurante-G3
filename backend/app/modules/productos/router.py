@@ -80,6 +80,11 @@ def modificar_plato(
     return service.modificar_producto(db, producto_id, datos, leer_imagen(imagen))
 
 
+@router.post("/platos/{producto_id}/baja")
+def dar_de_baja_plato(producto_id: int, db: Sesion) -> ProductoSalida:
+    return service.dar_de_baja_producto(db, PlatoCrear.CATEGORIA, producto_id)
+
+
 @router.post("/postres", status_code=status.HTTP_201_CREATED)
 def crear_postre(
     datos: Annotated[PostreCrear, Depends(datos_de(PostreCrear))],

@@ -228,6 +228,16 @@ def modificar_producto(
     return _a_salida(producto, seccion)
 
 
+def dar_de_baja_producto(db: Session, categoria: Categoria, producto_id: int) -> ProductoSalida:
+    """Deshabilita el producto sin borrar filas ni archivos (S18, S20, S21)."""
+    producto = _obtener_de_categoria(db, categoria, producto_id)
+    if producto.estado == Estado.DESHABILITADO:
+        raise ReglaDeNegocioError("El producto ya está deshabilitado")
+    producto.estado = Estado.DESHABILITADO
+    db.commit()
+    return _a_salida(producto, repository.obtener_seccion(db, producto.seccion_id))
+
+
 def listar_secciones(
     db: Session, parametros: ParametrosPaginacion, estado: Estado | None = None
 ) -> Pagina[SeccionListado]:

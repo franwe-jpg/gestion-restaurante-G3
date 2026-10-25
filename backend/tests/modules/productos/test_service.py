@@ -552,3 +552,43 @@ def test_modificar_plato_conserva_identidad_y_filas_relacionadas(
     assert salida.precio == Decimal("3000")
     assert db.execute(text("SELECT producto_id FROM prueba_linea")).all() == [(plato.id,)]
     assert db.execute(text("SELECT count(*) FROM productos")).scalar() == 1
+
+
+# Dar de baja
+def test_dar_de_baja_producto_solo_cambia_estado(
+    db: Session, fabrica_seccion, directorio_media: Path
+) -> None:
+    seccion = fabrica_seccion("Platos")
+    creado = service.crear_producto(
+        db, _plato(seccion.id, descripcion="Con papas", etiquetas=["Casero"]), _jpeg()
+    )
+    archivos = _archivos(directorio_media)
+
+    salida = service.dar_de_baja_producto(db, Categoria.PLATO, creado.id)
+
+    assert salida == creado.model_copy(update={"estado": Estado.DESHABILITADO})
+    assert db.get(Producto, creado.id).estado == Estado.DESHABILITADO
+    assert _archivos(directorio_media) == archivos
+    assert _cantidad_productos(db) == 1
+
+
+def test_dar_de_baja_producto_ya_deshabilitado_conflicto(
+    db: Session, fabrica_seccion, fabrica_producto
+) -> None:
+    seccion = fabrica_seccion("Platos")
+    plato = fabrica_producto(seccion, "Flan", Estado.DESHABILITADO, Categoria.PLATO)
+
+    with pytest.raises(ReglaDeNegocioError, match="ya está deshabilitado"):
+        service.dar_de_baja_producto(db, Categoria.PLATO, plato.id)
+
+
+def test_dar_de_baja_producto_otra_categoria_error(
+    db: Session, fabrica_seccion, fabrica_producto
+) -> None:
+    seccion = fabrica_seccion("Carta")
+    postre = fabrica_producto(seccion, "Flan", categoria=Categoria.POSTRE)
+
+    with pytest.raises(NoEncontradoError):
+        service.dar_de_baja_producto(db, Categoria.PLATO, postre.id)
+
+    assert db.get(Producto, postre.id).estado == Estado.HABILITADO

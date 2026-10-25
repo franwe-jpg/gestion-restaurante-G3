@@ -9,6 +9,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from PIL import Image
+from sqlalchemy import text
 
 from app.main import montar_media
 from app.modules.productos.models import Seccion
@@ -951,3 +952,96 @@ def test_modificar_plato_con_categoria_enviada_422(cliente: TestClient, fabrica_
 
     assert respuesta.status_code == 422
     assert "categoria" in respuesta.json()["detalle"]
+
+
+# Dar de baja un plato
+def _baja(cliente: TestClient, plato_id: int):
+    return cliente.post(f"{RUTA_PLATOS}/{plato_id}/baja")
+
+
+def test_dar_de_baja_plato_200(cliente: TestClient, fabrica_seccion) -> None:
+    seccion = fabrica_seccion("Platos")
+    plato = _crear_plato(cliente, seccion.id)
+    assert cliente.get("/api/v1/productos").json()["total"] == 1
+
+    respuesta = _baja(cliente, plato["id"])
+
+    assert respuesta.status_code == 200
+    assert respuesta.json() == plato | {"estado": "DESHABILITADO"}
+    assert cliente.get("/api/v1/productos").json()["total"] == 0
+
+
+def test_dar_de_baja_plato_ya_deshabilitado_409(cliente: TestClient, fabrica_seccion) -> None:
+    seccion = fabrica_seccion("Platos")
+    plato = _crear_plato(cliente, seccion.id)
+    _baja(cliente, plato["id"])
+
+    respuesta = _baja(cliente, plato["id"])
+
+    assert respuesta.status_code == 409
+    assert respuesta.json() == {"detalle": "El producto ya está deshabilitado"}
+
+
+def test_dar_de_baja_plato_inexistente_404(cliente: TestClient) -> None:
+    respuesta = _baja(cliente, 999)
+
+    assert respuesta.status_code == 404
+    assert "detalle" in respuesta.json()
+
+
+def test_dar_de_baja_plato_de_postre_404(cliente: TestClient, fabrica_seccion) -> None:
+    seccion = fabrica_seccion("Carta")
+    postre = _crear(cliente, ALTA_POSTRE, _datos(seccion.id, nombre="Flan")).json()
+
+    respuesta = _baja(cliente, postre["id"])
+
+    assert respuesta.status_code == 404
+    assert cliente.get("/api/v1/productos").json()["total"] == 1
+
+
+def test_dar_de_baja_plato_usado_por_otra_tabla_200(
+    cliente: TestClient, fabrica_seccion, db
+) -> None:
+    seccion = fabrica_seccion("Platos")
+    plato = _crear_plato(cliente, seccion.id)
+    db.execute(
+        text(
+            "CREATE TABLE prueba_linea "
+            "(id INTEGER PRIMARY KEY, producto_id INTEGER REFERENCES productos(id))"
+        )
+    )
+    db.execute(
+        text("INSERT INTO prueba_linea (id, producto_id) VALUES (1, :id)"), {"id": plato["id"]}
+    )
+    db.commit()
+
+    respuesta = _baja(cliente, plato["id"])
+
+    assert respuesta.status_code == 200
+    assert db.execute(text("SELECT producto_id FROM prueba_linea")).all() == [(plato["id"],)]
+    assert db.execute(text("SELECT count(*) FROM productos")).scalar() == 1
+
+
+def test_dar_de_baja_plato_conserva_datos_e_imagen(
+    cliente: TestClient, fabrica_seccion, directorio_media: Path
+) -> None:
+    seccion = fabrica_seccion("Platos")
+    plato = _plato_con_imagen(cliente, seccion.id, descripcion="Con papas", etiquetas=["Casero"])
+
+    _baja(cliente, plato["id"])
+
+    consultado = cliente.get(f"{RUTA_PLATOS}/{plato['id']}").json()
+    assert consultado == plato | {"estado": "DESHABILITADO"}
+    assert _sirve(directorio_media, plato["imagen_url"]) == 200
+
+
+def test_reactivar_plato_tras_la_baja_200(cliente: TestClient, fabrica_seccion) -> None:
+    seccion = fabrica_seccion("Platos")
+    plato = _crear_plato(cliente, seccion.id)
+    _baja(cliente, plato["id"])
+
+    respuesta = _modificar(cliente, plato["id"], _datos(seccion.id, estado="HABILITADO"))
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["estado"] == "HABILITADO"
+    assert cliente.get("/api/v1/productos").json()["total"] == 1
