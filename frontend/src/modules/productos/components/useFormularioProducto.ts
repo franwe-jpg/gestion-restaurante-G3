@@ -1,12 +1,15 @@
 import { useState } from 'react';
 
 import { useToast } from '../../../shared/hooks/useToast';
-import { crearPlato } from '../api';
+import { crearProducto } from '../api';
+import { CONFIGURACIONES } from '../categorias';
+import type { CategoriaAlta } from '../categorias';
 
-import { convertirPrecio, errorDelServidor, validarPlato } from './validarPlato';
-import type { ErrorDelServidor } from './validarPlato';
+import { convertirPrecio, errorDelServidor, validarProducto } from './validarProducto';
+import type { ErrorDelServidor } from './validarProducto';
 
-export interface OpcionesFormularioPlato {
+export interface OpcionesFormularioProducto {
+  categoria: CategoriaAlta;
   onCreado: () => void;
 }
 
@@ -37,7 +40,8 @@ function useCampos() {
   };
 }
 
-export function useFormularioPlato({ onCreado }: OpcionesFormularioPlato) {
+export function useFormularioProducto({ categoria, onCreado }: OpcionesFormularioProducto) {
+  const configuracion = CONFIGURACIONES[categoria];
   const { mostrarToast } = useToast();
   const campos = useCampos();
   const [errores, setErrores] = useState<ErrorDelServidor>({});
@@ -45,13 +49,14 @@ export function useFormularioPlato({ onCreado }: OpcionesFormularioPlato) {
 
   const enviar = async () => {
     if (enviando) return;
-    const locales = validarPlato(campos);
+    const locales = validarProducto(campos, configuracion);
     setErrores(locales);
     const precio = convertirPrecio(campos.precio);
     if (Object.keys(locales).length > 0 || precio === null) return;
 
     setEnviando(true);
-    const respuesta = await crearPlato(
+    const respuesta = await crearProducto(
+      categoria,
       {
         nombre: campos.nombre.trim(),
         seccion_id: Number(campos.seccionId),
@@ -65,11 +70,11 @@ export function useFormularioPlato({ onCreado }: OpcionesFormularioPlato) {
     setEnviando(false);
 
     if (respuesta.exito) {
-      mostrarToast({ titulo: 'Plato creado', variante: 'success' });
+      mostrarToast({ titulo: configuracion.creado, variante: 'success' });
       onCreado();
       return;
     }
-    setErrores(errorDelServidor(respuesta.error ?? 'No se pudo crear el plato'));
+    setErrores(errorDelServidor(respuesta.error ?? configuracion.errorAlCrear, configuracion));
   };
 
   return { ...campos, errores, enviando, enviar };

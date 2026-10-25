@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { convertirPrecio, errorDelServidor, validarPlato } from './validarPlato';
-import type { DatosFormularioPlato } from './validarPlato';
+import { convertirPrecio, errorDelServidor, validarProducto } from './validarProducto';
+import { CONFIGURACIONES } from '../categorias';
+import type { DatosFormularioProducto } from './validarProducto';
 
-const VALIDO: DatosFormularioPlato = {
+const OBLIGATORIOS = { ingredientesObligatorios: true };
+
+const VALIDO: DatosFormularioProducto = {
   nombre: 'Milanesa',
   seccionId: '3',
   precio: '12.500,50',
@@ -31,19 +34,22 @@ describe('convertirPrecio', () => {
   );
 });
 
-describe('validarPlato', () => {
+describe('validarProducto', () => {
   it('no marca errores en un plato completo', () => {
-    expect(validarPlato(VALIDO)).toEqual({});
+    expect(validarProducto(VALIDO, OBLIGATORIOS)).toEqual({});
   });
 
   it('marca cada campo obligatorio vacío (CA 2)', () => {
-    const errores = validarPlato({
-      nombre: '   ',
-      seccionId: '',
-      precio: '',
-      ingredientes: [],
-      descripcion: '',
-    });
+    const errores = validarProducto(
+      {
+        nombre: '   ',
+        seccionId: '',
+        precio: '',
+        ingredientes: [],
+        descripcion: '',
+      },
+      OBLIGATORIOS,
+    );
 
     expect(errores).toEqual({
       nombre: 'El nombre es obligatorio.',
@@ -54,39 +60,67 @@ describe('validarPlato', () => {
   });
 
   it('advierte un nombre de 101 caracteres y acepta uno de 100 (CA 4)', () => {
-    expect(validarPlato({ ...VALIDO, nombre: 'a'.repeat(101) }).nombre).toBe(
+    expect(validarProducto({ ...VALIDO, nombre: 'a'.repeat(101) }, OBLIGATORIOS).nombre).toBe(
       'El nombre supera los 100 caracteres permitidos.',
     );
-    expect(validarPlato({ ...VALIDO, nombre: ` ${'a'.repeat(100)} ` }).nombre).toBeUndefined();
+    expect(
+      validarProducto({ ...VALIDO, nombre: ` ${'a'.repeat(100)} ` }, OBLIGATORIOS).nombre,
+    ).toBeUndefined();
   });
 
+  it('acepta ingredientes vacíos cuando la categoría no los exige', () => {
+    const errores = validarProducto(
+      { ...VALIDO, ingredientes: [] },
+      { ingredientesObligatorios: false },
+    );
+
+    expect(errores.ingredientes).toBeUndefined();
+  });
+});
+
+describe('validarProducto: precio y descripción', () => {
   it('advierte un precio inválido (CA 5)', () => {
-    expect(validarPlato({ ...VALIDO, precio: 'abc' }).precio).toMatch(/precio es inválido/);
+    expect(validarProducto({ ...VALIDO, precio: 'abc' }, OBLIGATORIOS).precio).toMatch(
+      /precio es inválido/,
+    );
   });
 
   it('advierte una descripción de más de 500 caracteres (CA 7)', () => {
-    expect(validarPlato({ ...VALIDO, descripcion: 'a'.repeat(501) }).descripcion).toBe(
-      'La descripción supera los 500 caracteres permitidos.',
-    );
-    expect(validarPlato({ ...VALIDO, descripcion: 'a'.repeat(500) }).descripcion).toBeUndefined();
+    expect(
+      validarProducto({ ...VALIDO, descripcion: 'a'.repeat(501) }, OBLIGATORIOS).descripcion,
+    ).toBe('La descripción supera los 500 caracteres permitidos.');
+    expect(
+      validarProducto({ ...VALIDO, descripcion: 'a'.repeat(500) }, OBLIGATORIOS).descripcion,
+    ).toBeUndefined();
   });
 });
 
 describe('errorDelServidor', () => {
-  it('ubica el 409 de nombre repetido bajo el campo nombre (CA 3)', () => {
-    expect(errorDelServidor('El plato ya está registrado')).toEqual({
-      nombre: 'El plato ya está registrado.',
-    });
-  });
+  it.each([
+    ['PLATO', 'El plato ya está registrado', 'El plato ya está registrado.'],
+    ['POSTRE', 'El postre ya está registrado', 'El postre ya está registrado.'],
+  ] as const)(
+    'ubica el 409 de nombre repetido de %s bajo el campo nombre (CA 3)',
+    (categoria, mensaje, esperado) => {
+      expect(errorDelServidor(mensaje, CONFIGURACIONES[categoria])).toEqual({ nombre: esperado });
+    },
+  );
 
   it('ubica el error de la sección en su campo', () => {
-    expect(errorDelServidor('La sección Viejos está deshabilitada')).toEqual({
+    expect(
+      errorDelServidor('La sección Viejos está deshabilitada', CONFIGURACIONES.POSTRE),
+    ).toEqual({
       seccionId: 'La sección elegida está deshabilitada.',
     });
   });
 
   it('deja el resto de los mensajes como error general', () => {
-    expect(errorDelServidor('La imagen debe ser JPG, PNG o HEIC y pesar hasta 5 MB')).toEqual({
+    expect(
+      errorDelServidor(
+        'La imagen debe ser JPG, PNG o HEIC y pesar hasta 5 MB',
+        CONFIGURACIONES.PLATO,
+      ),
+    ).toEqual({
       general: 'La imagen debe ser JPG, PNG o HEIC y pesar hasta 5 MB',
     });
   });

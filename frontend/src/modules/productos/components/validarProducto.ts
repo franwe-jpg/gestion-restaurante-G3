@@ -1,4 +1,6 @@
-export const NOMBRE_PLATO_MAXIMO = 100;
+import type { ConfiguracionAlta } from '../categorias';
+
+export const NOMBRE_PRODUCTO_MAXIMO = 100;
 export const DESCRIPCION_MAXIMA = 500;
 export const INGREDIENTE_MAXIMO = 100;
 export const ETIQUETA_MAXIMA = 30;
@@ -9,7 +11,7 @@ const PRECIO_CON_MILES = /^\d{1,3}(\.\d{3})*(,\d{1,2})?$/;
 const PRECIO_SIN_MILES = /^\d+(,\d{1,2})?$/;
 const ENTEROS_MAXIMOS = 8;
 
-export interface DatosFormularioPlato {
+export interface DatosFormularioProducto {
   nombre: string;
   seccionId: string;
   precio: string;
@@ -17,7 +19,7 @@ export interface DatosFormularioPlato {
   descripcion: string;
 }
 
-export type ErroresPlato = Partial<
+export type ErroresProducto = Partial<
   Record<'nombre' | 'seccionId' | 'precio' | 'ingredientes' | 'descripcion', string>
 >;
 
@@ -34,8 +36,8 @@ export function convertirPrecio(texto: string): string | null {
 function errorDeNombre(nombre: string): string | undefined {
   const limpio = nombre.trim();
   if (limpio === '') return 'El nombre es obligatorio.';
-  if (limpio.length > NOMBRE_PLATO_MAXIMO) {
-    return `El nombre supera los ${NOMBRE_PLATO_MAXIMO} caracteres permitidos.`;
+  if (limpio.length > NOMBRE_PRODUCTO_MAXIMO) {
+    return `El nombre supera los ${NOMBRE_PRODUCTO_MAXIMO} caracteres permitidos.`;
   }
   return undefined;
 }
@@ -55,26 +57,33 @@ function errorDeDescripcion(descripcion: string): string | undefined {
   return undefined;
 }
 
-export function validarPlato(datos: DatosFormularioPlato): ErroresPlato {
-  const errores: ErroresPlato = {};
+export function validarProducto(
+  datos: DatosFormularioProducto,
+  { ingredientesObligatorios }: Pick<ConfiguracionAlta, 'ingredientesObligatorios'>,
+): ErroresProducto {
+  const errores: ErroresProducto = {};
   const nombre = errorDeNombre(datos.nombre);
   const precio = errorDePrecio(datos.precio);
   const descripcion = errorDeDescripcion(datos.descripcion);
   if (nombre) errores.nombre = nombre;
   if (datos.seccionId === '') errores.seccionId = 'La sección es obligatoria.';
   if (precio) errores.precio = precio;
-  if (datos.ingredientes.length === 0) errores.ingredientes = 'Agregue al menos un ingrediente.';
+  if (ingredientesObligatorios && datos.ingredientes.length === 0)
+    errores.ingredientes = 'Agregue al menos un ingrediente.';
   if (descripcion) errores.descripcion = descripcion;
   return errores;
 }
 
-export interface ErrorDelServidor extends ErroresPlato {
+export interface ErrorDelServidor extends ErroresProducto {
   general?: string;
 }
 
 /** Ubica el mensaje de un 409 bajo el campo que corresponde; el resto va como error general. */
-export function errorDelServidor(mensaje: string): ErrorDelServidor {
-  if (/ya está registrado/i.test(mensaje)) return { nombre: 'El plato ya está registrado.' };
+export function errorDelServidor(
+  mensaje: string,
+  configuracion: Pick<ConfiguracionAlta, 'nombreRepetido'>,
+): ErrorDelServidor {
+  if (/ya está registrado/i.test(mensaje)) return { nombre: configuracion.nombreRepetido };
   if (/sección .* deshabilitada/i.test(mensaje)) {
     return { seccionId: 'La sección elegida está deshabilitada.' };
   }
