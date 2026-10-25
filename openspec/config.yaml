@@ -54,7 +54,7 @@ rules:
   tasks:
     - Agrupar por fase con numeración jerárquica; cada tarea completable en una sesión.
     - Incluir una prueba por criterio de aceptación (camino feliz y error o límite).
-    - Incluir el pronóstico del presupuesto de revisión, separado por lado - 800 líneas en frontend/ y 400 en backend/ (punto de control, no bloqueo).
+    - Incluir el pronóstico del presupuesto de revisión, separado por lado - 800 líneas en frontend/ y 800 en backend/ (punto de control, no bloqueo; la HU nunca se divide en varios PR).
     - Trabajar solo dentro del módulo de la persona; avisar si hace falta tocar shared/ u otro módulo.
   apply:
     guidelines:
