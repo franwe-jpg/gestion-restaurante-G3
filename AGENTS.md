@@ -54,7 +54,7 @@ Cada HU es un cambio de SDD (Spec Driven Development) y el cambio se llama como 
 
 - Los artefactos se guardan en `openspec/` y se versionan. `/sdd-init` lo corre **una sola persona, una vez** (S1-04); nadie más lo vuelve a correr.
 - La spec de una HU define el contrato de la API (rutas, `schemas`, códigos de estado), los datos y un escenario por criterio de aceptación.
-- Respuestas recomendadas al orquestador: ritmo *Interactivo*, artefactos en *OpenSpec*, *un solo PR* por HU, y como límite de revisión *800 líneas* en el frontend y *400* en el backend. Si la HU toca los dos lados, cada parte se mide contra su propio límite. Son un punto de control para mirar cómo va el cambio, no un bloqueo.
+- Respuestas recomendadas al orquestador: ritmo *Interactivo*, artefactos en *OpenSpec*, *un solo PR* por HU, y como límite de revisión *800 líneas* en el frontend y *800* en el backend. Si la HU toca los dos lados, cada parte se mide contra su propio límite. Son un punto de control para mirar cómo va el cambio, no un bloqueo: una HU nunca se divide en varios PR, aunque supere el límite.
 - Strict TDD: cuando `/sdd-init` lo activa, `/sdd-apply` escribe primero la prueba, comprueba que falla y después escribe el código.
 - Un cambio trivial (un typo, un nombre) no necesita SDD.
 
