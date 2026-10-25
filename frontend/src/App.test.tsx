@@ -70,7 +70,11 @@ describe('App', () => {
     expect(screen.getByText('Módulo pendiente de implementación')).toBeInTheDocument();
   });
 
-  it('monta el formulario de alta de platos en /productos/nuevo', async () => {
+  it.each([
+    ['/productos/platos/nuevo', 'Nuevo plato'],
+    ['/productos/postres/nuevo', 'Nuevo postre'],
+    ['/productos/nuevo', 'Nuevo plato'],
+  ])('monta el formulario de alta de %s con el título %s', async (ruta, titulo) => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue({
@@ -82,12 +86,12 @@ describe('App', () => {
     );
 
     render(
-      <MemoryRouter initialEntries={['/productos/nuevo']}>
+      <MemoryRouter initialEntries={[ruta]}>
         <App />
       </MemoryRouter>,
     );
 
-    expect(await screen.findByRole('heading', { name: 'Nuevo plato' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: titulo })).toBeInTheDocument();
     expect(await screen.findByText('Primero hay que crear una sección')).toBeInTheDocument();
   });
 });

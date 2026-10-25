@@ -13,10 +13,14 @@ function ProductosPendientes() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button onClick={() => navigate('/productos/nuevo')}>
+      <div className="flex justify-end gap-2">
+        <Button onClick={() => navigate('/productos/platos/nuevo')}>
           <Plus className="h-4 w-4" aria-hidden="true" />
           Nuevo plato
+        </Button>
+        <Button onClick={() => navigate('/productos/postres/nuevo')}>
+          <Plus className="h-4 w-4" aria-hidden="true" />
+          Nuevo postre
         </Button>
       </div>
       <Card>
