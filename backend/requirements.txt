@@ -5,6 +5,9 @@ uvicorn==0.54.0
 SQLAlchemy==2.1.5
 alembic==1.20.0
 pydantic-settings==2.16.0
+python-multipart==0.0.32
+Pillow==13.0.0
+pillow-heif==1.8.1
 
 # Desarrollo y pruebas
 pytest==9.1.1
