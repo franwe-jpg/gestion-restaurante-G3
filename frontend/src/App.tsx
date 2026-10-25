@@ -17,6 +17,12 @@ const ProductosPage = lazy(() =>
   })),
 );
 
+const PlatoNuevoPage = lazy(() =>
+  import('./modules/productos/pages/PlatoNuevoPage').then((modulo) => ({
+    default: modulo.PlatoNuevoPage,
+  })),
+);
+
 const MenusPage = lazy(() =>
   import('./modules/menus/pages/MenusPage').then((modulo) => ({
     default: modulo.MenusPage,
@@ -54,6 +60,7 @@ export default function App() {
         <Route path="/" element={<AppShell />}>
           <Route index element={<Inicio />} />
           <Route path="productos" element={<ProductosPage />} />
+          <Route path="productos/nuevo" element={<PlatoNuevoPage />} />
           <Route path="menus" element={<MenusPage />} />
           <Route path="salon" element={<SalonPage />} />
           <Route path="atencion" element={<AtencionPage />} />
