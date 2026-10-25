@@ -8,7 +8,7 @@ import { CONFIGURACIONES } from '../categorias';
 import type { CategoriaAlta } from '../categorias';
 import type { ProductoSalida } from '../types';
 
-import { useFormularioProducto } from './useFormularioProducto';
+import { useCampos, useEnvioProducto, useFormularioProducto } from './useFormularioProducto';
 
 vi.mock('../api');
 
@@ -176,5 +176,105 @@ describe.each(CATEGORIAS)('useFormularioProducto %s: errores del servidor', (cat
     await act(() => result.current.enviar());
 
     expect(result.current.errores).toEqual({ general: 'No se pudo conectar con el backend' });
+  });
+});
+
+describe('useCampos', () => {
+  it('arranca vacío si no recibe valores iniciales', () => {
+    const { result } = renderHook(() => useCampos());
+
+    expect(result.current).toMatchObject({
+      nombre: '',
+      seccionId: '',
+      precio: '',
+      ingredientes: [],
+      descripcion: '',
+      etiquetas: [],
+      imagen: null,
+    });
+  });
+
+  it('arranca con los valores iniciales recibidos', () => {
+    const { result } = renderHook(() =>
+      useCampos({ nombre: 'Milanesa', seccionId: '3', ingredientes: ['Carne'] }),
+    );
+
+    expect(result.current).toMatchObject({
+      nombre: 'Milanesa',
+      seccionId: '3',
+      precio: '',
+      ingredientes: ['Carne'],
+    });
+  });
+});
+
+const guardar = vi.fn();
+const onExito = vi.fn();
+
+function montar() {
+  const envoltorio = ({ children }: { children: ReactNode }) => (
+    <ToastContext.Provider value={{ mostrarToast }}>{children}</ToastContext.Provider>
+  );
+  return renderHook(
+    () => {
+      const campos = useCampos({
+        nombre: ' Milanesa ',
+        seccionId: '3',
+        precio: '12.500,50',
+        ingredientes: ['Carne'],
+      });
+      const envio = useEnvioProducto({
+        campos,
+        validacion: CONFIGURACIONES.PLATO,
+        guardar,
+        exito: 'Guardado',
+        errorPorDefecto: 'No se pudo guardar',
+        onExito,
+      });
+      return { campos, envio };
+    },
+    { wrapper: envoltorio },
+  );
+}
+
+describe('useEnvioProducto', () => {
+  it('valida, arma los datos, guarda, avisa y notifica', async () => {
+    guardar.mockResolvedValue({ datos: CREADO, exito: true });
+    const { result } = montar();
+
+    await act(() => result.current.envio.enviar());
+
+    expect(guardar).toHaveBeenCalledWith({
+      nombre: 'Milanesa',
+      seccion_id: 3,
+      precio: '12500.50',
+      ingredientes: ['Carne'],
+      descripcion: null,
+      etiquetas: [],
+    });
+    expect(mostrarToast).toHaveBeenCalledWith(
+      expect.objectContaining({ titulo: 'Guardado', variante: 'success' }),
+    );
+    expect(onExito).toHaveBeenCalledTimes(1);
+  });
+
+  it('no guarda si la validación local falla', async () => {
+    const { result } = montar();
+    act(() => result.current.campos.setPrecio('abc'));
+
+    await act(() => result.current.envio.enviar());
+
+    expect(guardar).not.toHaveBeenCalled();
+    expect(result.current.envio.errores.precio).toMatch(/precio es inválido/);
+  });
+
+  it('usa el mensaje por defecto si el servidor no informa el error', async () => {
+    guardar.mockResolvedValue({ datos: null, exito: false });
+    const { result } = montar();
+
+    await act(() => result.current.envio.enviar());
+
+    expect(result.current.envio.errores).toEqual({ general: 'No se pudo guardar' });
+    expect(onExito).not.toHaveBeenCalled();
   });
 });
