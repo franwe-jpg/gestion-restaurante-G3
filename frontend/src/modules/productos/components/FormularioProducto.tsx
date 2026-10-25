@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { Alert } from '../../../shared/components/ui/alert';
@@ -7,11 +8,13 @@ import { FormField } from '../../../shared/components/ui/form-field';
 import { Input } from '../../../shared/components/ui/input';
 import { Select } from '../../../shared/components/ui/select';
 import { Textarea } from '../../../shared/components/ui/textarea';
+import { Switch } from '../../../shared/components/ui/switch';
 import type { ConfiguracionAlta } from '../categorias';
-import type { SeccionListado } from '../types';
+import type { Estado } from '../types';
 
 import { ListaDeTextos } from './ListaDeTextos';
 import { SelectorImagen } from './SelectorImagen';
+import type { OpcionSeccion } from './seccionesParaEditar';
 import type { useFormularioProducto } from './useFormularioProducto';
 import {
   DESCRIPCION_MAXIMA,
@@ -23,7 +26,47 @@ import {
 
 type Formulario = ReturnType<typeof useFormularioProducto>;
 
-function CamposPrincipales({ f, secciones }: { f: Formulario; secciones: SeccionListado[] }) {
+/** Lo que solo existe al editar: estado editable, imagen vigente y acciones extra. */
+export interface EdicionFormulario {
+  estado: Estado;
+  onCambiarEstado: (estado: Estado) => void;
+  imagenActual: string | null;
+  onQuitarImagenActual: () => void;
+  acciones?: ReactNode;
+}
+
+function CampoEstado({ edicion }: { edicion?: EdicionFormulario }) {
+  return (
+    <div className="space-y-1.5">
+      <span className="text-sm font-medium text-slate-700">Estado</span>
+      {edicion ? (
+        <div className="flex min-h-9 items-center gap-2">
+          <Switch
+            id="producto-estado"
+            aria-label="Habilitado"
+            checked={edicion.estado === 'HABILITADO'}
+            onCheckedChange={(activo) =>
+              edicion.onCambiarEstado(activo ? 'HABILITADO' : 'DESHABILITADO')
+            }
+          />
+          <span className="text-sm font-medium text-slate-900">
+            {edicion.estado === 'HABILITADO' ? 'Habilitado' : 'Deshabilitado'}
+          </span>
+        </div>
+      ) : (
+        <p className="flex min-h-9 items-center text-sm font-medium text-slate-900">Habilitado</p>
+      )}
+    </div>
+  );
+}
+
+interface CamposPrincipalesProps {
+  f: Formulario;
+  secciones: OpcionSeccion[];
+  edicion?: EdicionFormulario;
+}
+
+function CamposPrincipales({ f, secciones, edicion }: CamposPrincipalesProps) {
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       <FormField id="producto-nombre" label="Nombre" required error={f.errores.nombre}>
@@ -60,10 +103,7 @@ function CamposPrincipales({ f, secciones }: { f: Formulario; secciones: Seccion
           />
         </div>
       </FormField>
-      <div className="space-y-1.5">
-        <span className="text-sm font-medium text-slate-700">Estado</span>
-        <p className="flex min-h-9 items-center text-sm font-medium text-slate-900">Habilitado</p>
-      </div>
+      <CampoEstado edicion={edicion} />
     </div>
   );
 }
@@ -121,11 +161,35 @@ function AvisoSinSecciones({ mensaje }: { mensaje: string }) {
   );
 }
 
+function Botones({
+  guardar,
+  deshabilitado,
+  acciones,
+}: {
+  guardar: string;
+  deshabilitado: boolean;
+  acciones?: ReactNode;
+}) {
+  const navigate = useNavigate();
+  return (
+    <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-4">
+      {acciones && <div className="mr-auto">{acciones}</div>}
+      <Button variant="outline" onClick={() => navigate('/productos')}>
+        Cancelar
+      </Button>
+      <Button type="submit" disabled={deshabilitado}>
+        {guardar}
+      </Button>
+    </div>
+  );
+}
+
 export interface FormularioProductoProps {
   f: Formulario;
-  configuracion: ConfiguracionAlta;
-  secciones: SeccionListado[];
+  configuracion: Pick<ConfiguracionAlta, 'botonGuardar' | 'avisoSinSecciones'>;
+  secciones: OpcionSeccion[];
   errorDeCarga: string | null;
+  edicion?: EdicionFormulario;
 }
 
 export function FormularioProducto({
@@ -133,8 +197,8 @@ export function FormularioProducto({
   configuracion,
   secciones,
   errorDeCarga,
+  edicion,
 }: FormularioProductoProps) {
-  const navigate = useNavigate();
   const sinSecciones = secciones.length === 0;
 
   return (
@@ -153,22 +217,23 @@ export function FormularioProducto({
             <AvisoSinSecciones mensaje={configuracion.avisoSinSecciones} />
           )}
           {f.errores.general && <Alert variant="danger">{f.errores.general}</Alert>}
-          <CamposPrincipales f={f} secciones={secciones} />
+          <CamposPrincipales f={f} secciones={secciones} edicion={edicion} />
           <CamposDeTexto f={f} />
-          <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
-            <Button variant="outline" onClick={() => navigate('/productos')}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={sinSecciones || f.enviando}>
-              {configuracion.botonGuardar}
-            </Button>
-          </div>
+          <Botones
+            guardar={configuracion.botonGuardar}
+            deshabilitado={sinSecciones || f.enviando}
+            acciones={edicion?.acciones}
+          />
         </CardContent>
       </Card>
       <Card className="min-w-0 flex-[1_1_320px]">
         <CardContent className="space-y-3 pt-6">
           <span className="text-sm font-medium text-slate-700">Imagen</span>
-          <SelectorImagen onCambiar={f.setImagen} />
+          <SelectorImagen
+            onCambiar={f.setImagen}
+            imagenActual={edicion?.imagenActual}
+            onQuitarActual={edicion?.onQuitarImagenActual}
+          />
         </CardContent>
       </Card>
     </form>

@@ -23,6 +23,12 @@ const ProductoNuevoPage = lazy(() =>
   })),
 );
 
+const ProductoEditarPage = lazy(() =>
+  import('./modules/productos/pages/ProductoEditarPage').then((modulo) => ({
+    default: modulo.ProductoEditarPage,
+  })),
+);
+
 const MenusPage = lazy(() =>
   import('./modules/menus/pages/MenusPage').then((modulo) => ({
     default: modulo.MenusPage,
@@ -64,6 +70,10 @@ export default function App() {
           <Route
             path="productos/postres/nuevo"
             element={<ProductoNuevoPage categoria="POSTRE" />}
+          />
+          <Route
+            path="productos/platos/:id/editar"
+            element={<ProductoEditarPage categoria="PLATO" />}
           />
           <Route
             path="productos/nuevo"
