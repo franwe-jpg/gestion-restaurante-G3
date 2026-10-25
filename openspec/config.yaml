@@ -8,7 +8,7 @@ context: |
   Estilo: ruff (lint y formato) en el backend; ESLint (--max-warnings=0) y Prettier en el frontend. Nombres de negocio en español, palabras técnicas en inglés.
   Reglas del proyecto: AGENTS.md (raíz). Arquitectura: SPRINT-0/S0-05-arquitectura.md. RNF: SPRINT-0/S0-04-rnf.md. Estándares: SPRINT-1/S1-02 y S1-03.
   Idioma de los artefactos: español neutro y profesional (proposal, specs, design, tasks); los identificadores de código siguen los estándares.
-  Cada cambio de SDD se llama como la HU (por ejemplo, HU-M5-01).
+  Cada cambio de SDD se llama como la HU (por ejemplo, HU-M5-01), o con todos los números si agrupa el ABM y el listado de una misma entidad (por ejemplo, HU-M1-02-03; AGENTS.md, sección 4).
 
 strict_tdd: true
 
@@ -41,7 +41,7 @@ testing:
 rules:
   proposal:
     - Escribir en español neutro y profesional.
-    - Nombrar el cambio como la HU (HU-Mx-nn) y enlazar el issue.
+    - Nombrar el cambio como la HU (HU-Mx-nn) o como el grupo ABM (HU-Mx-nn-nn) y enlazar cada issue.
     - Incluir plan de reversión si el cambio toca el esquema de la base de datos.
   specs:
     - Escribir en español neutro; usar palabras clave RFC 2119 (DEBE, NO DEBE, DEBERÍA, PUEDE) y escenarios Dado/Cuando/Entonces.

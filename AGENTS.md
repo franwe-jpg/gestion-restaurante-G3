@@ -41,7 +41,7 @@ Si dos fuentes se contradicen: el issue gana para HU y tareas, y el plan gana pa
 
 ## 4. Cómo trabajamos con SDD
 
-Cada HU es un cambio de SDD (Spec Driven Development) y el cambio se llama como la HU (`HU-M5-01`). Primero se escribe y se revisa la spec; recién después se genera el código. La guía completa está en el issue S1-01 (#148).
+Cada HU es un cambio de SDD (Spec Driven Development) y el cambio se llama como la HU (`HU-M5-01`). Las HU de alta, baja, modificación y listado de **una misma entidad** (grupo ABM) pueden hacerse juntas, en un solo cambio con una rama y un PR. El cambio lleva todos los números (`HU-M1-02-03`, `HU-M5-01-02-04`), y lo que este archivo dice de una HU vale para el grupo. No se juntan HU de entidades ni de módulos distintos, ni flujos de estado (cerrar y reabrir una comanda, facturar y cobrar). Primero se escribe y se revisa la spec; recién después se genera el código. La guía completa está en el issue S1-01 (#148).
 
 | Comando | Para qué |
 | --- | --- |
@@ -142,10 +142,10 @@ No bajar umbrales ni desactivar reglas o pasos de la CI para que pase.
 ## 8. Git y GitHub
 
 - Nunca trabajar ni hacer push directo en `main` ni en `develop`.
-- Una rama por tarea, creada desde `develop`: `feature/<ID>-<descripcion>` (por ejemplo, `feature/HU-M3-02-modificar-sector`).
+- Una rama por tarea o por grupo ABM (sección 4), creada desde `develop`: `feature/<ID>-<descripcion>` (por ejemplo, `feature/HU-M3-02-modificar-sector` o `feature/HU-M1-02-03-modificar-baja-plato`).
 - Commits con Conventional Commits, en español y con el ID de la tarea: `feat: permite modificar un sector (HU-M3-02)`. Tipos: `feat`, `fix`, `docs`, `test`, `ci`, `chore`.
 - Antes del PR: `git pull origin develop` y resolver los conflictos en la rama.
-- PR hacia `develop` con la plantilla `.github/pull_request_template.md` y `Closes #<número>`. Lo revisa y aprueba **otro integrante**, y se integra con la CI en verde (RNF-MAN-08).
+- PR hacia `develop` con la plantilla `.github/pull_request_template.md` y un `Closes #<número>` por cada issue que cubre (`Closes #3` y `Closes #4`; con `Closes #3, #4` GitHub cierra solo el primero). Lo revisa y aprueba **otro integrante**, y se integra con la CI en verde (RNF-MAN-08).
 - Tablero: cada uno mueve sus tarjetas a mano: «In Progress» al empezar, «En Testing» cuando el PR se integra en `develop` y «Done» cuando el cambio llega a `main`.
 - No crear, cerrar ni editar issues, comentarios, PR ni tarjetas sin confirmación explícita de la persona.
 - No volver a correr `SPRINT-0/cargar_github.py`: duplica los issues.
