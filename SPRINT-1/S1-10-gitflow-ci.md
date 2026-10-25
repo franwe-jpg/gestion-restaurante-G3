@@ -11,7 +11,7 @@ Define cómo se usan las ramas, cómo se integra un cambio y qué verifica la CI
 | --- | --- | --- | --- |
 | `main` | — | — | Versión estable. Solo recibe lo que se cierra en cada gateway. Nadie trabaja ni hace push directo. |
 | `develop` | `main` | `main` (en cada gateway) | Integración del trabajo del sprint. Nadie trabaja ni hace push directo. |
-| `feature/<ID>-<descripcion>` | `develop` | `develop` | Una rama por tarea, o por grupo ABM de una misma entidad (`AGENTS.md`, sección 4). Ejemplos: `feature/S1-10-gitflow-ci`, `feature/HU-M1-02-03-modificar-baja-plato`. |
+| `feature/<ID>-<descripcion>` | `develop` | `develop` | Una rama por tarea, o por grupo ABM de una misma entidad y un mismo responsable (`AGENTS.md`, sección 4). Ejemplos: `feature/S1-10-gitflow-ci`, `feature/HU-M1-02-03-modificar-baja-plato`. |
 | `hotfix/<descripcion>` | `main` | `main` y `develop` | Corrección urgente de algo que ya está en `main`. Regla propuesta por este documento. |
 
 - El ID de la tarea (`S1-10`, `HU-M3-02`, ...) va en el nombre de la rama y en el título del PR, para rastrear cada cambio hasta su tarjeta.

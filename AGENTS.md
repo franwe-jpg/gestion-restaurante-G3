@@ -41,7 +41,7 @@ Si dos fuentes se contradicen: el issue gana para HU y tareas, y el plan gana pa
 
 ## 4. Cómo trabajamos con SDD
 
-Cada HU es un cambio de SDD (Spec Driven Development) y el cambio se llama como la HU (`HU-M5-01`). Las HU de alta, baja, modificación y listado de **una misma entidad** (grupo ABM) pueden hacerse juntas, en un solo cambio con una rama y un PR. El cambio lleva todos los números (`HU-M1-02-03`, `HU-M5-01-02-04`), y lo que este archivo dice de una HU vale para el grupo. No se juntan HU de entidades ni de módulos distintos, ni flujos de estado (cerrar y reabrir una comanda, facturar y cobrar). Primero se escribe y se revisa la spec; recién después se genera el código. La guía completa está en el issue S1-01 (#148).
+Cada HU es un cambio de SDD (Spec Driven Development) y el cambio se llama como la HU (`HU-M5-01`). Las HU de alta, baja, modificación y listado de **una misma entidad** y con **el mismo responsable** (grupo ABM) pueden hacerse juntas, en un solo cambio con una rama y un PR. El cambio lleva todos los números (`HU-M1-02-03`, `HU-M5-01-02-04`), y lo que este archivo dice de una HU vale para el grupo. No se juntan HU de entidades, módulos o responsables distintos, ni flujos de estado (cerrar y reabrir una comanda, facturar y cobrar). Primero se escribe y se revisa la spec; recién después se genera el código. La guía completa está en el issue S1-01 (#148).
 
 | Comando | Para qué |
 | --- | --- |
