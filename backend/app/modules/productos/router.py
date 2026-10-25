@@ -64,6 +64,11 @@ def crear_plato(
     return service.crear_producto(db, datos, leer_imagen(imagen))
 
 
+@router.get("/platos/{producto_id}")
+def consultar_plato(producto_id: int, db: Sesion) -> ProductoSalida:
+    return service.obtener_producto(db, PlatoCrear.CATEGORIA, producto_id)
+
+
 @router.post("/postres", status_code=status.HTTP_201_CREATED)
 def crear_postre(
     datos: Annotated[PostreCrear, Depends(datos_de(PostreCrear))],

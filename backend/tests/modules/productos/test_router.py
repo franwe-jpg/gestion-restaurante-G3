@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 from PIL import Image
 
 from app.main import montar_media
-from app.shared.models import Estado
+from app.shared.models import Estado, Producto
 
 RUTA = "/api/v1/secciones"
 
@@ -546,3 +546,59 @@ def test_listar_secciones_con_estado_invalido_responde_422(cliente: TestClient) 
 
     assert respuesta.status_code == 422
     assert "estado" in respuesta.json()["detalle"]
+
+
+# ---------------------------------------------------------------------------
+# HU-M1-02-03: consultar, modificar y dar de baja un plato
+# ---------------------------------------------------------------------------
+
+RUTA_PLATOS = "/api/v1/platos"
+
+
+def _crear_plato(cliente: TestClient, seccion_id: int, imagen: tuple | None = None, **cambios):
+    respuesta = _crear(cliente, ALTA_PLATO, _datos(seccion_id, **cambios), imagen)
+    assert respuesta.status_code == 201
+    return respuesta.json()
+
+
+def _deshabilitar(db, producto_id: int) -> None:
+    db.get(Producto, producto_id).estado = Estado.DESHABILITADO
+    db.commit()
+
+
+# Consultar un plato
+def test_consultar_plato_existente(cliente: TestClient, fabrica_seccion) -> None:
+    seccion = fabrica_seccion("Platos")
+    plato = _crear_plato(cliente, seccion.id, descripcion="Con papas", etiquetas=["Casero"])
+
+    respuesta = cliente.get(f"{RUTA_PLATOS}/{plato['id']}")
+
+    assert respuesta.status_code == 200
+    assert respuesta.json() == plato
+
+
+def test_consultar_plato_inexistente_404(cliente: TestClient) -> None:
+    respuesta = cliente.get(f"{RUTA_PLATOS}/999")
+
+    assert respuesta.status_code == 404
+    assert "detalle" in respuesta.json()
+
+
+def test_consultar_plato_de_otra_categoria_404(cliente: TestClient, fabrica_seccion) -> None:
+    seccion = fabrica_seccion("Carta")
+    postre = _crear(cliente, ALTA_POSTRE, _datos(seccion.id, nombre="Flan")).json()
+
+    respuesta = cliente.get(f"{RUTA_PLATOS}/{postre['id']}")
+
+    assert respuesta.status_code == 404
+
+
+def test_consultar_plato_deshabilitado_200(cliente: TestClient, fabrica_seccion, db) -> None:
+    seccion = fabrica_seccion("Platos")
+    plato = _crear_plato(cliente, seccion.id)
+    _deshabilitar(db, plato["id"])
+
+    respuesta = cliente.get(f"{RUTA_PLATOS}/{plato['id']}")
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["estado"] == "DESHABILITADO"

@@ -15,7 +15,7 @@ from app.modules.productos.schemas import (
     SeccionSalida,
 )
 from app.shared.excepciones import NoEncontradoError, ReglaDeNegocioError
-from app.shared.models import Estado, Producto
+from app.shared.models import Categoria, Estado, Producto
 from app.shared.models.producto import normalizar_nombre
 from app.shared.paginacion import Pagina, ParametrosPaginacion
 
@@ -148,6 +148,18 @@ def crear_producto(db: Session, datos: ProductoCrear, imagen: bytes | None) -> P
     producto = _armar_producto(datos, archivo)
     _guardar_producto(db, producto, datos.MENSAJE_NOMBRE_REPETIDO)
     return _a_salida(producto, seccion)
+
+
+def _obtener_de_categoria(db: Session, categoria: Categoria, producto_id: int) -> Producto:
+    producto = repository.obtener_producto(db, categoria, producto_id)
+    if producto is None:
+        raise NoEncontradoError(f"El producto {producto_id} no existe")
+    return producto
+
+
+def obtener_producto(db: Session, categoria: Categoria, producto_id: int) -> ProductoSalida:
+    producto = _obtener_de_categoria(db, categoria, producto_id)
+    return _a_salida(producto, repository.obtener_seccion(db, producto.seccion_id))
 
 
 def listar_secciones(

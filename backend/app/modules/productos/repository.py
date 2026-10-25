@@ -39,6 +39,11 @@ def existe_producto(db: Session, categoria: Categoria, nombre_normalizado: str) 
     return db.scalar(consulta.limit(1)) is not None
 
 
+def obtener_producto(db: Session, categoria: Categoria, producto_id: int) -> Producto | None:
+    consulta = select(Producto).where(Producto.id == producto_id, Producto.categoria == categoria)
+    return db.scalar(consulta)
+
+
 def agregar(db: Session, entidad: Seccion | Producto) -> None:
     db.add(entidad)
     db.flush()

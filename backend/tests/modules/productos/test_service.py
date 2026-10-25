@@ -391,3 +391,28 @@ def test_listar_secciones_sin_estado_devuelve_todas(db: Session, fabrica_seccion
 
     assert [s.nombre for s in pagina.items] == ["A", "B"]
     assert pagina.total == 2
+
+
+# ---------------------------------------------------------------------------
+# HU-M1-02-03: consultar, modificar y dar de baja un plato
+# ---------------------------------------------------------------------------
+
+
+# Consultar
+def test_obtener_producto_existente(db: Session, fabrica_seccion) -> None:
+    seccion = fabrica_seccion("Platos")
+    creado = service.crear_producto(db, _plato(seccion.id), None)
+
+    salida = service.obtener_producto(db, Categoria.PLATO, creado.id)
+
+    assert salida == creado
+
+
+def test_obtener_producto_otra_categoria_error(
+    db: Session, fabrica_seccion, fabrica_producto
+) -> None:
+    seccion = fabrica_seccion("Carta")
+    postre = fabrica_producto(seccion, "Flan", categoria=Categoria.POSTRE)
+
+    with pytest.raises(NoEncontradoError, match=f"El producto {postre.id} no existe"):
+        service.obtener_producto(db, Categoria.PLATO, postre.id)
