@@ -11,7 +11,7 @@ Prefijo `/api/v1`. Errores con formato `{"detalle": "mensaje"}` (D-26) y código
 | Ruta | Éxito | Errores |
 | --- | --- | --- |
 | `POST /secciones` | 201, `SeccionRespuesta` | 404, 409, 422 |
-| `GET /secciones?limit&offset` | 200, `Pagina[SeccionRespuesta]`, orden ascendente por `orden` | 422 |
+| `GET /secciones?limit&offset&estado` | 200, `Pagina[SeccionRespuesta]`, orden ascendente por `orden` | 422 |
 | `GET /productos?limit&offset` | 200, `Pagina[ProductoRespuesta]`, solo habilitados | 422 |
 
 Esquemas:
@@ -197,7 +197,9 @@ Con `confirmar_traslado: false`, si algún producto seleccionado pertenece a otr
 
 ### Requisito: Listar secciones
 
-`GET /secciones` DEBE devolver todas las secciones, paginadas y ordenadas por `orden` ascendente. La pestaña «Secciones» DEBE mostrar Orden, Nombre, cantidad de productos y Estado.
+`GET /secciones` DEBE devolver las secciones, paginadas y ordenadas por `orden` ascendente. El parámetro opcional `estado` (`HABILITADO` o `DESHABILITADO`) PUEDE filtrar el listado; sin él, DEBE devolver todas las secciones, igual que antes. El valor de `estado` fuera del enumerado DEBE responder 422. `total` DEBE contar solo las secciones que cumplen el filtro. La pestaña «Secciones» DEBE mostrar Orden, Nombre, cantidad de productos y Estado.
+
+Contrato: `GET /secciones?limit&offset&estado` → 200 `Pagina[SeccionRespuesta]`; errores 422.
 
 #### Escenario: Listado paginado
 
@@ -210,6 +212,24 @@ Con `confirmar_traslado: false`, si algún producto seleccionado pertenece a otr
 - DADO `limit=101`
 - CUANDO se hace `GET /secciones`
 - ENTONCES responde 422
+
+#### Escenario: Filtro por estado habilitado
+
+- DADO dos secciones habilitadas y una deshabilitada
+- CUANDO se hace `GET /secciones?estado=HABILITADO`
+- ENTONCES `items` trae solo las dos habilitadas por `orden` y `total` es 2
+
+#### Escenario: Estado inválido
+
+- DADO `estado=ABIERTO`
+- CUANDO se hace `GET /secciones`
+- ENTONCES responde 422
+
+#### Escenario: Sin filtro no cambia la respuesta
+
+- DADO secciones habilitadas y deshabilitadas
+- CUANDO se hace `GET /secciones` sin `estado`
+- ENTONCES `items` incluye todas, como antes de esta HU
 
 ## Supuestos nuevos
 
