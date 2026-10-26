@@ -90,7 +90,7 @@ export function errorDelServidor(
   mensaje: string,
   configuracion: Pick<ConfiguracionAlta, 'nombreRepetido'>,
 ): ErrorDelServidor {
-  if (/ya está registrado/i.test(mensaje)) return { nombre: configuracion.nombreRepetido };
+  if (/ya está registrad[oa]/i.test(mensaje)) return { nombre: configuracion.nombreRepetido };
   if (/sección .* deshabilitada/i.test(mensaje)) {
     return { seccionId: 'La sección elegida está deshabilitada.' };
   }

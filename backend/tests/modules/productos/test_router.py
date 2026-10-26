@@ -385,8 +385,9 @@ class Alta:
     params=[
         Alta("/api/v1/platos", "PLATO", "El plato ya está registrado"),
         Alta("/api/v1/postres", "POSTRE", "El postre ya está registrado"),
+        Alta("/api/v1/bebidas", "BEBIDA", "La bebida ya está registrada"),
     ],
-    ids=["plato", "postre"],
+    ids=["plato", "postre", "bebida"],
 )
 def alta(request: pytest.FixtureRequest) -> Alta:
     return request.param
@@ -528,7 +529,7 @@ def test_crear_producto_con_parte_imagen_vacia_equivale_a_sin_imagen(
         ({"precio": "-5"}, "precio"),
         ({"precio": "mil"}, "precio"),
         ({"precio": "1500.555"}, "precio"),
-        ({"ingredientes": []}, "ingredientes"),
+        ({"ingredientes": ["  "]}, "ingredientes"),
         ({"ingredientes": ["Huevo", " huevo "]}, "ingredientes"),
         ({"descripcion": "a" * 501}, "descripcion"),
         ({"etiquetas": ["a" * 31]}, "etiquetas"),
@@ -553,7 +554,7 @@ def test_crear_producto_con_datos_invalidos_responde_422_sin_guardar(
     assert cliente.get("/api/v1/productos").json()["total"] == 0
 
 
-@pytest.mark.parametrize("faltante", ["nombre", "seccion_id", "precio", "ingredientes"])
+@pytest.mark.parametrize("faltante", ["nombre", "seccion_id", "precio"])
 def test_crear_producto_sin_campos_obligatorios_responde_422_e_indica_el_campo(
     alta: Alta, cliente: TestClient, fabrica_seccion, faltante: str
 ) -> None:
@@ -626,6 +627,7 @@ def test_crear_producto_con_nombre_repetido_responde_409(
 # CA 3, S13 y S14: el nombre es unico por categoria
 ALTA_PLATO = Alta("/api/v1/platos", "PLATO", "El plato ya está registrado")
 ALTA_POSTRE = Alta("/api/v1/postres", "POSTRE", "El postre ya está registrado")
+ALTA_BEBIDA = Alta("/api/v1/bebidas", "BEBIDA", "La bebida ya está registrada")
 
 
 def test_crear_postre_con_nombre_de_plato_convive_y_el_plato_repetido_da_409(
@@ -653,15 +655,50 @@ def test_crear_postre_con_nombre_repetido_dice_postre(cliente: TestClient, fabri
     assert respuesta.json() == {"detalle": "El postre ya está registrado"}
 
 
-# CA 6: los ingredientes son obligatorios en postres
-def test_crear_postre_sin_ingredientes_responde_422(cliente: TestClient, fabrica_seccion) -> None:
+# CA 6: los ingredientes son obligatorios en platos y postres, y opcionales en bebidas (S44)
+@pytest.mark.parametrize("alta", [ALTA_PLATO, ALTA_POSTRE], ids=["plato", "postre"])
+@pytest.mark.parametrize("ingredientes", [None, []], ids=["ausentes", "vacios"])
+def test_crear_producto_sin_ingredientes_422(
+    alta: Alta, cliente: TestClient, fabrica_seccion, ingredientes
+) -> None:
     datos = _datos(fabrica_seccion("Carta").id)
     del datos["ingredientes"]
+    if ingredientes is not None:
+        datos["ingredientes"] = ingredientes
 
-    respuesta = _crear(cliente, ALTA_POSTRE, datos)
+    respuesta = _crear(cliente, alta, datos)
 
     assert respuesta.status_code == 422
     assert "ingredientes" in respuesta.json()["detalle"]
+
+
+@pytest.mark.parametrize("ingredientes", [None, []], ids=["ausentes", "vacios"])
+def test_crear_bebida_sin_ingredientes_201(
+    cliente: TestClient, fabrica_seccion, ingredientes
+) -> None:
+    datos = _datos(fabrica_seccion("Carta").id)
+    del datos["ingredientes"]
+    if ingredientes is not None:
+        datos["ingredientes"] = ingredientes
+
+    respuesta = _crear(cliente, ALTA_BEBIDA, datos)
+
+    assert respuesta.status_code == 201
+    assert respuesta.json()["ingredientes"] == []
+
+
+# S14: una bebida puede llamarse igual que un postre, pero no repetirse entre bebidas
+def test_crear_bebida_con_nombre_de_postre_convive(cliente: TestClient, fabrica_seccion) -> None:
+    seccion = fabrica_seccion("Carta")
+    _crear(cliente, ALTA_POSTRE, _datos(seccion.id, nombre="Tiramisú"))
+
+    bebida = _crear(cliente, ALTA_BEBIDA, _datos(seccion.id, nombre="Tiramisú"))
+    repetida = _crear(cliente, ALTA_BEBIDA, _datos(seccion.id, nombre="tiramisú"))
+
+    assert bebida.status_code == 201
+    assert bebida.json()["categoria"] == "BEBIDA"
+    assert repetida.status_code == 409
+    assert repetida.json() == {"detalle": "La bebida ya está registrada"}
 
 
 # CA 10
@@ -1501,3 +1538,290 @@ def test_postre_con_id_de_plato_404(cliente: TestClient, fabrica_seccion, operac
 
     assert respuesta.status_code == 404
     assert cliente.get(f"{RUTA_PLATOS}/{plato['id']}").json() == plato
+
+
+# ---------------------------------------------------------------------------
+# HU-M1-07-08-09: consultar, modificar y dar de baja una bebida
+# ---------------------------------------------------------------------------
+
+RUTA_BEBIDAS = "/api/v1/bebidas"
+
+
+def _crear_bebida(cliente: TestClient, seccion_id: int, imagen: tuple | None = None, **cambios):
+    respuesta = _crear(
+        cliente, ALTA_BEBIDA, _datos(seccion_id, nombre="Limonada", **cambios), imagen
+    )
+    assert respuesta.status_code == 201
+    return respuesta.json()
+
+
+def _modificar_bebida(
+    cliente: TestClient, bebida_id: int, datos: dict, imagen: tuple | None = None
+):
+    return _modificar(cliente, bebida_id, datos, imagen, RUTA_BEBIDAS)
+
+
+def _baja_bebida(cliente: TestClient, bebida_id: int):
+    return _baja(cliente, bebida_id, RUTA_BEBIDAS)
+
+
+def _tabla_de_prueba_con(db, producto_id: int) -> None:
+    db.execute(
+        text(
+            "CREATE TABLE prueba_linea "
+            "(id INTEGER PRIMARY KEY, producto_id INTEGER REFERENCES productos(id))"
+        )
+    )
+    db.execute(
+        text("INSERT INTO prueba_linea (id, producto_id) VALUES (1, :id)"), {"id": producto_id}
+    )
+    db.commit()
+
+
+# CA 1: consultar y modificar los datos
+def test_consultar_bebida_existente(cliente: TestClient, fabrica_seccion) -> None:
+    seccion = fabrica_seccion("Bebidas")
+    bebida = _crear_bebida(cliente, seccion.id, descripcion="Con menta", etiquetas=["Casera"])
+
+    respuesta = cliente.get(f"{RUTA_BEBIDAS}/{bebida['id']}")
+
+    assert respuesta.status_code == 200
+    assert respuesta.json() == bebida
+    assert bebida["categoria"] == "BEBIDA"
+
+
+def test_modificar_bebida_datos_validos(cliente: TestClient, fabrica_seccion) -> None:
+    origen = fabrica_seccion("Bebidas", 1)
+    destino = fabrica_seccion("Sin alcohol", 2)
+    bebida = _crear_bebida(cliente, origen.id)
+
+    respuesta = _modificar_bebida(
+        cliente,
+        bebida["id"],
+        _datos(destino.id, nombre="  Agua ", precio="1200", descripcion="Con gas"),
+    )
+
+    assert respuesta.status_code == 200
+    cuerpo = respuesta.json()
+    assert cuerpo["id"] == bebida["id"]
+    assert cuerpo["nombre"] == "Agua"
+    assert cuerpo["precio"] == "1200.00"
+    assert cuerpo["categoria"] == "BEBIDA"
+    assert cuerpo["seccion"] == {"id": destino.id, "nombre": "Sin alcohol"}
+    assert cliente.get(f"{RUTA_BEBIDAS}/{bebida['id']}").json() == cuerpo
+
+
+# CA 2: ingredientes, etiquetas e imagen
+def test_modificar_bebida_ingredientes_etiquetas_e_imagen(
+    cliente: TestClient, fabrica_seccion, directorio_media: Path
+) -> None:
+    seccion = fabrica_seccion("Bebidas")
+    bebida = _crear_bebida(
+        cliente, seccion.id, ("foto.jpg", _imagen(), "image/jpeg"), etiquetas=["Casera"]
+    )
+
+    respuesta = _modificar_bebida(
+        cliente,
+        bebida["id"],
+        _datos(
+            seccion.id, nombre="Limonada", ingredientes=["Limón", "Menta"], etiquetas=["Sin TACC"]
+        ),
+        ("nueva.png", _imagen("PNG"), "image/png"),
+    )
+
+    cuerpo = respuesta.json()
+    assert respuesta.status_code == 200
+    assert cuerpo["ingredientes"] == ["Limón", "Menta"]
+    assert cuerpo["etiquetas"] == ["Sin TACC"]
+    assert cuerpo["imagen_url"] != bebida["imagen_url"]
+    assert _sirve(directorio_media, cuerpo["imagen_url"]) == 200
+    assert _sirve(directorio_media, bebida["imagen_url"]) == 404
+
+
+# S44: los ingredientes son opcionales, también al modificar
+@pytest.mark.parametrize("ingredientes", [None, []], ids=["ausentes", "vacios"])
+def test_modificar_bebida_quita_todos_los_ingredientes_200(
+    cliente: TestClient, fabrica_seccion, ingredientes
+) -> None:
+    seccion = fabrica_seccion("Bebidas")
+    bebida = _crear_bebida(cliente, seccion.id, ingredientes=["Limón", "Azúcar"])
+    datos = _datos(seccion.id, nombre="Limonada")
+    del datos["ingredientes"]
+    if ingredientes is not None:
+        datos["ingredientes"] = ingredientes
+
+    respuesta = _modificar_bebida(cliente, bebida["id"], datos)
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["ingredientes"] == []
+    assert cliente.get(f"{RUTA_BEBIDAS}/{bebida['id']}").json()["ingredientes"] == []
+
+
+# CA 3: las reglas del alta
+def test_modificar_bebida_nombre_duplicado_409(cliente: TestClient, fabrica_seccion, db) -> None:
+    seccion = fabrica_seccion("Bebidas")
+    limonada = _crear_bebida(cliente, seccion.id)
+    agua = _crear(cliente, ALTA_BEBIDA, _datos(seccion.id, nombre="Agua")).json()
+    _deshabilitar(db, agua["id"])
+
+    respuesta = _modificar_bebida(cliente, limonada["id"], _datos(seccion.id, nombre=" agua "))
+
+    assert respuesta.status_code == 409
+    assert respuesta.json() == {"detalle": "La bebida ya está registrada"}
+    assert cliente.get(f"{RUTA_BEBIDAS}/{limonada['id']}").json() == limonada
+
+
+def test_modificar_bebida_mismo_nombre_que_plato_200(cliente: TestClient, fabrica_seccion) -> None:
+    seccion = fabrica_seccion("Carta")
+    _crear_plato(cliente, seccion.id, nombre="Milanesa")
+    bebida = _crear_bebida(cliente, seccion.id)
+
+    respuesta = _modificar_bebida(cliente, bebida["id"], _datos(seccion.id, nombre="Milanesa"))
+
+    assert respuesta.status_code == 200
+
+
+@pytest.mark.parametrize(
+    "cambios",
+    [{"precio": "0"}, {"precio": "mil"}, {"ingredientes": ["Limón", " limón "]}],
+    ids=["precio-cero", "precio-texto", "ingredientes-repetidos"],
+)
+def test_modificar_bebida_datos_invalidos_422(
+    cliente: TestClient, fabrica_seccion, cambios: dict
+) -> None:
+    seccion = fabrica_seccion("Bebidas")
+    bebida = _crear_bebida(cliente, seccion.id)
+
+    respuesta = _modificar_bebida(cliente, bebida["id"], _datos(seccion.id, **cambios))
+
+    assert respuesta.status_code == 422
+    assert cliente.get(f"{RUTA_BEBIDAS}/{bebida['id']}").json() == bebida
+
+
+# CA 4: las facturas conservan su identidad (S18)
+def test_modificar_bebida_conserva_identidad(cliente: TestClient, fabrica_seccion, db) -> None:
+    seccion = fabrica_seccion("Bebidas")
+    bebida = _crear_bebida(cliente, seccion.id)
+    _tabla_de_prueba_con(db, bebida["id"])
+
+    respuesta = _modificar_bebida(
+        cliente, bebida["id"], _datos(seccion.id, nombre="Limonada", precio="5")
+    )
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["id"] == bebida["id"]
+    assert db.execute(text("SELECT producto_id FROM prueba_linea")).all() == [(bebida["id"],)]
+    assert db.execute(text("SELECT count(*) FROM productos")).scalar() == 1
+
+
+# CA 5: reactivar
+def test_modificar_bebida_reactivar_200(cliente: TestClient, fabrica_seccion, db) -> None:
+    seccion = fabrica_seccion("Bebidas")
+    bebida = _crear_bebida(cliente, seccion.id)
+    _deshabilitar(db, bebida["id"])
+    assert cliente.get(RUTA_PRODUCTOS).json()["total"] == 0
+
+    respuesta = _modificar_bebida(
+        cliente, bebida["id"], _datos(seccion.id, nombre="Limonada", estado="HABILITADO")
+    )
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["estado"] == "HABILITADO"
+    assert cliente.get(RUTA_PRODUCTOS).json()["total"] == 1
+
+
+# HU-M1-09: dar de baja una bebida
+def test_dar_de_baja_bebida_200(cliente: TestClient, fabrica_seccion) -> None:
+    seccion = fabrica_seccion("Bebidas")
+    bebida = _crear_bebida(cliente, seccion.id)
+    assert cliente.get(RUTA_PRODUCTOS).json()["total"] == 1
+
+    respuesta = _baja_bebida(cliente, bebida["id"])
+
+    assert respuesta.status_code == 200
+    assert respuesta.json() == bebida | {"estado": "DESHABILITADO"}
+    assert cliente.get(RUTA_PRODUCTOS).json()["total"] == 0
+
+
+def test_dar_de_baja_bebida_ya_deshabilitada_409(cliente: TestClient, fabrica_seccion) -> None:
+    seccion = fabrica_seccion("Bebidas")
+    bebida = _crear_bebida(cliente, seccion.id)
+    _baja_bebida(cliente, bebida["id"])
+
+    respuesta = _baja_bebida(cliente, bebida["id"])
+
+    assert respuesta.status_code == 409
+    assert respuesta.json() == {"detalle": "El producto ya está deshabilitado"}
+
+
+def test_dar_de_baja_bebida_conserva_datos_e_imagen(
+    cliente: TestClient, fabrica_seccion, directorio_media: Path
+) -> None:
+    seccion = fabrica_seccion("Bebidas")
+    bebida = _crear_bebida(
+        cliente, seccion.id, ("foto.jpg", _imagen(), "image/jpeg"), etiquetas=["Casera"]
+    )
+
+    _baja_bebida(cliente, bebida["id"])
+
+    consultada = cliente.get(f"{RUTA_BEBIDAS}/{bebida['id']}").json()
+    assert consultada == bebida | {"estado": "DESHABILITADO"}
+    assert _sirve(directorio_media, bebida["imagen_url"]) == 200
+
+
+def test_dar_de_baja_bebida_usada_por_otra_tabla_200(
+    cliente: TestClient, fabrica_seccion, db
+) -> None:
+    seccion = fabrica_seccion("Bebidas")
+    bebida = _crear_bebida(cliente, seccion.id)
+    _tabla_de_prueba_con(db, bebida["id"])
+
+    respuesta = _baja_bebida(cliente, bebida["id"])
+
+    assert respuesta.status_code == 200
+    assert db.execute(text("SELECT producto_id FROM prueba_linea")).all() == [(bebida["id"],)]
+    assert db.execute(text("SELECT count(*) FROM productos")).scalar() == 1
+
+
+def test_reactivar_bebida_tras_la_baja_200(cliente: TestClient, fabrica_seccion) -> None:
+    seccion = fabrica_seccion("Bebidas")
+    bebida = _crear_bebida(cliente, seccion.id)
+    _baja_bebida(cliente, bebida["id"])
+    assert cliente.get(f"{RUTA_PRODUCTOS}?estado=DESHABILITADO").json()["total"] == 1
+
+    respuesta = _modificar_bebida(
+        cliente, bebida["id"], _datos(seccion.id, nombre="Limonada", estado="HABILITADO")
+    )
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["estado"] == "HABILITADO"
+    assert cliente.get(RUTA_PRODUCTOS).json()["total"] == 1
+
+
+# Aislamiento por categoria (E5, S34)
+def test_bebida_inexistente_404_en_las_tres_operaciones(
+    cliente: TestClient, fabrica_seccion
+) -> None:
+    seccion = fabrica_seccion("Bebidas")
+
+    assert cliente.get(f"{RUTA_BEBIDAS}/999").status_code == 404
+    assert _modificar_bebida(cliente, 999, _datos(seccion.id)).status_code == 404
+    assert _baja_bebida(cliente, 999).status_code == 404
+
+
+@pytest.mark.parametrize("operacion", ["consultar", "modificar", "baja"])
+def test_bebida_con_id_de_postre_404(cliente: TestClient, fabrica_seccion, operacion: str) -> None:
+    seccion = fabrica_seccion("Carta")
+    postre = _crear_postre(cliente, seccion.id)
+    acciones = {
+        "consultar": lambda: cliente.get(f"{RUTA_BEBIDAS}/{postre['id']}"),
+        "modificar": lambda: _modificar_bebida(
+            cliente, postre["id"], _datos(seccion.id, nombre="Otro")
+        ),
+        "baja": lambda: _baja_bebida(cliente, postre["id"]),
+    }
+
+    respuesta = acciones[operacion]()
+
+    assert respuesta.status_code == 404
+    assert cliente.get(f"{RUTA_POSTRES}/{postre['id']}").json() == postre

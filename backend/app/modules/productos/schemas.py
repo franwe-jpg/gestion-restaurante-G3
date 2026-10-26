@@ -190,6 +190,16 @@ class PostreModificar(PostreCrear, ProductoModificar):
     """Modificacion de un postre: las reglas y los mensajes salen de PostreCrear (F1)."""
 
 
+class BebidaCrear(ProductoCrear):
+    CATEGORIA = Categoria.BEBIDA
+    MENSAJE_NOMBRE_REPETIDO = "La bebida ya está registrada"  # S43
+    # ingredientes: se hereda opcional de ProductoCrear (S44)
+
+
+class BebidaModificar(BebidaCrear, ProductoModificar):
+    """Modificacion de una bebida: las reglas y los mensajes salen de BebidaCrear (G1)."""
+
+
 class ProductoSalida(BaseModel):
     id: int
     nombre: str

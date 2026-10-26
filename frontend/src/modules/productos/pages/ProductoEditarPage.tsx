@@ -45,6 +45,7 @@ function EdicionCargada({ categoria, producto, secciones, errorDeCarga }: Edicio
       configuracion={{
         botonGuardar: CONFIGURACIONES_EDICION[categoria].botonGuardar,
         avisoSinSecciones: CONFIGURACIONES[categoria].avisoSinSecciones,
+        ingredientesObligatorios: CONFIGURACIONES[categoria].ingredientesObligatorios,
       }}
       secciones={seccionesParaEditar(secciones, producto.seccion)}
       errorDeCarga={errorDeCarga}

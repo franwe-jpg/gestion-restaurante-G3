@@ -82,6 +82,7 @@ describe('App', () => {
   it.each([
     ['/productos/platos/nuevo', 'Nuevo plato'],
     ['/productos/postres/nuevo', 'Nuevo postre'],
+    ['/productos/bebidas/nuevo', 'Nueva bebida'],
     ['/productos/nuevo', 'Nuevo plato'],
   ])('monta el formulario de alta de %s con el título %s', async (ruta, titulo) => {
     vi.stubGlobal(
@@ -107,6 +108,7 @@ describe('App', () => {
   it.each([
     ['PLATO', 'platos', 'Editar plato'],
     ['POSTRE', 'postres', 'Editar postre'],
+    ['BEBIDA', 'bebidas', 'Editar bebida'],
   ] as const)('monta la pantalla de edición de %s', async (categoria, segmento, titulo) => {
     const plato = {
       id: 7,

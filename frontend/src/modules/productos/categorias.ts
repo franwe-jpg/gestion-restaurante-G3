@@ -2,7 +2,7 @@
 
 import type { Categoria } from './types';
 
-export type CategoriaAlta = 'PLATO' | 'POSTRE';
+export type CategoriaAlta = 'PLATO' | 'POSTRE' | 'BEBIDA';
 
 export interface ConfiguracionAlta {
   titulo: string;
@@ -33,6 +33,15 @@ export const CONFIGURACIONES: Record<CategoriaAlta, ConfiguracionAlta> = {
     nombreRepetido: 'El postre ya está registrado.',
     ingredientesObligatorios: true,
   },
+  BEBIDA: {
+    titulo: 'Nueva bebida',
+    botonGuardar: 'Guardar bebida',
+    creado: 'Bebida creada',
+    errorAlCrear: 'No se pudo crear la bebida',
+    avisoSinSecciones: 'La bebida necesita una sección habilitada.',
+    nombreRepetido: 'La bebida ya está registrada.',
+    ingredientesObligatorios: false, // S44
+  },
 };
 
 export const ETIQUETAS_CATEGORIA: Record<Categoria, string> = {
@@ -42,8 +51,8 @@ export const ETIQUETAS_CATEGORIA: Record<Categoria, string> = {
   MENU_DEL_DIA: 'Menú del día',
 };
 
-// Edición (HU-M1-02-03, E10; HU-M1-05-06, F3): los platos y los postres tienen pantalla de edición.
-export type CategoriaEdicion = Extract<CategoriaAlta, 'PLATO' | 'POSTRE'>;
+// Edición (HU-M1-02-03, E10; HU-M1-05-06, F3; HU-M1-07-08-09, G3): platos, postres y bebidas tienen pantalla de edición.
+export type CategoriaEdicion = Extract<CategoriaAlta, 'PLATO' | 'POSTRE' | 'BEBIDA'>;
 
 /** Solo las categorías con configuración de edición se editan y se dan de baja (E21, S31). */
 export function esCategoriaEdicion(categoria: Categoria): categoria is CategoriaEdicion {
@@ -53,6 +62,7 @@ export function esCategoriaEdicion(categoria: Categoria): categoria is Categoria
 const SEGMENTOS_RUTA: Record<CategoriaAlta, string> = {
   PLATO: 'platos',
   POSTRE: 'postres',
+  BEBIDA: 'bebidas',
 };
 
 /** Ruta de la pantalla de edición de un producto (F4). */
@@ -96,5 +106,17 @@ export const CONFIGURACIONES_EDICION: Record<CategoriaEdicion, ConfiguracionEdic
     dadoDeBaja: 'Postre dado de baja',
     errorAlDarDeBaja: 'No se pudo dar de baja el postre',
     cargando: 'Cargando postre...',
+  },
+  BEBIDA: {
+    titulo: 'Editar bebida',
+    botonGuardar: 'Guardar cambios',
+    modificado: 'Bebida modificada',
+    errorAlModificar: 'No se pudo modificar la bebida',
+    noEncontrado: 'La bebida no existe.',
+    bajaDescripcion:
+      'La bebida quedará deshabilitada y dejará de mostrarse en la carta. Puede volver a habilitarla desde la pantalla de edición.',
+    dadoDeBaja: 'Bebida dada de baja',
+    errorAlDarDeBaja: 'No se pudo dar de baja la bebida',
+    cargando: 'Cargando bebida...',
   },
 };

@@ -27,7 +27,20 @@ const VIEJOS: SeccionListado = {
   estado: 'DESHABILITADO',
 };
 
-const CATEGORIAS: CategoriaAlta[] = ['PLATO', 'POSTRE'];
+const CATEGORIAS: CategoriaAlta[] = ['PLATO', 'POSTRE', 'BEBIDA'];
+
+// Los ingredientes se exigen en platos y postres, no en bebidas (S44)
+const AVISOS_INGREDIENTES: Record<CategoriaAlta, number> = { PLATO: 1, POSTRE: 1, BEBIDA: 0 };
+const ETIQUETA_INGREDIENTES: Record<CategoriaAlta, string> = {
+  PLATO: 'Ingredientes*',
+  POSTRE: 'Ingredientes*',
+  BEBIDA: 'Ingredientes',
+};
+const MENSAJE_NOMBRE_REPETIDO: Record<CategoriaAlta, string> = {
+  PLATO: 'El plato ya está registrado',
+  POSTRE: 'El postre ya está registrado',
+  BEBIDA: 'La bebida ya está registrada',
+};
 
 const CREADO: ProductoSalida = {
   id: 1,
@@ -147,7 +160,9 @@ describe.each(CATEGORIAS)('ProductoNuevoPage %s: validaciones', (categoria) => {
     expect(screen.getByText('El nombre es obligatorio.')).toBeInTheDocument();
     expect(screen.getByText('La sección es obligatoria.')).toBeInTheDocument();
     expect(screen.getByText('El precio es obligatorio.')).toBeInTheDocument();
-    expect(screen.getByText('Agregue al menos un ingrediente.')).toBeInTheDocument();
+    expect(screen.queryAllByText('Agregue al menos un ingrediente.')).toHaveLength(
+      AVISOS_INGREDIENTES[categoria],
+    );
     expect(crearProducto).not.toHaveBeenCalled();
   });
 
@@ -156,7 +171,7 @@ describe.each(CATEGORIAS)('ProductoNuevoPage %s: validaciones', (categoria) => {
     vi.mocked(crearProducto).mockResolvedValue({
       datos: null,
       exito: false,
-      error: `El ${categoria === 'PLATO' ? 'plato' : 'postre'} ya está registrado`,
+      error: MENSAJE_NOMBRE_REPETIDO[categoria],
     });
     await abrir(categoria);
     completarMinimo();
@@ -202,7 +217,7 @@ describe.each(CATEGORIAS)('ProductoNuevoPage %s: formulario', (categoria) => {
     expect(screen.getByRole('button', { name: config.botonGuardar })).toBeInTheDocument();
   });
 
-  it('exige ingredientes y rechaza un chip repetido (CA 6)', async () => {
+  it('rechaza un ingrediente repetido (CA 6)', async () => {
     secciones([PLATOS]);
     await abrir(categoria);
     agregar(/Ingredientes/, 'Huevo');
@@ -281,5 +296,48 @@ describe.each(CATEGORIAS)('ProductoNuevoPage %s: sin secciones habilitadas', (ca
 
     expect(await screen.findByText('No se pudo conectar con el backend')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: config.botonGuardar })).toBeDisabled();
+  });
+});
+
+describe('ProductoNuevoPage BEBIDA: ingredientes opcionales', () => {
+  it('guarda sin ingredientes y los envía como lista vacía (S44)', async () => {
+    secciones([PLATOS]);
+    vi.mocked(crearProducto).mockResolvedValue({ datos: CREADO, exito: true });
+    await abrir('BEBIDA');
+    fireEvent.change(screen.getByLabelText(/Nombre/), { target: { value: 'Limonada' } });
+    fireEvent.change(screen.getByLabelText(/Sección/), { target: { value: '3' } });
+    fireEvent.change(screen.getByLabelText(/Precio/), { target: { value: '1500' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar bebida' }));
+
+    expect(await screen.findByText('Listado de productos')).toBeInTheDocument();
+    expect(crearProducto).toHaveBeenCalledWith(
+      'BEBIDA',
+      expect.objectContaining({ nombre: 'Limonada', ingredientes: [] }),
+      null,
+    );
+  });
+
+  it('rechaza un chip vacío y uno repetido', async () => {
+    secciones([PLATOS]);
+    await abrir('BEBIDA');
+    agregar(/Ingredientes/, 'Limón');
+
+    agregar(/Ingredientes/, '   ');
+    agregar(/Ingredientes/, 'limón');
+
+    expect(screen.getByText('"limón" ya está en la lista.')).toBeInTheDocument();
+    expect(screen.getAllByText('Limón')).toHaveLength(1);
+  });
+});
+
+describe.each(CATEGORIAS)('ProductoNuevoPage %s: ingredientes', (categoria) => {
+  it('marca «Ingredientes» con asterisco solo si son obligatorios (S55)', async () => {
+    secciones([PLATOS]);
+    await abrir(categoria);
+
+    const campo = screen.getByLabelText(/Ingredientes/) as HTMLInputElement;
+
+    expect(campo.labels?.[0]?.textContent).toBe(ETIQUETA_INGREDIENTES[categoria]);
   });
 });

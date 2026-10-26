@@ -18,6 +18,7 @@ const LIMITE_SELECTOR = 100;
 const ENDPOINTS: Record<CategoriaAlta, string> = {
   PLATO: '/platos',
   POSTRE: '/postres',
+  BEBIDA: '/bebidas',
 };
 
 export function listarSecciones(

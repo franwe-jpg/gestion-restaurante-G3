@@ -49,10 +49,12 @@ afterEach(() => {
 });
 
 const POSTRE: ProductoListado = { ...PLATO, id: 9, nombre: 'Flan', categoria: 'POSTRE' };
+const BEBIDA: ProductoListado = { ...PLATO, id: 11, nombre: 'Limonada', categoria: 'BEBIDA' };
 
 describe.each([
   ['PLATO', PLATO, 'platos', 'Plato dado de baja'],
   ['POSTRE', POSTRE, 'postres', 'Postre dado de baja'],
+  ['BEBIDA', BEBIDA, 'bebidas', 'Bebida dada de baja'],
 ] as const)('AccionesProducto: %s', (categoria, producto, segmento, aviso) => {
   it('ofrece editar con un enlace a su pantalla de edición (S27, S31)', () => {
     mostrar(producto);
@@ -106,8 +108,8 @@ describe.each([
 });
 
 describe('AccionesProducto: otras categorías', () => {
-  it('una fila BEBIDA no ofrece acciones', () => {
-    mostrar({ ...PLATO, categoria: 'BEBIDA' });
+  it('una fila MENU_DEL_DIA no ofrece acciones (S57)', () => {
+    mostrar({ ...PLATO, categoria: 'MENU_DEL_DIA' });
 
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
     expect(screen.queryByRole('button')).not.toBeInTheDocument();

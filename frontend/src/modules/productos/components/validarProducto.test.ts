@@ -104,6 +104,7 @@ describe('errorDelServidor', () => {
   it.each([
     ['PLATO', 'El plato ya está registrado', 'El plato ya está registrado.'],
     ['POSTRE', 'El postre ya está registrado', 'El postre ya está registrado.'],
+    ['BEBIDA', 'La bebida ya está registrada', 'La bebida ya está registrada.'],
   ] as const)(
     'ubica el 409 de nombre repetido de %s bajo el campo nombre (CA 3)',
     (categoria, mensaje, esperado) => {
