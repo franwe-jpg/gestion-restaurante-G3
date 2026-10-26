@@ -59,7 +59,16 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: 'Botones' })).toBeInTheDocument();
   });
 
-  it('monta una pantalla placeholder de modulo', async () => {
+  it('monta la lista de productos del módulo Productos', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        json: () => Promise.resolve({ items: [], total: 0, limit: 50, offset: 0 }),
+      } as Response),
+    );
     render(
       <MemoryRouter initialEntries={['/productos']}>
         <App />
@@ -67,7 +76,7 @@ describe('App', () => {
     );
 
     expect(await screen.findByRole('heading', { name: 'Productos y Carta' })).toBeInTheDocument();
-    expect(screen.getByText('Módulo pendiente de implementación')).toBeInTheDocument();
+    expect(await screen.findByText('No hay productos habilitados')).toBeInTheDocument();
   });
 
   it.each([
@@ -93,5 +102,41 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: titulo })).toBeInTheDocument();
     expect(await screen.findByText('Primero hay que crear una sección')).toBeInTheDocument();
+  });
+
+  it('monta la pantalla de edición de un plato en /productos/platos/:id/editar', async () => {
+    const plato = {
+      id: 7,
+      nombre: 'Milanesa',
+      categoria: 'PLATO',
+      precio: '12500.50',
+      ingredientes: ['Pan'],
+      descripcion: null,
+      etiquetas: [],
+      estado: 'HABILITADO',
+      seccion: { id: 3, nombre: 'Platos' },
+      imagen_url: null,
+    };
+    const secciones = { items: [], total: 0, limit: 100, offset: 0 };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          json: () => Promise.resolve(url.includes('/platos/7') ? plato : secciones),
+        } as Response),
+      ),
+    );
+
+    render(
+      <MemoryRouter initialEntries={['/productos/platos/7/editar']}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole('heading', { name: 'Editar plato' })).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('Milanesa')).toBeInTheDocument();
   });
 });

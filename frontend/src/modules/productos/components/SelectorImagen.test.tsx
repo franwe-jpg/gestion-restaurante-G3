@@ -156,3 +156,54 @@ describe('SelectorImagen: rechazos antes de enviar', () => {
     expect(onCambiar).not.toHaveBeenCalled();
   });
 });
+
+describe('SelectorImagen: imagen actual', () => {
+  it('muestra la imagen actual y «Quitar» avisa al contenedor', () => {
+    const onQuitarActual = vi.fn();
+    render(
+      <SelectorImagen
+        onCambiar={vi.fn()}
+        imagenActual="http://api.test/media/a.jpg"
+        onQuitarActual={onQuitarActual}
+      />,
+    );
+
+    expect(screen.getByRole('img', { name: 'Imagen actual' })).toHaveAttribute(
+      'src',
+      'http://api.test/media/a.jpg',
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Quitar imagen' }));
+
+    expect(onQuitarActual).toHaveBeenCalledTimes(1);
+  });
+
+  it('al elegir un archivo nuevo muestra la vista previa en lugar de la actual', () => {
+    const { onCambiar } = abrirConActual();
+
+    elegir('Archivo de imagen', archivo('nueva.png', 'image/png'));
+
+    expect(onCambiar).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('img', { name: 'Imagen actual' })).not.toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Vista previa de la imagen' })).toBeInTheDocument();
+  });
+
+  it('sin imagen actual no cambia el comportamiento', () => {
+    abrir();
+
+    expect(screen.queryByRole('img', { name: 'Imagen actual' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Quitar imagen' })).not.toBeInTheDocument();
+  });
+});
+
+function abrirConActual() {
+  const onCambiar = vi.fn();
+  render(
+    <SelectorImagen
+      onCambiar={onCambiar}
+      imagenActual="http://api.test/media/a.jpg"
+      onQuitarActual={vi.fn()}
+    />,
+  );
+  return { onCambiar };
+}

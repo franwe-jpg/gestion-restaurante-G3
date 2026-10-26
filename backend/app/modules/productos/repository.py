@@ -32,11 +32,20 @@ def obtener_seccion(db: Session, seccion_id: int) -> Seccion | None:
     return db.get(Seccion, seccion_id)
 
 
-def existe_producto(db: Session, categoria: Categoria, nombre_normalizado: str) -> bool:
+def existe_producto(
+    db: Session, categoria: Categoria, nombre_normalizado: str, excluir_id: int | None = None
+) -> bool:
     consulta = select(Producto.id).where(
         Producto.categoria == categoria, Producto.nombre_normalizado == nombre_normalizado
     )
+    if excluir_id is not None:
+        consulta = consulta.where(Producto.id != excluir_id)
     return db.scalar(consulta.limit(1)) is not None
+
+
+def obtener_producto(db: Session, categoria: Categoria, producto_id: int) -> Producto | None:
+    consulta = select(Producto).where(Producto.id == producto_id, Producto.categoria == categoria)
+    return db.scalar(consulta)
 
 
 def agregar(db: Session, entidad: Seccion | Producto) -> None:
@@ -65,15 +74,19 @@ def listar_secciones(
     return [(seccion, cantidad) for seccion, cantidad in filas], contar(db, total)
 
 
-def listar_productos_habilitados(
-    db: Session, parametros: ParametrosPaginacion
+def listar_productos(
+    db: Session, parametros: ParametrosPaginacion, estado: Estado | None
 ) -> tuple[list[tuple[Producto, Seccion]], int]:
-    """Devuelve la pagina de productos habilitados con su seccion actual y el total."""
+    """Devuelve la pagina de productos con su seccion actual y el total.
+
+    Con `estado`, el listado y el total cuentan solo los productos en ese estado.
+    """
     consulta = (
         select(Producto, Seccion)
         .join(Seccion, Producto.seccion_id == Seccion.id)
-        .where(Producto.estado == Estado.HABILITADO)
         .order_by(Producto.nombre, Producto.id)
     )
+    if estado is not None:
+        consulta = consulta.where(Producto.estado == estado)
     filas = db.execute(aplicar(consulta, parametros)).all()
     return [(producto, seccion) for producto, seccion in filas], contar(db, consulta)

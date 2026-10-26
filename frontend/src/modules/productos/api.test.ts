@@ -5,17 +5,35 @@ import { clienteHttp } from '../../shared/api/client';
 import {
   crearProducto,
   crearSeccion,
+  darDeBajaProducto,
+  listarProductos,
   listarProductosHabilitados,
   listarSecciones,
   listarSeccionesHabilitadas,
+  modificarProducto,
+  obtenerProducto,
+  urlDeImagen,
 } from './api';
-import type { ProductoCrear, SeccionCrear } from './types';
+import type { ProductoCrear, ProductoModificar, SeccionCrear } from './types';
 
 afterEach(() => {
   vi.restoreAllMocks();
 });
 
 describe('api de productos', () => {
+  it.each([
+    ['HABILITADO', 50, 0, '/productos?estado=HABILITADO&limit=50&offset=0'],
+    ['TODOS', 50, 100, '/productos?estado=TODOS&limit=50&offset=100'],
+  ] as const)('lista los productos con estado %s', async (estado, limit, offset, ruta) => {
+    const get = vi
+      .spyOn(clienteHttp, 'get')
+      .mockResolvedValue({ datos: null, exito: false, error: 'x' });
+
+    await listarProductos(estado, limit, offset);
+
+    expect(get).toHaveBeenCalledWith(ruta);
+  });
+
   it('lista las secciones con limit y offset', async () => {
     const respuesta = { datos: { items: [], total: 0, limit: 10, offset: 20 }, exito: true };
     const get = vi.spyOn(clienteHttp, 'get').mockResolvedValue(respuesta);
@@ -104,5 +122,69 @@ describe('crearProducto', () => {
     const [, formulario] = post.mock.calls[0] ?? [];
     expect(formulario?.has('imagen')).toBe(false);
     expect(JSON.parse(String(formulario?.get('datos')))).toEqual(DATOS);
+  });
+});
+
+describe('edición y baja de platos', () => {
+  const MODIFICAR: ProductoModificar = {
+    nombre: 'Milanesa',
+    seccion_id: 3,
+    precio: '12500.50',
+    ingredientes: ['Carne'],
+    descripcion: null,
+    etiquetas: [],
+    estado: 'HABILITADO',
+    quitar_imagen: false,
+  };
+
+  it('obtiene un plato por id', async () => {
+    const get = vi
+      .spyOn(clienteHttp, 'get')
+      .mockResolvedValue({ datos: null, exito: false, error: 'x' });
+
+    await obtenerProducto('PLATO', 7);
+
+    expect(get).toHaveBeenCalledWith('/platos/7');
+  });
+
+  it('modifica con una sola solicitud multipart PUT con `datos` e `imagen`', async () => {
+    const put = vi
+      .spyOn(clienteHttp, 'putFormulario')
+      .mockResolvedValue({ datos: null, exito: false, error: 'x' });
+    const imagen = new File(['x'], 'foto.jpg', { type: 'image/jpeg' });
+
+    await modificarProducto('PLATO', 7, MODIFICAR, imagen);
+
+    expect(put).toHaveBeenCalledTimes(1);
+    const [ruta, formulario] = put.mock.calls[0] ?? [];
+    expect(ruta).toBe('/platos/7');
+    expect(JSON.parse(String(formulario?.get('datos')))).toEqual(MODIFICAR);
+    expect(formulario?.get('imagen')).toBe(imagen);
+  });
+
+  it('no agrega la parte `imagen` si no hay archivo nuevo', async () => {
+    const put = vi
+      .spyOn(clienteHttp, 'putFormulario')
+      .mockResolvedValue({ datos: null, exito: false, error: 'x' });
+
+    await modificarProducto('PLATO', 7, MODIFICAR, null);
+
+    const [, formulario] = put.mock.calls[0] ?? [];
+    expect(formulario?.has('imagen')).toBe(false);
+  });
+
+  it('da de baja con POST a /baja y cuerpo vacío', async () => {
+    const post = vi
+      .spyOn(clienteHttp, 'post')
+      .mockResolvedValue({ datos: null, exito: false, error: 'x' });
+
+    await darDeBajaProducto('PLATO', 7);
+
+    expect(post).toHaveBeenCalledWith('/platos/7/baja', {});
+  });
+
+  it('convierte la URL relativa de la imagen en absoluta', () => {
+    expect(urlDeImagen('/media/a.jpg')).toBe('http://127.0.0.1:8000/media/a.jpg');
+    expect(urlDeImagen(null)).toBeNull();
   });
 });

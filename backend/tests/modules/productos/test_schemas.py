@@ -4,7 +4,18 @@ from decimal import Decimal
 import pytest
 from pydantic import ValidationError
 
-from app.modules.productos.schemas import PlatoCrear, PostreCrear, ProductoSalida, SeccionResumen
+from app.modules.productos.schemas import (
+    FiltroEstadoProducto,
+    FiltroProductos,
+    PlatoCrear,
+    PlatoModificar,
+    PostreCrear,
+    ProductoListado,
+    ProductoModificar,
+    ProductoSalida,
+    ProductoSeleccionable,
+    SeccionResumen,
+)
 from app.shared.models import Categoria, Estado
 
 
@@ -159,3 +170,138 @@ def test_producto_salida_serializa_el_precio_como_texto_con_dos_decimales() -> N
     )
 
     assert salida.model_dump(mode="json")["precio"] == "1500.50"
+
+
+# HU-M1-02-03: PlatoModificar hereda las reglas del alta
+def _modificar(**cambios) -> PlatoModificar:
+    base = {"nombre": "Milanesa", "seccion_id": 1, "precio": "1500.50", "ingredientes": ["Carne"]}
+    return PlatoModificar.model_validate_json(json.dumps(base | cambios))
+
+
+def _campos_modificar_con_error(**cambios) -> set[str]:
+    with pytest.raises(ValidationError) as error:
+        _modificar(**cambios)
+    return {str(falla["loc"][0]) for falla in error.value.errors()}
+
+
+def test_plato_modificar_hereda_categoria_mensaje_y_tipo_base() -> None:
+    datos = _modificar()
+
+    assert datos.CATEGORIA == Categoria.PLATO
+    assert datos.MENSAJE_NOMBRE_REPETIDO == "El plato ya está registrado"
+    assert isinstance(datos, ProductoModificar)
+
+
+def test_plato_modificar_toma_valores_por_defecto() -> None:
+    datos = _modificar()
+
+    assert datos.estado is None
+    assert datos.quitar_imagen is False
+    assert datos.descripcion is None
+    assert datos.etiquetas == []
+
+
+@pytest.mark.parametrize(
+    "cambios, campo",
+    [
+        ({"nombre": "   "}, "nombre"),
+        ({"precio": "0"}, "precio"),
+        ({"ingredientes": []}, "ingredientes"),
+        ({"ingredientes": ["Huevo", " huevo "]}, "ingredientes"),
+        ({"etiquetas": ["casero", "Casero"]}, "etiquetas"),
+        ({"descripcion": "a" * 501}, "descripcion"),
+        ({"seccion_id": 0}, "seccion_id"),
+    ],
+)
+def test_plato_modificar_aplica_las_reglas_del_alta(cambios: dict, campo: str) -> None:
+    assert _campos_modificar_con_error(**cambios) == {campo}
+
+
+def test_plato_modificar_sin_ingredientes_es_invalido() -> None:
+    datos = {"nombre": "Milanesa", "seccion_id": 1, "precio": "10"}
+
+    with pytest.raises(ValidationError) as error:
+        PlatoModificar.model_validate(datos)
+
+    assert {str(falla["loc"][0]) for falla in error.value.errors()} == {"ingredientes"}
+
+
+@pytest.mark.parametrize("estado", ["HABILITADO", "DESHABILITADO"])
+def test_plato_modificar_acepta_estado_valido(estado: str) -> None:
+    assert _modificar(estado=estado).estado == Estado(estado)
+
+
+@pytest.mark.parametrize("estado", ["ANULADO", "habilitado", 1])
+def test_plato_modificar_estado_invalido(estado) -> None:
+    assert _campos_modificar_con_error(estado=estado) == {"estado"}
+
+
+@pytest.mark.parametrize("valor", ["si", 1, "true"])
+def test_plato_modificar_quitar_imagen_es_estricto(valor) -> None:
+    assert _campos_modificar_con_error(quitar_imagen=valor) == {"quitar_imagen"}
+
+
+def test_plato_modificar_acepta_quitar_imagen_booleano() -> None:
+    assert _modificar(quitar_imagen=True).quitar_imagen is True
+
+
+def test_plato_modificar_rechaza_categoria_desconocida() -> None:
+    assert _campos_modificar_con_error(categoria="POSTRE") == {"categoria"}
+
+
+# HU-M1-13: filtro de estado y esquema de la lista
+def test_filtro_productos_estado_por_defecto_habilitado() -> None:
+    filtro = FiltroProductos()
+
+    assert filtro.estado == FiltroEstadoProducto.HABILITADO
+    assert filtro.estado_elegido() == Estado.HABILITADO
+
+
+@pytest.mark.parametrize(
+    "valor, esperado",
+    [
+        ("HABILITADO", Estado.HABILITADO),
+        ("DESHABILITADO", Estado.DESHABILITADO),
+        ("TODOS", None),
+    ],
+)
+def test_filtro_productos_estado_elegido(valor: str, esperado: Estado | None) -> None:
+    assert FiltroProductos(estado=valor).estado_elegido() == esperado
+
+
+def test_filtro_productos_estado_invalido_error() -> None:
+    with pytest.raises(ValidationError) as error:
+        FiltroProductos(estado="ANULADO")
+
+    assert {str(falla["loc"][0]) for falla in error.value.errors()} == {"estado"}
+
+
+@pytest.mark.parametrize("limit", [0, 101])
+def test_filtro_productos_hereda_limites_de_paginacion(limit: int) -> None:
+    with pytest.raises(ValidationError) as error:
+        FiltroProductos(limit=limit)
+
+    assert {str(falla["loc"][0]) for falla in error.value.errors()} == {"limit"}
+
+
+def test_producto_listado_extiende_seleccionable() -> None:
+    listado = ProductoListado(
+        id=1,
+        nombre="Flan",
+        categoria=Categoria.POSTRE,
+        seccion=SeccionResumen(id=2, nombre="Postres"),
+        precio=Decimal("12500.5"),
+        etiquetas=["Dulce"],
+        estado=Estado.HABILITADO,
+    )
+
+    assert issubclass(ProductoListado, ProductoSeleccionable)
+    assert json.loads(listado.model_dump_json()) == {
+        "id": 1,
+        "nombre": "Flan",
+        "categoria": "POSTRE",
+        "seccion": {"id": 2, "nombre": "Postres"},
+        "precio": "12500.50",
+        "etiquetas": ["Dulce"],
+        "estado": "HABILITADO",
+    }

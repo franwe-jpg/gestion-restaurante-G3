@@ -1,6 +1,7 @@
 """productos: entrada y salida de la API."""
 
 from decimal import Decimal
+from enum import StrEnum
 from typing import Annotated, ClassVar
 
 from pydantic import (
@@ -93,6 +94,36 @@ class ProductoSeleccionable(BaseModel):
     seccion: SeccionResumen
 
 
+class ProductoListado(ProductoSeleccionable):
+    precio: Decimal
+    etiquetas: list[str]
+    estado: Estado
+
+    @field_serializer("precio")
+    def _precio_con_dos_decimales(self, precio: Decimal) -> str:
+        return f"{precio:.2f}"
+
+
+class FiltroEstadoProducto(StrEnum):
+    """Opciones del filtro de GET /productos; `TODOS` no existe en `Estado` del shared (E15)."""
+
+    HABILITADO = "HABILITADO"
+    DESHABILITADO = "DESHABILITADO"
+    TODOS = "TODOS"
+
+
+class FiltroProductos(ParametrosPaginacion):
+    """Paginacion y filtro de GET /productos: `estado` viaja dentro del mismo modelo."""
+
+    estado: FiltroEstadoProducto = FiltroEstadoProducto.HABILITADO
+
+    def estado_elegido(self) -> Estado | None:
+        """Traduce el filtro a `Estado`; `None` significa todos."""
+        if self.estado == FiltroEstadoProducto.TODOS:
+            return None
+        return Estado(self.estado.value)
+
+
 def _sin_repetidos(textos: list[str], mensaje: str) -> list[str]:
     if len({texto.casefold() for texto in textos}) != len(textos):
         raise ValueError(mensaje)
@@ -135,6 +166,17 @@ class PlatoCrear(ProductoCrear):
     MENSAJE_NOMBRE_REPETIDO = "El plato ya está registrado"
 
     ingredientes: list[Texto[1, 100]] = Field(min_length=1, max_length=50)
+
+
+class ProductoModificar(ProductoCrear):
+    """Base de la modificacion: reemplazo completo del alta, con estado y quitar_imagen (S24)."""
+
+    estado: Estado | None = None  # ausente: conserva el actual
+    quitar_imagen: StrictBool = False
+
+
+class PlatoModificar(PlatoCrear, ProductoModificar):
+    """Modificacion de un plato: las reglas y los mensajes salen de PlatoCrear (E2)."""
 
 
 class PostreCrear(ProductoCrear):

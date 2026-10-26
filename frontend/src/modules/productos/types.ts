@@ -39,6 +39,15 @@ export interface ProductoSeleccionable {
   seccion: { id: number; nombre: string };
 }
 
+// HU-M1-13: filtro de la lista. `TODOS` no es un estado del producto, solo una opción del filtro.
+export type FiltroEstado = Estado | 'TODOS';
+
+export interface ProductoListado extends ProductoSeleccionable {
+  precio: string;
+  etiquetas: string[];
+  estado: Estado;
+}
+
 // HU-M1-01: alta de platos. `precio` viaja como texto decimal con punto ("12500.50").
 export interface ProductoCrear {
   nombre: string;
@@ -47,6 +56,12 @@ export interface ProductoCrear {
   ingredientes: string[];
   descripcion: string | null;
   etiquetas: string[];
+}
+
+// HU-M1-02: modificación. `estado` es editable y `quitar_imagen` deja al plato sin imagen.
+export interface ProductoModificar extends ProductoCrear {
+  estado: Estado;
+  quitar_imagen: boolean;
 }
 
 export interface ProductoSalida {

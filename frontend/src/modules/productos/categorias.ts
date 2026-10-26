@@ -1,5 +1,7 @@
 // Configuración de la alta por categoría (HU-M1-04, C3): textos de interfaz y reglas que cambian.
 
+import type { Categoria } from './types';
+
 export type CategoriaAlta = 'PLATO' | 'POSTRE';
 
 export interface ConfiguracionAlta {
@@ -30,5 +32,45 @@ export const CONFIGURACIONES: Record<CategoriaAlta, ConfiguracionAlta> = {
     avisoSinSecciones: 'El postre necesita una sección habilitada.',
     nombreRepetido: 'El postre ya está registrado.',
     ingredientesObligatorios: true,
+  },
+};
+
+export const ETIQUETAS_CATEGORIA: Record<Categoria, string> = {
+  PLATO: 'Plato',
+  POSTRE: 'Postre',
+  BEBIDA: 'Bebida',
+  MENU_DEL_DIA: 'Menú del día',
+};
+
+// Edición (HU-M1-02-03, E10): solo los platos tienen pantalla de edición por ahora.
+export type CategoriaEdicion = Extract<CategoriaAlta, 'PLATO'>;
+
+/** Solo los platos se editan y se dan de baja (E21). */
+export function esCategoriaEdicion(categoria: Categoria): categoria is CategoriaEdicion {
+  return categoria === 'PLATO';
+}
+
+export interface ConfiguracionEdicion {
+  titulo: string;
+  botonGuardar: string;
+  modificado: string;
+  errorAlModificar: string;
+  noEncontrado: string;
+  bajaDescripcion: string;
+  dadoDeBaja: string;
+  errorAlDarDeBaja: string;
+}
+
+export const CONFIGURACIONES_EDICION: Record<CategoriaEdicion, ConfiguracionEdicion> = {
+  PLATO: {
+    titulo: 'Editar plato',
+    botonGuardar: 'Guardar cambios',
+    modificado: 'Plato modificado',
+    errorAlModificar: 'No se pudo modificar el plato',
+    noEncontrado: 'El plato no existe.',
+    bajaDescripcion:
+      'El plato quedará deshabilitado y dejará de mostrarse en la carta. Puede volver a habilitarlo desde la pantalla de edición.',
+    dadoDeBaja: 'Plato dado de baja',
+    errorAlDarDeBaja: 'No se pudo dar de baja el plato',
   },
 };

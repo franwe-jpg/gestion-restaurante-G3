@@ -4,13 +4,13 @@ from pathlib import Path
 
 import pytest
 from PIL import Image
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import Session
 
 from app.modules.productos import service
 from app.modules.productos.models import Seccion
-from app.modules.productos.schemas import PlatoCrear, SeccionCrear
+from app.modules.productos.schemas import PlatoCrear, PlatoModificar, SeccionCrear
 from app.shared.excepciones import DatosInvalidosError, NoEncontradoError, ReglaDeNegocioError
 from app.shared.models import Categoria, Estado, Producto
 from app.shared.paginacion import ParametrosPaginacion
@@ -195,6 +195,115 @@ def test_listar_productos_devuelve_solo_habilitados_con_su_seccion(
     assert [p.nombre for p in pagina.items] == ["Flan"]
     assert pagina.items[0].seccion.nombre == "Postres"
     assert pagina.total == 1
+
+
+def _nombres(pagina) -> list[str]:
+    return [p.nombre for p in pagina.items]
+
+
+def _carta_mixta(fabrica_seccion, fabrica_producto) -> None:
+    seccion = fabrica_seccion("Postres", 1)
+    fabrica_producto(seccion, "Flan")
+    fabrica_producto(seccion, "Helado", Estado.DESHABILITADO)
+    fabrica_producto(seccion, "Budin")
+
+
+def test_listar_productos_por_defecto_solo_habilitados(
+    db: Session, fabrica_seccion, fabrica_producto
+) -> None:
+    _carta_mixta(fabrica_seccion, fabrica_producto)
+
+    pagina = service.listar_productos(db, ParametrosPaginacion())
+
+    assert _nombres(pagina) == ["Budin", "Flan"]
+    assert pagina.total == 2
+
+
+def test_listar_productos_estado_habilitado(db: Session, fabrica_seccion, fabrica_producto) -> None:
+    _carta_mixta(fabrica_seccion, fabrica_producto)
+
+    pagina = service.listar_productos(db, ParametrosPaginacion(), Estado.HABILITADO)
+
+    assert _nombres(pagina) == ["Budin", "Flan"]
+
+
+def test_listar_productos_estado_deshabilitado(
+    db: Session, fabrica_seccion, fabrica_producto
+) -> None:
+    _carta_mixta(fabrica_seccion, fabrica_producto)
+
+    pagina = service.listar_productos(db, ParametrosPaginacion(), Estado.DESHABILITADO)
+
+    assert _nombres(pagina) == ["Helado"]
+    assert pagina.items[0].estado == Estado.DESHABILITADO
+
+
+def test_listar_productos_estado_todos_incluye_ambos(
+    db: Session, fabrica_seccion, fabrica_producto
+) -> None:
+    _carta_mixta(fabrica_seccion, fabrica_producto)
+
+    pagina = service.listar_productos(db, ParametrosPaginacion(), None)
+
+    assert [(p.nombre, p.estado) for p in pagina.items] == [
+        ("Budin", Estado.HABILITADO),
+        ("Flan", Estado.HABILITADO),
+        ("Helado", Estado.DESHABILITADO),
+    ]
+
+
+def test_listar_productos_total_cuenta_solo_el_filtro(
+    db: Session, fabrica_seccion, fabrica_producto
+) -> None:
+    _carta_mixta(fabrica_seccion, fabrica_producto)
+
+    assert service.listar_productos(db, ParametrosPaginacion(), Estado.DESHABILITADO).total == 1
+    assert service.listar_productos(db, ParametrosPaginacion(), None).total == 3
+
+
+def test_listar_productos_items_con_precio_etiquetas_y_estado(
+    db: Session, fabrica_seccion, fabrica_producto
+) -> None:
+    producto = fabrica_producto(fabrica_seccion("Postres", 1), "Flan")
+    producto.etiquetas = ["Dulce", "Sin TACC"]
+    db.commit()
+
+    item = service.listar_productos(db, ParametrosPaginacion()).items[0]
+
+    assert item.precio == Decimal("1500.00")
+    assert item.etiquetas == ["Dulce", "Sin TACC"]
+    assert item.estado == Estado.HABILITADO
+    assert item.categoria == Categoria.POSTRE
+    assert item.seccion.nombre == "Postres"
+
+
+def test_listar_productos_orden_por_nombre_e_id(
+    db: Session, fabrica_seccion, fabrica_producto
+) -> None:
+    seccion = fabrica_seccion("Postres", 1)
+    segundo = fabrica_producto(seccion, "Zeta")
+    primero = fabrica_producto(seccion, "Alfa")
+    otra_categoria = fabrica_producto(seccion, "Alfa", categoria=Categoria.PLATO)
+
+    pagina = service.listar_productos(db, ParametrosPaginacion(), None)
+
+    assert [p.id for p in pagina.items] == [primero.id, otra_categoria.id, segundo.id]
+
+
+def test_listar_productos_sin_productos_vacio(db: Session) -> None:
+    pagina = service.listar_productos(db, ParametrosPaginacion(), None)
+
+    assert pagina.items == []
+    assert pagina.total == 0
+
+
+def test_listar_productos_pagina_con_offset(db: Session, fabrica_seccion, fabrica_producto) -> None:
+    _carta_mixta(fabrica_seccion, fabrica_producto)
+
+    pagina = service.listar_productos(db, ParametrosPaginacion(limit=2, offset=2), None)
+
+    assert _nombres(pagina) == ["Helado"]
+    assert (pagina.total, pagina.limit, pagina.offset) == (3, 2, 2)
 
 
 # ---------------------------------------------------------------------------
@@ -391,3 +500,204 @@ def test_listar_secciones_sin_estado_devuelve_todas(db: Session, fabrica_seccion
 
     assert [s.nombre for s in pagina.items] == ["A", "B"]
     assert pagina.total == 2
+
+
+# ---------------------------------------------------------------------------
+# HU-M1-02-03: consultar, modificar y dar de baja un plato
+# ---------------------------------------------------------------------------
+
+
+# Consultar
+def test_obtener_producto_existente(db: Session, fabrica_seccion) -> None:
+    seccion = fabrica_seccion("Platos")
+    creado = service.crear_producto(db, _plato(seccion.id), None)
+
+    salida = service.obtener_producto(db, Categoria.PLATO, creado.id)
+
+    assert salida == creado
+
+
+def test_obtener_producto_otra_categoria_error(
+    db: Session, fabrica_seccion, fabrica_producto
+) -> None:
+    seccion = fabrica_seccion("Carta")
+    postre = fabrica_producto(seccion, "Flan", categoria=Categoria.POSTRE)
+
+    with pytest.raises(NoEncontradoError, match=f"El producto {postre.id} no existe"):
+        service.obtener_producto(db, Categoria.PLATO, postre.id)
+
+
+# Modificar
+def _modificar(seccion_id: int, nombre: str = "Milanesa", **extra) -> PlatoModificar:
+    base = {"nombre": nombre, "seccion_id": seccion_id, "precio": "1500.50"}
+    return PlatoModificar(**(base | {"ingredientes": ["Carne"]} | extra))
+
+
+def _archivos(directorio: Path) -> set[str]:
+    return {archivo.name for archivo in directorio.iterdir()}
+
+
+def test_modificar_producto_orden_de_validacion(
+    db: Session, fabrica_seccion, directorio_media: Path
+) -> None:
+    viva = fabrica_seccion("Platos", 1)
+    vieja = fabrica_seccion("Viejos", 2, Estado.DESHABILITADO)
+    service.crear_producto(db, _plato(viva.id, "Flan"), None)
+    plato = service.crear_producto(db, _plato(viva.id, "Milanesa"), None)
+
+    # 1) quitar + imagen: 422 antes que todo lo demas
+    with pytest.raises(DatosInvalidosError):
+        service.modificar_producto(db, 999, _modificar(999, quitar_imagen=True), _jpeg())
+    # 2) imagen invalida antes que el 404 del plato
+    with pytest.raises(DatosInvalidosError):
+        service.modificar_producto(db, 999, _modificar(999), b"no es una imagen")
+    # 3) 404 del plato antes que la seccion
+    with pytest.raises(NoEncontradoError, match="El producto 999 no existe"):
+        service.modificar_producto(db, 999, _modificar(999), None)
+    # 4) seccion (404) antes que el nombre repetido
+    with pytest.raises(NoEncontradoError, match="La sección 999"):
+        service.modificar_producto(db, plato.id, _modificar(999, "Flan"), None)
+    # 5) seccion deshabilitada (409) antes que el nombre repetido
+    with pytest.raises(ReglaDeNegocioError, match="deshabilitada"):
+        service.modificar_producto(db, plato.id, _modificar(vieja.id, "Flan"), None)
+    # 6) nombre repetido
+    with pytest.raises(ReglaDeNegocioError, match=MENSAJE_PLATO_REPETIDO):
+        service.modificar_producto(db, plato.id, _modificar(viva.id, "flan"), None)
+
+
+def test_modificar_producto_seccion_sin_cambio_no_se_valida(db: Session, fabrica_seccion) -> None:
+    seccion = fabrica_seccion("Platos")
+    plato = service.crear_producto(db, _plato(seccion.id), None)
+    db.get(Seccion, seccion.id).estado = Estado.DESHABILITADO
+    db.commit()
+
+    salida = service.modificar_producto(db, plato.id, _modificar(seccion.id, precio="2000"), None)
+
+    assert salida.precio == Decimal("2000")
+    assert salida.seccion.id == seccion.id
+
+
+def test_modificar_producto_nombre_propio_permitido(db: Session, fabrica_seccion) -> None:
+    seccion = fabrica_seccion("Platos")
+    plato = service.crear_producto(db, _plato(seccion.id, "Milanesa"), None)
+
+    salida = service.modificar_producto(db, plato.id, _modificar(seccion.id, " MILANESA "), None)
+
+    assert salida.nombre == "MILANESA"
+    assert db.get(Producto, plato.id).nombre_normalizado == "milanesa"
+
+
+def test_modificar_producto_commit_fallido_conserva_imagen_anterior(
+    db: Session, fabrica_seccion, directorio_media: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seccion = fabrica_seccion("Platos")
+    original = service.crear_producto(db, _plato(seccion.id), _jpeg())
+    anteriores = _archivos(directorio_media)
+
+    def fallar() -> None:
+        raise OperationalError("COMMIT", {}, Exception("disco lleno"))
+
+    monkeypatch.setattr(db, "commit", fallar)
+    with pytest.raises(OperationalError):
+        service.modificar_producto(db, original.id, _modificar(seccion.id, "Otro"), _jpeg())
+    monkeypatch.undo()
+
+    assert service.obtener_producto(db, Categoria.PLATO, original.id) == original
+    assert _archivos(directorio_media) == anteriores
+
+
+def test_modificar_producto_commit_fallido_con_imagen_conservada_no_la_borra(
+    db: Session, fabrica_seccion, directorio_media: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seccion = fabrica_seccion("Platos")
+    original = service.crear_producto(db, _plato(seccion.id), _jpeg())
+
+    def fallar() -> None:
+        raise OperationalError("COMMIT", {}, Exception("disco lleno"))
+
+    monkeypatch.setattr(db, "commit", fallar)
+    with pytest.raises(OperationalError):
+        service.modificar_producto(db, original.id, _modificar(seccion.id, "Otro"), None)
+    monkeypatch.undo()
+
+    assert (directorio_media / original.imagen_url.removeprefix("/media/")).is_file()
+
+
+def test_modificar_producto_error_al_borrar_anterior_se_ignora(
+    db: Session, fabrica_seccion, directorio_media: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seccion = fabrica_seccion("Platos")
+    original = service.crear_producto(db, _plato(seccion.id), _jpeg())
+
+    def fallar(nombre: str) -> None:
+        raise OSError("sin permiso")
+
+    monkeypatch.setattr(service.imagenes, "borrar", fallar)
+
+    salida = service.modificar_producto(
+        db, original.id, _modificar(seccion.id, quitar_imagen=True), None
+    )
+
+    assert salida.imagen_url is None
+
+
+def test_modificar_plato_conserva_identidad_y_filas_relacionadas(
+    db: Session, fabrica_seccion
+) -> None:
+    seccion = fabrica_seccion("Platos")
+    plato = service.crear_producto(db, _plato(seccion.id), None)
+    db.execute(
+        text(
+            "CREATE TABLE prueba_linea "
+            "(id INTEGER PRIMARY KEY, producto_id INTEGER REFERENCES productos(id))"
+        )
+    )
+    db.execute(text("INSERT INTO prueba_linea (id, producto_id) VALUES (1, :id)"), {"id": plato.id})
+    db.commit()
+
+    salida = service.modificar_producto(db, plato.id, _modificar(seccion.id, precio="3000"), None)
+
+    assert salida.id == plato.id
+    assert salida.precio == Decimal("3000")
+    assert db.execute(text("SELECT producto_id FROM prueba_linea")).all() == [(plato.id,)]
+    assert db.execute(text("SELECT count(*) FROM productos")).scalar() == 1
+
+
+# Dar de baja
+def test_dar_de_baja_producto_solo_cambia_estado(
+    db: Session, fabrica_seccion, directorio_media: Path
+) -> None:
+    seccion = fabrica_seccion("Platos")
+    creado = service.crear_producto(
+        db, _plato(seccion.id, descripcion="Con papas", etiquetas=["Casero"]), _jpeg()
+    )
+    archivos = _archivos(directorio_media)
+
+    salida = service.dar_de_baja_producto(db, Categoria.PLATO, creado.id)
+
+    assert salida == creado.model_copy(update={"estado": Estado.DESHABILITADO})
+    assert db.get(Producto, creado.id).estado == Estado.DESHABILITADO
+    assert _archivos(directorio_media) == archivos
+    assert _cantidad_productos(db) == 1
+
+
+def test_dar_de_baja_producto_ya_deshabilitado_conflicto(
+    db: Session, fabrica_seccion, fabrica_producto
+) -> None:
+    seccion = fabrica_seccion("Platos")
+    plato = fabrica_producto(seccion, "Flan", Estado.DESHABILITADO, Categoria.PLATO)
+
+    with pytest.raises(ReglaDeNegocioError, match="ya está deshabilitado"):
+        service.dar_de_baja_producto(db, Categoria.PLATO, plato.id)
+
+
+def test_dar_de_baja_producto_otra_categoria_error(
+    db: Session, fabrica_seccion, fabrica_producto
+) -> None:
+    seccion = fabrica_seccion("Carta")
+    postre = fabrica_producto(seccion, "Flan", categoria=Categoria.POSTRE)
+
+    with pytest.raises(NoEncontradoError):
+        service.dar_de_baja_producto(db, Categoria.PLATO, postre.id)
+
+    assert db.get(Producto, postre.id).estado == Estado.HABILITADO

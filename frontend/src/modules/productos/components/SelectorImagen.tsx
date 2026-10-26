@@ -15,6 +15,9 @@ const BYTES_POR_MB = 1024 * 1024;
 
 export interface SelectorImagenProps {
   onCambiar: (archivo: File | null) => void;
+  /** URL absoluta de la imagen vigente del producto (solo en edición). */
+  imagenActual?: string | null;
+  onQuitarActual?: () => void;
 }
 
 interface Seleccion {
@@ -89,7 +92,19 @@ function Elegida({ seleccion, onQuitar }: { seleccion: Seleccion; onQuitar: () =
   );
 }
 
-export function SelectorImagen({ onCambiar }: SelectorImagenProps) {
+function Actual({ url, onQuitar }: { url: string; onQuitar: () => void }) {
+  return (
+    <div className="flex items-center gap-3 rounded-md border border-slate-200 p-2">
+      <img src={url} alt="Imagen actual" className="h-16 w-16 rounded-md object-cover" />
+      <Button variant="ghost" size="sm" aria-label="Quitar imagen" onClick={onQuitar}>
+        <X className="h-4 w-4" aria-hidden="true" />
+        Quitar
+      </Button>
+    </div>
+  );
+}
+
+export function SelectorImagen({ onCambiar, imagenActual, onQuitarActual }: SelectorImagenProps) {
   const { seleccion, error, elegir, quitar } = useSeleccionImagen(onCambiar);
   const archivoRef = useRef<HTMLInputElement>(null);
   const camaraRef = useRef<HTMLInputElement>(null);
@@ -124,6 +139,9 @@ export function SelectorImagen({ onCambiar }: SelectorImagenProps) {
         onChange={elegir}
       />
       {seleccion && <Elegida seleccion={seleccion} onQuitar={quitar} />}
+      {!seleccion && imagenActual && onQuitarActual && (
+        <Actual url={imagenActual} onQuitar={onQuitarActual} />
+      )}
       {error && (
         <p role="alert" className="text-xs font-medium text-danger">
           {error}
