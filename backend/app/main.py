@@ -11,6 +11,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import API_PREFIX, get_settings
 from app.modules.productos.router import router as productos_router
+from app.modules.salon.router import router as salon_router
 from app.shared.excepciones import DatosInvalidosError, NoEncontradoError, ReglaDeNegocioError
 
 app = FastAPI(title="Sistema de Gestion de Restaurante", docs_url="/docs")
@@ -23,6 +24,7 @@ app.add_middleware(
 )
 
 app.include_router(productos_router, prefix=API_PREFIX)
+app.include_router(salon_router, prefix=API_PREFIX)
 
 
 def montar_media(aplicacion: FastAPI, directorio: str | Path) -> None:
