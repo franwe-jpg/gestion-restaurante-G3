@@ -25,7 +25,7 @@ export function SeccionesTab() {
   const totalActual = secciones.datos?.total ?? 0;
   if (totalActual !== total) setTotal(totalActual);
 
-  const alCrear = () => {
+  const alGuardar = () => {
     setDialogoAbierto(false);
     secciones.recargar();
     productos.recargar();
@@ -61,7 +61,7 @@ export function SeccionesTab() {
       {dialogoAbierto && (
         <SeccionFormDialog
           productos={productos.datos?.items ?? []}
-          onCreada={alCrear}
+          onGuardada={alGuardar}
           onOpenChange={setDialogoAbierto}
         />
       )}
