@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 
 import { Button } from '../../../shared/components/ui/button';
-import { esCategoriaEdicion } from '../categorias';
+import { esCategoriaEdicion, rutaDeEdicion } from '../categorias';
 import type { CategoriaEdicion } from '../categorias';
 import type { ProductoListado } from '../types';
 
@@ -22,7 +22,7 @@ function AccionesEdicion({ categoria, producto, onDadoDeBaja }: AccionesEdicionP
   return (
     <div className="flex items-center justify-end gap-2">
       <Link
-        to={`/productos/platos/${producto.id}/editar`}
+        to={rutaDeEdicion(categoria, producto.id)}
         aria-label={`Editar «${producto.nombre}»`}
         className="text-sm font-medium text-amber-700 hover:underline"
       >
@@ -43,7 +43,7 @@ function AccionesEdicion({ categoria, producto, onDadoDeBaja }: AccionesEdicionP
   );
 }
 
-/** Acciones de una fila: solo los platos se editan y se dan de baja (S27, S28, E21). */
+/** Acciones de una fila: los platos y los postres se editan y se dan de baja (S28, S31, E21). */
 export function AccionesProducto({ producto, onDadoDeBaja }: AccionesProductoProps) {
   if (!esCategoriaEdicion(producto.categoria)) return null;
   return (

@@ -35,7 +35,7 @@ function mostrar(producto: ProductoListado) {
               path="/"
               element={<AccionesProducto producto={producto} onDadoDeBaja={onDadoDeBaja} />}
             />
-            <Route path="/productos/platos/:id/editar" element={<p>Pantalla de edición</p>} />
+            <Route path="/productos/:segmento/:id/editar" element={<p>Pantalla de edición</p>} />
           </Routes>
         </MemoryRouter>
       </ToastContext.Provider>
@@ -48,21 +48,26 @@ afterEach(() => {
   vi.resetAllMocks();
 });
 
-describe('AccionesProducto', () => {
-  it('ofrece editar un plato con un enlace a su pantalla de edición (S27)', () => {
-    mostrar(PLATO);
+const POSTRE: ProductoListado = { ...PLATO, id: 9, nombre: 'Flan', categoria: 'POSTRE' };
 
-    const enlace = screen.getByRole('link', { name: 'Editar «Milanesa»' });
-    expect(enlace).toHaveAttribute('href', '/productos/platos/7/editar');
+describe.each([
+  ['PLATO', PLATO, 'platos', 'Plato dado de baja'],
+  ['POSTRE', POSTRE, 'postres', 'Postre dado de baja'],
+] as const)('AccionesProducto: %s', (categoria, producto, segmento, aviso) => {
+  it('ofrece editar con un enlace a su pantalla de edición (S27, S31)', () => {
+    mostrar(producto);
+
+    const enlace = screen.getByRole('link', { name: `Editar «${producto.nombre}»` });
+    expect(enlace).toHaveAttribute('href', `/productos/${segmento}/${producto.id}/editar`);
     fireEvent.click(enlace);
     expect(screen.getByText('Pantalla de edición')).toBeInTheDocument();
   });
 
-  it('al confirmar da de baja el plato, avisa y notifica (S28)', async () => {
+  it('al confirmar da de baja, avisa y notifica (S28)', async () => {
     confirmar.mockResolvedValue(true);
     vi.mocked(darDeBajaProducto).mockResolvedValue({
       datos: {
-        ...PLATO,
+        ...producto,
         ingredientes: ['Pan'],
         descripcion: null,
         estado: 'DESHABILITADO',
@@ -70,37 +75,39 @@ describe('AccionesProducto', () => {
       },
       exito: true,
     });
-    const onDadoDeBaja = mostrar(PLATO);
+    const onDadoDeBaja = mostrar(producto);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Dar de baja «Milanesa»' }));
+    fireEvent.click(screen.getByRole('button', { name: `Dar de baja «${producto.nombre}»` }));
 
     await vi.waitFor(() => expect(onDadoDeBaja).toHaveBeenCalledTimes(1));
-    expect(darDeBajaProducto).toHaveBeenCalledWith('PLATO', 7);
+    expect(darDeBajaProducto).toHaveBeenCalledWith(categoria, producto.id);
     expect(mostrarToast).toHaveBeenCalledWith(
-      expect.objectContaining({ titulo: 'Plato dado de baja', variante: 'success' }),
+      expect.objectContaining({ titulo: aviso, variante: 'success' }),
     );
   });
 
   it('al cancelar no envía nada ni notifica', async () => {
     confirmar.mockResolvedValue(false);
-    const onDadoDeBaja = mostrar(PLATO);
+    const onDadoDeBaja = mostrar(producto);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Dar de baja «Milanesa»' }));
+    fireEvent.click(screen.getByRole('button', { name: `Dar de baja «${producto.nombre}»` }));
 
     await vi.waitFor(() => expect(confirmar).toHaveBeenCalledTimes(1));
     expect(darDeBajaProducto).not.toHaveBeenCalled();
     expect(onDadoDeBaja).not.toHaveBeenCalled();
   });
 
-  it('un plato deshabilitado ofrece editar y no dar de baja', () => {
-    mostrar({ ...PLATO, estado: 'DESHABILITADO' });
+  it('deshabilitado ofrece editar y no dar de baja', () => {
+    mostrar({ ...producto, estado: 'DESHABILITADO' });
 
-    expect(screen.getByRole('link', { name: 'Editar «Milanesa»' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: `Editar «${producto.nombre}»` })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Dar de baja/ })).not.toBeInTheDocument();
   });
+});
 
-  it.each(['POSTRE', 'BEBIDA'] as const)('una fila %s no ofrece acciones', (categoria) => {
-    mostrar({ ...PLATO, categoria });
+describe('AccionesProducto: otras categorías', () => {
+  it('una fila BEBIDA no ofrece acciones', () => {
+    mostrar({ ...PLATO, categoria: 'BEBIDA' });
 
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
