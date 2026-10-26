@@ -2,7 +2,7 @@
 
 from collections.abc import Sequence
 
-from sqlalchemy import func, select
+from sqlalchemy import ColumnElement, and_, exists, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.modules.productos.models import Seccion
@@ -102,3 +102,37 @@ def listar_productos(
         consulta = consulta.where(Producto.estado == estado)
     filas = db.execute(aplicar(consulta, parametros)).all()
     return [(producto, seccion) for producto, seccion in filas], contar(db, consulta)
+
+
+def _condicion_de_carta(estado: Estado | None) -> ColumnElement[bool] | None:
+    """Predicado de las secciones visibles en la carta (I4); `None` significa sin condicion."""
+    if estado is None:
+        return None
+    con_productos = exists().where(Producto.seccion_id == Seccion.id, Producto.estado == estado)
+    if estado == Estado.HABILITADO:
+        return and_(Seccion.estado == Estado.HABILITADO, con_productos)
+    return or_(Seccion.estado == Estado.DESHABILITADO, con_productos)
+
+
+def listar_secciones_de_carta(
+    db: Session, parametros: ParametrosPaginacion, estado: Estado | None
+) -> tuple[list[Seccion], int]:
+    """Devuelve la pagina de secciones visibles en la carta y el total (I3, I5)."""
+    consulta = select(Seccion).order_by(Seccion.orden, Seccion.nombre, Seccion.id)
+    condicion = _condicion_de_carta(estado)
+    if condicion is not None:
+        consulta = consulta.where(condicion)
+    secciones = list(db.scalars(aplicar(consulta, parametros)))
+    return secciones, contar(db, consulta)
+
+
+def listar_productos_de_secciones(
+    db: Session, ids: Sequence[int], estado: Estado | None
+) -> list[Producto]:
+    """Devuelve los productos de las secciones dadas, filtrados por estado (I3, I5)."""
+    consulta = (
+        select(Producto).where(Producto.seccion_id.in_(ids)).order_by(Producto.nombre, Producto.id)
+    )
+    if estado is not None:
+        consulta = consulta.where(Producto.estado == estado)
+    return list(db.scalars(consulta))

@@ -13,10 +13,17 @@ import {
   listarSeccionesHabilitadas,
   modificarProducto,
   modificarSeccion,
+  obtenerCarta,
   obtenerProducto,
   urlDeImagen,
 } from './api';
-import type { ProductoCrear, ProductoModificar, SeccionCrear, SeccionModificar } from './types';
+import type {
+  ProductoCrear,
+  ProductoModificar,
+  SeccionCarta,
+  SeccionCrear,
+  SeccionModificar,
+} from './types';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -224,5 +231,54 @@ describe('urlDeImagen', () => {
   it('convierte la URL relativa de la imagen en absoluta', () => {
     expect(urlDeImagen('/media/a.jpg')).toBe('http://127.0.0.1:8000/media/a.jpg');
     expect(urlDeImagen(null)).toBeNull();
+  });
+});
+
+function seccionDeCarta(id: number): SeccionCarta {
+  return { id, nombre: `Sección ${id}`, orden: id, estado: 'HABILITADO', productos: [] };
+}
+
+function paginaDeCarta(ids: number[], total: number, offset: number) {
+  return { datos: { items: ids.map(seccionDeCarta), total, limit: 100, offset }, exito: true };
+}
+
+describe('obtenerCarta', () => {
+  it('pide las páginas de 100 en 100 hasta completar el total y las concatena', async () => {
+    const primera = Array.from({ length: 100 }, (_, i) => i + 1);
+    const segunda = Array.from({ length: 50 }, (_, i) => i + 101);
+    const get = vi
+      .spyOn(clienteHttp, 'get')
+      .mockResolvedValueOnce(paginaDeCarta(primera, 150, 0))
+      .mockResolvedValueOnce(paginaDeCarta(segunda, 150, 100));
+
+    const resultado = await obtenerCarta('HABILITADO');
+
+    expect(get).toHaveBeenNthCalledWith(1, '/carta?estado=HABILITADO&limit=100&offset=0');
+    expect(get).toHaveBeenNthCalledWith(2, '/carta?estado=HABILITADO&limit=100&offset=100');
+    expect(get).toHaveBeenCalledTimes(2);
+    expect(resultado.exito).toBe(true);
+    expect(resultado.datos).toHaveLength(150);
+  });
+
+  it('corta el ciclo si llega una página vacía aunque falte total', async () => {
+    const get = vi
+      .spyOn(clienteHttp, 'get')
+      .mockResolvedValueOnce(paginaDeCarta([1], 5, 0))
+      .mockResolvedValueOnce(paginaDeCarta([], 5, 1));
+
+    const resultado = await obtenerCarta('TODOS');
+
+    expect(get).toHaveBeenCalledTimes(2);
+    expect(resultado.datos).toHaveLength(1);
+  });
+
+  it('devuelve el error si falla la segunda página', async () => {
+    vi.spyOn(clienteHttp, 'get')
+      .mockResolvedValueOnce(paginaDeCarta([1], 2, 0))
+      .mockResolvedValueOnce({ datos: null, exito: false, error: 'Sin conexión' });
+
+    const resultado = await obtenerCarta('DESHABILITADO');
+
+    expect(resultado).toEqual({ datos: null, exito: false, error: 'Sin conexión' });
   });
 });

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 from PIL import Image
-from sqlalchemy import select, text
+from sqlalchemy import event, select, text
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import Session
 
@@ -735,3 +735,40 @@ def test_dar_de_baja_producto_otra_categoria_error(
         service.dar_de_baja_producto(db, Categoria.PLATO, postre.id)
 
     assert db.get(Producto, postre.id).estado == Estado.HABILITADO
+
+
+def _contar_sentencias(db: Session, accion) -> int:
+    """Cuenta solo las sentencias SQL que ejecuta `accion`, sin las de la preparación."""
+    sentencias: list[str] = []
+
+    def registrar(_conn, _cursor, sentencia, *_resto) -> None:
+        sentencias.append(sentencia)
+
+    motor = db.get_bind()
+    event.listen(motor, "before_cursor_execute", registrar)
+    try:
+        accion()
+    finally:
+        event.remove(motor, "before_cursor_execute", registrar)
+    return len(sentencias)
+
+
+def test_listar_carta_ejecuta_tres_sentencias_sql(
+    db: Session, fabrica_seccion, fabrica_producto
+) -> None:
+    for orden, nombre in enumerate(["Entradas", "Principales", "Postres"], start=1):
+        fabrica_producto(fabrica_seccion(nombre, orden), f"Plato de {nombre}")
+
+    sentencias = _contar_sentencias(
+        db, lambda: service.listar_carta(db, ParametrosPaginacion(), Estado.HABILITADO)
+    )
+
+    assert sentencias == 3
+
+
+def test_listar_carta_sin_secciones_omite_la_consulta_de_productos(db: Session) -> None:
+    sentencias = _contar_sentencias(
+        db, lambda: service.listar_carta(db, ParametrosPaginacion(), Estado.HABILITADO)
+    )
+
+    assert sentencias == 2

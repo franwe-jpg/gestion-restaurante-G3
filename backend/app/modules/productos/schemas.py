@@ -130,6 +130,10 @@ class FiltroProductos(ParametrosPaginacion):
         return Estado(self.estado.value)
 
 
+class FiltroCarta(FiltroProductos):
+    """Paginacion y filtro de GET /carta: mismas opciones y 422 que GET /productos (I2)."""
+
+
 def _sin_repetidos(textos: list[str], mensaje: str) -> list[str]:
     if len({texto.casefold() for texto in textos}) != len(textos):
         raise ValueError(mensaje)
@@ -221,3 +225,26 @@ class ProductoSalida(BaseModel):
     @field_serializer("precio")
     def _precio_con_dos_decimales(self, precio: Decimal) -> str:
         return f"{precio:.2f}"
+
+
+class ProductoCarta(BaseModel):
+    id: int
+    nombre: str
+    categoria: Categoria
+    precio: Decimal
+    descripcion: str | None
+    etiquetas: list[str]
+    imagen_url: str | None
+    estado: Estado
+
+    @field_serializer("precio")
+    def _precio_con_dos_decimales(self, precio: Decimal) -> str:
+        return f"{precio:.2f}"
+
+
+class SeccionCarta(BaseModel):
+    id: int
+    nombre: str
+    orden: int
+    estado: Estado
+    productos: list[ProductoCarta]

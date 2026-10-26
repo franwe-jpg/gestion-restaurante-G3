@@ -15,6 +15,7 @@ function abrir(ruta = '/productos') {
         <Route path="/productos" element={<ProductosPage />} />
         <Route path="/productos/platos/nuevo" element={<p>Formulario de plato</p>} />
         <Route path="/productos/postres/nuevo" element={<p>Formulario de postre</p>} />
+        <Route path="/productos/carta" element={<p>Pantalla de la carta</p>} />
       </Routes>
     </MemoryRouter>,
   );
@@ -88,5 +89,17 @@ describe('ProductosPage', () => {
 
     expect(screen.getByRole('tab', { name: 'Productos' })).toHaveAttribute('aria-selected', 'true');
     await screen.findByText('No hay productos habilitados');
+  });
+});
+
+describe('ProductosPage, entrada a la carta', () => {
+  it('ofrece «Ver carta» en el encabezado y lleva a la carta', async () => {
+    pestaniasVacias();
+    abrir();
+    await screen.findByText('No hay productos habilitados');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ver carta' }));
+
+    expect(screen.getByText('Pantalla de la carta')).toBeInTheDocument();
   });
 });

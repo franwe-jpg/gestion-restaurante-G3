@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 
 import { Button } from '../../../shared/components/ui/button';
 import { Pagination } from '../../../shared/components/ui/pagination';
-import { Select } from '../../../shared/components/ui/select';
 import { TableToolbar } from '../../../shared/components/ui/table-toolbar';
 import { useApi } from '../../../shared/hooks/useApi';
 import { usePaginacion } from '../../../shared/hooks/usePaginacion';
@@ -12,14 +11,11 @@ import { listarProductos } from '../api';
 import type { FiltroEstado } from '../types';
 
 import { AccionesProducto } from './AccionesProducto';
-import { FILTROS_ESTADO, filtroDe } from './filtrosEstado';
+import { filtroDe } from './filtrosEstado';
 import { ProductosTabla } from './ProductosTabla';
+import { SelectorEstado } from './SelectorEstado';
 
 const LIMITE_PAGINA = 50;
-
-function esFiltroEstado(valor: string): valor is FiltroEstado {
-  return FILTROS_ESTADO.some((filtro) => filtro.valor === valor);
-}
 
 function BotonesAlta() {
   const navigate = useNavigate();
@@ -38,30 +34,6 @@ function BotonesAlta() {
         Nueva bebida
       </Button>
     </>
-  );
-}
-
-interface SelectorEstadoProps {
-  estado: FiltroEstado;
-  onCambiar: (estado: FiltroEstado) => void;
-}
-
-function SelectorEstado({ estado, onCambiar }: SelectorEstadoProps) {
-  return (
-    <Select
-      aria-label="Filtrar por estado"
-      className="sm:w-56"
-      value={estado}
-      onChange={(evento) => {
-        if (esFiltroEstado(evento.target.value)) onCambiar(evento.target.value);
-      }}
-    >
-      {FILTROS_ESTADO.map((opcion) => (
-        <option key={opcion.valor} value={opcion.valor}>
-          {opcion.etiqueta}
-        </option>
-      ))}
-    </Select>
   );
 }
 

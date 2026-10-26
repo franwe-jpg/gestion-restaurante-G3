@@ -83,3 +83,23 @@ export interface ProductoSalida {
   seccion: { id: number; nombre: string };
   imagen_url: string | null;
 }
+
+// HU-M1-14: carta por secciones. `precio` viaja como texto decimal con punto ("12500.50").
+export interface ProductoCarta {
+  id: number;
+  nombre: string;
+  categoria: Categoria;
+  precio: string;
+  descripcion: string | null;
+  etiquetas: string[];
+  imagen_url: string | null;
+  estado: Estado;
+}
+
+export interface SeccionCarta {
+  id: number;
+  nombre: string;
+  orden: number;
+  estado: Estado;
+  productos: ProductoCarta[];
+}

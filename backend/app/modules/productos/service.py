@@ -8,11 +8,13 @@ from sqlalchemy.orm import Session
 from app.modules.productos import imagenes, repository
 from app.modules.productos.models import Seccion
 from app.modules.productos.schemas import (
+    ProductoCarta,
     ProductoCrear,
     ProductoListado,
     ProductoModificar,
     ProductoResumen,
     ProductoSalida,
+    SeccionCarta,
     SeccionCrear,
     SeccionListado,
     SeccionModificar,
@@ -203,6 +205,10 @@ def _descartar(db: Session, archivo: str | None) -> None:
         imagenes.borrar(archivo)
 
 
+def _url_de_imagen(producto: Producto) -> str | None:
+    return f"/media/{producto.imagen}" if producto.imagen else None
+
+
 def _a_salida(producto: Producto, seccion: Seccion) -> ProductoSalida:
     return ProductoSalida(
         id=producto.id,
@@ -214,7 +220,7 @@ def _a_salida(producto: Producto, seccion: Seccion) -> ProductoSalida:
         etiquetas=producto.etiquetas,
         estado=producto.estado,
         seccion=SeccionResumen(id=seccion.id, nombre=seccion.nombre),
-        imagen_url=f"/media/{producto.imagen}" if producto.imagen else None,
+        imagen_url=_url_de_imagen(producto),
     )
 
 
@@ -351,4 +357,41 @@ def listar_productos(
         total=total,
         limit=parametros.limit,
         offset=parametros.offset,
+    )
+
+
+def _a_producto_carta(producto: Producto) -> ProductoCarta:
+    return ProductoCarta(
+        id=producto.id,
+        nombre=producto.nombre,
+        categoria=producto.categoria,
+        precio=producto.precio,
+        descripcion=producto.descripcion,
+        etiquetas=producto.etiquetas,
+        imagen_url=_url_de_imagen(producto),
+        estado=producto.estado,
+    )
+
+
+def listar_carta(
+    db: Session, parametros: ParametrosPaginacion, estado: Estado | None
+) -> Pagina[SeccionCarta]:
+    """Carta por secciones con sus productos: tres sentencias SQL como maximo (I3, I7)."""
+    secciones, total = repository.listar_secciones_de_carta(db, parametros, estado)
+    por_seccion: dict[int, list[ProductoCarta]] = {seccion.id: [] for seccion in secciones}
+    if secciones:
+        for producto in repository.listar_productos_de_secciones(db, list(por_seccion), estado):
+            por_seccion[producto.seccion_id].append(_a_producto_carta(producto))
+    items = [
+        SeccionCarta(
+            id=seccion.id,
+            nombre=seccion.nombre,
+            orden=seccion.orden,
+            estado=seccion.estado,
+            productos=por_seccion[seccion.id],
+        )
+        for seccion in secciones
+    ]
+    return Pagina[SeccionCarta](
+        items=items, total=total, limit=parametros.limit, offset=parametros.offset
     )

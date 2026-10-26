@@ -17,6 +17,12 @@ const ProductosPage = lazy(() =>
   })),
 );
 
+const CartaPage = lazy(() =>
+  import('./modules/productos/pages/CartaPage').then((modulo) => ({
+    default: modulo.CartaPage,
+  })),
+);
+
 const ProductoNuevoPage = lazy(() =>
   import('./modules/productos/pages/ProductoNuevoPage').then((modulo) => ({
     default: modulo.ProductoNuevoPage,
@@ -66,6 +72,7 @@ export default function App() {
         <Route path="/" element={<AppShell />}>
           <Route index element={<Inicio />} />
           <Route path="productos" element={<ProductosPage />} />
+          <Route path="productos/carta" element={<CartaPage />} />
           <Route path="productos/platos/nuevo" element={<ProductoNuevoPage categoria="PLATO" />} />
           <Route
             path="productos/postres/nuevo"
