@@ -23,6 +23,7 @@ from app.modules.productos.schemas import (
     ProductoSalida,
     SeccionCrear,
     SeccionListado,
+    SeccionModificar,
     SeccionSalida,
 )
 from app.shared.paginacion import Pagina
@@ -149,6 +150,21 @@ def dar_de_baja_bebida(producto_id: int, db: Sesion) -> ProductoSalida:
 @router.post("/secciones", status_code=status.HTTP_201_CREATED)
 def crear_seccion(datos: SeccionCrear, db: Sesion) -> SeccionSalida:
     return service.crear_seccion(db, datos)
+
+
+@router.get("/secciones/{seccion_id}")
+def consultar_seccion(seccion_id: int, db: Sesion) -> SeccionSalida:
+    return service.obtener_seccion(db, seccion_id)
+
+
+@router.put("/secciones/{seccion_id}")
+def modificar_seccion(seccion_id: int, datos: SeccionModificar, db: Sesion) -> SeccionSalida:
+    return service.modificar_seccion(db, seccion_id, datos)
+
+
+@router.post("/secciones/{seccion_id}/baja")
+def dar_de_baja_seccion(seccion_id: int, db: Sesion) -> SeccionSalida:
+    return service.dar_de_baja_seccion(db, seccion_id)
 
 
 @router.get("/secciones")

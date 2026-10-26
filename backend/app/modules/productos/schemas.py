@@ -50,6 +50,10 @@ class SeccionCrear(BaseModel):
         return ids
 
 
+class SeccionModificar(SeccionCrear):
+    estado: Estado | None = None  # ausente: conserva el actual (S59)
+
+
 class FiltroSecciones(ParametrosPaginacion):
     """Paginacion y filtro de GET /secciones. FastAPI no mezcla un modelo `Query()` con otros
     parametros de consulta: `estado` viaja dentro del mismo modelo."""
@@ -72,6 +76,7 @@ class SeccionSalida(BaseModel):
     orden: int
     estado: Estado
     productos: list[ProductoResumen]
+    productos_habilitados: int
 
 
 class SeccionListado(BaseModel):
@@ -80,6 +85,7 @@ class SeccionListado(BaseModel):
     orden: int
     estado: Estado
     cantidad_productos: int
+    productos_habilitados: int
 
 
 class SeccionResumen(BaseModel):

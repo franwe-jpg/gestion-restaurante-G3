@@ -30,6 +30,7 @@ def test_crear_seccion_responde_201_con_la_forma_s5(cliente: TestClient) -> None
         "orden": 1,
         "estado": "HABILITADO",
         "productos": [],
+        "productos_habilitados": 0,
     }
 
 
@@ -1825,3 +1826,327 @@ def test_bebida_con_id_de_postre_404(cliente: TestClient, fabrica_seccion, opera
 
     assert respuesta.status_code == 404
     assert cliente.get(f"{RUTA_POSTRES}/{postre['id']}").json() == postre
+
+
+# HU-M1-11 y HU-M1-12: consultar, modificar y dar de baja una sección
+def _seccion_con(fabrica_seccion, fabrica_producto, nombres: list[str], orden: int = 1):
+    seccion = fabrica_seccion("Postres", orden)
+    for nombre in nombres:
+        fabrica_producto(seccion, nombre)
+    return seccion
+
+
+def _modificar_seccion(cliente: TestClient, seccion_id: int, **cambios):
+    cuerpo = {"nombre": "Postres", "orden": 1} | cambios
+    return cliente.put(f"{RUTA}/{seccion_id}", json=cuerpo)
+
+
+def _productos_de_seccion(db, seccion_id: int) -> list[str]:
+    db.expire_all()
+    return sorted(p.nombre for p in db.get(Seccion, seccion_id).productos)
+
+
+def test_obtener_seccion_con_productos(cliente: TestClient, fabrica_seccion, fabrica_producto):
+    seccion = fabrica_seccion("Postres", 2)
+    fabrica_producto(seccion, "Flan")
+    fabrica_producto(seccion, "Helado", Estado.DESHABILITADO)
+
+    respuesta = cliente.get(f"{RUTA}/{seccion.id}")
+
+    assert respuesta.status_code == 200
+    cuerpo = respuesta.json()
+    assert (cuerpo["nombre"], cuerpo["orden"], cuerpo["estado"]) == ("Postres", 2, "HABILITADO")
+    assert [p["nombre"] for p in cuerpo["productos"]] == ["Flan", "Helado"]
+    assert cuerpo["productos_habilitados"] == 1
+
+
+@pytest.mark.parametrize(
+    "metodo, sufijo",
+    [("get", ""), ("put", ""), ("post", "/baja")],
+)
+def test_seccion_inexistente_responde_404(cliente: TestClient, metodo: str, sufijo: str) -> None:
+    solicitud = {"json": {"nombre": "Postres", "orden": 1}} if metodo == "put" else {}
+
+    respuesta = getattr(cliente, metodo)(f"{RUTA}/999{sufijo}", **solicitud)
+
+    assert respuesta.status_code == 404
+    assert "999" in respuesta.json()["detalle"]
+
+
+def test_modificar_seccion_nombre_y_orden_200(cliente: TestClient, fabrica_seccion) -> None:
+    seccion = fabrica_seccion("Postres", 2)
+
+    respuesta = _modificar_seccion(cliente, seccion.id, nombre="Dulces", orden=5)
+
+    assert respuesta.status_code == 200
+    assert (respuesta.json()["nombre"], respuesta.json()["orden"]) == ("Dulces", 5)
+    items = cliente.get(RUTA).json()["items"]
+    assert [(s["nombre"], s["orden"]) for s in items] == [("Dulces", 5)]
+
+
+@pytest.mark.parametrize(
+    "cambios",
+    [{"nombre": "x" * 51}, {"orden": 0}, {"orden": "3"}],
+)
+@pytest.mark.parametrize("existe", [True, False])
+def test_modificar_seccion_con_valores_invalidos_responde_422(
+    cliente: TestClient, fabrica_seccion, db, cambios: dict, existe: bool
+) -> None:
+    seccion = fabrica_seccion("Postres", 2)
+    seccion_id = seccion.id if existe else 999
+
+    respuesta = _modificar_seccion(cliente, seccion_id, **cambios)
+
+    assert respuesta.status_code == 422
+    assert next(iter(cambios)) in respuesta.json()["detalle"]
+    assert db.get(Seccion, seccion.id).nombre == "Postres"
+
+
+def test_modificar_seccion_con_nombre_de_otra_responde_409(
+    cliente: TestClient, fabrica_seccion
+) -> None:
+    fabrica_seccion("Postres", 1)
+    entradas = fabrica_seccion("Entradas", 2)
+
+    respuesta = _modificar_seccion(cliente, entradas.id, nombre=" postres ", orden=2)
+
+    assert respuesta.status_code == 409
+    assert "ya existe" in respuesta.json()["detalle"]
+    assert cliente.get(f"{RUTA}/{entradas.id}").json()["nombre"] == "Entradas"
+
+
+def test_modificar_seccion_solo_la_capitalizacion_responde_200(
+    cliente: TestClient, fabrica_seccion
+) -> None:
+    seccion = fabrica_seccion("Postres", 1)
+
+    respuesta = _modificar_seccion(cliente, seccion.id, nombre="POSTRES")
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["nombre"] == "POSTRES"
+
+
+def test_modificar_seccion_con_orden_ocupado_responde_409(
+    cliente: TestClient, fabrica_seccion, db
+) -> None:
+    fabrica_seccion("Entradas", 1)
+    postres = fabrica_seccion("Postres", 2)
+
+    respuesta = _modificar_seccion(cliente, postres.id, orden=1)
+
+    assert respuesta.status_code == 409
+    assert "ocupada" in respuesta.json()["detalle"]
+    assert db.get(Seccion, postres.id).orden == 2
+
+
+def test_modificar_seccion_deshabilitada_acepta_orden_de_otra_deshabilitada(
+    cliente: TestClient, fabrica_seccion
+) -> None:
+    fabrica_seccion("Entradas", 3, Estado.DESHABILITADO)
+    postres = fabrica_seccion("Postres", 4, Estado.DESHABILITADO)
+
+    respuesta = _modificar_seccion(cliente, postres.id, orden=3)
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["estado"] == "DESHABILITADO"
+
+
+def test_modificar_seccion_sin_cambios_responde_200(cliente: TestClient, fabrica_seccion) -> None:
+    seccion = fabrica_seccion("Postres", 1)
+
+    respuesta = _modificar_seccion(cliente, seccion.id)
+
+    assert respuesta.status_code == 200
+    assert (respuesta.json()["nombre"], respuesta.json()["orden"]) == ("Postres", 1)
+
+
+def test_modificar_seccion_agrega_productos_con_confirmacion(
+    cliente: TestClient, fabrica_seccion, fabrica_producto, db
+) -> None:
+    postres = fabrica_seccion("Postres", 1)
+    otra = fabrica_seccion("Entradas", 2)
+    flan = fabrica_producto(otra, "Flan")
+    helado = fabrica_producto(otra, "Helado")
+
+    respuesta = _modificar_seccion(
+        cliente, postres.id, producto_ids=[flan.id, helado.id], confirmar_traslado=True
+    )
+
+    assert respuesta.status_code == 200
+    assert [p["nombre"] for p in respuesta.json()["productos"]] == ["Flan", "Helado"]
+    secciones = {
+        p["nombre"]: p["seccion"]["id"] for p in cliente.get("/api/v1/productos").json()["items"]
+    }
+    assert secciones == {"Flan": postres.id, "Helado": postres.id}
+
+
+def test_modificar_seccion_sin_confirmar_traslado_responde_409(
+    cliente: TestClient, fabrica_seccion, fabrica_producto, db
+) -> None:
+    postres = fabrica_seccion("Postres", 1)
+    entradas = fabrica_seccion("Entradas", 2)
+    flan = fabrica_producto(entradas, "Flan")
+
+    respuesta = _modificar_seccion(cliente, postres.id, producto_ids=[flan.id])
+
+    assert respuesta.status_code == 409
+    assert "Flan" in respuesta.json()["detalle"]
+    assert "Entradas" in respuesta.json()["detalle"]
+    assert _productos_de_seccion(db, entradas.id) == ["Flan"]
+
+
+def test_modificar_seccion_con_producto_deshabilitado_responde_409(
+    cliente: TestClient, fabrica_seccion, fabrica_producto
+) -> None:
+    postres = fabrica_seccion("Postres", 1)
+    flan = fabrica_producto(fabrica_seccion("Entradas", 2), "Flan", Estado.DESHABILITADO)
+
+    respuesta = _modificar_seccion(
+        cliente, postres.id, producto_ids=[flan.id], confirmar_traslado=True
+    )
+
+    assert respuesta.status_code == 409
+    assert "deshabilitado" in respuesta.json()["detalle"]
+
+
+def test_modificar_seccion_agregando_a_una_deshabilitada_responde_409(
+    cliente: TestClient, fabrica_seccion, fabrica_producto, db
+) -> None:
+    postres = fabrica_seccion("Postres", 1, Estado.DESHABILITADO)
+    entradas = fabrica_seccion("Entradas", 2)
+    flan = fabrica_producto(entradas, "Flan")
+
+    respuesta = _modificar_seccion(
+        cliente, postres.id, producto_ids=[flan.id], confirmar_traslado=True
+    )
+
+    assert respuesta.status_code == 409
+    assert "Postres está deshabilitada" in respuesta.json()["detalle"]
+    assert _productos_de_seccion(db, entradas.id) == ["Flan"]
+
+
+def test_modificar_seccion_ignora_un_producto_ya_presente(
+    cliente: TestClient, fabrica_seccion, fabrica_producto, db
+) -> None:
+    postres = fabrica_seccion("Postres", 1)
+    flan = fabrica_producto(postres, "Flan", Estado.DESHABILITADO)
+
+    respuesta = _modificar_seccion(cliente, postres.id, producto_ids=[flan.id])
+
+    assert respuesta.status_code == 200
+    assert _productos_de_seccion(db, postres.id) == ["Flan"]
+
+
+def test_modificar_seccion_con_falla_parcial_no_cambia_nada(
+    cliente: TestClient, fabrica_seccion, fabrica_producto, db
+) -> None:
+    postres = fabrica_seccion("Postres", 1)
+    entradas = fabrica_seccion("Entradas", 2)
+    flan = fabrica_producto(entradas, "Flan")
+
+    respuesta = _modificar_seccion(
+        cliente, postres.id, nombre="Dulces", producto_ids=[flan.id, 999], confirmar_traslado=True
+    )
+
+    assert respuesta.status_code == 404
+    assert db.get(Seccion, postres.id).nombre == "Postres"
+    assert _productos_de_seccion(db, entradas.id) == ["Flan"]
+
+
+def test_modificar_seccion_con_producto_ids_vacio_conserva_los_productos(
+    cliente: TestClient, fabrica_seccion, fabrica_producto, db
+) -> None:
+    postres = _seccion_con(fabrica_seccion, fabrica_producto, ["Flan", "Helado"])
+
+    respuesta = _modificar_seccion(cliente, postres.id, producto_ids=[])
+
+    assert respuesta.status_code == 200
+    assert _productos_de_seccion(db, postres.id) == ["Flan", "Helado"]
+
+
+def test_reactivar_seccion_responde_200_y_vuelve_a_la_carta(
+    cliente: TestClient, fabrica_seccion, fabrica_producto
+) -> None:
+    postres = fabrica_seccion("Postres", 1, Estado.DESHABILITADO)
+    fabrica_producto(postres, "Flan")
+
+    respuesta = _modificar_seccion(cliente, postres.id, estado="HABILITADO")
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["estado"] == "HABILITADO"
+    habilitadas = cliente.get(RUTA, params={"estado": "HABILITADO"}).json()["items"]
+    assert [(s["nombre"], s["productos_habilitados"]) for s in habilitadas] == [("Postres", 1)]
+
+
+def test_reactivar_seccion_con_orden_ocupado_responde_409_y_sigue_deshabilitada(
+    cliente: TestClient, fabrica_seccion
+) -> None:
+    fabrica_seccion("Entradas", 2)
+    postres = fabrica_seccion("Postres", 2, Estado.DESHABILITADO)
+
+    respuesta = _modificar_seccion(cliente, postres.id, orden=2, estado="HABILITADO")
+
+    assert respuesta.status_code == 409
+    assert "ocupada" in respuesta.json()["detalle"]
+    assert cliente.get(f"{RUTA}/{postres.id}").json()["estado"] == "DESHABILITADO"
+
+
+def test_reactivar_seccion_con_orden_libre_responde_200(
+    cliente: TestClient, fabrica_seccion
+) -> None:
+    fabrica_seccion("Entradas", 2)
+    postres = fabrica_seccion("Postres", 2, Estado.DESHABILITADO)
+
+    respuesta = _modificar_seccion(cliente, postres.id, orden=3, estado="HABILITADO")
+
+    assert respuesta.status_code == 200
+    assert (respuesta.json()["orden"], respuesta.json()["estado"]) == (3, "HABILITADO")
+
+
+def test_dar_de_baja_seccion_200(cliente: TestClient, fabrica_seccion) -> None:
+    postres = fabrica_seccion("Postres", 1)
+
+    respuesta = cliente.post(f"{RUTA}/{postres.id}/baja")
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["estado"] == "DESHABILITADO"
+    assert cliente.get(RUTA, params={"estado": "HABILITADO"}).json()["items"] == []
+
+
+def test_dar_de_baja_seccion_conserva_el_estado_y_la_seccion_de_sus_productos(
+    cliente: TestClient, fabrica_seccion, fabrica_producto
+) -> None:
+    postres = fabrica_seccion("Postres", 1)
+    fabrica_producto(postres, "Flan")
+
+    cliente.post(f"{RUTA}/{postres.id}/baja")
+
+    producto = cliente.get("/api/v1/productos").json()["items"][0]
+    assert (producto["estado"], producto["seccion"]["id"]) == ("HABILITADO", postres.id)
+    reactivada = _modificar_seccion(cliente, postres.id, estado="HABILITADO").json()
+    assert [p["nombre"] for p in reactivada["productos"]] == ["Flan"]
+    assert reactivada["productos_habilitados"] == 1
+
+
+def test_dar_de_baja_seccion_ya_deshabilitada_responde_409(
+    cliente: TestClient, fabrica_seccion
+) -> None:
+    postres = fabrica_seccion("Postres", 1, Estado.DESHABILITADO)
+
+    respuesta = cliente.post(f"{RUTA}/{postres.id}/baja")
+
+    assert respuesta.status_code == 409
+    assert "ya está deshabilitada" in respuesta.json()["detalle"]
+
+
+def test_listar_secciones_cuenta_los_productos_habilitados(
+    cliente: TestClient, fabrica_seccion, fabrica_producto
+) -> None:
+    postres = fabrica_seccion("Postres", 1)
+    fabrica_producto(postres, "Flan")
+    fabrica_producto(postres, "Helado")
+    fabrica_producto(postres, "Torta", Estado.DESHABILITADO)
+
+    item = cliente.get(RUTA).json()["items"][0]
+
+    assert (item["cantidad_productos"], item["productos_habilitados"]) == (3, 2)

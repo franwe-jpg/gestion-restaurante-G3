@@ -10,13 +10,21 @@ from app.shared.models import Categoria, Estado, Producto
 from app.shared.paginacion import ParametrosPaginacion, aplicar, contar
 
 
-def existe_nombre_normalizado(db: Session, nombre_normalizado: str) -> bool:
+def existe_nombre_normalizado(
+    db: Session, nombre_normalizado: str, excluir_id: int | None = None
+) -> bool:
     consulta = select(Seccion.id).where(Seccion.nombre_normalizado == nombre_normalizado)
+    if excluir_id is not None:
+        consulta = consulta.where(Seccion.id != excluir_id)
     return db.scalar(consulta.limit(1)) is not None
 
 
-def buscar_habilitada_por_orden(db: Session, orden: int) -> Seccion | None:
+def buscar_habilitada_por_orden(
+    db: Session, orden: int, excluir_id: int | None = None
+) -> Seccion | None:
     consulta = select(Seccion).where(Seccion.orden == orden, Seccion.estado == Estado.HABILITADO)
+    if excluir_id is not None:
+        consulta = consulta.where(Seccion.id != excluir_id)
     return db.scalar(consulta)
 
 
@@ -55,13 +63,17 @@ def agregar(db: Session, entidad: Seccion | Producto) -> None:
 
 def listar_secciones(
     db: Session, parametros: ParametrosPaginacion, estado: Estado | None = None
-) -> tuple[list[tuple[Seccion, int]], int]:
-    """Devuelve la pagina de secciones con su cantidad de productos y el total.
+) -> tuple[list[tuple[Seccion, int, int]], int]:
+    """Devuelve la pagina de secciones con su cantidad de productos, los habilitados y el total.
 
     Con `estado`, el listado y el total cuentan solo las secciones en ese estado.
     """
     consulta = (
-        select(Seccion, func.count(Producto.id))
+        select(
+            Seccion,
+            func.count(Producto.id),
+            func.count(Producto.id).filter(Producto.estado == Estado.HABILITADO),
+        )
         .outerjoin(Producto, Producto.seccion_id == Seccion.id)
         .group_by(Seccion.id)
         .order_by(Seccion.orden, Seccion.id)
@@ -71,7 +83,7 @@ def listar_secciones(
         consulta = consulta.where(Seccion.estado == estado)
         total = total.where(Seccion.estado == estado)
     filas = db.execute(aplicar(consulta, parametros)).all()
-    return [(seccion, cantidad) for seccion, cantidad in filas], contar(db, total)
+    return [(s, cantidad, habilitados) for s, cantidad, habilitados in filas], contar(db, total)
 
 
 def listar_productos(

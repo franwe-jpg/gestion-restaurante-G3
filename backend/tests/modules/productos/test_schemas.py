@@ -17,6 +17,8 @@ from app.modules.productos.schemas import (
     ProductoModificar,
     ProductoSalida,
     ProductoSeleccionable,
+    SeccionCrear,
+    SeccionModificar,
     SeccionResumen,
 )
 from app.shared.models import Categoria, Estado
@@ -379,3 +381,41 @@ def test_producto_listado_extiende_seleccionable() -> None:
         "etiquetas": ["Dulce"],
         "estado": "HABILITADO",
     }
+
+
+# HU-M1-11: SeccionModificar
+def test_seccion_modificar_hereda_las_reglas_de_seccion_crear() -> None:
+    assert issubclass(SeccionModificar, SeccionCrear)
+
+
+@pytest.mark.parametrize(
+    "cambios",
+    [
+        {"nombre": "x" * 51},
+        {"nombre": "   "},
+        {"orden": 0},
+        {"orden": "3"},
+        {"producto_ids": [1, 1]},
+    ],
+)
+def test_seccion_modificar_rechaza_valores_invalidos(cambios: dict) -> None:
+    with pytest.raises(ValidationError):
+        SeccionModificar.model_validate({"nombre": "Postres", "orden": 1} | cambios)
+
+
+def test_seccion_modificar_sin_estado_lo_deja_en_none() -> None:
+    datos = SeccionModificar.model_validate({"nombre": " Postres ", "orden": 2})
+
+    assert datos.nombre == "Postres"
+    assert datos.estado is None
+    assert datos.producto_ids == []
+    assert datos.confirmar_traslado is False
+
+
+@pytest.mark.parametrize("estado", [Estado.HABILITADO, Estado.DESHABILITADO])
+def test_seccion_modificar_acepta_estado(estado: Estado) -> None:
+    datos = SeccionModificar.model_validate(
+        {"nombre": "Postres", "orden": 2, "estado": estado.value}
+    )
+
+    assert datos.estado == estado
