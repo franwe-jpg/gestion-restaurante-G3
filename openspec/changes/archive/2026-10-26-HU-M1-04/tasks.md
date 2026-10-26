@@ -58,7 +58,7 @@
   - Aviso del cambio en `frontend/src/App.tsx`, archivo compartido (§9.3).
   - Diferencia con la maqueta: botón «Nuevo postre» que la maqueta no muestra (C7).
   - Rama apilada sobre el PR #177 (HU-M1-01): HU-M1-01 debe archivarse antes que HU-M1-04; rebasar sobre `develop` cuando se integre.
-- [ ] **5.5** Commit 5 solo si hay artefactos de SDD por versionar: `docs: agrega los artefactos de SDD de HU-M1-04 (HU-M1-04)`.
+- [x] **5.5** Commit 5 solo si hay artefactos de SDD por versionar: `docs: agrega los artefactos de SDD de HU-M1-04 (HU-M1-04)`.
 
 ## Trazabilidad
 
