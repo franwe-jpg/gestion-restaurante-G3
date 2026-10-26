@@ -1,11 +1,7 @@
 import { clienteHttp } from '../../shared/api/client';
 import type { RespuestaApi } from '../../shared/types';
-import type { Mesa, Mozo } from './types';
+import type { Sector, SectorCrear } from './types';
 
-export async function listarMesas(): Promise<RespuestaApi<Mesa[]>> {
-  return clienteHttp.get<Mesa[]>('/salon/mesas');
-}
-
-export async function listarMozos(): Promise<RespuestaApi<Mozo[]>> {
-  return clienteHttp.get<Mozo[]>('/salon/mozos');
+export function crearSector(datos: SectorCrear): Promise<RespuestaApi<Sector>> {
+  return clienteHttp.post<Sector, SectorCrear>('/sectores', datos);
 }
