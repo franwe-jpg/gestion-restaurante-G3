@@ -38,6 +38,18 @@ describe('SeccionesTabla', () => {
     expect(within(filas[2]!).getByText('Deshabilitada')).toBeInTheDocument();
   });
 
+  it('muestra las acciones de cada fila con renderAcciones', () => {
+    render(
+      <SeccionesTabla
+        secciones={SECCIONES}
+        renderAcciones={(seccion) => <span>Acciones de {seccion.nombre}</span>}
+      />,
+    );
+
+    expect(screen.getByText('Acciones de Entradas')).toBeInTheDocument();
+    expect(screen.getByText('Acciones de Parrilla')).toBeInTheDocument();
+  });
+
   it('muestra un mensaje cuando no hay secciones', () => {
     render(<SeccionesTabla secciones={[]} />);
 
