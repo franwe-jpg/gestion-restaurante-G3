@@ -6,6 +6,7 @@ import {
   crearProducto,
   crearSeccion,
   darDeBajaProducto,
+  listarProductos,
   listarProductosHabilitados,
   listarSecciones,
   listarSeccionesHabilitadas,
@@ -20,6 +21,19 @@ afterEach(() => {
 });
 
 describe('api de productos', () => {
+  it.each([
+    ['HABILITADO', 50, 0, '/productos?estado=HABILITADO&limit=50&offset=0'],
+    ['TODOS', 50, 100, '/productos?estado=TODOS&limit=50&offset=100'],
+  ] as const)('lista los productos con estado %s', async (estado, limit, offset, ruta) => {
+    const get = vi
+      .spyOn(clienteHttp, 'get')
+      .mockResolvedValue({ datos: null, exito: false, error: 'x' });
+
+    await listarProductos(estado, limit, offset);
+
+    expect(get).toHaveBeenCalledWith(ruta);
+  });
+
   it('lista las secciones con limit y offset', async () => {
     const respuesta = { datos: { items: [], total: 0, limit: 10, offset: 20 }, exito: true };
     const get = vi.spyOn(clienteHttp, 'get').mockResolvedValue(respuesta);

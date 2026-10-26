@@ -2,7 +2,9 @@ import { clienteHttp, urlDelBackend } from '../../shared/api/client';
 import type { Pagina, RespuestaApi } from '../../shared/types';
 import type { CategoriaAlta, CategoriaEdicion } from './categorias';
 import type {
+  FiltroEstado,
   ProductoCrear,
+  ProductoListado,
   ProductoModificar,
   ProductoSalida,
   ProductoSeleccionable,
@@ -32,6 +34,16 @@ export function crearSeccion(datos: SeccionCrear): Promise<RespuestaApi<Seccion>
 export function listarProductosHabilitados(): Promise<RespuestaApi<Pagina<ProductoSeleccionable>>> {
   return clienteHttp.get<Pagina<ProductoSeleccionable>>(
     `/productos?limit=${LIMITE_SELECTOR}&offset=0`,
+  );
+}
+
+export function listarProductos(
+  estado: FiltroEstado,
+  limit: number,
+  offset: number,
+): Promise<RespuestaApi<Pagina<ProductoListado>>> {
+  return clienteHttp.get<Pagina<ProductoListado>>(
+    `/productos?estado=${estado}&limit=${limit}&offset=${offset}`,
   );
 }
 
