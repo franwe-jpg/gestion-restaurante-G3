@@ -5,6 +5,8 @@ import pytest
 from pydantic import ValidationError
 
 from app.modules.productos.schemas import (
+    BebidaCrear,
+    BebidaModificar,
     FiltroEstadoProducto,
     FiltroProductos,
     PlatoCrear,
@@ -271,7 +273,7 @@ def test_postre_modificar_exige_ingredientes() -> None:
     assert {str(falla["loc"][0]) for falla in error.value.errors()} == {"ingredientes"}
 
 
-@pytest.mark.parametrize("modelo", [PlatoModificar, PostreModificar])
+@pytest.mark.parametrize("modelo", [PlatoModificar, PostreModificar, BebidaModificar])
 def test_modificar_rechaza_categoria_enviada(modelo) -> None:
     datos = {
         "nombre": "Flan",
@@ -285,6 +287,40 @@ def test_modificar_rechaza_categoria_enviada(modelo) -> None:
         modelo.model_validate(datos)
 
     assert {str(falla["loc"][0]) for falla in error.value.errors()} == {"categoria"}
+
+
+# HU-M1-07-08-09: las bebidas heredan las reglas del alta, con ingredientes opcionales (S44)
+DATOS_BEBIDA = {"nombre": "Limonada", "seccion_id": 1, "precio": "900"}
+
+
+def test_bebida_crear_fija_su_categoria_y_su_mensaje() -> None:
+    datos = BebidaCrear.model_validate(DATOS_BEBIDA)
+
+    assert datos.CATEGORIA == Categoria.BEBIDA
+    assert datos.MENSAJE_NOMBRE_REPETIDO == "La bebida ya está registrada"
+
+
+@pytest.mark.parametrize("ingredientes", [None, []], ids=["ausentes", "vacios"])
+def test_bebida_crear_acepta_sin_ingredientes(ingredientes) -> None:
+    datos = DATOS_BEBIDA | ({} if ingredientes is None else {"ingredientes": ingredientes})
+
+    assert BebidaCrear.model_validate(datos).ingredientes == []
+
+
+@pytest.mark.parametrize("ingredientes", [["  "], ["Limón", " limón "]], ids=["vacio", "repetidos"])
+def test_bebida_crear_rechaza_ingredientes_vacios_o_repetidos(ingredientes) -> None:
+    with pytest.raises(ValidationError) as error:
+        BebidaCrear.model_validate(DATOS_BEBIDA | {"ingredientes": ingredientes})
+
+    assert {str(falla["loc"][0]) for falla in error.value.errors()} == {"ingredientes"}
+
+
+def test_bebida_modificar_hereda_categoria_mensaje_y_tipo_base() -> None:
+    datos = BebidaModificar.model_validate(DATOS_BEBIDA)
+
+    assert datos.CATEGORIA == Categoria.BEBIDA
+    assert datos.MENSAJE_NOMBRE_REPETIDO == "La bebida ya está registrada"
+    assert isinstance(datos, ProductoModificar)
 
 
 # HU-M1-13: filtro de estado y esquema de la lista

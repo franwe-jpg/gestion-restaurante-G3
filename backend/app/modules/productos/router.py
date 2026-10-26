@@ -11,6 +11,8 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.modules.productos import imagenes, service
 from app.modules.productos.schemas import (
+    BebidaCrear,
+    BebidaModificar,
     FiltroProductos,
     FiltroSecciones,
     PlatoCrear,
@@ -113,6 +115,35 @@ def modificar_postre(
 @router.post("/postres/{producto_id}/baja")
 def dar_de_baja_postre(producto_id: int, db: Sesion) -> ProductoSalida:
     return service.dar_de_baja_producto(db, PostreCrear.CATEGORIA, producto_id)
+
+
+@router.post("/bebidas", status_code=status.HTTP_201_CREATED)
+def crear_bebida(
+    datos: Annotated[BebidaCrear, Depends(datos_de(BebidaCrear))],
+    db: Sesion,
+    imagen: Annotated[UploadFile | None, File()] = None,
+) -> ProductoSalida:
+    return service.crear_producto(db, datos, leer_imagen(imagen))
+
+
+@router.get("/bebidas/{producto_id}")
+def consultar_bebida(producto_id: int, db: Sesion) -> ProductoSalida:
+    return service.obtener_producto(db, BebidaCrear.CATEGORIA, producto_id)
+
+
+@router.put("/bebidas/{producto_id}")
+def modificar_bebida(
+    producto_id: int,
+    datos: Annotated[BebidaModificar, Depends(datos_de(BebidaModificar))],
+    db: Sesion,
+    imagen: Annotated[UploadFile | None, File()] = None,
+) -> ProductoSalida:
+    return service.modificar_producto(db, producto_id, datos, leer_imagen(imagen))
+
+
+@router.post("/bebidas/{producto_id}/baja")
+def dar_de_baja_bebida(producto_id: int, db: Sesion) -> ProductoSalida:
+    return service.dar_de_baja_producto(db, BebidaCrear.CATEGORIA, producto_id)
 
 
 @router.post("/secciones", status_code=status.HTTP_201_CREATED)
