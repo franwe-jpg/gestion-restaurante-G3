@@ -94,7 +94,7 @@ export function ProductoEditarPage({ categoria }: { categoria: CategoriaEdicion 
       />
       <PageHeader titulo={configuracion.titulo} />
       {producto.cargando || secciones.cargando ? (
-        <Spinner etiqueta="Cargando plato..." />
+        <Spinner etiqueta={configuracion.cargando} />
       ) : producto.datos ? (
         <EdicionCargada
           categoria={categoria}

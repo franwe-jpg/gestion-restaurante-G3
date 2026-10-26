@@ -104,11 +104,14 @@ describe('App', () => {
     expect(await screen.findByText('Primero hay que crear una sección')).toBeInTheDocument();
   });
 
-  it('monta la pantalla de edición de un plato en /productos/platos/:id/editar', async () => {
+  it.each([
+    ['PLATO', 'platos', 'Editar plato'],
+    ['POSTRE', 'postres', 'Editar postre'],
+  ] as const)('monta la pantalla de edición de %s', async (categoria, segmento, titulo) => {
     const plato = {
       id: 7,
       nombre: 'Milanesa',
-      categoria: 'PLATO',
+      categoria,
       precio: '12500.50',
       ingredientes: ['Pan'],
       descripcion: null,
@@ -125,18 +128,18 @@ describe('App', () => {
           ok: true,
           status: 200,
           statusText: 'OK',
-          json: () => Promise.resolve(url.includes('/platos/7') ? plato : secciones),
+          json: () => Promise.resolve(url.includes(`/${segmento}/7`) ? plato : secciones),
         } as Response),
       ),
     );
 
     render(
-      <MemoryRouter initialEntries={['/productos/platos/7/editar']}>
+      <MemoryRouter initialEntries={[`/productos/${segmento}/7/editar`]}>
         <App />
       </MemoryRouter>,
     );
 
-    expect(await screen.findByRole('heading', { name: 'Editar plato' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: titulo })).toBeInTheDocument();
     expect(await screen.findByDisplayValue('Milanesa')).toBeInTheDocument();
   });
 });

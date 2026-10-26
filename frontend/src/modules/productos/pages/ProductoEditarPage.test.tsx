@@ -49,15 +49,17 @@ function responder(plato: ProductoSalida = PLATO, items: SeccionListado[] = [PLA
   });
 }
 
-async function abrir(id = '7') {
+const SEGMENTOS = { PLATO: 'platos', POSTRE: 'postres' } as const;
+
+async function abrir(id = '7', categoria: 'PLATO' | 'POSTRE' = 'PLATO') {
   render(
     <ToastContext.Provider value={{ mostrarToast }}>
       <ConfirmProvider>
-        <MemoryRouter initialEntries={[`/productos/platos/${id}/editar`]}>
+        <MemoryRouter initialEntries={[`/productos/${SEGMENTOS[categoria]}/${id}/editar`]}>
           <Routes>
             <Route
-              path="/productos/platos/:id/editar"
-              element={<ProductoEditarPage categoria="PLATO" />}
+              path={`/productos/${SEGMENTOS[categoria]}/:id/editar`}
+              element={<ProductoEditarPage categoria={categoria} />}
             />
             <Route path="/productos" element={<p>Listado de productos</p>} />
           </Routes>
@@ -310,5 +312,98 @@ describe('ProductoEditarPage: plato inexistente y secciones', () => {
       'Platos principales',
       'Entradas',
     ]);
+  });
+});
+
+const POSTRE: ProductoSalida = {
+  ...PLATO,
+  id: 9,
+  nombre: 'Flan',
+  categoria: 'POSTRE',
+  ingredientes: ['Leche', 'Huevo'],
+};
+
+async function abrirPostre(postre: ProductoSalida = POSTRE) {
+  responder(postre);
+  await abrir('9', 'POSTRE');
+  await screen.findByDisplayValue(postre.nombre);
+}
+
+describe('ProductoEditarPage: postres', () => {
+  it('muestra «Cargando postre...» mientras carga', async () => {
+    vi.mocked(obtenerProducto).mockReturnValue(new Promise(() => undefined));
+    await abrir('9', 'POSTRE');
+
+    expect(await screen.findByText('Cargando postre...')).toBeInTheDocument();
+  });
+
+  it('muestra los datos del postre con «Editar postre»', async () => {
+    await abrirPostre();
+
+    expect(screen.getByRole('heading', { name: 'Editar postre' })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Nombre/)).toHaveValue('Flan');
+    expect(screen.getByText('Leche')).toBeInTheDocument();
+    expect(obtenerProducto).toHaveBeenCalledWith('POSTRE', 9);
+  });
+
+  it('guarda con la categoría POSTRE, avisa y vuelve a «Productos»', async () => {
+    await abrirPostre();
+    vi.mocked(modificarProducto).mockResolvedValue({ datos: POSTRE, exito: true });
+    fireEvent.change(screen.getByLabelText(/Precio/), { target: { value: '13.000' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+    expect(await screen.findByText('Listado de productos')).toBeInTheDocument();
+    expect(modificarProducto).toHaveBeenCalledWith(
+      'POSTRE',
+      9,
+      expect.objectContaining({ precio: '13000' }),
+      null,
+    );
+    expect(mostrarToast).toHaveBeenCalledWith(
+      expect.objectContaining({ titulo: 'Postre modificado' }),
+    );
+  });
+});
+
+describe('ProductoEditarPage: postres, errores y baja', () => {
+  it('un 404 muestra «El postre no existe.»', async () => {
+    vi.mocked(obtenerProducto).mockResolvedValue({
+      datos: null,
+      exito: false,
+      error: 'El producto 9 no existe',
+    });
+    await abrir('9', 'POSTRE');
+
+    expect(await screen.findByText('El postre no existe.')).toBeInTheDocument();
+  });
+
+  it('da de baja tras confirmar, avisa y vuelve', async () => {
+    await abrirPostre();
+    vi.mocked(darDeBajaProducto).mockResolvedValue({
+      datos: { ...POSTRE, estado: 'DESHABILITADO' },
+      exito: true,
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dar de baja' }));
+    const dialogo = await screen.findByRole('dialog');
+    expect(within(dialogo).getByText(/El postre quedará deshabilitado/)).toBeInTheDocument();
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Dar de baja' }));
+
+    expect(await screen.findByText('Listado de productos')).toBeInTheDocument();
+    expect(darDeBajaProducto).toHaveBeenCalledWith('POSTRE', 9);
+    expect(mostrarToast).toHaveBeenCalledWith(
+      expect.objectContaining({ titulo: 'Postre dado de baja' }),
+    );
+  });
+
+  it('un postre deshabilitado no ofrece «Dar de baja» y tiene el interruptor apagado', async () => {
+    await abrirPostre({ ...POSTRE, estado: 'DESHABILITADO' });
+
+    expect(screen.queryByRole('button', { name: 'Dar de baja' })).not.toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: 'Habilitado' })).toHaveAttribute(
+      'aria-checked',
+      'false',
+    );
   });
 });
