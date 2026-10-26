@@ -17,7 +17,7 @@ Prefijo `/api/v1`. Errores con formato `{"detalle": "mensaje"}` (D-26) y código
 | `PUT /secciones/{id}` | 200, `SeccionRespuesta` | 404, 409, 422 |
 | `POST /secciones/{id}/baja` (sin cuerpo) | 200, `SeccionRespuesta` | 404, 409 |
 | `GET /secciones?limit&offset&estado` | 200, `Pagina[SeccionRespuesta]`, orden ascendente por `orden` | 422 |
-| `GET /productos?limit&offset` | 200, `Pagina[ProductoRespuesta]`, solo habilitados | 422 |
+| `GET /productos?estado&limit&offset` | 200, `Pagina[ProductoListado]`; sin `estado`, solo habilitados (contrato completo en `carta-productos`) | 422 |
 
 Esquemas:
 
