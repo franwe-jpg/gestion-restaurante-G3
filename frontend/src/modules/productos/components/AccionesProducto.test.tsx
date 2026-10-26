@@ -49,10 +49,12 @@ afterEach(() => {
 });
 
 const POSTRE: ProductoListado = { ...PLATO, id: 9, nombre: 'Flan', categoria: 'POSTRE' };
+const BEBIDA: ProductoListado = { ...PLATO, id: 11, nombre: 'Limonada', categoria: 'BEBIDA' };
 
 describe.each([
   ['PLATO', PLATO, 'platos', 'Plato dado de baja'],
   ['POSTRE', POSTRE, 'postres', 'Postre dado de baja'],
+  ['BEBIDA', BEBIDA, 'bebidas', 'Bebida dada de baja'],
 ] as const)('AccionesProducto: %s', (categoria, producto, segmento, aviso) => {
   it('ofrece editar con un enlace a su pantalla de edición (S27, S31)', () => {
     mostrar(producto);

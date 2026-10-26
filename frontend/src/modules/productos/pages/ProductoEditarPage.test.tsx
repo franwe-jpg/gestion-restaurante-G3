@@ -49,9 +49,9 @@ function responder(plato: ProductoSalida = PLATO, items: SeccionListado[] = [PLA
   });
 }
 
-const SEGMENTOS = { PLATO: 'platos', POSTRE: 'postres' } as const;
+const SEGMENTOS = { PLATO: 'platos', POSTRE: 'postres', BEBIDA: 'bebidas' } as const;
 
-async function abrir(id = '7', categoria: 'PLATO' | 'POSTRE' = 'PLATO') {
+async function abrir(id = '7', categoria: 'PLATO' | 'POSTRE' | 'BEBIDA' = 'PLATO') {
   render(
     <ToastContext.Provider value={{ mostrarToast }}>
       <ConfirmProvider>
@@ -399,6 +399,117 @@ describe('ProductoEditarPage: postres, errores y baja', () => {
 
   it('un postre deshabilitado no ofrece «Dar de baja» y tiene el interruptor apagado', async () => {
     await abrirPostre({ ...POSTRE, estado: 'DESHABILITADO' });
+
+    expect(screen.queryByRole('button', { name: 'Dar de baja' })).not.toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: 'Habilitado' })).toHaveAttribute(
+      'aria-checked',
+      'false',
+    );
+  });
+});
+
+const BEBIDA: ProductoSalida = {
+  ...PLATO,
+  id: 11,
+  nombre: 'Limonada',
+  categoria: 'BEBIDA',
+  ingredientes: ['Limón'],
+};
+
+async function abrirBebida(bebida: ProductoSalida = BEBIDA) {
+  responder(bebida);
+  await abrir('11', 'BEBIDA');
+  await screen.findByDisplayValue(bebida.nombre);
+}
+
+describe('ProductoEditarPage: bebidas', () => {
+  it('muestra «Cargando bebida...» mientras carga', async () => {
+    vi.mocked(obtenerProducto).mockReturnValue(new Promise(() => undefined));
+    await abrir('11', 'BEBIDA');
+
+    expect(await screen.findByText('Cargando bebida...')).toBeInTheDocument();
+  });
+
+  it('muestra los datos de la bebida con «Editar bebida» y sin asterisco en ingredientes', async () => {
+    await abrirBebida();
+
+    expect(screen.getByRole('heading', { name: 'Editar bebida' })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Nombre/)).toHaveValue('Limonada');
+    expect(screen.getByText('Limón')).toBeInTheDocument();
+    const ingredientes = screen.getByLabelText(/Ingredientes/) as HTMLInputElement;
+    expect(ingredientes.labels?.[0]?.textContent).toBe('Ingredientes');
+    expect(obtenerProducto).toHaveBeenCalledWith('BEBIDA', 11);
+  });
+
+  it('guarda con la categoría BEBIDA, avisa y vuelve a «Productos»', async () => {
+    await abrirBebida();
+    vi.mocked(modificarProducto).mockResolvedValue({ datos: BEBIDA, exito: true });
+    fireEvent.change(screen.getByLabelText(/Precio/), { target: { value: '13.000' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+    expect(await screen.findByText('Listado de productos')).toBeInTheDocument();
+    expect(modificarProducto).toHaveBeenCalledWith(
+      'BEBIDA',
+      11,
+      expect.objectContaining({ precio: '13000' }),
+      null,
+    );
+    expect(mostrarToast).toHaveBeenCalledWith(
+      expect.objectContaining({ titulo: 'Bebida modificada' }),
+    );
+  });
+
+  it('guarda tras quitar todos los chips de ingredientes (S44)', async () => {
+    await abrirBebida();
+    vi.mocked(modificarProducto).mockResolvedValue({ datos: BEBIDA, exito: true });
+    fireEvent.click(screen.getByRole('button', { name: /Quitar.*Limón/ }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+    expect(await screen.findByText('Listado de productos')).toBeInTheDocument();
+    expect(modificarProducto).toHaveBeenCalledWith(
+      'BEBIDA',
+      11,
+      expect.objectContaining({ ingredientes: [] }),
+      null,
+    );
+  });
+});
+
+describe('ProductoEditarPage: bebidas, errores y baja', () => {
+  it('un 404 muestra «La bebida no existe.»', async () => {
+    vi.mocked(obtenerProducto).mockResolvedValue({
+      datos: null,
+      exito: false,
+      error: 'El producto 11 no existe',
+    });
+    await abrir('11', 'BEBIDA');
+
+    expect(await screen.findByText('La bebida no existe.')).toBeInTheDocument();
+  });
+
+  it('da de baja tras confirmar, avisa y vuelve', async () => {
+    await abrirBebida();
+    vi.mocked(darDeBajaProducto).mockResolvedValue({
+      datos: { ...BEBIDA, estado: 'DESHABILITADO' },
+      exito: true,
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dar de baja' }));
+    const dialogo = await screen.findByRole('dialog');
+    expect(within(dialogo).getByText(/La bebida quedará deshabilitada/)).toBeInTheDocument();
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Dar de baja' }));
+
+    expect(await screen.findByText('Listado de productos')).toBeInTheDocument();
+    expect(darDeBajaProducto).toHaveBeenCalledWith('BEBIDA', 11);
+    expect(mostrarToast).toHaveBeenCalledWith(
+      expect.objectContaining({ titulo: 'Bebida dada de baja' }),
+    );
+  });
+
+  it('una bebida deshabilitada no ofrece «Dar de baja» y tiene el interruptor apagado', async () => {
+    await abrirBebida({ ...BEBIDA, estado: 'DESHABILITADO' });
 
     expect(screen.queryByRole('button', { name: 'Dar de baja' })).not.toBeInTheDocument();
     expect(screen.getByRole('switch', { name: 'Habilitado' })).toHaveAttribute(

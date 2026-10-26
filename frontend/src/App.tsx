@@ -84,6 +84,10 @@ export default function App() {
             element={<ProductoEditarPage categoria="POSTRE" />}
           />
           <Route
+            path="productos/bebidas/:id/editar"
+            element={<ProductoEditarPage categoria="BEBIDA" />}
+          />
+          <Route
             path="productos/nuevo"
             element={<Navigate to="/productos/platos/nuevo" replace />}
           />

@@ -108,6 +108,7 @@ describe('App', () => {
   it.each([
     ['PLATO', 'platos', 'Editar plato'],
     ['POSTRE', 'postres', 'Editar postre'],
+    ['BEBIDA', 'bebidas', 'Editar bebida'],
   ] as const)('monta la pantalla de edición de %s', async (categoria, segmento, titulo) => {
     const plato = {
       id: 7,
