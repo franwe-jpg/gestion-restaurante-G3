@@ -2263,6 +2263,22 @@ def test_listar_carta_deshabilitados_muestra_solo_lo_dado_de_baja(
     assert cuerpo["total"] == 2
 
 
+# HU-M1-14 CA 4 (S83): sección deshabilitada con productos mixtos o sin productos
+def test_listar_carta_deshabilitados_en_seccion_deshabilitada_solo_trae_los_de_baja(
+    cliente: TestClient, fabrica_seccion, fabrica_producto
+) -> None:
+    mixta = fabrica_seccion("Mixta", 1, Estado.DESHABILITADO)
+    fabrica_producto(mixta, "Flan")
+    fabrica_producto(mixta, "Helado", Estado.DESHABILITADO)
+    fabrica_seccion("Vacía", 2, Estado.DESHABILITADO)
+
+    cuerpo = cliente.get(RUTA_CARTA, params={"estado": "DESHABILITADO"}).json()
+
+    assert [s["nombre"] for s in cuerpo["items"]] == ["Mixta", "Vacía"]
+    assert [p["nombre"] for p in cuerpo["items"][0]["productos"]] == ["Helado"]
+    assert cuerpo["items"][1]["productos"] == []
+
+
 # HU-M1-14 CA 5 y orden (S85)
 def test_listar_carta_todos_trae_las_tres_secciones_con_su_estado(
     cliente: TestClient, fabrica_seccion, fabrica_producto
@@ -2282,6 +2298,9 @@ def test_listar_carta_todos_trae_las_tres_secciones_con_su_estado(
         ("Helado", "DESHABILITADO"),
     ]
     assert cuerpo["items"][1]["productos"] == []
+    assert [(p["nombre"], p["estado"]) for p in cuerpo["items"][2]["productos"]] == [
+        ("Té", "HABILITADO")
+    ]
     assert cuerpo["total"] == 3
 
 
