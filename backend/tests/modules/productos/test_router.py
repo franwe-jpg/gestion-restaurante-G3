@@ -2150,3 +2150,179 @@ def test_listar_secciones_cuenta_los_productos_habilitados(
     item = cliente.get(RUTA).json()["items"][0]
 
     assert (item["cantidad_productos"], item["productos_habilitados"]) == (3, 2)
+
+
+RUTA_CARTA = "/api/v1/carta"
+
+
+def _seccion_carta(respuesta, nombre: str) -> dict:
+    return next(s for s in respuesta.json()["items"] if s["nombre"] == nombre)
+
+
+# HU-M1-14 CA 1
+def test_listar_carta_ordena_secciones_y_productos_con_los_campos_de_s81(
+    cliente: TestClient, db, fabrica_seccion, fabrica_producto
+) -> None:
+    postres = fabrica_seccion("Postres", 2)
+    principales = fabrica_seccion("Principales", 1)
+    fabrica_producto(postres, "Flan", categoria=Categoria.POSTRE)
+    fabrica_producto(principales, "Milanesa", categoria=Categoria.PLATO)
+    agua = fabrica_producto(principales, "Agua", categoria=Categoria.BEBIDA)
+    agua.imagen = "agua.jpg"
+    agua.descripcion = "Sin gas"
+    agua.etiquetas = ["fría"]
+    db.commit()
+
+    respuesta = cliente.get(RUTA_CARTA)
+
+    cuerpo = respuesta.json()
+    assert respuesta.status_code == 200
+    assert [s["nombre"] for s in cuerpo["items"]] == ["Principales", "Postres"]
+    assert [p["nombre"] for p in cuerpo["items"][0]["productos"]] == ["Agua", "Milanesa"]
+    assert cuerpo["items"][0]["productos"][0] == {
+        "id": agua.id,
+        "nombre": "Agua",
+        "categoria": "BEBIDA",
+        "precio": "1500.00",
+        "descripcion": "Sin gas",
+        "etiquetas": ["fría"],
+        "imagen_url": "/media/agua.jpg",
+        "estado": "HABILITADO",
+    }
+    assert cuerpo["items"][0]["productos"][1]["imagen_url"] is None
+    assert set(cuerpo["items"][0]) == {"id", "nombre", "orden", "estado", "productos"}
+    assert (cuerpo["total"], cuerpo["limit"], cuerpo["offset"]) == (2, 50, 0)
+
+
+# HU-M1-14 CA 2 y estado inválido
+def test_listar_carta_sin_estado_equivale_a_habilitado(
+    cliente: TestClient, fabrica_seccion, fabrica_producto
+) -> None:
+    seccion = fabrica_seccion("Postres", 1)
+    fabrica_producto(seccion, "Flan")
+    fabrica_producto(seccion, "Helado", Estado.DESHABILITADO)
+
+    sin_estado = cliente.get(RUTA_CARTA).json()
+    habilitados = cliente.get(RUTA_CARTA, params={"estado": "HABILITADO"}).json()
+
+    assert sin_estado == habilitados
+    assert [p["nombre"] for p in sin_estado["items"][0]["productos"]] == ["Flan"]
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {"estado": "ABIERTO"},
+        {"estado": "habilitado"},
+        {"limit": 0},
+        {"limit": 101},
+        {"offset": -1},
+    ],
+)
+def test_listar_carta_con_parametros_invalidos_responde_422(
+    cliente: TestClient, params: dict
+) -> None:
+    respuesta = cliente.get(RUTA_CARTA, params=params)
+
+    assert respuesta.status_code == 422
+    assert "detalle" in respuesta.json()
+
+
+# HU-M1-14 CA 3
+def test_listar_carta_habilitados_oculta_secciones_sin_productos_habilitados(
+    cliente: TestClient, fabrica_seccion, fabrica_producto
+) -> None:
+    fabrica_seccion("Vacía", 1)
+    fabrica_producto(fabrica_seccion("De baja", 2), "Helado", Estado.DESHABILITADO)
+    fabrica_producto(fabrica_seccion("Cerrada", 3, Estado.DESHABILITADO), "Flan")
+    fabrica_producto(fabrica_seccion("Visible", 4), "Agua")
+
+    cuerpo = cliente.get(RUTA_CARTA).json()
+
+    assert [s["nombre"] for s in cuerpo["items"]] == ["Visible"]
+    assert cuerpo["total"] == 1
+
+
+# HU-M1-14 CA 4
+def test_listar_carta_deshabilitados_muestra_solo_lo_dado_de_baja(
+    cliente: TestClient, fabrica_seccion, fabrica_producto
+) -> None:
+    con_baja = fabrica_seccion("Con baja", 1)
+    fabrica_producto(con_baja, "Flan")
+    fabrica_producto(con_baja, "Helado", Estado.DESHABILITADO)
+    fabrica_producto(fabrica_seccion("Sin bajas", 2), "Café")
+    cerrada = fabrica_seccion("Cerrada", 3, Estado.DESHABILITADO)
+    fabrica_producto(cerrada, "Té")
+
+    cuerpo = cliente.get(RUTA_CARTA, params={"estado": "DESHABILITADO"}).json()
+
+    assert [s["nombre"] for s in cuerpo["items"]] == ["Con baja", "Cerrada"]
+    assert [p["nombre"] for p in cuerpo["items"][0]["productos"]] == ["Helado"]
+    assert cuerpo["items"][0]["productos"][0]["estado"] == "DESHABILITADO"
+    assert cuerpo["items"][1]["productos"] == []
+    assert cuerpo["total"] == 2
+
+
+# HU-M1-14 CA 5 y orden (S85)
+def test_listar_carta_todos_trae_las_tres_secciones_con_su_estado(
+    cliente: TestClient, fabrica_seccion, fabrica_producto
+) -> None:
+    con_baja = fabrica_seccion("Con baja", 1)
+    fabrica_producto(con_baja, "Flan")
+    fabrica_producto(con_baja, "Helado", Estado.DESHABILITADO)
+    fabrica_seccion("Vacía", 2)
+    fabrica_producto(fabrica_seccion("Cerrada", 3, Estado.DESHABILITADO), "Té")
+
+    cuerpo = cliente.get(RUTA_CARTA, params={"estado": "TODOS"}).json()
+
+    assert [s["nombre"] for s in cuerpo["items"]] == ["Con baja", "Vacía", "Cerrada"]
+    assert [s["estado"] for s in cuerpo["items"]] == ["HABILITADO", "HABILITADO", "DESHABILITADO"]
+    assert [(p["nombre"], p["estado"]) for p in cuerpo["items"][0]["productos"]] == [
+        ("Flan", "HABILITADO"),
+        ("Helado", "DESHABILITADO"),
+    ]
+    assert cuerpo["items"][1]["productos"] == []
+    assert cuerpo["total"] == 3
+
+
+def test_listar_carta_desempata_por_nombre_y_por_id(
+    cliente: TestClient, fabrica_seccion, fabrica_producto
+) -> None:
+    fabrica_seccion("Beta", 1, Estado.DESHABILITADO)
+    fabrica_seccion("Alfa", 1, Estado.DESHABILITADO)
+    seccion = fabrica_seccion("Mesa", 2)
+    primero = fabrica_producto(seccion, "Flan", categoria=Categoria.POSTRE)
+    segundo = fabrica_producto(seccion, "Flan", categoria=Categoria.PLATO)
+
+    cuerpo = cliente.get(RUTA_CARTA, params={"estado": "TODOS"}).json()
+
+    assert [s["nombre"] for s in cuerpo["items"]] == ["Alfa", "Beta", "Mesa"]
+    assert [p["id"] for p in cuerpo["items"][2]["productos"]] == [primero.id, segundo.id]
+
+
+# HU-M1-14 paginación (S80) y solo lectura
+def test_listar_carta_pagina_las_secciones_con_el_total_completo(
+    cliente: TestClient, fabrica_seccion, fabrica_producto
+) -> None:
+    for nombre, orden in [("A", 1), ("B", 2), ("C", 3)]:
+        fabrica_producto(fabrica_seccion(nombre, orden), f"Plato {nombre}")
+
+    primera = cliente.get(RUTA_CARTA, params={"limit": 2, "offset": 0}).json()
+    segunda = cliente.get(RUTA_CARTA, params={"limit": 1, "offset": 1}).json()
+
+    assert [s["nombre"] for s in primera["items"]] == ["A", "B"]
+    assert (primera["total"], primera["limit"], primera["offset"]) == (3, 2, 0)
+    assert [s["nombre"] for s in segunda["items"]] == ["B"]
+    assert (segunda["total"], segunda["limit"], segunda["offset"]) == (3, 1, 1)
+
+
+def test_listar_carta_no_modifica_los_datos(
+    cliente: TestClient, fabrica_seccion, fabrica_producto
+) -> None:
+    fabrica_producto(fabrica_seccion("Postres", 1), "Flan")
+    antes = (cliente.get("/api/v1/productos").json(), cliente.get("/api/v1/secciones").json())
+
+    cliente.get(RUTA_CARTA, params={"estado": "TODOS"})
+
+    despues = (cliente.get("/api/v1/productos").json(), cliente.get("/api/v1/secciones").json())
+    assert despues == antes

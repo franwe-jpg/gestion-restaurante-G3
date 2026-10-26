@@ -13,6 +13,7 @@ from app.modules.productos import imagenes, service
 from app.modules.productos.schemas import (
     BebidaCrear,
     BebidaModificar,
+    FiltroCarta,
     FiltroProductos,
     FiltroSecciones,
     PlatoCrear,
@@ -21,6 +22,7 @@ from app.modules.productos.schemas import (
     PostreModificar,
     ProductoListado,
     ProductoSalida,
+    SeccionCarta,
     SeccionCrear,
     SeccionListado,
     SeccionModificar,
@@ -179,3 +181,8 @@ def listar_productos(
     db: Sesion, filtro: Annotated[FiltroProductos, Query()]
 ) -> Pagina[ProductoListado]:
     return service.listar_productos(db, filtro, filtro.estado_elegido())
+
+
+@router.get("/carta")
+def listar_carta(db: Sesion, filtro: Annotated[FiltroCarta, Query()]) -> Pagina[SeccionCarta]:
+    return service.listar_carta(db, filtro, filtro.estado_elegido())
