@@ -16,6 +16,7 @@ from app.modules.productos.schemas import (
     PlatoCrear,
     PlatoModificar,
     PostreCrear,
+    PostreModificar,
     ProductoListado,
     ProductoSalida,
     SeccionCrear,
@@ -92,6 +93,26 @@ def crear_postre(
     imagen: Annotated[UploadFile | None, File()] = None,
 ) -> ProductoSalida:
     return service.crear_producto(db, datos, leer_imagen(imagen))
+
+
+@router.get("/postres/{producto_id}")
+def consultar_postre(producto_id: int, db: Sesion) -> ProductoSalida:
+    return service.obtener_producto(db, PostreCrear.CATEGORIA, producto_id)
+
+
+@router.put("/postres/{producto_id}")
+def modificar_postre(
+    producto_id: int,
+    datos: Annotated[PostreModificar, Depends(datos_de(PostreModificar))],
+    db: Sesion,
+    imagen: Annotated[UploadFile | None, File()] = None,
+) -> ProductoSalida:
+    return service.modificar_producto(db, producto_id, datos, leer_imagen(imagen))
+
+
+@router.post("/postres/{producto_id}/baja")
+def dar_de_baja_postre(producto_id: int, db: Sesion) -> ProductoSalida:
+    return service.dar_de_baja_producto(db, PostreCrear.CATEGORIA, producto_id)
 
 
 @router.post("/secciones", status_code=status.HTTP_201_CREATED)

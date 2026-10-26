@@ -186,6 +186,10 @@ class PostreCrear(ProductoCrear):
     ingredientes: list[Texto[1, 100]] = Field(min_length=1, max_length=50)
 
 
+class PostreModificar(PostreCrear, ProductoModificar):
+    """Modificacion de un postre: las reglas y los mensajes salen de PostreCrear (F1)."""
+
+
 class ProductoSalida(BaseModel):
     id: int
     nombre: str

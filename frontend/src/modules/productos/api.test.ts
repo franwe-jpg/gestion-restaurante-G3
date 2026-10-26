@@ -125,7 +125,10 @@ describe('crearProducto', () => {
   });
 });
 
-describe('edición y baja de platos', () => {
+describe.each([
+  ['PLATO', '/platos'],
+  ['POSTRE', '/postres'],
+] as const)('edición y baja de %s', (categoria, base) => {
   const MODIFICAR: ProductoModificar = {
     nombre: 'Milanesa',
     seccion_id: 3,
@@ -137,14 +140,14 @@ describe('edición y baja de platos', () => {
     quitar_imagen: false,
   };
 
-  it('obtiene un plato por id', async () => {
+  it('obtiene el producto por id', async () => {
     const get = vi
       .spyOn(clienteHttp, 'get')
       .mockResolvedValue({ datos: null, exito: false, error: 'x' });
 
-    await obtenerProducto('PLATO', 7);
+    await obtenerProducto(categoria, 7);
 
-    expect(get).toHaveBeenCalledWith('/platos/7');
+    expect(get).toHaveBeenCalledWith(`${base}/7`);
   });
 
   it('modifica con una sola solicitud multipart PUT con `datos` e `imagen`', async () => {
@@ -153,11 +156,11 @@ describe('edición y baja de platos', () => {
       .mockResolvedValue({ datos: null, exito: false, error: 'x' });
     const imagen = new File(['x'], 'foto.jpg', { type: 'image/jpeg' });
 
-    await modificarProducto('PLATO', 7, MODIFICAR, imagen);
+    await modificarProducto(categoria, 7, MODIFICAR, imagen);
 
     expect(put).toHaveBeenCalledTimes(1);
     const [ruta, formulario] = put.mock.calls[0] ?? [];
-    expect(ruta).toBe('/platos/7');
+    expect(ruta).toBe(`${base}/7`);
     expect(JSON.parse(String(formulario?.get('datos')))).toEqual(MODIFICAR);
     expect(formulario?.get('imagen')).toBe(imagen);
   });
@@ -167,7 +170,7 @@ describe('edición y baja de platos', () => {
       .spyOn(clienteHttp, 'putFormulario')
       .mockResolvedValue({ datos: null, exito: false, error: 'x' });
 
-    await modificarProducto('PLATO', 7, MODIFICAR, null);
+    await modificarProducto(categoria, 7, MODIFICAR, null);
 
     const [, formulario] = put.mock.calls[0] ?? [];
     expect(formulario?.has('imagen')).toBe(false);
@@ -178,11 +181,13 @@ describe('edición y baja de platos', () => {
       .spyOn(clienteHttp, 'post')
       .mockResolvedValue({ datos: null, exito: false, error: 'x' });
 
-    await darDeBajaProducto('PLATO', 7);
+    await darDeBajaProducto(categoria, 7);
 
-    expect(post).toHaveBeenCalledWith('/platos/7/baja', {});
+    expect(post).toHaveBeenCalledWith(`${base}/7/baja`, {});
   });
+});
 
+describe('urlDeImagen', () => {
   it('convierte la URL relativa de la imagen en absoluta', () => {
     expect(urlDeImagen('/media/a.jpg')).toBe('http://127.0.0.1:8000/media/a.jpg');
     expect(urlDeImagen(null)).toBeNull();

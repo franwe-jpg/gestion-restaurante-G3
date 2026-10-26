@@ -10,6 +10,7 @@ from app.modules.productos.schemas import (
     PlatoCrear,
     PlatoModificar,
     PostreCrear,
+    PostreModificar,
     ProductoListado,
     ProductoModificar,
     ProductoSalida,
@@ -247,6 +248,43 @@ def test_plato_modificar_acepta_quitar_imagen_booleano() -> None:
 
 def test_plato_modificar_rechaza_categoria_desconocida() -> None:
     assert _campos_modificar_con_error(categoria="POSTRE") == {"categoria"}
+
+
+# HU-M1-05-06: PostreModificar hereda las reglas del alta de un postre
+def _postre_modificar(**cambios) -> PostreModificar:
+    base = {"nombre": "Flan", "seccion_id": 1, "precio": "900", "ingredientes": ["Huevo"]}
+    return PostreModificar.model_validate_json(json.dumps(base | cambios))
+
+
+def test_postre_modificar_hereda_categoria_mensaje_y_tipo_base() -> None:
+    datos = _postre_modificar()
+
+    assert datos.CATEGORIA == Categoria.POSTRE
+    assert datos.MENSAJE_NOMBRE_REPETIDO == "El postre ya está registrado"
+    assert isinstance(datos, ProductoModificar)
+
+
+def test_postre_modificar_exige_ingredientes() -> None:
+    with pytest.raises(ValidationError) as error:
+        PostreModificar.model_validate({"nombre": "Flan", "seccion_id": 1, "precio": "10"})
+
+    assert {str(falla["loc"][0]) for falla in error.value.errors()} == {"ingredientes"}
+
+
+@pytest.mark.parametrize("modelo", [PlatoModificar, PostreModificar])
+def test_modificar_rechaza_categoria_enviada(modelo) -> None:
+    datos = {
+        "nombre": "Flan",
+        "seccion_id": 1,
+        "precio": "10",
+        "ingredientes": ["Huevo"],
+        "categoria": "BEBIDA",
+    }
+
+    with pytest.raises(ValidationError) as error:
+        modelo.model_validate(datos)
+
+    assert {str(falla["loc"][0]) for falla in error.value.errors()} == {"categoria"}
 
 
 # HU-M1-13: filtro de estado y esquema de la lista

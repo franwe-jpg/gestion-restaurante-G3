@@ -42,12 +42,22 @@ export const ETIQUETAS_CATEGORIA: Record<Categoria, string> = {
   MENU_DEL_DIA: 'Menú del día',
 };
 
-// Edición (HU-M1-02-03, E10): solo los platos tienen pantalla de edición por ahora.
-export type CategoriaEdicion = Extract<CategoriaAlta, 'PLATO'>;
+// Edición (HU-M1-02-03, E10; HU-M1-05-06, F3): los platos y los postres tienen pantalla de edición.
+export type CategoriaEdicion = Extract<CategoriaAlta, 'PLATO' | 'POSTRE'>;
 
-/** Solo los platos se editan y se dan de baja (E21). */
+/** Solo las categorías con configuración de edición se editan y se dan de baja (E21, S31). */
 export function esCategoriaEdicion(categoria: Categoria): categoria is CategoriaEdicion {
-  return categoria === 'PLATO';
+  return categoria in CONFIGURACIONES_EDICION;
+}
+
+const SEGMENTOS_RUTA: Record<CategoriaAlta, string> = {
+  PLATO: 'platos',
+  POSTRE: 'postres',
+};
+
+/** Ruta de la pantalla de edición de un producto (F4). */
+export function rutaDeEdicion(categoria: CategoriaEdicion, id: number): string {
+  return `/productos/${SEGMENTOS_RUTA[categoria]}/${id}/editar`;
 }
 
 export interface ConfiguracionEdicion {
@@ -59,6 +69,7 @@ export interface ConfiguracionEdicion {
   bajaDescripcion: string;
   dadoDeBaja: string;
   errorAlDarDeBaja: string;
+  cargando: string;
 }
 
 export const CONFIGURACIONES_EDICION: Record<CategoriaEdicion, ConfiguracionEdicion> = {
@@ -72,5 +83,18 @@ export const CONFIGURACIONES_EDICION: Record<CategoriaEdicion, ConfiguracionEdic
       'El plato quedará deshabilitado y dejará de mostrarse en la carta. Puede volver a habilitarlo desde la pantalla de edición.',
     dadoDeBaja: 'Plato dado de baja',
     errorAlDarDeBaja: 'No se pudo dar de baja el plato',
+    cargando: 'Cargando plato...',
+  },
+  POSTRE: {
+    titulo: 'Editar postre',
+    botonGuardar: 'Guardar cambios',
+    modificado: 'Postre modificado',
+    errorAlModificar: 'No se pudo modificar el postre',
+    noEncontrado: 'El postre no existe.',
+    bajaDescripcion:
+      'El postre quedará deshabilitado y dejará de mostrarse en la carta. Puede volver a habilitarlo desde la pantalla de edición.',
+    dadoDeBaja: 'Postre dado de baja',
+    errorAlDarDeBaja: 'No se pudo dar de baja el postre',
+    cargando: 'Cargando postre...',
   },
 };
