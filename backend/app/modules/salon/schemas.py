@@ -2,9 +2,11 @@
 
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, StringConstraints, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StringConstraints, field_validator
 
 from app.shared.models import Estado
+from app.shared.models.enums import EstadoMesa
+from app.shared.paginacion import ParametrosPaginacion
 
 NOMBRE_SECTOR_MAXIMO = 30
 DESCRIPCION_SECTOR_MAXIMA = 200
@@ -38,3 +40,32 @@ class SectorSalida(BaseModel):
     nombre: str
     descripcion: str | None
     estado: Estado
+
+
+class MesaCrear(BaseModel):
+    model_config = ConfigDict(extra="forbid")  # estado no se recibe (S4)
+
+    numero: StrictInt = Field(gt=0)  # rechaza "3", 2.0 y true
+    capacidad: StrictInt = Field(gt=0)
+    sector_id: StrictInt = Field(gt=0)
+
+
+class SectorResumen(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    nombre: str
+
+
+class MesaSalida(BaseModel):
+    id: int
+    numero: int
+    capacidad: int
+    sector: SectorResumen
+    estado: EstadoMesa
+
+
+class FiltroSectores(ParametrosPaginacion):
+    """Paginacion y filtro de GET /sectores: `estado` viaja dentro del mismo modelo."""
+
+    estado: Estado | None = None

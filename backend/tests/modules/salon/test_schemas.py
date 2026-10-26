@@ -3,8 +3,15 @@
 import pytest
 from pydantic import ValidationError
 
-from app.modules.salon.schemas import SectorCrear, SectorSalida
+from app.modules.salon.schemas import (
+    MesaCrear,
+    MesaSalida,
+    SectorCrear,
+    SectorResumen,
+    SectorSalida,
+)
 from app.shared.models import Estado
+from app.shared.models.enums import EstadoMesa
 
 
 def _sector(**cambios) -> SectorCrear:
@@ -90,4 +97,106 @@ def test_sector_salida_expone_id_nombre_descripcion_y_estado() -> None:
         "nombre": "Terraza",
         "descripcion": None,
         "estado": "HABILITADO",
+    }
+
+
+# --- HU-M3-05: esquemas de mesa ---
+
+
+def _mesa(**cambios):
+    return MesaCrear.model_validate({"numero": 13, "capacidad": 4, "sector_id": 1} | cambios)
+
+
+def _campos_mesa_con_error(**cambios) -> set[str]:
+    with pytest.raises(ValidationError) as error:
+        _mesa(**cambios)
+    return {str(falla["loc"][0]) for falla in error.value.errors()}
+
+
+# CA 1
+def test_mesa_crear_acepta_datos_validos() -> None:
+    datos = _mesa()
+
+    assert datos.numero == 13
+    assert datos.capacidad == 4
+    assert datos.sector_id == 1
+
+
+def test_mesa_crear_acepta_valores_sin_tope_superior() -> None:
+    datos = _mesa(numero=1000, capacidad=500)
+
+    assert datos.numero == 1000
+    assert datos.capacidad == 500
+
+
+# CA 5 y CA 6
+@pytest.mark.parametrize(
+    "campo, valor",
+    [
+        ("numero", 0),
+        ("numero", -1),
+        ("numero", "3"),
+        ("numero", 2.0),
+        ("numero", True),
+        ("capacidad", 0),
+        ("capacidad", -1),
+        ("capacidad", "4"),
+        ("capacidad", 2.0),
+        ("capacidad", True),
+    ],
+    ids=[
+        "numero-cero",
+        "numero-negativo",
+        "numero-texto",
+        "numero-decimal",
+        "numero-booleano",
+        "capacidad-cero",
+        "capacidad-negativa",
+        "capacidad-texto",
+        "capacidad-decimal",
+        "capacidad-booleana",
+    ],
+)
+def test_mesa_crear_rechaza_numero_y_capacidad_invalidos(campo: str, valor: object) -> None:
+    assert _campos_mesa_con_error(**{campo: valor}) == {campo}
+
+
+# CA 2
+@pytest.mark.parametrize("campo", ["numero", "capacidad", "sector_id"])
+def test_mesa_crear_exige_los_tres_campos(campo: str) -> None:
+    cuerpo = {"numero": 13, "capacidad": 4, "sector_id": 1}
+    del cuerpo[campo]
+
+    with pytest.raises(ValidationError) as error:
+        MesaCrear.model_validate(cuerpo)
+
+    assert {str(falla["loc"][0]) for falla in error.value.errors()} == {campo}
+
+
+@pytest.mark.parametrize("sector_id", [0, -1, "1", 1.0, True])
+def test_mesa_crear_rechaza_sector_id_invalido(sector_id: object) -> None:
+    assert _campos_mesa_con_error(sector_id=sector_id) == {"sector_id"}
+
+
+# CA 7
+@pytest.mark.parametrize("campo, valor", [("estado", "OCUPADA"), ("id", 1)])
+def test_mesa_crear_rechaza_campos_desconocidos(campo: str, valor: object) -> None:
+    assert _campos_mesa_con_error(**{campo: valor}) == {campo}
+
+
+def test_mesa_salida_anida_el_sector_y_el_estado() -> None:
+    salida = MesaSalida(
+        id=1,
+        numero=13,
+        capacidad=4,
+        sector=SectorResumen(id=2, nombre="Salón principal"),
+        estado=EstadoMesa.LIBRE,
+    )
+
+    assert salida.model_dump(mode="json") == {
+        "id": 1,
+        "numero": 13,
+        "capacidad": 4,
+        "sector": {"id": 2, "nombre": "Salón principal"},
+        "estado": "LIBRE",
     }

@@ -3,7 +3,9 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.modules.salon.models import Sector
+from app.modules.salon.models import Mesa, Sector
+from app.shared.models import Estado
+from app.shared.paginacion import ParametrosPaginacion, aplicar, contar
 
 
 def existe_nombre_normalizado(db: Session, nombre_normalizado: str) -> bool:
@@ -11,6 +13,30 @@ def existe_nombre_normalizado(db: Session, nombre_normalizado: str) -> bool:
     return db.scalar(consulta.limit(1)) is not None
 
 
-def agregar(db: Session, entidad: Sector) -> None:
+def obtener_sector(db: Session, sector_id: int) -> Sector | None:
+    return db.get(Sector, sector_id)
+
+
+def existe_numero_en_sector(db: Session, sector_id: int, numero: int) -> bool:
+    consulta = select(Mesa.id).where(Mesa.sector_id == sector_id, Mesa.numero == numero)
+    return db.scalar(consulta.limit(1)) is not None
+
+
+def agregar(db: Session, entidad: Sector | Mesa) -> None:
     db.add(entidad)
     db.flush()
+
+
+def listar_sectores(
+    db: Session, parametros: ParametrosPaginacion, estado: Estado | None
+) -> tuple[list[Sector], int]:
+    """Devuelve la pagina de sectores ordenada por nombre y el total.
+
+    Con `estado`, el listado y el total cuentan solo los sectores en ese estado.
+    """
+    consulta = select(Sector)
+    if estado is not None:
+        consulta = consulta.where(Sector.estado == estado)
+    consulta_ordenada = consulta.order_by(Sector.nombre, Sector.id)
+    filas = db.scalars(aplicar(consulta_ordenada, parametros)).all()
+    return list(filas), contar(db, consulta)
