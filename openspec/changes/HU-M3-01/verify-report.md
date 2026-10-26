@@ -15,7 +15,7 @@ build_exit_code: 0
 # Informe de verificación: HU-M3-01 (Agregar un sector)
 
 - **Veredicto: PASS** (0 CRITICAL, 0 WARNING)
-- **Cambio:** `HU-M3-01` · **Rama:** `feature/HU-M3-01-agregar-sector` (3 commits de código: `3017e62`, `e911ae4`, `0262163`) · **Modo:** Strict TDD · **Persistencia:** OpenSpec.
+- **Cambio:** `HU-M3-01` · **Rama:** `feature/HU-M3-01-agregar-sector` (3 commits de código: `3017e62`, `e911ae4`, `819e519`) · **Modo:** Strict TDD · **Persistencia:** OpenSpec.
 - **Alcance verificado:** issue #33, CA 1 a 6. Spec: 1 requisito y 9 escenarios.
 
 ## 1. Completitud de tareas

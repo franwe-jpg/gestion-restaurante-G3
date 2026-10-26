@@ -9,7 +9,7 @@
 | --- | --- | --- |
 | 1. Entidad `Sector` y migración | 1.1 a 1.4 | `3017e62` |
 | 2. Alta de sectores (`POST /sectores`) | 1.5 a 1.9 | `e911ae4` |
-| 3. Frontend del alta | 2.1 a 2.6 | `0262163` |
+| 3. Frontend del alta | 2.1 a 2.6 | `819e519` |
 | 4. Cierre y artefactos | 3.1 a 3.3 | commit `docs:` de este informe |
 
 ## Evidencia TDD
