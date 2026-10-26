@@ -39,7 +39,7 @@ Ambos lados quedan por debajo de 800. Medido antes del commit de los artefactos.
 - En la Fase 2 se movió a ese commit el cambio de la prueba «sin acciones» de `AccionesProducto.test.tsx` (de `BEBIDA` a `MENU_DEL_DIA`, S57), porque habilitar `BEBIDA` en `CONFIGURACIONES_EDICION` la rompe; la fila `BEBIDA` del `describe.each` y la fila de `App.test.tsx` quedaron en la Fase 3, como indica `tasks.md`.
 - `categorias.test.ts` y `ProductoNuevoPage.test.tsx` se dividieron en dos `describe` para cumplir `max-lines-per-function` (50) en los archivos de prueba.
 - La tarea 3.5 no necesitó ajustes: `ProductosTabla.test.tsx` y `ProductosTab.test.tsx` pasan sin tocar la fila de bebida.
-- `App.tsx` importa las páginas de forma directa (no con `lazy`); las rutas nuevas siguen ese mismo estilo.
+- `App.tsx` ya declaraba `ProductoNuevoPage` y `ProductoEditarPage` con `lazy`; las rutas nuevas de bebidas reutilizan esas mismas páginas con `categoria="BEBIDA"` (G6 cumplido). Corregido según la sugerencia 2 de `verify-report.md`.
 - Sin cambios en `service`, `repository`, `models`, `shared/` ni migraciones. Código compartido tocado: solo `frontend/src/App.tsx` (dos rutas).
 
 ## Notas para el PR
