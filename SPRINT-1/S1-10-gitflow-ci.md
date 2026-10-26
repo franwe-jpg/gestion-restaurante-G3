@@ -11,7 +11,7 @@ Define cómo se usan las ramas, cómo se integra un cambio y qué verifica la CI
 | --- | --- | --- | --- |
 | `main` | — | — | Versión estable. Solo recibe lo que se cierra en cada gateway. Nadie trabaja ni hace push directo. |
 | `develop` | `main` | `main` (en cada gateway) | Integración del trabajo del sprint. Nadie trabaja ni hace push directo. |
-| `feature/<ID>-<descripcion>` | `develop` | `develop` | Una rama por tarea. Ejemplo: `feature/S1-10-gitflow-ci`. |
+| `feature/<ID>-<descripcion>` | `develop` | `develop` | Una rama por tarea, o por grupo ABM de una misma entidad y un mismo responsable (`AGENTS.md`, sección 4). Ejemplos: `feature/S1-10-gitflow-ci`, `feature/HU-M1-02-03-modificar-baja-plato`. |
 | `hotfix/<descripcion>` | `main` | `main` y `develop` | Corrección urgente de algo que ya está en `main`. Regla propuesta por este documento. |
 
 - El ID de la tarea (`S1-10`, `HU-M3-02`, ...) va en el nombre de la rama y en el título del PR, para rastrear cada cambio hasta su tarjeta.
@@ -39,7 +39,7 @@ Regla propuesta por este documento: si se encuentra un error en `main` que no pu
 | Quién integra y cuándo | El autor, después de la aprobación y con la CI en verde. Se usa merge commit, como en los PR anteriores. *Regla propuesta por este documento.* | — |
 | Commits y título | Conventional Commits: `feat: …`, `fix: …`, `docs: …`, `test: …`, `ci: …`, `chore: …`, con el ID de la tarea. | Plan, sección 9 |
 | Descripción | Se completa la plantilla `.github/pull_request_template.md`: issue, qué cambia y checklist del revisor. | Esta tarea |
-| Issue | El PR menciona el issue de la tarea con `Closes #<número>`. | Plan, sección 9 |
+| Issue | El PR menciona cada issue que cubre con su propio `Closes #<número>` (`Closes #3` y `Closes #4`). | Plan, sección 9 |
 
 **Revisión.** Quien revisa usa la checklist de la plantilla. Si pide cambios, el autor los sube a la misma rama y la CI vuelve a correr sola.
 
