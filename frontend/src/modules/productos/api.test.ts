@@ -6,15 +6,17 @@ import {
   crearProducto,
   crearSeccion,
   darDeBajaProducto,
+  darDeBajaSeccion,
   listarProductos,
   listarProductosHabilitados,
   listarSecciones,
   listarSeccionesHabilitadas,
   modificarProducto,
+  modificarSeccion,
   obtenerProducto,
   urlDeImagen,
 } from './api';
-import type { ProductoCrear, ProductoModificar, SeccionCrear } from './types';
+import type { ProductoCrear, ProductoModificar, SeccionCrear, SeccionModificar } from './types';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -78,6 +80,35 @@ describe('api de productos', () => {
     await listarSeccionesHabilitadas();
 
     expect(get).toHaveBeenCalledWith('/secciones?estado=HABILITADO&limit=100&offset=0');
+  });
+});
+
+describe('api de secciones', () => {
+  it('modifica una seccion con PUT y el cuerpo completo', async () => {
+    const datos: SeccionModificar = {
+      nombre: 'Dulces',
+      orden: 5,
+      producto_ids: [4],
+      confirmar_traslado: true,
+      estado: 'HABILITADO',
+    };
+    const put = vi
+      .spyOn(clienteHttp, 'put')
+      .mockResolvedValue({ datos: null, exito: false, error: 'x' });
+
+    await modificarSeccion(3, datos);
+
+    expect(put).toHaveBeenCalledWith('/secciones/3', datos);
+  });
+
+  it('da de baja una seccion con POST a /baja y cuerpo vacío', async () => {
+    const post = vi
+      .spyOn(clienteHttp, 'post')
+      .mockResolvedValue({ datos: null, exito: false, error: 'x' });
+
+    await darDeBajaSeccion(3);
+
+    expect(post).toHaveBeenCalledWith('/secciones/3/baja', {});
   });
 });
 

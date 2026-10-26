@@ -101,6 +101,37 @@ describe('ClienteApi', () => {
     });
   });
 
+  it('envia JSON en las solicitudes PUT', async () => {
+    vi.stubEnv('VITE_API_URL', 'http://api.test');
+    const fetchMock = vi.fn().mockResolvedValue(respuestaJson({ id: 3 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const respuesta = await new ClienteApi().put<{ id: number }, { nombre: string }>(
+      '/secciones/3',
+      { nombre: 'Postres' },
+    );
+
+    expect(respuesta).toEqual({ datos: { id: 3 }, exito: true });
+    expect(fetchMock).toHaveBeenCalledWith('http://api.test/api/v1/secciones/3', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nombre: 'Postres' }),
+    });
+  });
+
+  it('propaga el detalle del error de una solicitud PUT', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(respuestaJson({ detalle: 'La sección ya existe' }, 409, 'Conflict')),
+    );
+
+    const respuesta = await new ClienteApi().put('/secciones/3', { nombre: 'Postres' });
+
+    expect(respuesta).toEqual({ datos: null, exito: false, error: 'La sección ya existe' });
+  });
+
   it('envia un FormData sin Content-Type para que el navegador fije el boundary', async () => {
     vi.stubEnv('VITE_API_URL', 'http://api.test');
     const fetchMock = vi.fn().mockResolvedValue(respuestaJson({ id: 7 }));

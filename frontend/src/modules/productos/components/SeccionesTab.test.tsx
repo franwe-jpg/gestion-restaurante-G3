@@ -14,6 +14,7 @@ const ENTRADAS: SeccionListado = {
   orden: 1,
   estado: 'HABILITADO',
   cantidad_productos: 2,
+  productos_habilitados: 2,
 };
 
 function pagina<T>(items: T[]) {
@@ -50,7 +51,14 @@ describe('SeccionesTab', () => {
     vi.mocked(listarSecciones).mockResolvedValue(pagina([ENTRADAS]));
     vi.mocked(listarProductosHabilitados).mockResolvedValue(pagina([]));
     vi.mocked(crearSeccion).mockResolvedValue({
-      datos: { id: 1, nombre: 'Entradas', orden: 1, estado: 'HABILITADO', productos: [] },
+      datos: {
+        id: 1,
+        nombre: 'Entradas',
+        orden: 1,
+        estado: 'HABILITADO',
+        productos: [],
+        productos_habilitados: 0,
+      },
       exito: true,
     });
     render(<SeccionesTab />);

@@ -11,6 +11,7 @@ import type {
   Seccion,
   SeccionCrear,
   SeccionListado,
+  SeccionModificar,
 } from './types';
 
 const LIMITE_SELECTOR = 100;
@@ -30,6 +31,17 @@ export function listarSecciones(
 
 export function crearSeccion(datos: SeccionCrear): Promise<RespuestaApi<Seccion>> {
   return clienteHttp.post<Seccion, SeccionCrear>('/secciones', datos);
+}
+
+export function modificarSeccion(
+  id: number,
+  datos: SeccionModificar,
+): Promise<RespuestaApi<Seccion>> {
+  return clienteHttp.put<Seccion, SeccionModificar>(`/secciones/${id}`, datos);
+}
+
+export function darDeBajaSeccion(id: number): Promise<RespuestaApi<Seccion>> {
+  return clienteHttp.post<Seccion, Record<string, never>>(`/secciones/${id}/baja`, {});
 }
 
 export function listarProductosHabilitados(): Promise<RespuestaApi<Pagina<ProductoSeleccionable>>> {

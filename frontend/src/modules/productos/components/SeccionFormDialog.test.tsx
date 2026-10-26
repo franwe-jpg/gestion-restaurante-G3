@@ -19,6 +19,7 @@ const CREADA = {
   orden: 1,
   estado: 'HABILITADO' as const,
   productos: [],
+  productos_habilitados: 0,
 };
 
 function abrir(productos = PRODUCTOS) {

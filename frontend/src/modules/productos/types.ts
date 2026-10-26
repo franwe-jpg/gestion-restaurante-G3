@@ -15,6 +15,7 @@ export interface Seccion {
   orden: number;
   estado: Estado;
   productos: ProductoResumen[];
+  productos_habilitados: number;
 }
 
 export interface SeccionListado {
@@ -23,6 +24,7 @@ export interface SeccionListado {
   orden: number;
   estado: Estado;
   cantidad_productos: number;
+  productos_habilitados: number;
 }
 
 export interface SeccionCrear {
@@ -30,6 +32,11 @@ export interface SeccionCrear {
   orden: number;
   producto_ids: number[];
   confirmar_traslado: boolean;
+}
+
+/** `estado` solo se envía para reactivar: la baja va por su propia acción (H13). */
+export interface SeccionModificar extends SeccionCrear {
+  estado?: 'HABILITADO';
 }
 
 export interface ProductoSeleccionable {

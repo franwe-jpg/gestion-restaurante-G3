@@ -23,6 +23,7 @@ const PLATOS: SeccionListado = {
   orden: 1,
   estado: 'HABILITADO',
   cantidad_productos: 0,
+  productos_habilitados: 0,
 };
 const ENTRADAS: SeccionListado = { ...PLATOS, id: 4, nombre: 'Entradas', orden: 2 };
 

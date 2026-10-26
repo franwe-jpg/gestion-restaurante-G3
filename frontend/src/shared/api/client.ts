@@ -58,6 +58,14 @@ export class ClienteApi {
     });
   }
 
+  put<T, B>(endpoint: string, body: B): Promise<RespuestaApi<T>> {
+    return this.solicitar<T>(endpoint, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  }
+
   /** Sin `Content-Type`: el navegador lo fija con el `boundary` del multipart. */
   postFormulario<T>(endpoint: string, formulario: FormData): Promise<RespuestaApi<T>> {
     return this.solicitar<T>(endpoint, { method: 'POST', body: formulario });

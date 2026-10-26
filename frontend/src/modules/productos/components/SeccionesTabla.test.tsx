@@ -6,8 +6,22 @@ import type { SeccionListado } from '../types';
 import { SeccionesTabla } from './SeccionesTabla';
 
 const SECCIONES: SeccionListado[] = [
-  { id: 1, nombre: 'Entradas', orden: 1, estado: 'HABILITADO', cantidad_productos: 6 },
-  { id: 2, nombre: 'Parrilla', orden: 6, estado: 'DESHABILITADO', cantidad_productos: 0 },
+  {
+    id: 1,
+    nombre: 'Entradas',
+    orden: 1,
+    estado: 'HABILITADO',
+    cantidad_productos: 6,
+    productos_habilitados: 5,
+  },
+  {
+    id: 2,
+    nombre: 'Parrilla',
+    orden: 6,
+    estado: 'DESHABILITADO',
+    cantidad_productos: 0,
+    productos_habilitados: 0,
+  },
 ];
 
 describe('SeccionesTabla', () => {
