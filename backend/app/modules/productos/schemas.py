@@ -1,6 +1,7 @@
 """productos: entrada y salida de la API."""
 
 from decimal import Decimal
+from enum import StrEnum
 from typing import Annotated, ClassVar
 
 from pydantic import (
@@ -91,6 +92,36 @@ class ProductoSeleccionable(BaseModel):
     nombre: str
     categoria: Categoria
     seccion: SeccionResumen
+
+
+class ProductoListado(ProductoSeleccionable):
+    precio: Decimal
+    etiquetas: list[str]
+    estado: Estado
+
+    @field_serializer("precio")
+    def _precio_con_dos_decimales(self, precio: Decimal) -> str:
+        return f"{precio:.2f}"
+
+
+class FiltroEstadoProducto(StrEnum):
+    """Opciones del filtro de GET /productos; `TODOS` no existe en `Estado` del shared (E15)."""
+
+    HABILITADO = "HABILITADO"
+    DESHABILITADO = "DESHABILITADO"
+    TODOS = "TODOS"
+
+
+class FiltroProductos(ParametrosPaginacion):
+    """Paginacion y filtro de GET /productos: `estado` viaja dentro del mismo modelo."""
+
+    estado: FiltroEstadoProducto = FiltroEstadoProducto.HABILITADO
+
+    def estado_elegido(self) -> Estado | None:
+        """Traduce el filtro a `Estado`; `None` significa todos."""
+        if self.estado == FiltroEstadoProducto.TODOS:
+            return None
+        return Estado(self.estado.value)
 
 
 def _sin_repetidos(textos: list[str], mensaje: str) -> list[str]:

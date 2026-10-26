@@ -5,11 +5,15 @@ import pytest
 from pydantic import ValidationError
 
 from app.modules.productos.schemas import (
+    FiltroEstadoProducto,
+    FiltroProductos,
     PlatoCrear,
     PlatoModificar,
     PostreCrear,
+    ProductoListado,
     ProductoModificar,
     ProductoSalida,
+    ProductoSeleccionable,
     SeccionResumen,
 )
 from app.shared.models import Categoria, Estado
@@ -243,3 +247,61 @@ def test_plato_modificar_acepta_quitar_imagen_booleano() -> None:
 
 def test_plato_modificar_rechaza_categoria_desconocida() -> None:
     assert _campos_modificar_con_error(categoria="POSTRE") == {"categoria"}
+
+
+# HU-M1-13: filtro de estado y esquema de la lista
+def test_filtro_productos_estado_por_defecto_habilitado() -> None:
+    filtro = FiltroProductos()
+
+    assert filtro.estado == FiltroEstadoProducto.HABILITADO
+    assert filtro.estado_elegido() == Estado.HABILITADO
+
+
+@pytest.mark.parametrize(
+    "valor, esperado",
+    [
+        ("HABILITADO", Estado.HABILITADO),
+        ("DESHABILITADO", Estado.DESHABILITADO),
+        ("TODOS", None),
+    ],
+)
+def test_filtro_productos_estado_elegido(valor: str, esperado: Estado | None) -> None:
+    assert FiltroProductos(estado=valor).estado_elegido() == esperado
+
+
+def test_filtro_productos_estado_invalido_error() -> None:
+    with pytest.raises(ValidationError) as error:
+        FiltroProductos(estado="ANULADO")
+
+    assert {str(falla["loc"][0]) for falla in error.value.errors()} == {"estado"}
+
+
+@pytest.mark.parametrize("limit", [0, 101])
+def test_filtro_productos_hereda_limites_de_paginacion(limit: int) -> None:
+    with pytest.raises(ValidationError) as error:
+        FiltroProductos(limit=limit)
+
+    assert {str(falla["loc"][0]) for falla in error.value.errors()} == {"limit"}
+
+
+def test_producto_listado_extiende_seleccionable() -> None:
+    listado = ProductoListado(
+        id=1,
+        nombre="Flan",
+        categoria=Categoria.POSTRE,
+        seccion=SeccionResumen(id=2, nombre="Postres"),
+        precio=Decimal("12500.5"),
+        etiquetas=["Dulce"],
+        estado=Estado.HABILITADO,
+    )
+
+    assert issubclass(ProductoListado, ProductoSeleccionable)
+    assert json.loads(listado.model_dump_json()) == {
+        "id": 1,
+        "nombre": "Flan",
+        "categoria": "POSTRE",
+        "seccion": {"id": 2, "nombre": "Postres"},
+        "precio": "12500.50",
+        "etiquetas": ["Dulce"],
+        "estado": "HABILITADO",
+    }
