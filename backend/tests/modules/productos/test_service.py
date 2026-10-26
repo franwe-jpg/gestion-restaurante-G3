@@ -197,6 +197,115 @@ def test_listar_productos_devuelve_solo_habilitados_con_su_seccion(
     assert pagina.total == 1
 
 
+def _nombres(pagina) -> list[str]:
+    return [p.nombre for p in pagina.items]
+
+
+def _carta_mixta(fabrica_seccion, fabrica_producto) -> None:
+    seccion = fabrica_seccion("Postres", 1)
+    fabrica_producto(seccion, "Flan")
+    fabrica_producto(seccion, "Helado", Estado.DESHABILITADO)
+    fabrica_producto(seccion, "Budin")
+
+
+def test_listar_productos_por_defecto_solo_habilitados(
+    db: Session, fabrica_seccion, fabrica_producto
+) -> None:
+    _carta_mixta(fabrica_seccion, fabrica_producto)
+
+    pagina = service.listar_productos(db, ParametrosPaginacion())
+
+    assert _nombres(pagina) == ["Budin", "Flan"]
+    assert pagina.total == 2
+
+
+def test_listar_productos_estado_habilitado(db: Session, fabrica_seccion, fabrica_producto) -> None:
+    _carta_mixta(fabrica_seccion, fabrica_producto)
+
+    pagina = service.listar_productos(db, ParametrosPaginacion(), Estado.HABILITADO)
+
+    assert _nombres(pagina) == ["Budin", "Flan"]
+
+
+def test_listar_productos_estado_deshabilitado(
+    db: Session, fabrica_seccion, fabrica_producto
+) -> None:
+    _carta_mixta(fabrica_seccion, fabrica_producto)
+
+    pagina = service.listar_productos(db, ParametrosPaginacion(), Estado.DESHABILITADO)
+
+    assert _nombres(pagina) == ["Helado"]
+    assert pagina.items[0].estado == Estado.DESHABILITADO
+
+
+def test_listar_productos_estado_todos_incluye_ambos(
+    db: Session, fabrica_seccion, fabrica_producto
+) -> None:
+    _carta_mixta(fabrica_seccion, fabrica_producto)
+
+    pagina = service.listar_productos(db, ParametrosPaginacion(), None)
+
+    assert [(p.nombre, p.estado) for p in pagina.items] == [
+        ("Budin", Estado.HABILITADO),
+        ("Flan", Estado.HABILITADO),
+        ("Helado", Estado.DESHABILITADO),
+    ]
+
+
+def test_listar_productos_total_cuenta_solo_el_filtro(
+    db: Session, fabrica_seccion, fabrica_producto
+) -> None:
+    _carta_mixta(fabrica_seccion, fabrica_producto)
+
+    assert service.listar_productos(db, ParametrosPaginacion(), Estado.DESHABILITADO).total == 1
+    assert service.listar_productos(db, ParametrosPaginacion(), None).total == 3
+
+
+def test_listar_productos_items_con_precio_etiquetas_y_estado(
+    db: Session, fabrica_seccion, fabrica_producto
+) -> None:
+    producto = fabrica_producto(fabrica_seccion("Postres", 1), "Flan")
+    producto.etiquetas = ["Dulce", "Sin TACC"]
+    db.commit()
+
+    item = service.listar_productos(db, ParametrosPaginacion()).items[0]
+
+    assert item.precio == Decimal("1500.00")
+    assert item.etiquetas == ["Dulce", "Sin TACC"]
+    assert item.estado == Estado.HABILITADO
+    assert item.categoria == Categoria.POSTRE
+    assert item.seccion.nombre == "Postres"
+
+
+def test_listar_productos_orden_por_nombre_e_id(
+    db: Session, fabrica_seccion, fabrica_producto
+) -> None:
+    seccion = fabrica_seccion("Postres", 1)
+    segundo = fabrica_producto(seccion, "Zeta")
+    primero = fabrica_producto(seccion, "Alfa")
+    otra_categoria = fabrica_producto(seccion, "Alfa", categoria=Categoria.PLATO)
+
+    pagina = service.listar_productos(db, ParametrosPaginacion(), None)
+
+    assert [p.id for p in pagina.items] == [primero.id, otra_categoria.id, segundo.id]
+
+
+def test_listar_productos_sin_productos_vacio(db: Session) -> None:
+    pagina = service.listar_productos(db, ParametrosPaginacion(), None)
+
+    assert pagina.items == []
+    assert pagina.total == 0
+
+
+def test_listar_productos_pagina_con_offset(db: Session, fabrica_seccion, fabrica_producto) -> None:
+    _carta_mixta(fabrica_seccion, fabrica_producto)
+
+    pagina = service.listar_productos(db, ParametrosPaginacion(limit=2, offset=2), None)
+
+    assert _nombres(pagina) == ["Helado"]
+    assert (pagina.total, pagina.limit, pagina.offset) == (3, 2, 2)
+
+
 # ---------------------------------------------------------------------------
 # HU-M1-01: alta de platos
 # ---------------------------------------------------------------------------

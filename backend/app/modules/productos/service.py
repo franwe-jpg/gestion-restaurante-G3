@@ -9,9 +9,9 @@ from app.modules.productos import imagenes, repository
 from app.modules.productos.models import Seccion
 from app.modules.productos.schemas import (
     ProductoCrear,
+    ProductoListado,
     ProductoModificar,
     ProductoSalida,
-    ProductoSeleccionable,
     SeccionCrear,
     SeccionListado,
     SeccionResumen,
@@ -257,19 +257,26 @@ def listar_secciones(
     )
 
 
+def _a_listado(producto: Producto, seccion: Seccion) -> ProductoListado:
+    return ProductoListado(
+        id=producto.id,
+        nombre=producto.nombre,
+        categoria=producto.categoria,
+        seccion=SeccionResumen(id=seccion.id, nombre=seccion.nombre),
+        precio=producto.precio,
+        etiquetas=producto.etiquetas,
+        estado=producto.estado,
+    )
+
+
 def listar_productos(
-    db: Session, parametros: ParametrosPaginacion
-) -> Pagina[ProductoSeleccionable]:
-    filas, total = repository.listar_productos_habilitados(db, parametros)
-    items = [
-        ProductoSeleccionable(
-            id=producto.id,
-            nombre=producto.nombre,
-            categoria=producto.categoria,
-            seccion=SeccionResumen(id=seccion.id, nombre=seccion.nombre),
-        )
-        for producto, seccion in filas
-    ]
-    return Pagina[ProductoSeleccionable](
-        items=items, total=total, limit=parametros.limit, offset=parametros.offset
+    db: Session, parametros: ParametrosPaginacion, estado: Estado | None = Estado.HABILITADO
+) -> Pagina[ProductoListado]:
+    """Lista productos; `estado=None` los incluye a todos (habilitados y deshabilitados)."""
+    filas, total = repository.listar_productos(db, parametros, estado)
+    return Pagina[ProductoListado](
+        items=[_a_listado(producto, seccion) for producto, seccion in filas],
+        total=total,
+        limit=parametros.limit,
+        offset=parametros.offset,
     )
