@@ -5,6 +5,7 @@ from sqlalchemy.orm import Mapped, mapped_column, validates
 
 from app.database import Base
 from app.shared.models import Estado
+from app.shared.models.enums import EstadoMesa
 
 
 class Sector(Base):
@@ -27,3 +28,21 @@ class Sector(Base):
     def _sincronizar_nombre_normalizado(self, _clave: str, nombre: str) -> str:
         self.nombre_normalizado = nombre.strip().casefold()
         return nombre
+
+
+class Mesa(Base):
+    __tablename__ = "mesas"
+    __table_args__ = (
+        sa.CheckConstraint("numero > 0", name="ck_mesas_numero_positivo"),
+        sa.CheckConstraint("capacidad > 0", name="ck_mesas_capacidad_positiva"),
+        # B1: el numero es unico dentro de su sector.
+        sa.UniqueConstraint("sector_id", "numero", name="ux_mesas_sector_numero"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    numero: Mapped[int]
+    capacidad: Mapped[int]
+    sector_id: Mapped[int] = mapped_column(sa.ForeignKey("sectores.id", ondelete="RESTRICT"))
+    estado: Mapped[EstadoMesa] = mapped_column(
+        sa.Enum(EstadoMesa, native_enum=False), default=EstadoMesa.LIBRE
+    )

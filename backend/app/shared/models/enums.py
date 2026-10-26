@@ -8,6 +8,12 @@ class Estado(StrEnum):
     DESHABILITADO = "DESHABILITADO"
 
 
+class EstadoMesa(StrEnum):
+    LIBRE = "LIBRE"
+    OCUPADA = "OCUPADA"
+    FUERA_DE_SERVICIO = "FUERA_DE_SERVICIO"
+
+
 class Categoria(StrEnum):
     PLATO = "PLATO"
     POSTRE = "POSTRE"
