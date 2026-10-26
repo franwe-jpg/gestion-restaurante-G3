@@ -24,6 +24,9 @@ const PLATO: ProductoSalida = {
   imagen_url: null,
 };
 
+const DESCRIPCION_BAJA =
+  'El plato quedará deshabilitado y dejará de mostrarse en la carta. Puede volver a habilitarlo desde la pantalla de edición.';
+
 const mostrarToast = vi.fn();
 const confirmar = vi.fn();
 
@@ -59,6 +62,7 @@ describe('useBajaProducto', () => {
     expect(confirmar).toHaveBeenCalledWith(
       expect.objectContaining({
         titulo: '¿Dar de baja «Milanesa»?',
+        descripcion: DESCRIPCION_BAJA,
         textoConfirmar: 'Dar de baja',
         textoCancelar: 'Cancelar',
         variante: 'danger',

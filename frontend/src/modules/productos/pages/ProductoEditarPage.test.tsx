@@ -225,6 +225,11 @@ describe('ProductoEditarPage: estado y baja', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Dar de baja' }));
     const dialogo = await screen.findByRole('dialog');
     expect(within(dialogo).getByText('¿Dar de baja «Milanesa»?')).toBeInTheDocument();
+    expect(
+      within(dialogo).getByText(
+        'El plato quedará deshabilitado y dejará de mostrarse en la carta. Puede volver a habilitarlo desde la pantalla de edición.',
+      ),
+    ).toBeInTheDocument();
     fireEvent.click(within(dialogo).getByRole('button', { name: 'Dar de baja' }));
 
     expect(await screen.findByText('Listado de productos')).toBeInTheDocument();

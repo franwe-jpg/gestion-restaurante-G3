@@ -69,7 +69,7 @@ export const CONFIGURACIONES_EDICION: Record<CategoriaEdicion, ConfiguracionEdic
     errorAlModificar: 'No se pudo modificar el plato',
     noEncontrado: 'El plato no existe.',
     bajaDescripcion:
-      'El plato quedará deshabilitado y dejará de mostrarse en la carta. Puede volver a habilitarlo desde esta pantalla.',
+      'El plato quedará deshabilitado y dejará de mostrarse en la carta. Puede volver a habilitarlo desde la pantalla de edición.',
     dadoDeBaja: 'Plato dado de baja',
     errorAlDarDeBaja: 'No se pudo dar de baja el plato',
   },
