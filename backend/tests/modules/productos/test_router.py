@@ -2,6 +2,7 @@ import io
 import json
 import os
 from dataclasses import dataclass
+from decimal import Decimal
 from pathlib import Path
 
 import pillow_heif
@@ -13,7 +14,7 @@ from sqlalchemy import text
 
 from app.main import montar_media
 from app.modules.productos.models import Seccion
-from app.shared.models import Estado, Producto
+from app.shared.models import Categoria, Estado, Producto
 
 RUTA = "/api/v1/secciones"
 
@@ -179,6 +180,189 @@ def test_listar_productos_sin_datos_devuelve_pagina_vacia(cliente: TestClient) -
     respuesta = cliente.get("/api/v1/productos")
 
     assert respuesta.json() == {"items": [], "total": 0, "limit": 50, "offset": 0}
+
+
+RUTA_PRODUCTOS = "/api/v1/productos"
+
+
+def _carta_de_tres_categorias(fabrica_seccion, fabrica_producto) -> None:
+    seccion = fabrica_seccion("Carta", 1)
+    fabrica_producto(seccion, "Milanesa", categoria=Categoria.PLATO)
+    fabrica_producto(seccion, "Flan", categoria=Categoria.POSTRE)
+    fabrica_producto(seccion, "Agua", categoria=Categoria.BEBIDA)
+
+
+def _nombres(respuesta) -> list[str]:
+    return [p["nombre"] for p in respuesta.json()["items"]]
+
+
+# CA 1
+def test_listar_productos_items_con_detalle(
+    cliente: TestClient, fabrica_seccion, fabrica_producto
+) -> None:
+    _carta_de_tres_categorias(fabrica_seccion, fabrica_producto)
+
+    items = cliente.get(RUTA_PRODUCTOS).json()["items"]
+
+    assert [(p["nombre"], p["categoria"]) for p in items] == [
+        ("Agua", "BEBIDA"),
+        ("Flan", "POSTRE"),
+        ("Milanesa", "PLATO"),
+    ]
+    assert set(items[0]) == {
+        "id",
+        "nombre",
+        "categoria",
+        "seccion",
+        "precio",
+        "etiquetas",
+        "estado",
+    }
+    assert items[0]["seccion"] == {"id": 1, "nombre": "Carta"}
+    assert items[0]["etiquetas"] == []
+    assert items[0]["estado"] == "HABILITADO"
+
+
+# CA 2
+def test_listar_productos_sin_productos_estado_todos_vacio(cliente: TestClient) -> None:
+    respuesta = cliente.get(RUTA_PRODUCTOS, params={"estado": "TODOS"})
+
+    assert respuesta.status_code == 200
+    assert respuesta.json() == {"items": [], "total": 0, "limit": 50, "offset": 0}
+
+
+# CA 3
+def test_listar_productos_sin_estado_usa_habilitado(
+    cliente: TestClient, fabrica_seccion, fabrica_producto
+) -> None:
+    fabrica_producto(fabrica_seccion("Carta", 1), "Helado", Estado.DESHABILITADO)
+
+    assert cliente.get(RUTA_PRODUCTOS).json()["items"] == []
+
+
+# CA 4
+def test_listar_productos_estado_habilitado_solo_habilitados(
+    cliente: TestClient, fabrica_seccion, fabrica_producto
+) -> None:
+    seccion = fabrica_seccion("Carta", 1)
+    fabrica_producto(seccion, "Flan")
+    fabrica_producto(seccion, "Helado", Estado.DESHABILITADO)
+
+    respuesta = cliente.get(RUTA_PRODUCTOS, params={"estado": "HABILITADO"})
+
+    assert _nombres(respuesta) == ["Flan"]
+    assert respuesta.json()["total"] == 1
+
+
+# CA 5
+def test_listar_productos_estado_deshabilitado_solo_dados_de_baja(
+    cliente: TestClient, fabrica_seccion, fabrica_producto
+) -> None:
+    seccion = fabrica_seccion("Carta", 1)
+    plato = fabrica_producto(seccion, "Milanesa", categoria=Categoria.PLATO)
+    fabrica_producto(seccion, "Flan")
+    fabrica_producto(seccion, "Helado", Estado.DESHABILITADO)
+    assert cliente.post(f"/api/v1/platos/{plato.id}/baja").status_code == 200
+
+    respuesta = cliente.get(RUTA_PRODUCTOS, params={"estado": "DESHABILITADO"})
+
+    assert _nombres(respuesta) == ["Helado", "Milanesa"]
+    assert {p["estado"] for p in respuesta.json()["items"]} == {"DESHABILITADO"}
+    assert respuesta.json()["total"] == 2
+
+
+# CA 6
+def test_listar_productos_estado_todos_con_su_estado(
+    cliente: TestClient, fabrica_seccion, fabrica_producto
+) -> None:
+    seccion = fabrica_seccion("Carta", 1)
+    fabrica_producto(seccion, "Flan")
+    fabrica_producto(seccion, "Helado", Estado.DESHABILITADO)
+
+    respuesta = cliente.get(RUTA_PRODUCTOS, params={"estado": "TODOS"})
+
+    assert [(p["nombre"], p["estado"]) for p in respuesta.json()["items"]] == [
+        ("Flan", "HABILITADO"),
+        ("Helado", "DESHABILITADO"),
+    ]
+    assert respuesta.json()["total"] == 2
+
+
+def test_listar_productos_estado_invalido_422(cliente: TestClient) -> None:
+    respuesta = cliente.get(RUTA_PRODUCTOS, params={"estado": "ANULADO"})
+
+    assert respuesta.status_code == 422
+    assert "estado" in respuesta.json()["detalle"]
+
+
+@pytest.mark.parametrize("limit", [0, 101])
+def test_listar_productos_limit_fuera_de_rango_422(cliente: TestClient, limit: int) -> None:
+    respuesta = cliente.get(RUTA_PRODUCTOS, params={"estado": "TODOS", "limit": limit})
+
+    assert respuesta.status_code == 422
+    assert "limit" in respuesta.json()["detalle"]
+
+
+def test_listar_productos_segunda_pagina_con_filtro(
+    cliente: TestClient, fabrica_seccion, fabrica_producto
+) -> None:
+    seccion = fabrica_seccion("Carta", 1)
+    for nombre in ("Alfa", "Beta", "Gama"):
+        fabrica_producto(seccion, nombre)
+    fabrica_producto(seccion, "Delta", Estado.DESHABILITADO)
+
+    parametros = {"estado": "HABILITADO", "limit": 2, "offset": 2}
+    respuesta = cliente.get(RUTA_PRODUCTOS, params=parametros)
+
+    cuerpo = respuesta.json()
+    assert _nombres(respuesta) == ["Gama"]
+    assert (cuerpo["total"], cuerpo["limit"], cuerpo["offset"]) == (3, 2, 2)
+
+
+def test_listar_productos_precio_como_texto(
+    cliente: TestClient, db, fabrica_seccion, fabrica_producto
+) -> None:
+    producto = fabrica_producto(fabrica_seccion("Carta", 1), "Flan")
+    producto.precio = Decimal("12500.50")
+    db.commit()
+
+    assert cliente.get(RUTA_PRODUCTOS).json()["items"][0]["precio"] == "12500.50"
+
+
+def test_listar_productos_no_modifica_datos(
+    cliente: TestClient, db, fabrica_seccion, fabrica_producto
+) -> None:
+    seccion = fabrica_seccion("Carta", 1)
+    fabrica_producto(seccion, "Flan")
+    fabrica_producto(seccion, "Helado", Estado.DESHABILITADO)
+
+    def foto() -> list[tuple]:
+        db.expire_all()
+        return [(p.id, p.nombre, p.estado, p.precio) for p in db.query(Producto).all()]
+
+    antes = foto()
+    cliente.get(RUTA_PRODUCTOS, params={"estado": "TODOS"})
+
+    assert foto() == antes
+
+
+# Regresion (S29): sin parametros conserva items, orden y total del selector de SeccionesTab
+def test_listar_productos_sin_parametros_conserva_items_orden_y_total(
+    cliente: TestClient, fabrica_seccion, fabrica_producto
+) -> None:
+    seccion = fabrica_seccion("Carta", 1)
+    fabrica_producto(seccion, "Zeta")
+    fabrica_producto(seccion, "Alfa", categoria=Categoria.PLATO)
+    fabrica_producto(seccion, "Beta", Estado.DESHABILITADO)
+
+    cuerpo = cliente.get(RUTA_PRODUCTOS).json()
+
+    assert [(p["id"], p["nombre"], p["categoria"]) for p in cuerpo["items"]] == [
+        (2, "Alfa", "PLATO"),
+        (1, "Zeta", "POSTRE"),
+    ]
+    assert cuerpo["items"][0]["seccion"] == {"id": 1, "nombre": "Carta"}
+    assert (cuerpo["total"], cuerpo["limit"], cuerpo["offset"]) == (2, 50, 0)
 
 
 # ---------------------------------------------------------------------------

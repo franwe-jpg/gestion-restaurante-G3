@@ -11,22 +11,22 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.modules.productos import imagenes, service
 from app.modules.productos.schemas import (
+    FiltroProductos,
     FiltroSecciones,
     PlatoCrear,
     PlatoModificar,
     PostreCrear,
+    ProductoListado,
     ProductoSalida,
-    ProductoSeleccionable,
     SeccionCrear,
     SeccionListado,
     SeccionSalida,
 )
-from app.shared.paginacion import Pagina, ParametrosPaginacion
+from app.shared.paginacion import Pagina
 
 router = APIRouter()
 
 Sesion = Annotated[Session, Depends(get_db)]
-Paginacion = Annotated[ParametrosPaginacion, Query()]
 
 
 def datos_de[T: BaseModel](modelo: type[T]) -> Callable[..., T]:
@@ -107,5 +107,7 @@ def listar_secciones(
 
 
 @router.get("/productos")
-def listar_productos(db: Sesion, paginacion: Paginacion) -> Pagina[ProductoSeleccionable]:
-    return service.listar_productos(db, paginacion)
+def listar_productos(
+    db: Sesion, filtro: Annotated[FiltroProductos, Query()]
+) -> Pagina[ProductoListado]:
+    return service.listar_productos(db, filtro, filtro.estado_elegido())
