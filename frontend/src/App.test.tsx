@@ -48,6 +48,26 @@ describe('App', () => {
     expect(await screen.findByText('Estado del servicio: ok')).toBeInTheDocument();
   });
 
+  it('monta la carta en /productos/carta', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        json: () => Promise.resolve({ items: [], total: 0, limit: 100, offset: 0 }),
+      } as Response),
+    );
+
+    render(
+      <MemoryRouter initialEntries={['/productos/carta']}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole('heading', { name: 'Carta' })).toBeInTheDocument();
+  });
+
   it('muestra la guía de componentes', () => {
     render(
       <MemoryRouter initialEntries={['/componentes']}>
