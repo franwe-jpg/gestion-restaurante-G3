@@ -217,7 +217,7 @@ describe.each(CATEGORIAS)('ProductoNuevoPage %s: formulario', (categoria) => {
     expect(screen.getByRole('button', { name: config.botonGuardar })).toBeInTheDocument();
   });
 
-  it('exige ingredientes y rechaza un chip repetido (CA 6)', async () => {
+  it('rechaza un ingrediente repetido (CA 6)', async () => {
     secciones([PLATOS]);
     await abrir(categoria);
     agregar(/Ingredientes/, 'Huevo');
