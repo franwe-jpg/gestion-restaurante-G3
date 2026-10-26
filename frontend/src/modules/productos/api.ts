@@ -9,12 +9,14 @@ import type {
   ProductoSalida,
   ProductoSeleccionable,
   Seccion,
+  SeccionCarta,
   SeccionCrear,
   SeccionListado,
   SeccionModificar,
 } from './types';
 
 const LIMITE_SELECTOR = 100;
+const LIMITE_CARTA = 100;
 
 const ENDPOINTS: Record<CategoriaAlta, string> = {
   PLATO: '/platos',
@@ -111,4 +113,21 @@ export function darDeBajaProducto(
 /** `imagen_url` es relativa al backend; el navegador necesita la URL absoluta. */
 export function urlDeImagen(imagenUrl: string | null): string | null {
   return imagenUrl === null ? null : urlDelBackend(imagenUrl);
+}
+
+/** Pide todas las páginas de la carta (D-27) y las concatena; un fallo en cualquiera las descarta. */
+export async function obtenerCarta(estado: FiltroEstado): Promise<RespuestaApi<SeccionCarta[]>> {
+  const secciones: SeccionCarta[] = [];
+  let total = Number.POSITIVE_INFINITY;
+  while (secciones.length < total) {
+    const ruta = `/carta?estado=${estado}&limit=${LIMITE_CARTA}&offset=${secciones.length}`;
+    const respuesta = await clienteHttp.get<Pagina<SeccionCarta>>(ruta);
+    if (!respuesta.exito || respuesta.datos === null) {
+      return { datos: null, exito: false, error: respuesta.error };
+    }
+    if (respuesta.datos.items.length === 0) break;
+    secciones.push(...respuesta.datos.items);
+    total = respuesta.datos.total;
+  }
+  return { datos: secciones, exito: true };
 }
