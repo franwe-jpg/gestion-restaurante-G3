@@ -10,7 +10,12 @@ from sqlalchemy.orm import Session
 
 from app.modules.productos import service
 from app.modules.productos.models import Seccion
-from app.modules.productos.schemas import PlatoCrear, PlatoModificar, SeccionCrear
+from app.modules.productos.schemas import (
+    PlatoCrear,
+    PlatoModificar,
+    SeccionCrear,
+    SeccionModificar,
+)
 from app.shared.excepciones import DatosInvalidosError, NoEncontradoError, ReglaDeNegocioError
 from app.shared.models import Categoria, Estado, Producto
 from app.shared.paginacion import ParametrosPaginacion
@@ -162,6 +167,35 @@ def test_crear_seccion_convierte_la_carrera_de_orden_en_conflicto(
     with pytest.raises(ReglaDeNegocioError):
         service.crear_seccion(db, _datos("Entradas", 1))
     assert _cantidad_secciones(db) == 1
+
+
+# HU-M1-11 y HU-M1-12
+def test_obtener_seccion_con_productos(db: Session, fabrica_seccion, fabrica_producto) -> None:
+    seccion = fabrica_seccion("Postres", 1)
+    fabrica_producto(seccion, "Flan")
+    fabrica_producto(seccion, "Helado", Estado.DESHABILITADO)
+
+    salida = service.obtener_seccion(db, seccion.id)
+
+    assert [p.nombre for p in salida.productos] == ["Flan", "Helado"]
+    assert salida.productos_habilitados == 1
+
+
+def test_obtener_seccion_inexistente_lanza_no_encontrado(db: Session) -> None:
+    with pytest.raises(NoEncontradoError, match="999"):
+        service.obtener_seccion(db, 999)
+
+
+def test_modificar_seccion_convierte_la_carrera_de_orden_en_conflicto(
+    db: Session, fabrica_seccion, monkeypatch
+) -> None:
+    fabrica_seccion("Postres", 1)
+    entradas = fabrica_seccion("Entradas", 2)
+    monkeypatch.setattr(service.repository, "buscar_habilitada_por_orden", lambda *_: None)
+
+    with pytest.raises(ReglaDeNegocioError, match="posición está ocupada"):
+        service.modificar_seccion(db, entradas.id, SeccionModificar(nombre="Entradas", orden=1))
+    assert db.get(Seccion, entradas.id).orden == 2
 
 
 # Listados

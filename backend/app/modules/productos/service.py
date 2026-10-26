@@ -11,9 +11,11 @@ from app.modules.productos.schemas import (
     ProductoCrear,
     ProductoListado,
     ProductoModificar,
+    ProductoResumen,
     ProductoSalida,
     SeccionCrear,
     SeccionListado,
+    SeccionModificar,
     SeccionResumen,
     SeccionSalida,
 )
@@ -23,13 +25,13 @@ from app.shared.models.producto import normalizar_nombre
 from app.shared.paginacion import Pagina, ParametrosPaginacion
 
 
-def _validar_nombre_libre(db: Session, nombre: str) -> None:
-    if repository.existe_nombre_normalizado(db, nombre.casefold()):
+def _validar_nombre_libre(db: Session, nombre: str, excluir_id: int | None = None) -> None:
+    if repository.existe_nombre_normalizado(db, nombre.casefold(), excluir_id):
         raise ReglaDeNegocioError("La sección ya existe")
 
 
-def _validar_orden_libre(db: Session, orden: int) -> None:
-    if repository.buscar_habilitada_por_orden(db, orden) is not None:
+def _validar_orden_libre(db: Session, orden: int, excluir_id: int | None = None) -> None:
+    if repository.buscar_habilitada_por_orden(db, orden, excluir_id) is not None:
         raise ReglaDeNegocioError("Posición ocupada: otra sección habilitada usa ese orden")
 
 
@@ -58,16 +60,32 @@ def _validar_traslado(db: Session, productos: list[Producto], confirmado: bool) 
         )
 
 
-def _guardar(db: Session, datos: SeccionCrear, productos: list[Producto]) -> Seccion:
-    seccion = Seccion(nombre=datos.nombre, orden=datos.orden, estado=Estado.HABILITADO)
-    seccion.productos = productos
+def _confirmar_seccion(db: Session, seccion: Seccion) -> None:
+    """Confirma el cambio de una seccion; el indice parcial de orden respalda el 409 (A3, H6)."""
     try:
         repository.agregar(db, seccion)
         db.commit()
     except IntegrityError as error:
         db.rollback()
         raise ReglaDeNegocioError("La sección ya existe o la posición está ocupada") from error
+
+
+def _guardar(db: Session, datos: SeccionCrear, productos: list[Producto]) -> Seccion:
+    seccion = Seccion(nombre=datos.nombre, orden=datos.orden, estado=Estado.HABILITADO)
+    seccion.productos = productos
+    _confirmar_seccion(db, seccion)
     return seccion
+
+
+def _a_salida_seccion(seccion: Seccion) -> SeccionSalida:
+    return SeccionSalida(
+        id=seccion.id,
+        nombre=seccion.nombre,
+        orden=seccion.orden,
+        estado=seccion.estado,
+        productos=[ProductoResumen.model_validate(producto) for producto in seccion.productos],
+        productos_habilitados=sum(p.estado == Estado.HABILITADO for p in seccion.productos),
+    )
 
 
 def crear_seccion(db: Session, datos: SeccionCrear) -> SeccionSalida:
@@ -76,13 +94,66 @@ def crear_seccion(db: Session, datos: SeccionCrear) -> SeccionSalida:
     productos = _cargar_productos(db, datos.producto_ids)
     _validar_habilitados(productos)
     _validar_traslado(db, productos, datos.confirmar_traslado)
-    return SeccionSalida.model_validate(_guardar(db, datos, productos))
+    return _a_salida_seccion(_guardar(db, datos, productos))
 
 
-def _validar_seccion_habilitada(db: Session, seccion_id: int) -> Seccion:
+def _obtener_seccion(db: Session, seccion_id: int) -> Seccion:
     seccion = repository.obtener_seccion(db, seccion_id)
     if seccion is None:
         raise NoEncontradoError(f"La sección {seccion_id} no existe")
+    return seccion
+
+
+def obtener_seccion(db: Session, seccion_id: int) -> SeccionSalida:
+    return _a_salida_seccion(_obtener_seccion(db, seccion_id))
+
+
+def _validar_agregado_en_deshabilitada(seccion: Seccion, estado: Estado, hay_nuevos: bool) -> None:
+    """No se agregan productos a una seccion que queda deshabilitada (S76)."""
+    if hay_nuevos and estado != Estado.HABILITADO:
+        raise ReglaDeNegocioError(f"La sección {seccion.nombre} está deshabilitada")
+
+
+def _aplicar_cambios_seccion(
+    seccion: Seccion, datos: SeccionModificar, estado: Estado, productos: list[Producto]
+) -> None:
+    """Muta recien tras validar todo: el autoflush no debe tocar el indice a mitad de camino."""
+    seccion.nombre = datos.nombre
+    seccion.orden = datos.orden
+    seccion.estado = estado
+    seccion.productos = [*seccion.productos, *productos]
+
+
+def modificar_seccion(db: Session, seccion_id: int, datos: SeccionModificar) -> SeccionSalida:
+    """Modificacion de una seccion; los productos solo se agregan (S62). Orden de validacion: H3."""
+    seccion = _obtener_seccion(db, seccion_id)
+    estado = datos.estado or seccion.estado
+    _validar_nombre_libre(db, datos.nombre, seccion.id)
+    if estado == Estado.HABILITADO:
+        _validar_orden_libre(db, datos.orden, seccion.id)
+    actuales = {producto.id for producto in seccion.productos}
+    nuevos = [id_ for id_ in datos.producto_ids if id_ not in actuales]
+    _validar_agregado_en_deshabilitada(seccion, estado, bool(nuevos))
+    productos = _cargar_productos(db, nuevos)
+    _validar_habilitados(productos)
+    _validar_traslado(db, productos, datos.confirmar_traslado)
+    _aplicar_cambios_seccion(seccion, datos, estado, productos)
+    _confirmar_seccion(db, seccion)
+    return _a_salida_seccion(seccion)
+
+
+def dar_de_baja_seccion(db: Session, seccion_id: int) -> SeccionSalida:
+    """Deshabilita la seccion sin tocar sus productos (H7)."""
+    seccion = _obtener_seccion(db, seccion_id)
+    if seccion.estado == Estado.DESHABILITADO:
+        raise ReglaDeNegocioError("La sección ya está deshabilitada")
+    seccion.estado = Estado.DESHABILITADO
+    db.commit()
+    return _a_salida_seccion(seccion)
+
+
+def _validar_seccion_habilitada(db: Session, seccion_id: int) -> Seccion:
+    seccion = _obtener_seccion(db, seccion_id)
     if seccion.estado != Estado.HABILITADO:
         raise ReglaDeNegocioError(f"La sección {seccion.nombre} está deshabilitada")
     return seccion
@@ -249,8 +320,9 @@ def listar_secciones(
             orden=seccion.orden,
             estado=seccion.estado,
             cantidad_productos=cantidad,
+            productos_habilitados=habilitados,
         )
-        for seccion, cantidad in filas
+        for seccion, cantidad, habilitados in filas
     ]
     return Pagina[SeccionListado](
         items=items, total=total, limit=parametros.limit, offset=parametros.offset
