@@ -59,7 +59,16 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: 'Botones' })).toBeInTheDocument();
   });
 
-  it('monta una pantalla placeholder de modulo', async () => {
+  it('monta la lista de productos del módulo Productos', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        json: () => Promise.resolve({ items: [], total: 0, limit: 50, offset: 0 }),
+      } as Response),
+    );
     render(
       <MemoryRouter initialEntries={['/productos']}>
         <App />
@@ -67,7 +76,7 @@ describe('App', () => {
     );
 
     expect(await screen.findByRole('heading', { name: 'Productos y Carta' })).toBeInTheDocument();
-    expect(screen.getByText('Módulo pendiente de implementación')).toBeInTheDocument();
+    expect(await screen.findByText('No hay productos habilitados')).toBeInTheDocument();
   });
 
   it.each([

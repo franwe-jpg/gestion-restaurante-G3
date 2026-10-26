@@ -7,7 +7,7 @@ export interface FiltroEstadoOpcion {
   vacioDescripcion: string;
 }
 
-export const FILTROS_ESTADO: FiltroEstadoOpcion[] = [
+export const FILTROS_ESTADO: [FiltroEstadoOpcion, ...FiltroEstadoOpcion[]] = [
   {
     valor: 'HABILITADO',
     etiqueta: 'Habilitados',
@@ -28,3 +28,7 @@ export const FILTROS_ESTADO: FiltroEstadoOpcion[] = [
     vacioDescripcion: 'Cree el primer plato o postre para empezar a armar la carta.',
   },
 ];
+
+export function filtroDe(valor: FiltroEstado): FiltroEstadoOpcion {
+  return FILTROS_ESTADO.find((opcion) => opcion.valor === valor) ?? FILTROS_ESTADO[0];
+}
