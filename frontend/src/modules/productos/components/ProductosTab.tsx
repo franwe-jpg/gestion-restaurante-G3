@@ -33,6 +33,10 @@ function BotonesAlta() {
         <Plus className="h-4 w-4" aria-hidden="true" />
         Nuevo postre
       </Button>
+      <Button onClick={() => navigate('/productos/bebidas/nuevo')}>
+        <Plus className="h-4 w-4" aria-hidden="true" />
+        Nueva bebida
+      </Button>
     </>
   );
 }

@@ -25,7 +25,19 @@ const CREADO: ProductoSalida = {
   imagen_url: null,
 };
 
-const CATEGORIAS: CategoriaAlta[] = ['PLATO', 'POSTRE'];
+const CATEGORIAS: CategoriaAlta[] = ['PLATO', 'POSTRE', 'BEBIDA'];
+
+// Los ingredientes se exigen en platos y postres, no en bebidas (S44)
+const ERROR_INGREDIENTES: Record<CategoriaAlta, string | undefined> = {
+  PLATO: 'Agregue al menos un ingrediente.',
+  POSTRE: 'Agregue al menos un ingrediente.',
+  BEBIDA: undefined,
+};
+const MENSAJE_NOMBRE_REPETIDO: Record<CategoriaAlta, string> = {
+  PLATO: 'El plato ya está registrado',
+  POSTRE: 'El postre ya está registrado',
+  BEBIDA: 'La bebida ya está registrada',
+};
 
 const mostrarToast = vi.fn();
 
@@ -66,8 +78,8 @@ describe.each(CATEGORIAS)('useFormularioProducto %s: validación', (categoria) =
       nombre: 'El nombre es obligatorio.',
       seccionId: 'La sección es obligatoria.',
       precio: 'El precio es obligatorio.',
-      ingredientes: 'Agregue al menos un ingrediente.',
     });
+    expect(result.current.errores.ingredientes).toBe(ERROR_INGREDIENTES[categoria]);
   });
 
   it('con un precio inválido no envía (CA 5)', async () => {
@@ -129,6 +141,24 @@ describe.each(CATEGORIAS)('useFormularioProducto %s: alta', (categoria) => {
   });
 });
 
+describe('useFormularioProducto BEBIDA: ingredientes opcionales', () => {
+  it('guarda sin ingredientes y los envía como lista vacía (S44)', async () => {
+    vi.mocked(crearProducto).mockResolvedValue({ datos: CREADO, exito: true });
+    const { result, onCreado } = preparar('BEBIDA');
+    completarMinimo(result);
+    act(() => result.current.setIngredientes([]));
+
+    await act(() => result.current.enviar());
+
+    expect(crearProducto).toHaveBeenCalledWith(
+      'BEBIDA',
+      expect.objectContaining({ nombre: 'Milanesa', ingredientes: [] }),
+      null,
+    );
+    expect(onCreado).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe.each(CATEGORIAS)('useFormularioProducto %s: envío en curso', (categoria) => {
   it('marca «enviando» mientras espera y no envía dos veces', async () => {
     let terminar: (valor: Awaited<ReturnType<typeof crearProducto>>) => void = () => undefined;
@@ -151,7 +181,7 @@ describe.each(CATEGORIAS)('useFormularioProducto %s: errores del servidor', (cat
     vi.mocked(crearProducto).mockResolvedValue({
       datos: null,
       exito: false,
-      error: `El ${categoria === 'PLATO' ? 'plato' : 'postre'} ya está registrado`,
+      error: MENSAJE_NOMBRE_REPETIDO[categoria],
     });
     const { result, onCreado } = preparar(categoria);
     completarMinimo(result);

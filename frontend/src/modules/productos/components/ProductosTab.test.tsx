@@ -36,6 +36,7 @@ function abrir() {
             <Route path="/" element={<ProductosTab />} />
             <Route path="/productos/platos/nuevo" element={<p>Formulario de plato</p>} />
             <Route path="/productos/postres/nuevo" element={<p>Formulario de postre</p>} />
+            <Route path="/productos/bebidas/nuevo" element={<p>Formulario de bebida</p>} />
           </Routes>
         </MemoryRouter>
       </ToastContext.Provider>
@@ -156,6 +157,7 @@ describe('ProductosTab: paginación, baja y alta', () => {
   it.each([
     ['Nuevo plato', 'Formulario de plato'],
     ['Nuevo postre', 'Formulario de postre'],
+    ['Nueva bebida', 'Formulario de bebida'],
   ])('«%s» lleva al formulario de alta', async (boton, formulario) => {
     vi.mocked(listarProductos).mockResolvedValue(pagina([]));
     abrir();

@@ -108,7 +108,13 @@ function CamposPrincipales({ f, secciones, edicion }: CamposPrincipalesProps) {
   );
 }
 
-function CamposDeTexto({ f }: { f: Formulario }) {
+function CamposDeTexto({
+  f,
+  ingredientesObligatorios,
+}: {
+  f: Formulario;
+  ingredientesObligatorios: boolean;
+}) {
   return (
     <>
       <ListaDeTextos
@@ -121,7 +127,7 @@ function CamposDeTexto({ f }: { f: Formulario }) {
         tope={INGREDIENTES_TOPE}
         maximoPorTexto={INGREDIENTE_MAXIMO}
         placeholder="Escriba un ingrediente y presione Enter"
-        required
+        required={ingredientesObligatorios}
         error={f.errores.ingredientes}
       />
       <FormField id="producto-descripcion" label="Descripción" error={f.errores.descripcion}>
@@ -186,7 +192,10 @@ function Botones({
 
 export interface FormularioProductoProps {
   f: Formulario;
-  configuracion: Pick<ConfiguracionAlta, 'botonGuardar' | 'avisoSinSecciones'>;
+  configuracion: Pick<
+    ConfiguracionAlta,
+    'botonGuardar' | 'avisoSinSecciones' | 'ingredientesObligatorios'
+  >;
   secciones: OpcionSeccion[];
   errorDeCarga: string | null;
   edicion?: EdicionFormulario;
@@ -218,7 +227,7 @@ export function FormularioProducto({
           )}
           {f.errores.general && <Alert variant="danger">{f.errores.general}</Alert>}
           <CamposPrincipales f={f} secciones={secciones} edicion={edicion} />
-          <CamposDeTexto f={f} />
+          <CamposDeTexto f={f} ingredientesObligatorios={configuracion.ingredientesObligatorios} />
           <Botones
             guardar={configuracion.botonGuardar}
             deshabilitado={sinSecciones || f.enviando}

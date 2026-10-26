@@ -72,6 +72,10 @@ export default function App() {
             element={<ProductoNuevoPage categoria="POSTRE" />}
           />
           <Route
+            path="productos/bebidas/nuevo"
+            element={<ProductoNuevoPage categoria="BEBIDA" />}
+          />
+          <Route
             path="productos/platos/:id/editar"
             element={<ProductoEditarPage categoria="PLATO" />}
           />

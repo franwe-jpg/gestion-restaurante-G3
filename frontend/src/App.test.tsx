@@ -82,6 +82,7 @@ describe('App', () => {
   it.each([
     ['/productos/platos/nuevo', 'Nuevo plato'],
     ['/productos/postres/nuevo', 'Nuevo postre'],
+    ['/productos/bebidas/nuevo', 'Nueva bebida'],
     ['/productos/nuevo', 'Nuevo plato'],
   ])('monta el formulario de alta de %s con el título %s', async (ruta, titulo) => {
     vi.stubGlobal(

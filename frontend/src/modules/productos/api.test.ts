@@ -94,6 +94,7 @@ describe('crearProducto', () => {
   it.each([
     ['PLATO', '/platos'],
     ['POSTRE', '/postres'],
+    ['BEBIDA', '/bebidas'],
   ] as const)(
     'envia una sola solicitud multipart de %s con `datos` como JSON y la imagen',
     async (categoria, endpoint) => {
@@ -128,6 +129,7 @@ describe('crearProducto', () => {
 describe.each([
   ['PLATO', '/platos'],
   ['POSTRE', '/postres'],
+  ['BEBIDA', '/bebidas'],
 ] as const)('edición y baja de %s', (categoria, base) => {
   const MODIFICAR: ProductoModificar = {
     nombre: 'Milanesa',

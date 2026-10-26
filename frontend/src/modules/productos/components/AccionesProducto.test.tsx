@@ -106,8 +106,8 @@ describe.each([
 });
 
 describe('AccionesProducto: otras categorías', () => {
-  it('una fila BEBIDA no ofrece acciones', () => {
-    mostrar({ ...PLATO, categoria: 'BEBIDA' });
+  it('una fila MENU_DEL_DIA no ofrece acciones (S57)', () => {
+    mostrar({ ...PLATO, categoria: 'MENU_DEL_DIA' });
 
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
