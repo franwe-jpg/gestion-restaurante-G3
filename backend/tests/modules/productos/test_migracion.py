@@ -141,7 +141,7 @@ def test_upgrade_aborta_con_repetidos_en_la_misma_categoria_y_no_toca_el_esquema
     assert INDICE_UNICO not in indices
 
 
-def test_downgrade_de_un_paso_quita_columna_e_indice_y_conserva_las_filas(
+def test_downgrade_a_la_revision_previa_quita_columna_e_indice_y_conserva_las_filas(
     tmp_path: Path, monkeypatch
 ) -> None:
     url, config = _preparar_base(tmp_path, monkeypatch, "baja.db")
@@ -149,7 +149,7 @@ def test_downgrade_de_un_paso_quita_columna_e_indice_y_conserva_las_filas(
     _insertar_productos(url, [("Milanesa", "PLATO"), ("Flan", "POSTRE")])
     command.upgrade(config, "head")
 
-    command.downgrade(config, "-1")
+    command.downgrade(config, REVISION_PREVIA)
     columnas, indices = _columnas_e_indices(url)
     nombres = _leer(url, "SELECT nombre FROM productos ORDER BY id")
     get_settings.cache_clear()
