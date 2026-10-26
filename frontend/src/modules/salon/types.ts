@@ -15,15 +15,26 @@ export interface SectorCrear {
   descripcion?: string | null;
 }
 
-export type EstadoMesa = 'libre' | 'ocupada' | 'reservada' | 'mantenimiento';
+export type EstadoMesa = 'LIBRE' | 'OCUPADA' | 'FUERA_DE_SERVICIO';
+
+export interface SectorResumen {
+  id: number;
+  nombre: string;
+}
 
 export interface Mesa {
-  id: string;
-  numero: string;
-  sector: string;
+  id: number;
+  numero: number;
   capacidad: number;
+  sector: SectorResumen;
   estado: EstadoMesa;
-  mozoAsignado?: string;
+}
+
+// HU-M3-05: alta de mesas. El estado no se envía: el sistema lo fija en LIBRE.
+export interface MesaCrear {
+  numero: number;
+  capacidad: number;
+  sector_id: number;
 }
 
 export interface Mozo {
