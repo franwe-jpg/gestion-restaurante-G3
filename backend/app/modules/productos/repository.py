@@ -40,6 +40,12 @@ def obtener_seccion(db: Session, seccion_id: int) -> Seccion | None:
     return db.get(Seccion, seccion_id)
 
 
+def obtener_secciones_por_ids(db: Session, ids: Sequence[int]) -> dict[int, Seccion]:
+    """Secciones por id en un solo viaje, para armar varios productos sin N+1 (M2)."""
+    consulta = select(Seccion).where(Seccion.id.in_(ids))
+    return {seccion.id: seccion for seccion in db.scalars(consulta)}
+
+
 def existe_producto(
     db: Session, categoria: Categoria, nombre_normalizado: str, excluir_id: int | None = None
 ) -> bool:

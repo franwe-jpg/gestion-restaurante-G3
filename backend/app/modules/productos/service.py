@@ -1,6 +1,10 @@
 """productos: reglas de negocio y transacciones."""
 
 import contextlib
+from collections.abc import Sequence
+from dataclasses import dataclass
+from decimal import Decimal
+from typing import Protocol
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -25,6 +29,38 @@ from app.shared.excepciones import DatosInvalidosError, NoEncontradoError, Regla
 from app.shared.models import Categoria, Estado, Producto
 from app.shared.models.producto import normalizar_nombre
 from app.shared.paginacion import Pagina, ParametrosPaginacion
+
+MENSAJE_NOMBRE_REPETIDO_POR_DEFECTO = "El producto ya está registrado"
+
+
+class _DatosProducto(Protocol):
+    """Campos de alta que comparten los schemas y los valores que manda otro modulo (M2)."""
+
+    nombre: str
+    seccion_id: int
+    precio: Decimal
+    ingredientes: list[str]
+    descripcion: str | None
+    etiquetas: list[str]
+
+
+class _DatosProductoModificar(_DatosProducto, Protocol):
+    estado: Estado | None
+    quitar_imagen: bool
+
+
+@dataclass(frozen=True)
+class _ValoresProducto:
+    """Valores simples para el alta y la modificacion desde otro modulo (M2, D-03)."""
+
+    nombre: str
+    seccion_id: int
+    precio: Decimal
+    ingredientes: list[str]
+    descripcion: str | None
+    etiquetas: list[str]
+    estado: Estado | None = None
+    quitar_imagen: bool = False
 
 
 def _validar_nombre_libre(db: Session, nombre: str, excluir_id: int | None = None) -> None:
@@ -162,16 +198,20 @@ def _validar_seccion_habilitada(db: Session, seccion_id: int) -> Seccion:
 
 
 def _validar_producto_libre(
-    db: Session, datos: ProductoCrear, excluir_id: int | None = None
+    db: Session,
+    categoria: Categoria,
+    datos: _DatosProducto,
+    mensaje: str,
+    excluir_id: int | None = None,
 ) -> None:
-    if repository.existe_producto(db, datos.CATEGORIA, normalizar_nombre(datos.nombre), excluir_id):
-        raise ReglaDeNegocioError(datos.MENSAJE_NOMBRE_REPETIDO)
+    if repository.existe_producto(db, categoria, normalizar_nombre(datos.nombre), excluir_id):
+        raise ReglaDeNegocioError(mensaje)
 
 
-def _armar_producto(datos: ProductoCrear, archivo: str | None) -> Producto:
+def _armar_producto(categoria: Categoria, datos: _DatosProducto, archivo: str | None) -> Producto:
     return Producto(
         nombre=datos.nombre,
-        categoria=datos.CATEGORIA,
+        categoria=categoria,
         precio=datos.precio,
         ingredientes=datos.ingredientes,
         descripcion=datos.descripcion,
@@ -224,15 +264,55 @@ def _a_salida(producto: Producto, seccion: Seccion) -> ProductoSalida:
     )
 
 
-def crear_producto(db: Session, datos: ProductoCrear, imagen: bytes | None) -> ProductoSalida:
-    """Alta compartida de platos, postres y bebidas. Orden de validacion: B6."""
+def _crear_producto(
+    db: Session,
+    categoria: Categoria,
+    datos: _DatosProducto,
+    mensaje: str,
+    imagen: bytes | None,
+) -> ProductoSalida:
+    """Alta comun a los endpoints por categoria y a la API publica para otros modulos (D-03)."""
     procesada = imagenes.procesar(imagen) if imagen is not None else None
     seccion = _validar_seccion_habilitada(db, datos.seccion_id)
-    _validar_producto_libre(db, datos)
+    _validar_producto_libre(db, categoria, datos, mensaje)
     archivo = imagenes.guardar(procesada) if procesada else None
-    producto = _armar_producto(datos, archivo)
-    _guardar_producto(db, producto, datos.MENSAJE_NOMBRE_REPETIDO, archivo)
+    producto = _armar_producto(categoria, datos, archivo)
+    _guardar_producto(db, producto, mensaje, archivo)
     return _a_salida(producto, seccion)
+
+
+def crear_producto(db: Session, datos: ProductoCrear, imagen: bytes | None) -> ProductoSalida:
+    """Alta compartida de platos, postres y bebidas. Orden de validacion: B6."""
+    return _crear_producto(db, datos.CATEGORIA, datos, datos.MENSAJE_NOMBRE_REPETIDO, imagen)
+
+
+def crear_producto_de_categoria(
+    db: Session,
+    categoria: Categoria,
+    *,
+    nombre: str,
+    seccion_id: int,
+    precio: Decimal,
+    ingredientes: list[str],
+    descripcion: str | None,
+    etiquetas: list[str],
+    mensaje_nombre_repetido: str = MENSAJE_NOMBRE_REPETIDO_POR_DEFECTO,
+    imagen: bytes | None = None,
+) -> ProductoSalida:
+    """Alta para otro modulo que fija la categoria en la llamada (M2, HU-M2-04).
+
+    Recibe valores simples para que el modulo que llama no importe estos schemas
+    (contrato de importaciones, S0-05 seccion 3.3). Las reglas son las mismas del alta.
+    """
+    datos = _ValoresProducto(
+        nombre=nombre.strip(),
+        seccion_id=seccion_id,
+        precio=precio,
+        ingredientes=ingredientes,
+        descripcion=descripcion,
+        etiquetas=etiquetas,
+    )
+    return _crear_producto(db, categoria, datos, mensaje_nombre_repetido, imagen)
 
 
 def _obtener_de_categoria(db: Session, categoria: Categoria, producto_id: int) -> Producto:
@@ -247,14 +327,12 @@ def obtener_producto(db: Session, categoria: Categoria, producto_id: int) -> Pro
     return _a_salida(producto, repository.obtener_seccion(db, producto.seccion_id))
 
 
-def _validar_imagen_pedida(datos: ProductoModificar, imagen: bytes | None) -> None:
-    if datos.quitar_imagen and imagen is not None:
+def _validar_imagen_pedida(quitar_imagen: bool, imagen: bytes | None) -> None:
+    if quitar_imagen and imagen is not None:
         raise DatosInvalidosError("No se puede quitar y reemplazar la imagen a la vez")
 
 
-def _validar_seccion_si_cambia(
-    db: Session, producto: Producto, datos: ProductoModificar
-) -> Seccion:
+def _validar_seccion_si_cambia(db: Session, producto: Producto, datos: _DatosProducto) -> Seccion:
     """Solo se valida si la seccion cambia: puede seguir deshabilitada (S19)."""
     if datos.seccion_id == producto.seccion_id:
         return repository.obtener_seccion(db, producto.seccion_id)
@@ -262,7 +340,7 @@ def _validar_seccion_si_cambia(
 
 
 def _aplicar_cambios(
-    producto: Producto, datos: ProductoModificar, archivo_nuevo: str | None
+    producto: Producto, datos: _DatosProductoModificar, archivo_nuevo: str | None
 ) -> None:
     """Asigna listas nuevas (no muta en el lugar) para que las columnas JSON detecten el cambio."""
     producto.nombre = datos.nombre
@@ -287,22 +365,85 @@ def _borrar_anterior(archivo: str | None) -> None:
         imagenes.borrar(archivo)
 
 
+def _modificar_producto(
+    db: Session,
+    categoria: Categoria,
+    producto_id: int,
+    datos: _DatosProductoModificar,
+    mensaje: str,
+    imagen: bytes | None,
+) -> ProductoSalida:
+    """Modificacion comun a los endpoints por categoria y a la API publica (D-03)."""
+    _validar_imagen_pedida(datos.quitar_imagen, imagen)
+    procesada = imagenes.procesar(imagen) if imagen is not None else None
+    producto = _obtener_de_categoria(db, categoria, producto_id)
+    seccion = _validar_seccion_si_cambia(db, producto, datos)
+    _validar_producto_libre(db, categoria, datos, mensaje, producto.id)
+    archivo = imagenes.guardar(procesada) if procesada else None
+    anterior = producto.imagen
+    _aplicar_cambios(producto, datos, archivo)
+    _guardar_producto(db, producto, mensaje, archivo)
+    if producto.imagen != anterior:
+        _borrar_anterior(anterior)
+    return _a_salida(producto, seccion)
+
+
 def modificar_producto(
     db: Session, producto_id: int, datos: ProductoModificar, imagen: bytes | None
 ) -> ProductoSalida:
     """Modificacion compartida (reemplazo completo). Orden de validacion: E6."""
-    _validar_imagen_pedida(datos, imagen)
-    procesada = imagenes.procesar(imagen) if imagen is not None else None
-    producto = _obtener_de_categoria(db, datos.CATEGORIA, producto_id)
-    seccion = _validar_seccion_si_cambia(db, producto, datos)
-    _validar_producto_libre(db, datos, producto.id)
-    archivo = imagenes.guardar(procesada) if procesada else None
-    anterior = producto.imagen
-    _aplicar_cambios(producto, datos, archivo)
-    _guardar_producto(db, producto, datos.MENSAJE_NOMBRE_REPETIDO, archivo)
-    if producto.imagen != anterior:
-        _borrar_anterior(anterior)
-    return _a_salida(producto, seccion)
+    return _modificar_producto(
+        db, datos.CATEGORIA, producto_id, datos, datos.MENSAJE_NOMBRE_REPETIDO, imagen
+    )
+
+
+def modificar_producto_de_categoria(
+    db: Session,
+    categoria: Categoria,
+    producto_id: int,
+    *,
+    nombre: str,
+    seccion_id: int,
+    precio: Decimal,
+    ingredientes: list[str],
+    descripcion: str | None,
+    etiquetas: list[str],
+    estado: Estado | None = None,
+    quitar_imagen: bool = False,
+    mensaje_nombre_repetido: str = MENSAJE_NOMBRE_REPETIDO_POR_DEFECTO,
+    imagen: bytes | None = None,
+) -> ProductoSalida:
+    """Modificacion para otro modulo que fija la categoria (M2, HU-M2-05).
+
+    Un id de otra categoria responde 404, igual que los endpoints por categoria.
+    """
+    datos = _ValoresProducto(
+        nombre=nombre.strip(),
+        seccion_id=seccion_id,
+        precio=precio,
+        ingredientes=ingredientes,
+        descripcion=descripcion,
+        etiquetas=etiquetas,
+        estado=estado,
+        quitar_imagen=quitar_imagen,
+    )
+    return _modificar_producto(db, categoria, producto_id, datos, mensaje_nombre_repetido, imagen)
+
+
+def obtener_productos_por_ids(db: Session, ids: Sequence[int]) -> list[ProductoSalida]:
+    """Productos por id, en el orden pedido, incluidos los deshabilitados (M2 los valida).
+
+    Si algun id no existe responde 404 nombrando el primero que falta, igual que
+    `_cargar_productos` en las secciones.
+    """
+    encontrados = {producto.id: producto for producto in repository.obtener_productos(db, ids)}
+    faltantes = [id_ for id_ in ids if id_ not in encontrados]
+    if faltantes:
+        raise NoEncontradoError(f"El producto {faltantes[0]} no existe")
+    secciones = repository.obtener_secciones_por_ids(
+        db, {producto.seccion_id for producto in encontrados.values()}
+    )
+    return [_a_salida(encontrados[id_], secciones[encontrados[id_].seccion_id]) for id_ in ids]
 
 
 def dar_de_baja_producto(db: Session, categoria: Categoria, producto_id: int) -> ProductoSalida:
