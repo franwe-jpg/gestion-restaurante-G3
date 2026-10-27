@@ -501,6 +501,22 @@ def listar_productos(
     )
 
 
+def listar_productos_de_categoria(
+    db: Session,
+    parametros: ParametrosPaginacion,
+    categoria: Categoria,
+    estado: Estado | None = Estado.HABILITADO,
+) -> Pagina[ProductoSalida]:
+    """Listado con todos los datos de una categoria, para el modulo que la expone (M2)."""
+    filas, total = repository.listar_productos(db, parametros, estado, categoria)
+    return Pagina[ProductoSalida](
+        items=[_a_salida(producto, seccion) for producto, seccion in filas],
+        total=total,
+        limit=parametros.limit,
+        offset=parametros.offset,
+    )
+
+
 def _a_producto_carta(producto: Producto) -> ProductoCarta:
     return ProductoCarta(
         id=producto.id,

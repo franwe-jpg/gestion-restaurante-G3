@@ -93,11 +93,15 @@ def listar_secciones(
 
 
 def listar_productos(
-    db: Session, parametros: ParametrosPaginacion, estado: Estado | None
+    db: Session,
+    parametros: ParametrosPaginacion,
+    estado: Estado | None,
+    categoria: Categoria | None = None,
 ) -> tuple[list[tuple[Producto, Seccion]], int]:
     """Devuelve la pagina de productos con su seccion actual y el total.
 
     Con `estado`, el listado y el total cuentan solo los productos en ese estado.
+    Con `categoria`, solo los de esa categoria (M2 lista los menus del dia).
     """
     consulta = (
         select(Producto, Seccion)
@@ -106,6 +110,8 @@ def listar_productos(
     )
     if estado is not None:
         consulta = consulta.where(Producto.estado == estado)
+    if categoria is not None:
+        consulta = consulta.where(Producto.categoria == categoria)
     filas = db.execute(aplicar(consulta, parametros)).all()
     return [(producto, seccion) for producto, seccion in filas], contar(db, consulta)
 
