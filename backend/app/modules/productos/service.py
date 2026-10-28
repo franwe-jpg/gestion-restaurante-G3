@@ -491,8 +491,10 @@ def _a_listado(producto: Producto, seccion: Seccion) -> ProductoListado:
 def listar_productos(
     db: Session, parametros: ParametrosPaginacion, estado: Estado | None = Estado.HABILITADO
 ) -> Pagina[ProductoListado]:
-    """Lista productos; `estado=None` los incluye a todos (habilitados y deshabilitados)."""
-    filas, total = repository.listar_productos(db, parametros, estado)
+    """Lista productos de M1; menus del dia se listan por separado en M2."""
+    filas, total = repository.listar_productos(
+        db, parametros, estado, categoria_excluida=Categoria.MENU_DEL_DIA
+    )
     return Pagina[ProductoListado](
         items=[_a_listado(producto, seccion) for producto, seccion in filas],
         total=total,
