@@ -36,3 +36,8 @@ export function listarSectoresHabilitados(): Promise<RespuestaApi<Pagina<Sector>
 export function crearMesa(datos: MesaCrear): Promise<RespuestaApi<Mesa>> {
   return clienteHttp.post<Mesa, MesaCrear>('/mesas', datos);
 }
+
+/** HU-M3-08: listado paginado de mesas con su sector. */
+export function listarMesas(limit: number, offset: number): Promise<RespuestaApi<Pagina<Mesa>>> {
+  return clienteHttp.get<Pagina<Mesa>>(`/mesas?limit=${limit}&offset=${offset}`);
+}

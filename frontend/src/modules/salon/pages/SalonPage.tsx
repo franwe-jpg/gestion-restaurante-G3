@@ -1,16 +1,20 @@
 import { Plus } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { useState } from 'react';
 
 import { PageHeader } from '../../../shared/components/PageHeader';
 import { Button } from '../../../shared/components/ui/button';
 import { Card, CardContent } from '../../../shared/components/ui/card';
 import { Pagination } from '../../../shared/components/ui/pagination';
+import { Tabs } from '../../../shared/components/ui/tabs';
 import type { EstadoPaginacion } from '../../../shared/hooks/usePaginacion';
 
 import { MesaFormDialog } from '../components/MesaFormDialog';
+import { MesasTabla } from '../components/MesasTabla';
 import { SectorFormDialog } from '../components/SectorFormDialog';
-import { useBajaSector } from '../components/useBajaSector';
 import { SectoresTabla } from '../components/SectoresTabla';
+import { useBajaSector } from '../components/useBajaSector';
+import { useMesasDelSalon } from '../components/useMesasDelSalon';
 import { useSectoresDelSalon } from '../components/useSectoresDelSalon';
 import type { Sector } from '../types';
 
@@ -37,36 +41,16 @@ function AccionesDelSalon({
   );
 }
 
-interface SeccionSectoresProps {
-  sectores: Sector[];
-  cargando: boolean;
-  error: string | null;
+interface SeccionListadoProps {
   paginacion: EstadoPaginacion;
-  onReintentar: () => void;
-  onEditar: (sector: Sector) => void;
-  onEliminar: (sector: Sector) => void;
+  children: ReactNode;
 }
 
-function SeccionSectores({
-  sectores,
-  cargando,
-  error,
-  paginacion,
-  onReintentar,
-  onEditar,
-  onEliminar,
-}: SeccionSectoresProps) {
+function SeccionListado({ paginacion, children }: SeccionListadoProps) {
   return (
     <Card>
       <CardContent className="pt-6">
-        <SectoresTabla
-          sectores={sectores}
-          cargando={cargando}
-          error={error}
-          onReintentar={onReintentar}
-          onEditar={onEditar}
-          onEliminar={onEliminar}
-        />
+        {children}
         {paginacion.totalPaginas > 1 && (
           <Pagination
             className="mt-4"
@@ -80,6 +64,58 @@ function SeccionSectores({
   );
 }
 
+interface SeccionSectoresProps {
+  sectores: Sector[];
+  cargando: boolean;
+  error: string | null;
+  paginacion: EstadoPaginacion;
+  onReintentar: () => void;
+  onEditar: (sector: Sector) => void;
+  onEliminar: (sector: Sector) => void;
+}
+
+function SeccionSectores({ paginacion, ...tabla }: SeccionSectoresProps) {
+  return (
+    <SeccionListado paginacion={paginacion}>
+      <SectoresTabla {...tabla} />
+    </SeccionListado>
+  );
+}
+
+function SeccionMesas({ refresco }: { refresco: number }) {
+  const { mesas, cargando, error, recargar, paginacion } = useMesasDelSalon(refresco);
+
+  return (
+    <SeccionListado paginacion={paginacion}>
+      <MesasTabla mesas={mesas} cargando={cargando} error={error} onReintentar={recargar} />
+    </SeccionListado>
+  );
+}
+
+interface SeccionesDelSalonProps extends SeccionSectoresProps {
+  pestania: string;
+  refrescoMesas: number;
+  onCambiarPestania: (id: string) => void;
+}
+
+function SeccionesDelSalon({
+  pestania,
+  onCambiarPestania,
+  refrescoMesas,
+  ...sectores
+}: SeccionesDelSalonProps) {
+  return (
+    <Tabs
+      valor={pestania}
+      onCambiar={onCambiarPestania}
+      items={[
+        { id: 'sectores', etiqueta: 'Sectores', contenido: <SeccionSectores {...sectores} /> },
+        { id: 'mesas', etiqueta: 'Mesas', contenido: <SeccionMesas refresco={refrescoMesas} /> },
+      ]}
+    />
+  );
+}
+
 interface DialogosSalonProps {
   sectorAbierto: boolean;
   sectorEnEdicion: Sector | null;
@@ -87,6 +123,7 @@ interface DialogosSalonProps {
   onSectorOpenChange: (abierto: boolean) => void;
   onGuardadoSector: () => void;
   onMesaOpenChange: (abierto: boolean) => void;
+  onMesaCreada: () => void;
   onCrearSectorDesdeMesa: () => void;
 }
 
@@ -97,6 +134,7 @@ function DialogosSalon({
   onSectorOpenChange,
   onGuardadoSector,
   onMesaOpenChange,
+  onMesaCreada,
   onCrearSectorDesdeMesa,
 }: DialogosSalonProps) {
   return (
@@ -110,7 +148,7 @@ function DialogosSalon({
       )}
       {mesaAbierta && (
         <MesaFormDialog
-          onCreado={() => onMesaOpenChange(false)}
+          onCreado={onMesaCreada}
           onOpenChange={onMesaOpenChange}
           onCrearSector={onCrearSectorDesdeMesa}
         />
@@ -123,6 +161,8 @@ function useDialogosDelSalon(recargar: () => void) {
   const [sectorAbierto, setSectorAbierto] = useState(false);
   const [sectorEnEdicion, setSectorEnEdicion] = useState<Sector | null>(null);
   const [mesaAbierta, setMesaAbierta] = useState(false);
+  const [pestania, setPestania] = useState('sectores');
+  const [refrescoMesas, setRefrescoMesas] = useState(0);
 
   const abrirSector = (sector: Sector | null = null) => {
     setSectorEnEdicion(sector);
@@ -134,6 +174,12 @@ function useDialogosDelSalon(recargar: () => void) {
     recargar();
   };
 
+  const alCrearMesa = () => {
+    setMesaAbierta(false);
+    setPestania('mesas');
+    setRefrescoMesas((previa) => previa + 1);
+  };
+
   return {
     sectorAbierto,
     sectorEnEdicion,
@@ -142,6 +188,10 @@ function useDialogosDelSalon(recargar: () => void) {
     setMesaAbierta,
     abrirSector,
     alGuardarSector,
+    alCrearMesa,
+    pestania,
+    setPestania,
+    refrescoMesas,
   };
 }
 
@@ -167,7 +217,10 @@ export function SalonPage() {
           />
         }
       />
-      <SeccionSectores
+      <SeccionesDelSalon
+        pestania={dialogos.pestania}
+        onCambiarPestania={dialogos.setPestania}
+        refrescoMesas={dialogos.refrescoMesas}
         sectores={sectores}
         cargando={cargando}
         error={error}
@@ -183,6 +236,7 @@ export function SalonPage() {
         onSectorOpenChange={dialogos.setSectorAbierto}
         onGuardadoSector={dialogos.alGuardarSector}
         onMesaOpenChange={dialogos.setMesaAbierta}
+        onMesaCreada={dialogos.alCrearMesa}
         onCrearSectorDesdeMesa={abrirSectorDesdeMesa}
       />
     </div>

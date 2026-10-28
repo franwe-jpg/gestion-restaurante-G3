@@ -7,6 +7,7 @@ import {
   crearMesa,
   crearSector,
   eliminarSector,
+  listarMesas,
   listarSectores,
   listarSectoresHabilitados,
   modificarSector,
@@ -38,6 +39,22 @@ const RESERVADO: Sector = {
   estado: 'DESHABILITADO',
 };
 
+const MESA_SALON: Mesa = {
+  id: 1,
+  numero: 1,
+  capacidad: 2,
+  sector: { id: 1, nombre: 'Salón principal' },
+  estado: 'LIBRE',
+};
+
+const MESA_TERRAZA: Mesa = {
+  id: 2,
+  numero: 1,
+  capacidad: 6,
+  sector: { id: 2, nombre: 'Terraza' },
+  estado: 'OCUPADA',
+};
+
 const MESA_CREADA: Mesa = {
   id: 1,
   numero: 13,
@@ -47,6 +64,10 @@ const MESA_CREADA: Mesa = {
 };
 
 function listado(items: Sector[], total = items.length) {
+  return { datos: { items, total, limit: 50, offset: 0 }, exito: true };
+}
+
+function paginaMesas(items: Mesa[], total = items.length) {
   return { datos: { items, total, limit: 50, offset: 0 }, exito: true };
 }
 
@@ -95,6 +116,7 @@ function prepararGuardadoExitoso() {
 
 beforeEach(() => {
   vi.mocked(listarSectores).mockResolvedValue(listado([]));
+  vi.mocked(listarMesas).mockResolvedValue(paginaMesas([]));
 });
 
 afterEach(() => {
@@ -377,5 +399,75 @@ describe('SalonPage: baja de sector', () => {
 
     await waitFor(() => expect(eliminarSector).not.toHaveBeenCalled());
     expect(listarSectores).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('SalonPage: listado de mesas', () => {
+  it('muestra las pestañas con «Sectores» activa por defecto', async () => {
+    render(<SalonPage />);
+
+    expect(await screen.findByRole('tab', { name: 'Sectores' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    expect(screen.getByRole('tab', { name: 'Mesas' })).toHaveAttribute('aria-selected', 'false');
+    expect(await screen.findByText('No hay sectores disponibles')).toBeInTheDocument();
+  });
+
+  it('en «Mesas» muestra número, sector, capacidad y estado (CA 1 y 3 de #41)', async () => {
+    vi.mocked(listarMesas).mockResolvedValue(paginaMesas([MESA_SALON, MESA_TERRAZA]));
+    render(<SalonPage />);
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Mesas' }));
+    await screen.findByText('Terraza');
+
+    const filas = screen.getAllByRole('row').slice(1);
+    const celdas = filas.map((fila) =>
+      within(fila)
+        .getAllByRole('cell')
+        .map((celda) => celda.textContent),
+    );
+    expect(celdas).toEqual([
+      ['1', 'Salón principal', '2', 'Libre'],
+      ['1', 'Terraza', '6', 'Ocupada'],
+    ]);
+  });
+
+  it('sin mesas informa «No hay mesas disponibles» (CA 2 de #41)', async () => {
+    render(<SalonPage />);
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Mesas' }));
+
+    expect(await screen.findByText('No hay mesas disponibles')).toBeInTheDocument();
+  });
+
+  it('pagina las mesas de a 50', async () => {
+    vi.mocked(listarMesas).mockResolvedValue(paginaMesas([MESA_SALON], 120));
+    render(<SalonPage />);
+    fireEvent.click(await screen.findByRole('tab', { name: 'Mesas' }));
+    expect(await screen.findByText('Página 1 de 3')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Página 2' }));
+
+    await waitFor(() => expect(listarMesas).toHaveBeenCalledWith(50, 50));
+  });
+});
+
+describe('SalonPage: mesas después del alta', () => {
+  it('al crear una mesa activa «Mesas» y refresca el listado (escenario Mesa creada)', async () => {
+    vi.mocked(crearMesa).mockResolvedValue({ datos: MESA_CREADA, exito: true });
+    renderConToasts();
+    await abrirMesa();
+
+    fireEvent.change(screen.getByLabelText(/Número/), { target: { value: '13' } });
+    fireEvent.change(screen.getByLabelText(/Capacidad/), { target: { value: '4' } });
+    fireEvent.change(screen.getByLabelText(/Sector/), { target: { value: '1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar mesa' }));
+
+    expect(await screen.findByText('Mesa creada')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: 'Mesas' })).toHaveAttribute('aria-selected', 'true'),
+    );
+    await waitFor(() => expect(listarMesas).toHaveBeenCalled());
   });
 });

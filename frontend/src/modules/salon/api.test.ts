@@ -6,6 +6,7 @@ import {
   crearMesa,
   crearSector,
   eliminarSector,
+  listarMesas,
   listarSectores,
   listarSectoresHabilitados,
   modificarSector,
@@ -156,6 +157,34 @@ describe('eliminarSector', () => {
     const resultado = await eliminarSector(2);
 
     expect(post).toHaveBeenCalledWith('/sectores/2/baja', {});
+    expect(resultado).toBe(respuesta);
+  });
+});
+
+describe('listarMesas', () => {
+  it('pide las mesas paginadas con sector y estado (CA 1 de #41)', async () => {
+    const respuesta = {
+      datos: {
+        items: [
+          {
+            id: 1,
+            numero: 3,
+            capacidad: 4,
+            sector: { id: 2, nombre: 'Terraza' },
+            estado: 'LIBRE' as const,
+          },
+        ],
+        total: 1,
+        limit: 50,
+        offset: 50,
+      },
+      exito: true,
+    };
+    const get = vi.spyOn(clienteHttp, 'get').mockResolvedValue(respuesta);
+
+    const resultado = await listarMesas(50, 50);
+
+    expect(get).toHaveBeenCalledWith('/mesas?limit=50&offset=50');
     expect(resultado).toBe(respuesta);
   });
 });
