@@ -34,4 +34,5 @@
 - El diálogo de edición conserva la leyenda «El estado del sector lo asigna el sistema.» y agrega la línea «Estado: Habilitado/Deshabilitado» con el valor real del sector.
 - Punto de control de revisión: backend 427 líneas y frontend 932 líneas. El frontend supera las 800 y se integra igual en un solo PR (AGENTS.md §4: es un punto de control, no un bloqueo).
 - Sin dependencias nuevas y sin cambios en `backend/app/shared/`, `main.py`, `App.tsx` ni `models.py`.
+- Ajuste posterior del 28/10: la columna Nombre del listado se muestra en mayúsculas por pedido de la responsable del módulo. Es presentación pura (`span` con clase `uppercase`); el dato guardado, el precargado en el diálogo y el `aria-label` conservan el nombre original. Se agregó el escenario correspondiente a la spec y la decisión M17 al diseño.
 - Evaluación de riesgo de RDD sobre el candidato: `medium`, `review_due=false`, motivo `under_budget` (25 rutas y 2037 líneas acumuladas desde `0bff1e0`).

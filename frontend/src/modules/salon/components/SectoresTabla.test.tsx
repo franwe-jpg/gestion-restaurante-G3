@@ -30,6 +30,12 @@ describe('SectoresTabla', () => {
     expect(screen.getByText('Deshabilitado')).toBeInTheDocument();
   });
 
+  it('muestra el nombre en mayúsculas sin cambiar el dato (CA 1 de #36)', () => {
+    render(<SectoresTabla sectores={[SALON]} onEditar={vi.fn()} />);
+
+    expect(screen.getByText('Salón principal')).toHaveClass('uppercase');
+  });
+
   it('muestra «—» cuando la descripción es nula (CA 1 de #36)', () => {
     render(<SectoresTabla sectores={[RESERVADO]} onEditar={vi.fn()} />);
 

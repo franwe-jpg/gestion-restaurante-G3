@@ -17,7 +17,11 @@ export interface SectoresTablaProps {
 
 function columnas(onEditar: (sector: Sector) => void): ColumnaTabla<Sector>[] {
   return [
-    { clave: 'nombre', encabezado: 'Nombre', render: (sector) => sector.nombre },
+    {
+      clave: 'nombre',
+      encabezado: 'Nombre',
+      render: (sector) => <span className="uppercase">{sector.nombre}</span>,
+    },
     {
       clave: 'descripcion',
       encabezado: 'Descripción',

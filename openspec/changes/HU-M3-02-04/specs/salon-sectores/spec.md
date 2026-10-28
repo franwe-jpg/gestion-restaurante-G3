@@ -92,7 +92,7 @@ El sistema DEBE permitir modificar el nombre y la descripción de un sector exis
 
 ### Requisito: Listar los sectores
 
-La pantalla `/salon` DEBE mostrar una tabla con los sectores registrados, con las columnas Nombre, Descripción y Estado, ordenada por nombre, y DEBE ofrecer por fila la acción «Editar «nombre»», que abre el diálogo de modificación con los datos del sector. Cuando no haya sectores, DEBE informar «No hay sectores disponibles» en lugar de la tabla. El listado DEBE obtener los datos de `GET /api/v1/sectores` sin filtro de estado y DEBE paginar de a 50 registros con `Pagination` cuando haya más de una página.
+La pantalla `/salon` DEBE mostrar una tabla con los sectores registrados, con las columnas Nombre, Descripción y Estado, ordenada por nombre, y DEBE ofrecer por fila la acción «Editar «nombre»», que abre el diálogo de modificación con los datos del sector. La columna Nombre DEBE mostrarse en mayúsculas, sin alterar el dato guardado ni el valor precargado en el diálogo de edición. Cuando no haya sectores, DEBE informar «No hay sectores disponibles» en lugar de la tabla. El listado DEBE obtener los datos de `GET /api/v1/sectores` sin filtro de estado y DEBE paginar de a 50 registros con `Pagination` cuando haya más de una página.
 
 #### Escenario: Listado con sectores (CA 1 de #36)
 
@@ -111,6 +111,12 @@ La pantalla `/salon` DEBE mostrar una tabla con los sectores registrados, con la
 - DADO que existen varios sectores habilitados y deshabilitados
 - CUANDO ingreso a `/salon`
 - ENTONCES se muestran todos los sectores de la página, ordenados por nombre
+
+#### Escenario: Nombre en mayúsculas
+
+- DADO que el listado muestra el sector «Salón principal»
+- CUANDO ingreso a `/salon`
+- ENTONCES la columna Nombre muestra «SALÓN PRINCIPAL» y, al abrir su edición, el campo Nombre sigue precargado como «Salón principal»
 
 #### Escenario: Editar desde la fila
 
