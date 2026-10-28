@@ -34,30 +34,30 @@ Nota: AGENTS.md §4 y `openspec/config.yaml` fijan un PR por cambio; el límite 
 
 ## Fase 1: Backend
 
-- [ ] 1.1 RED: `test_schemas.py` — `SectorModificar` recorta el nombre, exige 1..30 caracteres, convierte la descripción vacía en `None`, rechaza 201 caracteres y `estado` extra.
-- [ ] 1.2 GREEN: `SectorModificar(SectorCrear)` en `salon/schemas.py`.
-- [ ] 1.3 RED: `test_service.py` — `existe_nombre_normalizado` con `excluir_id` (no encuentra el propio, sí otro); `modificar_sector` cambia nombre y descripción; mismo nombre con otra descripción → 200; nombre de otro sector, incluso deshabilitado → 409 sin cambios; sector inexistente → 404; sector deshabilitado se modifica sin cambiar de estado; `IntegrityError` en `commit` → 409 y `rollback`; descripción ausente → `null`.
-- [ ] 1.4 GREEN: `repository.existe_nombre_normalizado(..., excluir_id=None)`, `service._validar_nombre_libre(..., excluir_id=None)`, `service._actualizar` y `service.modificar_sector`.
-- [ ] 1.5 RED: `test_router.py` — `PUT /sectores/{id}` responde 200 con `SectorSalida` y persiste (verificado con `GET /sectores`); 404 y 409 con `detalle`; 422 por nombre vacío, 31 caracteres, descripción de 201, `estado` enviado y `sector_id` no entero; el listado sin `estado` devuelve habilitados y deshabilitados ordenados por nombre.
-- [ ] 1.6 GREEN: `PUT /sectores/{sector_id}` en `salon/router.py`.
-- [ ] 1.7 REFACTOR: `ruff check --fix . && ruff format .`, `lint-imports` y funciones de hasta 50 líneas.
+- [x] 1.1 RED: `test_schemas.py` — `SectorModificar` recorta el nombre, exige 1..30 caracteres, convierte la descripción vacía en `None`, rechaza 201 caracteres y `estado` extra.
+- [x] 1.2 GREEN: `SectorModificar(SectorCrear)` en `salon/schemas.py`.
+- [x] 1.3 RED: `test_service.py` — `existe_nombre_normalizado` con `excluir_id` (no encuentra el propio, sí otro); `modificar_sector` cambia nombre y descripción; mismo nombre con otra descripción → 200; nombre de otro sector, incluso deshabilitado → 409 sin cambios; sector inexistente → 404; sector deshabilitado se modifica sin cambiar de estado; `IntegrityError` en `commit` → 409 y `rollback`; descripción ausente → `null`.
+- [x] 1.4 GREEN: `repository.existe_nombre_normalizado(..., excluir_id=None)`, `service._validar_nombre_libre(..., excluir_id=None)`, `service._actualizar` y `service.modificar_sector`.
+- [x] 1.5 RED: `test_router.py` — `PUT /sectores/{id}` responde 200 con `SectorSalida` y persiste (verificado con `GET /sectores`); 404 y 409 con `detalle`; 422 por nombre vacío, 31 caracteres, descripción de 201, `estado` enviado y `sector_id` no entero; el listado sin `estado` devuelve habilitados y deshabilitados ordenados por nombre.
+- [x] 1.6 GREEN: `PUT /sectores/{sector_id}` en `salon/router.py`.
+- [x] 1.7 REFACTOR: `ruff check --fix . && ruff format .`, `lint-imports` y funciones de hasta 50 líneas.
 
 ## Fase 2: Frontend
 
-- [ ] 2.1 RED/GREEN: `shared/api/client.ts` suma `put<T, B>` con prueba (método, `Content-Type` y cuerpo; los métodos existentes no cambian).
-- [ ] 2.2 RED/GREEN: `types.ts` (`SectorModificar`) y `api.ts` (`modificarSector`, `listarSectores`) con prueba de rutas, método y cuerpo.
-- [ ] 2.3 RED/GREEN: `useFormularioSector.ts` acepta `sector` y `onGuardado`; inicializa los campos, elige `crearSector` o `modificarSector`, emite «Sector creado» o «Sector modificado» y conserva lo escrito ante un 409. Prueba de los dos modos.
-- [ ] 2.4 RED/GREEN: `SectorFormDialog.tsx` en modo edición: título, «Guardar cambios», datos precargados y estado real; cancelar no llama a la API. Se actualizan las pruebas del alta.
-- [ ] 2.5 RED/GREEN: `SectoresTabla.tsx` con Nombre, Descripción («—» si es nula), Estado y «Editar «nombre»»; vacío «No hay sectores disponibles»; error con «Reintentar».
-- [ ] 2.6 RED/GREEN: `useSectoresDelSalon.ts` (`limit=50`, `offset` de la paginación, sincronización de `total`, `recargar`).
-- [ ] 2.7 RED/GREEN: `SalonPage.tsx` muestra la tabla, abre el diálogo desde la fila, recarga tras guardar y mantiene el alta y la mesa. Se actualiza la prueba del aviso «HU-M3-04» y se cubren los criterios de #36 y #34.
-- [ ] 2.8 REFACTOR: `npm run format`; buscar componentes reutilizables en `shared/components/`; contrastar con `SPRINT-2/S2-04-maqueta/salon.html` y anotar diferencias (columna «Mesas», acciones de baja, íconos).
+- [x] 2.1 RED/GREEN: `shared/api/client.ts` suma `put<T, B>` con prueba (método, `Content-Type` y cuerpo; los métodos existentes no cambian).
+- [x] 2.2 RED/GREEN: `types.ts` (`SectorModificar`) y `api.ts` (`modificarSector`, `listarSectores`) con prueba de rutas, método y cuerpo.
+- [x] 2.3 RED/GREEN: `useFormularioSector.ts` acepta `sector` y `onGuardado`; inicializa los campos, elige `crearSector` o `modificarSector`, emite «Sector creado» o «Sector modificado» y conserva lo escrito ante un 409. Prueba de los dos modos.
+- [x] 2.4 RED/GREEN: `SectorFormDialog.tsx` en modo edición: título, «Guardar cambios», datos precargados y estado real; cancelar no llama a la API. Se actualizan las pruebas del alta.
+- [x] 2.5 RED/GREEN: `SectoresTabla.tsx` con Nombre, Descripción («—» si es nula), Estado y «Editar «nombre»»; vacío «No hay sectores disponibles»; error con «Reintentar».
+- [x] 2.6 RED/GREEN: `useSectoresDelSalon.ts` (`limit=50`, `offset` de la paginación, sincronización de `total`, `recargar`).
+- [x] 2.7 RED/GREEN: `SalonPage.tsx` muestra la tabla, abre el diálogo desde la fila, recarga tras guardar y mantiene el alta y la mesa. Se actualiza la prueba del aviso «HU-M3-04» y se cubren los criterios de #36 y #34.
+- [x] 2.8 REFACTOR: `npm run format`; buscar componentes reutilizables en `shared/components/`; contrastar con `SPRINT-2/S2-04-maqueta/salon.html` y anotar diferencias (columna «Mesas», acciones de baja, íconos).
 
 ## Fase 3: Verificación final y notas del PR
 
-- [ ] 3.1 Backend desde `backend/`: `ruff check . && ruff format --check . && lint-imports && pytest` (cobertura ≥ 70 %); `alembic heads` con una sola cabeza.
-- [ ] 3.2 Frontend desde `frontend/`, con Node 22: `npm run lint && npm run format:check && npm run typecheck && npm run test:coverage && npm run build` (cobertura ≥ 60 %).
-- [ ] 3.3 Reunir notas del PR (sin crear issues ni comentarios):
+- [x] 3.1 Backend desde `backend/`: `ruff check . && ruff format --check . && lint-imports && pytest` (cobertura ≥ 70 %); `alembic heads` con una sola cabeza.
+- [x] 3.2 Frontend desde `frontend/`, con Node 22: `npm run lint && npm run format:check && npm run typecheck && npm run test:coverage && npm run build` (cobertura ≥ 60 %).
+- [x] 3.3 Reunir notas del PR (sin crear issues ni comentarios):
   - Archivo compartido tocado (§9.3): `frontend/src/shared/api/client.ts` (método `put`).
   - Diferencia con la maqueta: sin columna «Mesas» (HU-M3-08), sin acción de baja (HU-M3-03) y sin filtros ni pestañas.
   - `GET /api/v1/sectores` se reutiliza sin cambios.
