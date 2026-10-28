@@ -12,7 +12,7 @@ export function useBajaMenuDelDia(alRecargar: () => void) {
     const confirmado = await confirmar({
       titulo: `Dar de baja ${menu.nombre}`,
       descripcion:
-        'El menú del día quedará deshabilitado y dejará de aparecer en la carta. Sus datos se conservan.',
+        'El menú se deshabilitará y se ocultará de la lista de habilitados. Sus datos se conservan.',
       textoConfirmar: 'Dar de baja',
       variante: 'danger',
     });
@@ -26,7 +26,7 @@ export function useBajaMenuDelDia(alRecargar: () => void) {
       });
       return;
     }
-    mostrarToast({ titulo: 'Menú del día dado de baja', variante: 'success' });
+    mostrarToast({ titulo: 'Menú del día deshabilitado', variante: 'success' });
     alRecargar();
   };
 }

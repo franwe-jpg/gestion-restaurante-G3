@@ -335,6 +335,20 @@ def test_modificar_menu_del_dia_reactiva_y_vuelve_a_la_lista(
     assert cliente.get(RUTA).json()["total"] == 1
 
 
+def test_modificar_menu_del_dia_deshabilita_y_lo_saca_de_la_lista_activa(
+    cliente: TestClient, fabrica_seccion, directorio_media: Path
+) -> None:
+    seccion = fabrica_seccion()
+    creado = _crear_ok(cliente, seccion.id)
+
+    respuesta = _modificar(cliente, creado["id"], seccion.id, estado="DESHABILITADO")
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["estado"] == "DESHABILITADO"
+    assert cliente.get(RUTA).json()["total"] == 0
+    assert cliente.get(RUTA, params={"estado": "DESHABILITADO"}).json()["total"] == 1
+
+
 def test_modificar_menu_del_dia_conserva_el_precio_de_las_filas_relacionadas(
     cliente: TestClient, db: Session, fabrica_seccion, directorio_media: Path
 ) -> None:
