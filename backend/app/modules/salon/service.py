@@ -138,3 +138,14 @@ def dar_de_baja_sector(db: Session, sector_id: int) -> SectorSalida:
     sector.estado = Estado.DESHABILITADO
     db.commit()
     return SectorSalida.model_validate(sector)
+
+
+def listar_mesas(db: Session, parametros: ParametrosPaginacion) -> Pagina[MesaSalida]:
+    """Listado paginado de mesas con su sector (HU-M3-08)."""
+    filas, total = repository.listar_mesas(db, parametros)
+    return Pagina[MesaSalida](
+        items=[_a_salida(mesa, sector) for mesa, sector in filas],
+        total=total,
+        limit=parametros.limit,
+        offset=parametros.offset,
+    )

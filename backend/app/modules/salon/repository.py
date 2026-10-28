@@ -50,3 +50,13 @@ def contar_mesas_del_sector(db: Session, sector_id: int) -> int:
     """Cuenta las mesas del sector sin cargarlas (HU-M3-03)."""
     consulta = select(func.count()).select_from(Mesa).where(Mesa.sector_id == sector_id)
     return db.scalar(consulta) or 0
+
+
+def listar_mesas(
+    db: Session, parametros: ParametrosPaginacion
+) -> tuple[list[tuple[Mesa, Sector]], int]:
+    """Pagina de mesas con su sector, ordenada por sector y numero (HU-M3-08)."""
+    consulta = select(Mesa, Sector).join(Sector, Mesa.sector_id == Sector.id)
+    ordenada = consulta.order_by(Sector.nombre, Mesa.numero, Mesa.id)
+    filas = db.execute(aplicar(ordenada, parametros)).all()
+    return [(mesa, sector) for mesa, sector in filas], contar(db, select(Mesa.id))

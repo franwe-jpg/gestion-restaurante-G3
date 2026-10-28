@@ -508,3 +508,83 @@ def test_dar_de_baja_sector_con_id_no_entero_responde_422(cliente: TestClient) -
 
     assert respuesta.status_code == 422
     assert "detalle" in respuesta.json()
+
+
+# HU-M3-08: listado de mesas
+def test_listar_mesas_responde_200_con_la_forma_de_mesa_salida(
+    cliente: TestClient, fabrica_sector, fabrica_mesa
+) -> None:
+    salon = fabrica_sector("Salón principal")
+    fabrica_mesa(salon, numero=2, capacidad=4)
+    fabrica_mesa(salon, numero=1, capacidad=2)
+
+    respuesta = cliente.get(f"{RUTA_MESAS}?limit=50&offset=0")
+
+    assert respuesta.status_code == 200
+    assert respuesta.json() == {
+        "items": [
+            {
+                "id": 2,
+                "numero": 1,
+                "capacidad": 2,
+                "sector": {"id": salon.id, "nombre": "Salón principal"},
+                "estado": "LIBRE",
+            },
+            {
+                "id": 1,
+                "numero": 2,
+                "capacidad": 4,
+                "sector": {"id": salon.id, "nombre": "Salón principal"},
+                "estado": "LIBRE",
+            },
+        ],
+        "total": 2,
+        "limit": 50,
+        "offset": 0,
+    }
+
+
+def test_listar_mesas_sin_mesas_responde_pagina_vacia(cliente: TestClient) -> None:
+    respuesta = cliente.get(RUTA_MESAS)
+
+    assert respuesta.status_code == 200
+    assert respuesta.json() == {"items": [], "total": 0, "limit": 50, "offset": 0}
+
+
+def test_listar_mesas_agrupa_por_sector_y_ordena_por_numero(
+    cliente: TestClient, fabrica_sector, fabrica_mesa
+) -> None:
+    terraza = fabrica_sector("Terraza")
+    salon = fabrica_sector("Salón principal")
+    fabrica_mesa(terraza, numero=1)
+    fabrica_mesa(salon, numero=9)
+    fabrica_mesa(salon, numero=3)
+
+    filas = cliente.get(RUTA_MESAS).json()["items"]
+
+    assert [(fila["sector"]["nombre"], fila["numero"]) for fila in filas] == [
+        ("Salón principal", 3),
+        ("Salón principal", 9),
+        ("Terraza", 1),
+    ]
+
+
+def test_listar_mesas_pagina_sin_cambiar_el_total(
+    cliente: TestClient, fabrica_sector, fabrica_mesa
+) -> None:
+    salon = fabrica_sector("Salón principal")
+    for numero in range(1, 4):
+        fabrica_mesa(salon, numero=numero)
+
+    respuesta = cliente.get(f"{RUTA_MESAS}?limit=2&offset=2")
+
+    assert [fila["numero"] for fila in respuesta.json()["items"]] == [3]
+    assert respuesta.json()["total"] == 3
+
+
+def test_listar_mesas_con_parametros_invalidos_responde_422(cliente: TestClient) -> None:
+    for consulta in ("limit=0", "limit=101", "offset=-1"):
+        respuesta = cliente.get(f"{RUTA_MESAS}?{consulta}")
+
+        assert respuesta.status_code == 422, consulta
+        assert "detalle" in respuesta.json()

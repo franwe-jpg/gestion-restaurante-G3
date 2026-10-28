@@ -424,3 +424,57 @@ def test_dar_de_baja_sector_ya_deshabilitado_con_mesas_informa_el_estado(
 def test_dar_de_baja_sector_inexistente_es_no_encontrado(db: Session) -> None:
     with pytest.raises(NoEncontradoError, match="El sector 999 no existe"):
         service.dar_de_baja_sector(db, 999)
+
+
+# HU-M3-08: listado de mesas
+def test_listar_mesas_devuelve_la_pagina_con_su_sector(
+    db: Session, fabrica_sector, fabrica_mesa
+) -> None:
+    terraza = fabrica_sector("Terraza")
+    salon = fabrica_sector("Salón principal")
+    fabrica_mesa(salon, numero=2, capacidad=4)
+    fabrica_mesa(salon, numero=1, capacidad=2)
+    fabrica_mesa(terraza, numero=1)
+
+    pagina = service.listar_mesas(db, ParametrosPaginacion())
+
+    assert [(item.sector.nombre, item.numero, item.capacidad) for item in pagina.items] == [
+        ("Salón principal", 1, 2),
+        ("Salón principal", 2, 4),
+        ("Terraza", 1, 4),
+    ]
+    assert pagina.total == 3
+    assert pagina.limit == 50
+    assert pagina.offset == 0
+    assert pagina.items[0].estado == EstadoMesa.LIBRE
+
+
+def test_listar_mesas_sin_mesas_devuelve_una_pagina_vacia(db: Session) -> None:
+    pagina = service.listar_mesas(db, ParametrosPaginacion())
+
+    assert pagina.items == []
+    assert pagina.total == 0
+
+
+def test_listar_mesas_respeta_limit_y_offset(db: Session, fabrica_sector, fabrica_mesa) -> None:
+    salon = fabrica_sector("Salón principal")
+    for numero in range(1, 4):
+        fabrica_mesa(salon, numero=numero)
+
+    pagina = service.listar_mesas(db, ParametrosPaginacion(limit=2, offset=1))
+
+    assert [item.numero for item in pagina.items] == [2, 3]
+    assert pagina.total == 3
+    assert pagina.limit == 2
+    assert pagina.offset == 1
+
+
+def test_listar_mesas_incluye_sectores_deshabilitados(
+    db: Session, fabrica_sector, fabrica_mesa
+) -> None:
+    sector = fabrica_sector("Reservado", estado=Estado.DESHABILITADO)
+    fabrica_mesa(sector)
+
+    pagina = service.listar_mesas(db, ParametrosPaginacion())
+
+    assert pagina.items[0].sector.nombre == "Reservado"

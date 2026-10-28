@@ -15,7 +15,7 @@ from app.modules.salon.schemas import (
     SectorModificar,
     SectorSalida,
 )
-from app.shared.paginacion import Pagina
+from app.shared.paginacion import Pagina, ParametrosPaginacion
 
 router = APIRouter()
 
@@ -40,6 +40,13 @@ def dar_de_baja_sector(sector_id: int, db: Sesion) -> SectorSalida:
 @router.post("/mesas", status_code=status.HTTP_201_CREATED)
 def crear_mesa(datos: MesaCrear, db: Sesion) -> MesaSalida:
     return service.crear_mesa(db, datos)
+
+
+@router.get("/mesas")
+def listar_mesas(
+    db: Sesion, filtro: Annotated[ParametrosPaginacion, Query()]
+) -> Pagina[MesaSalida]:
+    return service.listar_mesas(db, filtro)
 
 
 @router.get("/sectores")
