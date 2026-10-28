@@ -2,11 +2,12 @@
 
 import pytest
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.modules.salon import repository, service
 from app.modules.salon.models import Mesa, Sector
-from app.modules.salon.schemas import MesaCrear, SectorCrear
+from app.modules.salon.schemas import MesaCrear, SectorCrear, SectorModificar
 from app.shared.excepciones import NoEncontradoError, ReglaDeNegocioError
 from app.shared.models import Estado
 from app.shared.models.enums import EstadoMesa
@@ -202,3 +203,142 @@ def test_listar_sectores_filtra_por_estado(db: Session, fabrica_sector) -> None:
 
     assert [sector.nombre for sector in pagina.items] == ["Terraza"]
     assert pagina.total == 1
+
+
+# --- HU-M3-02: modificacion de sectores ---
+
+
+def _modificacion(nombre: str = "Terraza", descripcion: str | None = None) -> SectorModificar:
+    return SectorModificar(nombre=nombre, descripcion=descripcion)
+
+
+# M2: la exclusion del propio id
+def test_existe_nombre_normalizado_sin_exclusion_se_comporta_como_antes(
+    db: Session, fabrica_sector
+) -> None:
+    sector = fabrica_sector("Terraza")
+
+    assert repository.existe_nombre_normalizado(db, "terraza") is True
+    assert repository.existe_nombre_normalizado(db, "terraza", excluir_id=sector.id) is False
+    assert repository.existe_nombre_normalizado(db, "patio") is False
+
+
+def test_existe_nombre_normalizado_con_exclusion_sigue_encontrando_a_otro(
+    db: Session, fabrica_sector
+) -> None:
+    fabrica_sector("Salón principal")
+    terraza = fabrica_sector("Terraza")
+
+    assert (
+        repository.existe_nombre_normalizado(db, "salón principal", excluir_id=terraza.id) is True
+    )
+
+
+# CA 1
+def test_modificar_sector_cambia_el_nombre_y_la_descripcion(db: Session, fabrica_sector) -> None:
+    sector = fabrica_sector("Salón principal", "Planta baja")
+
+    salida = service.modificar_sector(db, sector.id, _modificacion("Salón central", "Planta alta"))
+
+    assert salida.id == sector.id
+    assert salida.nombre == "Salón central"
+    assert salida.descripcion == "Planta alta"
+    assert salida.estado == Estado.HABILITADO
+    guardado = db.get(Sector, sector.id)
+    assert guardado.nombre == "Salón central"
+    assert guardado.nombre_normalizado == "salón central"
+    assert guardado.descripcion == "Planta alta"
+    assert _cantidad_sectores(db) == 1
+
+
+# Mismo nombre con otra descripcion
+def test_modificar_sector_con_el_mismo_nombre_solo_cambia_la_descripcion(
+    db: Session, fabrica_sector
+) -> None:
+    sector = fabrica_sector("Terraza")
+
+    salida = service.modificar_sector(db, sector.id, _modificacion("Terraza", "Al aire libre"))
+
+    assert salida.nombre == "Terraza"
+    assert salida.descripcion == "Al aire libre"
+    assert db.get(Sector, sector.id).nombre == "Terraza"
+    assert _cantidad_sectores(db) == 1
+
+
+# CA 3
+def test_modificar_sector_rechaza_el_nombre_de_otro_sin_distinguir_mayusculas(
+    db: Session, fabrica_sector
+) -> None:
+    fabrica_sector("Salón principal")
+    terraza = fabrica_sector("Terraza", "Al aire libre")
+
+    with pytest.raises(ReglaDeNegocioError, match="El sector ya existe"):
+        service.modificar_sector(db, terraza.id, _modificacion("  salón PRINCIPAL "))
+
+    db.expire_all()
+    guardado = db.get(Sector, terraza.id)
+    assert guardado.nombre == "Terraza"
+    assert guardado.descripcion == "Al aire libre"
+
+
+def test_modificar_sector_rechaza_el_nombre_de_un_deshabilitado(
+    db: Session, fabrica_sector
+) -> None:
+    fabrica_sector("Entradas", estado=Estado.DESHABILITADO)
+    terraza = fabrica_sector("Terraza")
+
+    with pytest.raises(ReglaDeNegocioError, match="El sector ya existe"):
+        service.modificar_sector(db, terraza.id, _modificacion("entradas"))
+
+    db.expire_all()
+    assert db.get(Sector, terraza.id).nombre == "Terraza"
+
+
+def test_modificar_sector_inexistente_es_no_encontrado(db: Session) -> None:
+    with pytest.raises(NoEncontradoError, match="El sector 99 no existe"):
+        service.modificar_sector(db, 99, _modificacion())
+
+    assert _cantidad_sectores(db) == 0
+
+
+# S1: el estado se conserva
+def test_modificar_sector_deshabilitado_conserva_su_estado(db: Session, fabrica_sector) -> None:
+    sector = fabrica_sector("Reservado", estado=Estado.DESHABILITADO)
+
+    salida = service.modificar_sector(db, sector.id, _modificacion("Reservado", "Fondo"))
+
+    assert salida.descripcion == "Fondo"
+    assert salida.estado == Estado.DESHABILITADO
+    assert db.get(Sector, sector.id).estado == Estado.DESHABILITADO
+
+
+# S2: PUT reemplaza la descripcion
+def test_modificar_sector_sin_descripcion_la_deja_en_none(db: Session, fabrica_sector) -> None:
+    sector = fabrica_sector("Terraza", "Al aire libre")
+
+    salida = service.modificar_sector(db, sector.id, SectorModificar(nombre="Terraza"))
+
+    assert salida.descripcion is None
+    assert db.get(Sector, sector.id).descripcion is None
+
+
+def test_modificar_sector_convierte_la_carrera_en_conflicto_y_deshace(
+    db: Session, fabrica_sector, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sector = fabrica_sector("Terraza", "Al aire libre")
+    monkeypatch.setattr(repository, "existe_nombre_normalizado", lambda *_, **__: False)
+    deshacer: list[bool] = []
+    rollback_original = db.rollback
+    monkeypatch.setattr(db, "rollback", lambda: (deshacer.append(True), rollback_original())[1])
+
+    def commit_en_conflicto() -> None:
+        raise IntegrityError("UPDATE sectores", {}, Exception("UNIQUE constraint failed"))
+
+    monkeypatch.setattr(db, "commit", commit_en_conflicto)
+
+    with pytest.raises(ReglaDeNegocioError, match="El sector ya existe"):
+        service.modificar_sector(db, sector.id, _modificacion("Terraza", "Cambiada"))
+
+    assert deshacer == [True]
+    db.expire_all()
+    assert db.get(Sector, sector.id).descripcion == "Al aire libre"

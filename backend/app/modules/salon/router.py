@@ -12,6 +12,7 @@ from app.modules.salon.schemas import (
     MesaCrear,
     MesaSalida,
     SectorCrear,
+    SectorModificar,
     SectorSalida,
 )
 from app.shared.paginacion import Pagina
@@ -24,6 +25,11 @@ Sesion = Annotated[Session, Depends(get_db)]
 @router.post("/sectores", status_code=status.HTTP_201_CREATED)
 def crear_sector(datos: SectorCrear, db: Sesion) -> SectorSalida:
     return service.crear_sector(db, datos)
+
+
+@router.put("/sectores/{sector_id}")
+def modificar_sector(sector_id: int, datos: SectorModificar, db: Sesion) -> SectorSalida:
+    return service.modificar_sector(db, sector_id, datos)
 
 
 @router.post("/mesas", status_code=status.HTTP_201_CREATED)

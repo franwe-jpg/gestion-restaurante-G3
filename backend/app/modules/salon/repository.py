@@ -8,8 +8,12 @@ from app.shared.models import Estado
 from app.shared.paginacion import ParametrosPaginacion, aplicar, contar
 
 
-def existe_nombre_normalizado(db: Session, nombre_normalizado: str) -> bool:
+def existe_nombre_normalizado(
+    db: Session, nombre_normalizado: str, excluir_id: int | None = None
+) -> bool:
     consulta = select(Sector.id).where(Sector.nombre_normalizado == nombre_normalizado)
+    if excluir_id is not None:
+        consulta = consulta.where(Sector.id != excluir_id)
     return db.scalar(consulta.limit(1)) is not None
 
 

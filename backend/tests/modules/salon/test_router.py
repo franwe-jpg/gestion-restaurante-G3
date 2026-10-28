@@ -258,3 +258,192 @@ def test_listar_sectores_con_parametros_invalidos_responde_422(
 
     assert respuesta.status_code == 422
     assert "detalle" in respuesta.json()
+
+
+# --- HU-M3-02: PUT /sectores/{sector_id} ---
+
+
+def _sector_del_listado(cliente: TestClient, sector_id: int) -> dict:
+    items = cliente.get(RUTA).json()["items"]
+    return next(sector for sector in items if sector["id"] == sector_id)
+
+
+# CA 1
+def test_modificar_sector_responde_200_con_la_forma_de_sector_salida(
+    cliente: TestClient, fabrica_sector
+) -> None:
+    sector = fabrica_sector("Salón principal", "Planta baja")
+
+    respuesta = cliente.put(
+        f"{RUTA}/{sector.id}",
+        json={"nombre": "Salón central", "descripcion": "Planta alta"},
+    )
+
+    assert respuesta.status_code == 200
+    assert respuesta.json() == {
+        "id": sector.id,
+        "nombre": "Salón central",
+        "descripcion": "Planta alta",
+        "estado": "HABILITADO",
+    }
+    assert _sector_del_listado(cliente, sector.id) == respuesta.json()
+
+
+def test_modificar_sector_con_el_mismo_nombre_solo_cambia_la_descripcion(
+    cliente: TestClient, fabrica_sector
+) -> None:
+    sector = fabrica_sector("Terraza")
+
+    respuesta = cliente.put(
+        f"{RUTA}/{sector.id}", json={"nombre": "Terraza", "descripcion": "Al aire libre"}
+    )
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["nombre"] == "Terraza"
+    assert respuesta.json()["descripcion"] == "Al aire libre"
+
+
+def test_modificar_sector_recorta_el_nombre(cliente: TestClient, fabrica_sector) -> None:
+    sector = fabrica_sector("Salón principal")
+
+    respuesta = cliente.put(f"{RUTA}/{sector.id}", json={"nombre": "  Terraza  "})
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["nombre"] == "Terraza"
+
+
+def test_modificar_sector_sin_descripcion_la_deja_en_null(
+    cliente: TestClient, fabrica_sector
+) -> None:
+    sector = fabrica_sector("Terraza", "Al aire libre")
+
+    respuesta = cliente.put(f"{RUTA}/{sector.id}", json={"nombre": "Terraza"})
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["descripcion"] is None
+
+
+# S1
+def test_modificar_sector_deshabilitado_conserva_el_estado(
+    cliente: TestClient, fabrica_sector
+) -> None:
+    sector = fabrica_sector("Reservado", estado=Estado.DESHABILITADO)
+
+    respuesta = cliente.put(
+        f"{RUTA}/{sector.id}", json={"nombre": "Reservado", "descripcion": "Fondo"}
+    )
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["descripcion"] == "Fondo"
+    assert respuesta.json()["estado"] == "DESHABILITADO"
+
+
+def test_modificar_sector_inexistente_responde_404(cliente: TestClient) -> None:
+    respuesta = cliente.put(f"{RUTA}/99", json={"nombre": "Terraza"})
+
+    assert respuesta.status_code == 404
+    assert respuesta.json() == {"detalle": "El sector 99 no existe"}
+
+
+# CA 3
+def test_modificar_sector_con_nombre_de_otro_responde_409_sin_cambios(
+    cliente: TestClient, fabrica_sector
+) -> None:
+    fabrica_sector("Salón principal")
+    terraza = fabrica_sector("Terraza", "Al aire libre")
+
+    respuesta = cliente.put(f"{RUTA}/{terraza.id}", json={"nombre": "  salón PRINCIPAL "})
+
+    assert respuesta.status_code == 409
+    assert respuesta.json() == {"detalle": "El sector ya existe"}
+    assert _sector_del_listado(cliente, terraza.id) == {
+        "id": terraza.id,
+        "nombre": "Terraza",
+        "descripcion": "Al aire libre",
+        "estado": "HABILITADO",
+    }
+
+
+def test_modificar_sector_con_nombre_de_un_deshabilitado_responde_409(
+    cliente: TestClient, fabrica_sector
+) -> None:
+    fabrica_sector("Entradas", estado=Estado.DESHABILITADO)
+    terraza = fabrica_sector("Terraza")
+
+    respuesta = cliente.put(f"{RUTA}/{terraza.id}", json={"nombre": "entradas"})
+
+    assert respuesta.status_code == 409
+    assert respuesta.json() == {"detalle": "El sector ya existe"}
+    assert _sector_del_listado(cliente, terraza.id)["nombre"] == "Terraza"
+
+
+# CA 2, limites y M6
+@pytest.mark.parametrize(
+    "cuerpo, campo",
+    [
+        ({"nombre": ""}, "nombre"),
+        ({"nombre": "   "}, "nombre"),
+        ({"nombre": "a" * 31}, "nombre"),
+        ({"nombre": "Terraza", "descripcion": "a" * 201}, "descripcion"),
+        ({"nombre": "Terraza", "estado": "DESHABILITADO"}, "estado"),
+    ],
+    ids=["vacio", "solo-espacios", "31-caracteres", "descripcion-201", "estado"],
+)
+def test_modificar_sector_con_datos_invalidos_responde_422_sin_guardar(
+    cliente: TestClient, fabrica_sector, cuerpo: dict, campo: str
+) -> None:
+    sector = fabrica_sector("Terraza", "Al aire libre")
+
+    respuesta = cliente.put(f"{RUTA}/{sector.id}", json=cuerpo)
+
+    assert respuesta.status_code == 422
+    assert campo in respuesta.json()["detalle"]
+    assert _sector_del_listado(cliente, sector.id) == {
+        "id": sector.id,
+        "nombre": "Terraza",
+        "descripcion": "Al aire libre",
+        "estado": "HABILITADO",
+    }
+
+
+def test_modificar_sector_con_id_no_entero_responde_422(cliente: TestClient) -> None:
+    respuesta = cliente.put(f"{RUTA}/abc", json={"nombre": "Terraza"})
+
+    assert respuesta.status_code == 422
+    assert "sector_id" in respuesta.json()["detalle"]
+
+
+# HU-M3-04 CA 3: la pantalla lista habilitados y deshabilitados
+def test_listar_sectores_sin_filtro_devuelve_todos_ordenados_por_nombre(
+    cliente: TestClient, fabrica_sector
+) -> None:
+    fabrica_sector("Terraza", "Al aire libre")
+    fabrica_sector("Patio")
+    fabrica_sector("Entradas", estado=Estado.DESHABILITADO)
+
+    respuesta = cliente.get(f"{RUTA}?limit=50&offset=0")
+
+    assert respuesta.status_code == 200
+    assert [
+        (sector["nombre"], sector["descripcion"], sector["estado"])
+        for sector in respuesta.json()["items"]
+    ] == [
+        ("Entradas", None, "DESHABILITADO"),
+        ("Patio", None, "HABILITADO"),
+        ("Terraza", "Al aire libre", "HABILITADO"),
+    ]
+    assert respuesta.json()["total"] == 3
+
+
+# CA 4: consultar el listado no dispara la modificacion
+def test_listar_sectores_no_modifica_ninguna_fila(cliente: TestClient, fabrica_sector) -> None:
+    sector = fabrica_sector("Terraza", "Al aire libre")
+
+    cliente.get(RUTA)
+
+    assert _sector_del_listado(cliente, sector.id) == {
+        "id": sector.id,
+        "nombre": "Terraza",
+        "descripcion": "Al aire libre",
+        "estado": "HABILITADO",
+    }

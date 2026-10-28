@@ -33,6 +33,10 @@ class SectorCrear(BaseModel):
         return descripcion or None
 
 
+class SectorModificar(SectorCrear):
+    """Mismos campos y reglas que el alta; el estado no se recibe (M3 y M6)."""
+
+
 class SectorSalida(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

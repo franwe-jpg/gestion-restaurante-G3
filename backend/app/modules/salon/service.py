@@ -9,6 +9,7 @@ from app.modules.salon.schemas import (
     MesaCrear,
     MesaSalida,
     SectorCrear,
+    SectorModificar,
     SectorResumen,
     SectorSalida,
 )
@@ -18,8 +19,8 @@ from app.shared.models.enums import EstadoMesa
 from app.shared.paginacion import Pagina, ParametrosPaginacion
 
 
-def _validar_nombre_libre(db: Session, nombre: str) -> None:
-    if repository.existe_nombre_normalizado(db, nombre.strip().casefold()):
+def _validar_nombre_libre(db: Session, nombre: str, excluir_id: int | None = None) -> None:
+    if repository.existe_nombre_normalizado(db, nombre.strip().casefold(), excluir_id):
         raise ReglaDeNegocioError("El sector ya existe")
 
 
@@ -41,6 +42,27 @@ def _guardar(db: Session, datos: SectorCrear) -> Sector:
 def crear_sector(db: Session, datos: SectorCrear) -> SectorSalida:
     _validar_nombre_libre(db, datos.nombre)
     return SectorSalida.model_validate(_guardar(db, datos))
+
+
+def _actualizar(db: Session, sector: Sector, datos: SectorModificar) -> Sector:
+    """Asigna sobre la entidad cargada: el validador mantiene el nombre normalizado (M5)."""
+    sector.nombre = datos.nombre
+    sector.descripcion = datos.descripcion
+    try:
+        db.commit()
+    except IntegrityError as error:
+        db.rollback()
+        raise ReglaDeNegocioError("El sector ya existe") from error
+    return sector
+
+
+def modificar_sector(db: Session, sector_id: int, datos: SectorModificar) -> SectorSalida:
+    """Reemplazo completo; el estado no se toca (M4, M5 y M6)."""
+    sector = repository.obtener_sector(db, sector_id)
+    if sector is None:
+        raise NoEncontradoError(f"El sector {sector_id} no existe")
+    _validar_nombre_libre(db, datos.nombre, sector.id)
+    return SectorSalida.model_validate(_actualizar(db, sector, datos))
 
 
 def _validar_sector_habilitado(db: Session, sector_id: int) -> Sector:
