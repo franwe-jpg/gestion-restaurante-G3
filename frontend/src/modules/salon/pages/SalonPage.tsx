@@ -9,6 +9,7 @@ import type { EstadoPaginacion } from '../../../shared/hooks/usePaginacion';
 
 import { MesaFormDialog } from '../components/MesaFormDialog';
 import { SectorFormDialog } from '../components/SectorFormDialog';
+import { useBajaSector } from '../components/useBajaSector';
 import { SectoresTabla } from '../components/SectoresTabla';
 import { useSectoresDelSalon } from '../components/useSectoresDelSalon';
 import type { Sector } from '../types';
@@ -43,6 +44,7 @@ interface SeccionSectoresProps {
   paginacion: EstadoPaginacion;
   onReintentar: () => void;
   onEditar: (sector: Sector) => void;
+  onEliminar: (sector: Sector) => void;
 }
 
 function SeccionSectores({
@@ -52,6 +54,7 @@ function SeccionSectores({
   paginacion,
   onReintentar,
   onEditar,
+  onEliminar,
 }: SeccionSectoresProps) {
   return (
     <Card>
@@ -62,6 +65,7 @@ function SeccionSectores({
           error={error}
           onReintentar={onReintentar}
           onEditar={onEditar}
+          onEliminar={onEliminar}
         />
         {paginacion.totalPaginas > 1 && (
           <Pagination
@@ -115,25 +119,40 @@ function DialogosSalon({
   );
 }
 
-export function SalonPage() {
+function useDialogosDelSalon(recargar: () => void) {
   const [sectorAbierto, setSectorAbierto] = useState(false);
   const [sectorEnEdicion, setSectorEnEdicion] = useState<Sector | null>(null);
   const [mesaAbierta, setMesaAbierta] = useState(false);
-  const { sectores, cargando, error, recargar, paginacion } = useSectoresDelSalon();
 
   const abrirSector = (sector: Sector | null = null) => {
     setSectorEnEdicion(sector);
     setSectorAbierto(true);
   };
 
-  const abrirSectorDesdeMesa = () => {
-    setMesaAbierta(false);
-    abrirSector();
-  };
-
   const alGuardarSector = () => {
     setSectorAbierto(false);
     recargar();
+  };
+
+  return {
+    sectorAbierto,
+    sectorEnEdicion,
+    mesaAbierta,
+    setSectorAbierto,
+    setMesaAbierta,
+    abrirSector,
+    alGuardarSector,
+  };
+}
+
+export function SalonPage() {
+  const { sectores, cargando, error, recargar, paginacion } = useSectoresDelSalon();
+  const { eliminar } = useBajaSector({ onEliminado: recargar });
+  const dialogos = useDialogosDelSalon(recargar);
+
+  const abrirSectorDesdeMesa = () => {
+    dialogos.setMesaAbierta(false);
+    dialogos.abrirSector();
   };
 
   return (
@@ -143,8 +162,8 @@ export function SalonPage() {
         descripcion={DESCRIPCION}
         acciones={
           <AccionesDelSalon
-            onNuevoSector={() => abrirSector()}
-            onNuevaMesa={() => setMesaAbierta(true)}
+            onNuevoSector={() => dialogos.abrirSector()}
+            onNuevaMesa={() => dialogos.setMesaAbierta(true)}
           />
         }
       />
@@ -154,15 +173,16 @@ export function SalonPage() {
         error={error}
         paginacion={paginacion}
         onReintentar={recargar}
-        onEditar={abrirSector}
+        onEditar={dialogos.abrirSector}
+        onEliminar={(sector) => void eliminar(sector)}
       />
       <DialogosSalon
-        sectorAbierto={sectorAbierto}
-        sectorEnEdicion={sectorEnEdicion}
-        mesaAbierta={mesaAbierta}
-        onSectorOpenChange={setSectorAbierto}
-        onGuardadoSector={alGuardarSector}
-        onMesaOpenChange={setMesaAbierta}
+        sectorAbierto={dialogos.sectorAbierto}
+        sectorEnEdicion={dialogos.sectorEnEdicion}
+        mesaAbierta={dialogos.mesaAbierta}
+        onSectorOpenChange={dialogos.setSectorAbierto}
+        onGuardadoSector={dialogos.alGuardarSector}
+        onMesaOpenChange={dialogos.setMesaAbierta}
         onCrearSectorDesdeMesa={abrirSectorDesdeMesa}
       />
     </div>

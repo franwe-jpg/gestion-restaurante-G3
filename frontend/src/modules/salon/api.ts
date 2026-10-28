@@ -13,6 +13,11 @@ export function modificarSector(id: number, datos: SectorModificar): Promise<Res
   return clienteHttp.put<Sector, SectorModificar>(`/sectores/${id}`, datos);
 }
 
+/** HU-M3-03: baja logica; el sector queda deshabilitado y conserva sus datos. */
+export function eliminarSector(id: number): Promise<RespuestaApi<Sector>> {
+  return clienteHttp.post<Sector, Record<string, never>>(`/sectores/${id}/baja`, {});
+}
+
 /** HU-M3-04: listado completo, sin filtro de estado (habilitados y deshabilitados). */
 export function listarSectores(
   limit: number,

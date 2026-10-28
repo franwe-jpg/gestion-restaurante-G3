@@ -5,6 +5,7 @@ import { clienteHttp } from '../../shared/api/client';
 import {
   crearMesa,
   crearSector,
+  eliminarSector,
   listarSectores,
   listarSectoresHabilitados,
   modificarSector,
@@ -140,6 +141,21 @@ describe('crearMesa', () => {
     const resultado = await crearMesa(datos);
 
     expect(post).toHaveBeenCalledWith('/mesas', datos);
+    expect(resultado).toBe(respuesta);
+  });
+});
+
+describe('eliminarSector', () => {
+  it('da de baja el sector con POST a /sectores/{id}/baja (CA 1 de #35)', async () => {
+    const respuesta = {
+      datos: { id: 2, nombre: 'Terraza', descripcion: null, estado: 'DESHABILITADO' as const },
+      exito: true,
+    };
+    const post = vi.spyOn(clienteHttp, 'post').mockResolvedValue(respuesta);
+
+    const resultado = await eliminarSector(2);
+
+    expect(post).toHaveBeenCalledWith('/sectores/2/baja', {});
     expect(resultado).toBe(respuesta);
   });
 });

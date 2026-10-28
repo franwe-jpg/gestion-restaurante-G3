@@ -1,10 +1,12 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { ConfirmContext } from '../../../shared/components/ui/confirm-context';
 import { ToastProvider } from '../../../shared/components/ui/toast';
 import {
   crearMesa,
   crearSector,
+  eliminarSector,
   listarSectores,
   listarSectoresHabilitados,
   modificarSector,
@@ -54,6 +56,18 @@ function renderConToasts() {
       <SalonPage />
     </ToastProvider>,
   );
+}
+
+function renderConConfirmacion(aceptado = true) {
+  const confirmar = vi.fn().mockResolvedValue(aceptado);
+  render(
+    <ToastProvider>
+      <ConfirmContext.Provider value={confirmar}>
+        <SalonPage />
+      </ConfirmContext.Provider>
+    </ToastProvider>,
+  );
+  return confirmar;
 }
 
 async function abrirMesa(sectoresHabilitados: Sector[] = [SALON]) {
@@ -316,5 +330,52 @@ describe('SalonPage: alta de mesa', () => {
 
     expect(screen.getByRole('heading', { name: 'Nuevo sector' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Nueva mesa' })).toBeNull();
+  });
+});
+
+describe('SalonPage: baja de sector', () => {
+  it('elimina el sector con confirmación y recarga el listado (CA 1 de #35)', async () => {
+    vi.mocked(listarSectores)
+      .mockResolvedValueOnce(listado([TERRAZA]))
+      .mockResolvedValue(listado([{ ...TERRAZA, estado: 'DESHABILITADO' }]));
+    vi.mocked(eliminarSector).mockResolvedValue({
+      datos: { ...TERRAZA, estado: 'DESHABILITADO' },
+      exito: true,
+    });
+    const confirmar = renderConConfirmacion();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Eliminar «Terraza»' }));
+
+    await waitFor(() => expect(eliminarSector).toHaveBeenCalledWith(2));
+    expect(confirmar).toHaveBeenCalledWith(
+      expect.objectContaining({ titulo: '¿Eliminar el sector «Terraza»?', variante: 'danger' }),
+    );
+    expect(await screen.findByText('Sector eliminado')).toBeInTheDocument();
+    expect(await screen.findByText('Deshabilitado')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Eliminar «Terraza»' })).toBeNull();
+    expect(listarSectores).toHaveBeenCalledTimes(2);
+  });
+
+  it('con mesas asociadas muestra el mensaje del backend y conserva la fila (CA 2 de #35)', async () => {
+    const mensaje = 'No se puede eliminar el sector Terraza porque tiene mesas asociadas';
+    vi.mocked(listarSectores).mockResolvedValue(listado([TERRAZA]));
+    vi.mocked(eliminarSector).mockResolvedValue({ datos: null, exito: false, error: mensaje });
+    renderConConfirmacion();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Eliminar «Terraza»' }));
+
+    expect(await screen.findByText(mensaje)).toBeInTheDocument();
+    expect(screen.getByText('Habilitado')).toBeInTheDocument();
+    expect(listarSectores).toHaveBeenCalledTimes(1);
+  });
+
+  it('al cancelar la confirmación no envía la baja', async () => {
+    vi.mocked(listarSectores).mockResolvedValue(listado([TERRAZA]));
+    renderConConfirmacion(false);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Eliminar «Terraza»' }));
+
+    await waitFor(() => expect(eliminarSector).not.toHaveBeenCalled());
+    expect(listarSectores).toHaveBeenCalledTimes(1);
   });
 });

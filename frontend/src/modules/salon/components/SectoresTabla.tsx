@@ -1,4 +1,4 @@
-import { LayoutGrid, Pencil } from 'lucide-react';
+import { LayoutGrid, Pencil, Trash2 } from 'lucide-react';
 
 import { EmptyState } from '../../../shared/components/EmptyState';
 import { Badge } from '../../../shared/components/ui/badge';
@@ -13,9 +13,46 @@ export interface SectoresTablaProps {
   error?: string | null;
   onReintentar?: () => void;
   onEditar: (sector: Sector) => void;
+  onEliminar: (sector: Sector) => void;
 }
 
-function columnas(onEditar: (sector: Sector) => void): ColumnaTabla<Sector>[] {
+interface AccionesSectorProps {
+  sector: Sector;
+  onEditar: (sector: Sector) => void;
+  onEliminar: (sector: Sector) => void;
+}
+
+function AccionesSector({ sector, onEditar, onEliminar }: AccionesSectorProps) {
+  return (
+    <div className="flex items-center justify-end gap-1">
+      <Button
+        variant="ghost"
+        size="sm"
+        aria-label={`Editar «${sector.nombre}»`}
+        onClick={() => onEditar(sector)}
+      >
+        <Pencil className="h-4 w-4" aria-hidden="true" />
+        <span className="sr-only">Editar</span>
+      </Button>
+      {sector.estado === 'HABILITADO' && (
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-label={`Eliminar «${sector.nombre}»`}
+          onClick={() => onEliminar(sector)}
+        >
+          <Trash2 className="h-4 w-4" aria-hidden="true" />
+          <span className="sr-only">Eliminar</span>
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function columnas(
+  onEditar: (sector: Sector) => void,
+  onEliminar: (sector: Sector) => void,
+): ColumnaTabla<Sector>[] {
   return [
     {
       clave: 'nombre',
@@ -40,17 +77,9 @@ function columnas(onEditar: (sector: Sector) => void): ColumnaTabla<Sector>[] {
       clave: 'acciones',
       encabezado: <span className="sr-only">Acciones</span>,
       render: (sector) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          aria-label={`Editar «${sector.nombre}»`}
-          onClick={() => onEditar(sector)}
-        >
-          <Pencil className="h-4 w-4" aria-hidden="true" />
-          <span className="sr-only">Editar</span>
-        </Button>
+        <AccionesSector sector={sector} onEditar={onEditar} onEliminar={onEliminar} />
       ),
-      className: 'w-20',
+      className: 'w-24',
     },
   ];
 }
@@ -61,10 +90,11 @@ export function SectoresTabla({
   error = null,
   onReintentar,
   onEditar,
+  onEliminar,
 }: SectoresTablaProps) {
   return (
     <DataTable
-      columnas={columnas(onEditar)}
+      columnas={columnas(onEditar, onEliminar)}
       filas={sectores}
       obtenerClave={(sector) => sector.id}
       cargando={cargando}
