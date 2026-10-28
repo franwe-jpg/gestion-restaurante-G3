@@ -32,6 +32,11 @@ def modificar_sector(sector_id: int, datos: SectorModificar, db: Sesion) -> Sect
     return service.modificar_sector(db, sector_id, datos)
 
 
+@router.post("/sectores/{sector_id}/baja")
+def dar_de_baja_sector(sector_id: int, db: Sesion) -> SectorSalida:
+    return service.dar_de_baja_sector(db, sector_id)
+
+
 @router.post("/mesas", status_code=status.HTTP_201_CREATED)
 def crear_mesa(datos: MesaCrear, db: Sesion) -> MesaSalida:
     return service.crear_mesa(db, datos)

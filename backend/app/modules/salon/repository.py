@@ -1,6 +1,6 @@
 """salon: acceso a datos. Nunca confirma la transaccion: lo hace el service (D-10)."""
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.modules.salon.models import Mesa, Sector
@@ -44,3 +44,9 @@ def listar_sectores(
     consulta_ordenada = consulta.order_by(Sector.nombre, Sector.id)
     filas = db.scalars(aplicar(consulta_ordenada, parametros)).all()
     return list(filas), contar(db, consulta)
+
+
+def contar_mesas_del_sector(db: Session, sector_id: int) -> int:
+    """Cuenta las mesas del sector sin cargarlas (HU-M3-03)."""
+    consulta = select(func.count()).select_from(Mesa).where(Mesa.sector_id == sector_id)
+    return db.scalar(consulta) or 0

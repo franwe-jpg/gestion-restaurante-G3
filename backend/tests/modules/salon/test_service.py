@@ -342,3 +342,85 @@ def test_modificar_sector_convierte_la_carrera_en_conflicto_y_deshace(
     assert deshacer == [True]
     db.expire_all()
     assert db.get(Sector, sector.id).descripcion == "Al aire libre"
+
+
+# HU-M3-03: baja de sectores
+def test_contar_mesas_del_sector_solo_cuenta_las_del_sector(
+    db: Session, fabrica_sector, fabrica_mesa
+) -> None:
+    salon = fabrica_sector("Salón principal")
+    terraza = fabrica_sector("Terraza")
+    fabrica_mesa(salon, numero=1)
+    fabrica_mesa(salon, numero=2)
+    fabrica_mesa(terraza, numero=1)
+
+    assert repository.contar_mesas_del_sector(db, salon.id) == 2
+    assert repository.contar_mesas_del_sector(db, terraza.id) == 1
+    assert repository.contar_mesas_del_sector(db, 999) == 0
+
+
+# CA 1 de #35
+def test_dar_de_baja_sector_lo_deshabilita_y_conserva_los_datos(
+    db: Session, fabrica_sector
+) -> None:
+    sector = fabrica_sector("Terraza", "Al aire libre")
+
+    salida = service.dar_de_baja_sector(db, sector.id)
+
+    assert salida.estado == Estado.DESHABILITADO
+    assert salida.nombre == "Terraza"
+    assert salida.descripcion == "Al aire libre"
+    guardado = db.get(Sector, sector.id)
+    assert guardado.estado == Estado.DESHABILITADO
+    assert _cantidad_sectores(db) == 1
+
+
+def test_dar_de_baja_sector_lo_quita_de_los_habilitados(db: Session, fabrica_sector) -> None:
+    sector = fabrica_sector("Terraza")
+    fabrica_sector("Salón principal")
+
+    service.dar_de_baja_sector(db, sector.id)
+
+    habilitados = service.listar_sectores(db, ParametrosPaginacion(), Estado.HABILITADO)
+    assert [item.nombre for item in habilitados.items] == ["Salón principal"]
+    assert habilitados.total == 1
+
+
+# CA 2 de #35
+def test_dar_de_baja_sector_con_mesas_es_conflicto_y_no_cambia(
+    db: Session, fabrica_sector, fabrica_mesa
+) -> None:
+    sector = fabrica_sector("Salón principal")
+    mesa = fabrica_mesa(sector, numero=1)
+
+    with pytest.raises(
+        ReglaDeNegocioError,
+        match="No se puede eliminar el sector Salón principal porque tiene mesas asociadas",
+    ):
+        service.dar_de_baja_sector(db, sector.id)
+
+    db.expire_all()
+    assert db.get(Sector, sector.id).estado == Estado.HABILITADO
+    assert db.get(Mesa, mesa.id) is not None
+
+
+def test_dar_de_baja_sector_ya_deshabilitado_es_conflicto(db: Session, fabrica_sector) -> None:
+    sector = fabrica_sector("Reservado", estado=Estado.DESHABILITADO)
+
+    with pytest.raises(ReglaDeNegocioError, match="El sector ya está deshabilitado"):
+        service.dar_de_baja_sector(db, sector.id)
+
+
+def test_dar_de_baja_sector_ya_deshabilitado_con_mesas_informa_el_estado(
+    db: Session, fabrica_sector, fabrica_mesa
+) -> None:
+    sector = fabrica_sector("Reservado", estado=Estado.DESHABILITADO)
+    fabrica_mesa(sector)
+
+    with pytest.raises(ReglaDeNegocioError, match="El sector ya está deshabilitado"):
+        service.dar_de_baja_sector(db, sector.id)
+
+
+def test_dar_de_baja_sector_inexistente_es_no_encontrado(db: Session) -> None:
+    with pytest.raises(NoEncontradoError, match="El sector 999 no existe"):
+        service.dar_de_baja_sector(db, 999)

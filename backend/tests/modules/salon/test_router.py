@@ -447,3 +447,64 @@ def test_listar_sectores_no_modifica_ninguna_fila(cliente: TestClient, fabrica_s
         "descripcion": "Al aire libre",
         "estado": "HABILITADO",
     }
+
+
+# HU-M3-03 CA 1: la baja deja al sector fuera de los habilitados
+def test_dar_de_baja_sector_responde_200_y_deja_de_estar_disponible(
+    cliente: TestClient, fabrica_sector
+) -> None:
+    sector = fabrica_sector("Terraza", "Al aire libre")
+
+    respuesta = cliente.post(f"{RUTA}/{sector.id}/baja")
+
+    assert respuesta.status_code == 200
+    assert respuesta.json() == {
+        "id": sector.id,
+        "nombre": "Terraza",
+        "descripcion": "Al aire libre",
+        "estado": "DESHABILITADO",
+    }
+    assert cliente.get(f"{RUTA}?estado=HABILITADO").json()["total"] == 0
+    assert _sector_del_listado(cliente, sector.id)["estado"] == "DESHABILITADO"
+
+
+# HU-M3-03 CA 2: no se elimina un sector con mesas asociadas
+def test_dar_de_baja_sector_con_mesas_responde_409_y_conserva_todo(
+    cliente: TestClient, db: Session, fabrica_sector, fabrica_mesa
+) -> None:
+    sector = fabrica_sector("Salón principal")
+    mesa = fabrica_mesa(sector, numero=1)
+
+    respuesta = cliente.post(f"{RUTA}/{sector.id}/baja")
+
+    assert respuesta.status_code == 409
+    assert respuesta.json() == {
+        "detalle": "No se puede eliminar el sector Salón principal porque tiene mesas asociadas"
+    }
+    assert _sector_del_listado(cliente, sector.id)["estado"] == "HABILITADO"
+    assert db.get(Mesa, mesa.id) is not None
+
+
+def test_dar_de_baja_sector_ya_deshabilitado_responde_409(
+    cliente: TestClient, fabrica_sector
+) -> None:
+    sector = fabrica_sector("Reservado", estado=Estado.DESHABILITADO)
+
+    respuesta = cliente.post(f"{RUTA}/{sector.id}/baja")
+
+    assert respuesta.status_code == 409
+    assert respuesta.json() == {"detalle": "El sector ya está deshabilitado"}
+
+
+def test_dar_de_baja_sector_inexistente_responde_404(cliente: TestClient) -> None:
+    respuesta = cliente.post(f"{RUTA}/999/baja")
+
+    assert respuesta.status_code == 404
+    assert respuesta.json() == {"detalle": "El sector 999 no existe"}
+
+
+def test_dar_de_baja_sector_con_id_no_entero_responde_422(cliente: TestClient) -> None:
+    respuesta = cliente.post(f"{RUTA}/abc/baja")
+
+    assert respuesta.status_code == 422
+    assert "detalle" in respuesta.json()

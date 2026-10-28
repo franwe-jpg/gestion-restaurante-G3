@@ -122,3 +122,19 @@ def listar_sectores(
         limit=parametros.limit,
         offset=parametros.offset,
     )
+
+
+def dar_de_baja_sector(db: Session, sector_id: int) -> SectorSalida:
+    """Baja logica: el sector deja de estar disponible y conserva sus datos (HU-M3-03)."""
+    sector = repository.obtener_sector(db, sector_id)
+    if sector is None:
+        raise NoEncontradoError(f"El sector {sector_id} no existe")
+    if sector.estado == Estado.DESHABILITADO:
+        raise ReglaDeNegocioError("El sector ya está deshabilitado")
+    if repository.contar_mesas_del_sector(db, sector.id) > 0:
+        raise ReglaDeNegocioError(
+            f"No se puede eliminar el sector {sector.nombre} porque tiene mesas asociadas"
+        )
+    sector.estado = Estado.DESHABILITADO
+    db.commit()
+    return SectorSalida.model_validate(sector)
