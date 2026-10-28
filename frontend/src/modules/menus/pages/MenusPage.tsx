@@ -1,25 +1,57 @@
-import { BookOpen } from 'lucide-react';
+import { useState } from 'react';
+
 import { PageHeader } from '../../../shared/components/PageHeader';
-import { Card, CardContent } from '../../../shared/components/ui/card';
-import { EmptyState } from '../../../shared/components/EmptyState';
+import { BarraMenusEjecutivos, DialogoMenuEjecutivo, ListadoMenuEjecutivos } from '../components';
+import { useListaMenusEjecutivos } from '../components/useListaMenusEjecutivos';
+import { useOpcionesMenuEjecutivo } from '../components/useOpcionesMenuEjecutivo';
 
 export function MenusPage() {
+  const [formularioAbierto, setFormularioAbierto] = useState(false);
+  const opciones = useOpcionesMenuEjecutivo();
+  const listado = useListaMenusEjecutivos();
+
+  function cerrarFormulario() {
+    setFormularioAbierto(false);
+  }
+
+  function menuCreado() {
+    cerrarFormulario();
+    listado.cambiarPagina(1);
+    listado.recargar();
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
         titulo="Menús y Promociones"
-        descripcion="Configuración de menús del día, combos promocionales y tarifas por turno."
+        descripcion="Creá menús ejecutivos con productos habilitados y precio fijo."
       />
 
-      <Card>
-        <CardContent className="pt-6">
-          <EmptyState
-            icono={BookOpen}
-            titulo="Módulo pendiente de implementación"
-            descripcion="El gestor de menús degustación y promociones estará disponible próximamente."
-          />
-        </CardContent>
-      </Card>
+      <BarraMenusEjecutivos
+        estado={listado.estado}
+        onCambiarEstado={listado.cambiarEstado}
+        onNuevo={() => setFormularioAbierto(true)}
+      />
+
+      <ListadoMenuEjecutivos
+        menus={listado.menus}
+        pagina={listado.pagina}
+        totalPaginas={listado.totalPaginas}
+        cargando={listado.cargando}
+        error={listado.error}
+        onReintentar={listado.recargar}
+        onCambiarPagina={listado.cambiarPagina}
+      />
+
+      <DialogoMenuEjecutivo
+        abierto={formularioAbierto}
+        productos={opciones.productos}
+        secciones={opciones.secciones}
+        cargandoOpciones={opciones.cargando}
+        errorCarga={opciones.error}
+        onCambiar={setFormularioAbierto}
+        onCreado={menuCreado}
+      />
     </div>
   );
 }
