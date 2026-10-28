@@ -2,8 +2,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { clienteHttp } from '../../shared/api/client';
 
-import { crearMesa, crearSector, listarSectoresHabilitados } from './api';
-import type { MesaCrear, Sector, SectorCrear } from './types';
+import {
+  crearMesa,
+  crearSector,
+  listarSectores,
+  listarSectoresHabilitados,
+  modificarSector,
+} from './api';
+import type { MesaCrear, Sector, SectorCrear, SectorModificar } from './types';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -60,6 +66,58 @@ describe('listarSectoresHabilitados', () => {
     const resultado = await listarSectoresHabilitados();
 
     expect(get).toHaveBeenCalledWith('/sectores?estado=HABILITADO&limit=100&offset=0');
+    expect(resultado).toBe(respuesta);
+  });
+});
+
+describe('modificarSector', () => {
+  it('envía la modificación por PUT a /sectores/{id} (CA 1)', async () => {
+    const datos: SectorModificar = { nombre: 'Salón central', descripcion: 'Planta alta' };
+    const respuesta = {
+      datos: {
+        id: 3,
+        nombre: 'Salón central',
+        descripcion: 'Planta alta',
+        estado: 'HABILITADO' as const,
+      },
+      exito: true,
+    };
+    const put = vi.spyOn(clienteHttp, 'put').mockResolvedValue(respuesta);
+
+    const resultado = await modificarSector(3, datos);
+
+    expect(put).toHaveBeenCalledWith('/sectores/3', datos);
+    expect(resultado).toBe(respuesta);
+  });
+
+  it('envía la descripción nula cuando se borra (CA 1)', async () => {
+    const put = vi
+      .spyOn(clienteHttp, 'put')
+      .mockResolvedValue({ datos: null, exito: false, error: 'x' });
+
+    await modificarSector(7, { nombre: 'Terraza', descripcion: null });
+
+    expect(put).toHaveBeenCalledWith('/sectores/7', { nombre: 'Terraza', descripcion: null });
+  });
+});
+
+describe('listarSectores', () => {
+  it('pide todos los sectores paginados, sin filtro de estado (CA 1 de #36)', async () => {
+    const sector: Sector = {
+      id: 1,
+      nombre: 'Salón principal',
+      descripcion: null,
+      estado: 'DESHABILITADO',
+    };
+    const respuesta = {
+      datos: { items: [sector], total: 1, limit: 50, offset: 100 },
+      exito: true,
+    };
+    const get = vi.spyOn(clienteHttp, 'get').mockResolvedValue(respuesta);
+
+    const resultado = await listarSectores(50, 100);
+
+    expect(get).toHaveBeenCalledWith('/sectores?limit=50&offset=100');
     expect(resultado).toBe(respuesta);
   });
 });

@@ -15,6 +15,12 @@ export interface SectorCrear {
   descripcion?: string | null;
 }
 
+// HU-M3-02: modificación de sectores. El estado no se envía: lo conserva el sector.
+export interface SectorModificar {
+  nombre: string;
+  descripcion?: string | null;
+}
+
 export type EstadoMesa = 'LIBRE' | 'OCUPADA' | 'FUERA_DE_SERVICIO';
 
 export interface SectorResumen {
