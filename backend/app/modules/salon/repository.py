@@ -21,6 +21,14 @@ def obtener_sector(db: Session, sector_id: int) -> Sector | None:
     return db.get(Sector, sector_id)
 
 
+def obtener_mesa(db: Session, mesa_id: int) -> Mesa | None:
+    return db.get(Mesa, mesa_id)
+
+
+def eliminar(db: Session, mesa: Mesa) -> None:
+    db.delete(mesa)
+
+
 def existe_numero_en_sector(db: Session, sector_id: int, numero: int) -> bool:
     consulta = select(Mesa.id).where(Mesa.sector_id == sector_id, Mesa.numero == numero)
     return db.scalar(consulta.limit(1)) is not None

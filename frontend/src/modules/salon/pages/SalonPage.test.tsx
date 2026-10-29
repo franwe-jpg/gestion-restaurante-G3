@@ -6,6 +6,7 @@ import { ToastProvider } from '../../../shared/components/ui/toast';
 import {
   crearMesa,
   crearSector,
+  eliminarMesa,
   eliminarSector,
   listarMesas,
   listarSectores,
@@ -425,6 +426,7 @@ describe('SalonPage: listado de mesas', () => {
     const celdas = filas.map((fila) =>
       within(fila)
         .getAllByRole('cell')
+        .slice(0, 4)
         .map((celda) => celda.textContent),
     );
     expect(celdas).toEqual([
@@ -469,5 +471,50 @@ describe('SalonPage: mesas después del alta', () => {
       expect(screen.getByRole('tab', { name: 'Mesas' })).toHaveAttribute('aria-selected', 'true'),
     );
     await waitFor(() => expect(listarMesas).toHaveBeenCalled());
+  });
+});
+
+describe('SalonPage: baja de mesa', () => {
+  it('elimina la mesa con confirmación y recarga el listado (CA 1 de #37)', async () => {
+    vi.mocked(listarMesas)
+      .mockResolvedValueOnce(paginaMesas([MESA_SALON]))
+      .mockResolvedValue(paginaMesas([]));
+    vi.mocked(eliminarMesa).mockResolvedValue({ datos: null, exito: true });
+    const confirmar = renderConConfirmacion();
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Mesas' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Eliminar la mesa 1' }));
+
+    await waitFor(() => expect(eliminarMesa).toHaveBeenCalledWith(1));
+    expect(confirmar).toHaveBeenCalledWith(
+      expect.objectContaining({ titulo: '¿Eliminar la mesa 1?', variante: 'danger' }),
+    );
+    expect(await screen.findByText('Mesa eliminada')).toBeInTheDocument();
+    await waitFor(() => expect(listarMesas).toHaveBeenCalledTimes(2));
+  });
+
+  it('al cancelar la confirmación no envía la eliminación (CA 2 de #37)', async () => {
+    vi.mocked(listarMesas).mockResolvedValue(paginaMesas([MESA_SALON]));
+    renderConConfirmacion(false);
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Mesas' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Eliminar la mesa 1' }));
+
+    await waitFor(() => expect(eliminarMesa).not.toHaveBeenCalled());
+    expect(listarMesas).toHaveBeenCalledTimes(1);
+  });
+
+  it('si la mesa quedó ocupada muestra el mensaje del backend y la conserva (CA 3 de #37)', async () => {
+    const mensaje = 'No se puede eliminar la mesa 1 porque está ocupada';
+    vi.mocked(listarMesas).mockResolvedValue(paginaMesas([MESA_SALON]));
+    vi.mocked(eliminarMesa).mockResolvedValue({ datos: null, exito: false, error: mensaje });
+    renderConConfirmacion();
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Mesas' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Eliminar la mesa 1' }));
+
+    expect(await screen.findByText(mensaje)).toBeInTheDocument();
+    expect(screen.getByText('Libre')).toBeInTheDocument();
+    expect(listarMesas).toHaveBeenCalledTimes(1);
   });
 });

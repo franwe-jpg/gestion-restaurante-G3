@@ -478,3 +478,32 @@ def test_listar_mesas_incluye_sectores_deshabilitados(
     pagina = service.listar_mesas(db, ParametrosPaginacion())
 
     assert pagina.items[0].sector.nombre == "Reservado"
+
+
+# HU-M3-07: eliminacion de mesas
+def test_eliminar_mesa_borra_la_fila(db: Session, fabrica_sector, fabrica_mesa) -> None:
+    sector = fabrica_sector("Salón principal")
+    mesa = fabrica_mesa(sector, numero=3)
+
+    service.eliminar_mesa(db, mesa.id)
+
+    assert db.get(Mesa, mesa.id) is None
+
+
+def test_eliminar_mesa_ocupada_es_regla_de_negocio(
+    db: Session, fabrica_sector, fabrica_mesa
+) -> None:
+    sector = fabrica_sector("Salón principal")
+    mesa = fabrica_mesa(sector, numero=2, estado=EstadoMesa.OCUPADA)
+
+    with pytest.raises(
+        ReglaDeNegocioError, match="No se puede eliminar la mesa 2 porque está ocupada"
+    ):
+        service.eliminar_mesa(db, mesa.id)
+
+    assert db.get(Mesa, mesa.id) is not None
+
+
+def test_eliminar_mesa_inexistente_es_no_encontrado(db: Session) -> None:
+    with pytest.raises(NoEncontradoError, match="La mesa 999 no existe"):
+        service.eliminar_mesa(db, 999)

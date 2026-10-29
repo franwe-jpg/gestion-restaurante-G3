@@ -13,6 +13,7 @@ import { MesaFormDialog } from '../components/MesaFormDialog';
 import { MesasTabla } from '../components/MesasTabla';
 import { SectorFormDialog } from '../components/SectorFormDialog';
 import { SectoresTabla } from '../components/SectoresTabla';
+import { useBajaMesa } from '../components/useBajaMesa';
 import { useBajaSector } from '../components/useBajaSector';
 import { useMesasDelSalon } from '../components/useMesasDelSalon';
 import { useSectoresDelSalon } from '../components/useSectoresDelSalon';
@@ -84,10 +85,17 @@ function SeccionSectores({ paginacion, ...tabla }: SeccionSectoresProps) {
 
 function SeccionMesas({ refresco }: { refresco: number }) {
   const { mesas, cargando, error, recargar, paginacion } = useMesasDelSalon(refresco);
+  const { eliminar } = useBajaMesa({ onEliminada: recargar });
 
   return (
     <SeccionListado paginacion={paginacion}>
-      <MesasTabla mesas={mesas} cargando={cargando} error={error} onReintentar={recargar} />
+      <MesasTabla
+        mesas={mesas}
+        cargando={cargando}
+        error={error}
+        onReintentar={recargar}
+        onEliminar={(mesa) => void eliminar(mesa)}
+      />
     </SeccionListado>
   );
 }

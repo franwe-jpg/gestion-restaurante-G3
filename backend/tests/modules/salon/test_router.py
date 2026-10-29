@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.modules.salon.models import Mesa, Sector
 from app.shared.models import Estado
+from app.shared.models.enums import EstadoMesa
 
 RUTA = "/api/v1/sectores"
 
@@ -588,3 +589,45 @@ def test_listar_mesas_con_parametros_invalidos_responde_422(cliente: TestClient)
 
         assert respuesta.status_code == 422, consulta
         assert "detalle" in respuesta.json()
+
+
+# HU-M3-07: eliminacion de mesas
+def test_eliminar_mesa_responde_204_y_deja_de_listarse(
+    cliente: TestClient, db: Session, fabrica_sector, fabrica_mesa
+) -> None:
+    sector = fabrica_sector("Salón principal")
+    mesa = fabrica_mesa(sector, numero=3)
+
+    respuesta = cliente.delete(f"{RUTA_MESAS}/{mesa.id}")
+
+    assert respuesta.status_code == 204
+    assert respuesta.content == b""
+    assert db.get(Mesa, mesa.id) is None
+    assert cliente.get(RUTA_MESAS).json()["total"] == 0
+
+
+def test_eliminar_mesa_ocupada_responde_409_y_la_conserva(
+    cliente: TestClient, db: Session, fabrica_sector, fabrica_mesa
+) -> None:
+    sector = fabrica_sector("Salón principal")
+    mesa = fabrica_mesa(sector, numero=2, estado=EstadoMesa.OCUPADA)
+
+    respuesta = cliente.delete(f"{RUTA_MESAS}/{mesa.id}")
+
+    assert respuesta.status_code == 409
+    assert respuesta.json() == {"detalle": "No se puede eliminar la mesa 2 porque está ocupada"}
+    assert db.get(Mesa, mesa.id) is not None
+
+
+def test_eliminar_mesa_inexistente_responde_404(cliente: TestClient) -> None:
+    respuesta = cliente.delete(f"{RUTA_MESAS}/999")
+
+    assert respuesta.status_code == 404
+    assert respuesta.json() == {"detalle": "La mesa 999 no existe"}
+
+
+def test_eliminar_mesa_con_id_no_entero_responde_422(cliente: TestClient) -> None:
+    respuesta = cliente.delete(f"{RUTA_MESAS}/abc")
+
+    assert respuesta.status_code == 422
+    assert "detalle" in respuesta.json()

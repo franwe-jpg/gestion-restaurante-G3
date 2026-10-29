@@ -5,6 +5,7 @@ import { clienteHttp } from '../../shared/api/client';
 import {
   crearMesa,
   crearSector,
+  eliminarMesa,
   eliminarSector,
   listarMesas,
   listarSectores,
@@ -185,6 +186,18 @@ describe('listarMesas', () => {
     const resultado = await listarMesas(50, 50);
 
     expect(get).toHaveBeenCalledWith('/mesas?limit=50&offset=50');
+    expect(resultado).toBe(respuesta);
+  });
+});
+
+describe('eliminarMesa', () => {
+  it('borra la mesa con DELETE a /mesas/{id} (CA 1 de #37)', async () => {
+    const respuesta = { datos: null, exito: true };
+    const eliminar = vi.spyOn(clienteHttp, 'delete').mockResolvedValue(respuesta);
+
+    const resultado = await eliminarMesa(4);
+
+    expect(eliminar).toHaveBeenCalledWith('/mesas/4');
     expect(resultado).toBe(respuesta);
   });
 });

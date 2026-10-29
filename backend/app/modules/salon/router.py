@@ -49,6 +49,11 @@ def listar_mesas(
     return service.listar_mesas(db, filtro)
 
 
+@router.delete("/mesas/{mesa_id}", status_code=status.HTTP_204_NO_CONTENT)
+def eliminar_mesa(mesa_id: int, db: Sesion) -> None:
+    service.eliminar_mesa(db, mesa_id)
+
+
 @router.get("/sectores")
 def listar_sectores(db: Sesion, filtro: Annotated[FiltroSectores, Query()]) -> Pagina[SectorSalida]:
     return service.listar_sectores(db, filtro, filtro.estado)

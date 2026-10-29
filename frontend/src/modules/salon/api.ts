@@ -41,3 +41,8 @@ export function crearMesa(datos: MesaCrear): Promise<RespuestaApi<Mesa>> {
 export function listarMesas(limit: number, offset: number): Promise<RespuestaApi<Pagina<Mesa>>> {
   return clienteHttp.get<Pagina<Mesa>>(`/mesas?limit=${limit}&offset=${offset}`);
 }
+
+/** HU-M3-07: borra la mesa; el backend responde 204 sin cuerpo. */
+export function eliminarMesa(id: number): Promise<RespuestaApi<null>> {
+  return clienteHttp.delete<null>(`/mesas/${id}`);
+}

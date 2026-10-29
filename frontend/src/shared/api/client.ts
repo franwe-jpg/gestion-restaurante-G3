@@ -39,6 +39,10 @@ export class ClienteApi {
         return { datos: null, exito: false, error: detalle };
       }
 
+      if (respuesta.status === 204) {
+        return { datos: null, exito: true };
+      }
+
       const datos = (await respuesta.json()) as T;
       return { datos, exito: true };
     } catch {
@@ -64,6 +68,10 @@ export class ClienteApi {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
+  }
+
+  delete<T>(endpoint: string): Promise<RespuestaApi<T>> {
+    return this.solicitar<T>(endpoint, { method: 'DELETE' });
   }
 
   /** Sin `Content-Type`: el navegador lo fija con el `boundary` del multipart. */

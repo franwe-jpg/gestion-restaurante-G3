@@ -112,6 +112,17 @@ def crear_mesa(db: Session, datos: MesaCrear) -> MesaSalida:
     return _a_salida(_guardar_mesa(db, datos, sector), sector)
 
 
+def eliminar_mesa(db: Session, mesa_id: int) -> None:
+    """Borra la mesa; una mesa ocupada tiene una comanda abierta y no se elimina (HU-M3-07)."""
+    mesa = repository.obtener_mesa(db, mesa_id)
+    if mesa is None:
+        raise NoEncontradoError(f"La mesa {mesa_id} no existe")
+    if mesa.estado == EstadoMesa.OCUPADA:
+        raise ReglaDeNegocioError(f"No se puede eliminar la mesa {mesa.numero} porque está ocupada")
+    repository.eliminar(db, mesa)
+    db.commit()
+
+
 def listar_sectores(
     db: Session, parametros: ParametrosPaginacion, estado: Estado | None = None
 ) -> Pagina[SectorSalida]:
