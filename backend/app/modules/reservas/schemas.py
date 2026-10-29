@@ -5,6 +5,7 @@ from datetime import date, time
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, field_serializer, field_validator
 
 from app.modules.reservas.models import EstadoReserva
+from app.shared.paginacion import ParametrosPaginacion
 
 
 class _DatosDelTurno(BaseModel):
@@ -44,3 +45,10 @@ class ReservaSalida(BaseModel):
     @field_serializer("hora")
     def _serializar_hora(self, hora: time) -> str:
         return hora.strftime("%H:%M")
+
+
+class FiltroReservas(ParametrosPaginacion):
+    """Paginacion y filtros de GET /reservas: `fecha` y `estado` viajan dentro del mismo modelo."""
+
+    fecha: date | None = None
+    estado: EstadoReserva | None = None

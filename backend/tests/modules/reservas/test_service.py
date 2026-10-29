@@ -1,4 +1,4 @@
-"""Pruebas del servicio de reservas: alta (HU-M5-01)."""
+"""Pruebas del servicio de reservas: alta (HU-M5-01) y listado (HU-M5-03)."""
 
 from datetime import date, datetime, time
 
@@ -8,9 +8,10 @@ from sqlalchemy.orm import Session
 
 from app.modules.reservas import puente, repository, service
 from app.modules.reservas.models import EstadoReserva, Reserva
-from app.modules.reservas.schemas import ReservaCrear
+from app.modules.reservas.schemas import FiltroReservas, ReservaCrear, ReservaSalida
 from app.modules.reservas.service import ahora as ahora_real
 from app.shared.excepciones import DatosInvalidosError, NoEncontradoError, ReglaDeNegocioError
+from app.shared.paginacion import Pagina
 
 # El reloj de las pruebas (conftest.py) marca el 2026-11-02 a las 12:00.
 HOY = date(2026, 11, 2)
@@ -374,3 +375,159 @@ def test_crear_reserva_conflicto_del_indice_no_expone_sql(
     for fragmento in ("insert", "unique", "constraint", "sqlite", "reservas", "ux_", "ix_"):
         assert fragmento not in detalle
     assert error.value.__cause__ is not None  # el error original queda encadenado, no expuesto
+
+
+# HU-M5-03: listado paginado
+def _listar(db: Session, **filtros) -> Pagina[ReservaSalida]:
+    return service.listar_reservas(db, FiltroReservas(**filtros))
+
+
+def _ids(pagina: Pagina[ReservaSalida]) -> list[int]:
+    return [reserva.id for reserva in pagina.items]
+
+
+def _tres_reservas_desordenadas(fabrica_reserva) -> None:
+    """Ids 1, 2 y 3 creados en un orden distinto al de fecha y hora (spec, CA 3)."""
+    fabrica_reserva(fecha=MANANA, hora=time(10, 0))
+    fabrica_reserva(mesa_id=2, fecha=HOY, hora=time(22, 0))
+    fabrica_reserva(mesa_id=3, fecha=HOY, hora=time(21, 30))
+
+
+# CA 3
+def test_listar_reservas_ordena_por_fecha_hora_e_id(db: Session, fabrica_reserva) -> None:
+    _tres_reservas_desordenadas(fabrica_reserva)
+
+    pagina = _listar(db)
+
+    assert _ids(pagina) == [3, 2, 1]
+    assert pagina.items[0] == ReservaSalida(
+        id=3,
+        mesa_id=3,
+        cliente_id=1,
+        fecha=HOY,
+        hora=time(21, 30),
+        cantidad_personas=4,
+        estado=EstadoReserva.ACTIVA,
+    )
+
+
+def test_listar_reservas_empate_de_fecha_y_hora_ordena_por_id(db: Session) -> None:
+    for id_reserva, mesa_id in ((5, 6), (4, 7)):  # el id mayor se inserta primero
+        db.add(
+            Reserva(
+                id=id_reserva,
+                mesa_id=mesa_id,
+                cliente_id=1,
+                fecha=HOY,
+                hora=time(21, 30),
+                cantidad_personas=2,
+                estado=EstadoReserva.ACTIVA,
+            )
+        )
+    db.commit()
+
+    assert _ids(_listar(db)) == [4, 5]
+
+
+def test_listar_reservas_mantiene_el_orden_entre_paginas(db: Session, fabrica_reserva) -> None:
+    _tres_reservas_desordenadas(fabrica_reserva)
+
+    primera = _listar(db, limit=2, offset=0)
+    segunda = _listar(db, limit=2, offset=2)
+
+    assert _ids(primera) + _ids(segunda) == [3, 2, 1]
+
+
+# CA 1
+def test_listar_reservas_pagina_y_cuenta_total(db: Session, fabrica_reserva) -> None:
+    _tres_reservas_desordenadas(fabrica_reserva)
+
+    primera = _listar(db, limit=2, offset=0)
+    segunda = _listar(db, limit=2, offset=2)
+
+    assert (len(primera.items), primera.total, primera.limit, primera.offset) == (2, 3, 2, 0)
+    assert (len(segunda.items), segunda.total, segunda.limit, segunda.offset) == (1, 3, 2, 2)
+
+
+# CA 2
+def test_listar_reservas_filtra_por_fecha(db: Session, fabrica_reserva) -> None:
+    pasada = date(2026, 10, 20)
+    fabrica_reserva(fecha=HOY)
+    fabrica_reserva(mesa_id=2, fecha=MANANA)
+    fabrica_reserva(mesa_id=3, fecha=pasada, estado=EstadoReserva.ATENDIDA)
+
+    assert _ids(_listar(db, fecha=HOY)) == [1]
+    en_el_pasado = _listar(db, fecha=pasada)
+    assert (_ids(en_el_pasado), en_el_pasado.total) == ([3], 1)
+
+
+def test_listar_reservas_filtra_por_estado(db: Session, fabrica_reserva) -> None:
+    fabrica_reserva(mesa_id=1)
+    fabrica_reserva(mesa_id=2, estado=EstadoReserva.CANCELADA_ANTICIPADA)
+    fabrica_reserva(mesa_id=3)
+
+    activas = _listar(db, estado=EstadoReserva.ACTIVA)
+    canceladas = _listar(db, estado=EstadoReserva.CANCELADA_ANTICIPADA)
+
+    assert (_ids(activas), activas.total) == ([1, 3], 2)
+    assert (_ids(canceladas), canceladas.total) == ([2], 1)
+
+
+def test_listar_reservas_combina_fecha_y_estado(db: Session, fabrica_reserva) -> None:
+    fabrica_reserva(mesa_id=1, fecha=HOY)
+    fabrica_reserva(mesa_id=2, fecha=HOY, estado=EstadoReserva.ATENDIDA)
+    fabrica_reserva(mesa_id=3, fecha=MANANA)
+
+    pagina = _listar(db, fecha=HOY, estado=EstadoReserva.ACTIVA)
+
+    assert (_ids(pagina), pagina.total) == ([1], 1)
+
+
+def test_listar_reservas_filtros_y_paginacion_juntos(db: Session, fabrica_reserva) -> None:
+    for mesa_id, estado in enumerate(
+        [EstadoReserva.ACTIVA, EstadoReserva.ATENDIDA] * 2 + [EstadoReserva.ACTIVA], start=1
+    ):
+        fabrica_reserva(mesa_id=mesa_id, estado=estado)
+
+    pagina = _listar(db, estado=EstadoReserva.ACTIVA, limit=2, offset=2)
+
+    assert (_ids(pagina), pagina.total) == ([5], 3)
+
+
+# CA 4
+def test_listar_reservas_sin_filtros_trae_todos_los_estados(db: Session, fabrica_reserva) -> None:
+    for mesa_id, estado in enumerate(EstadoReserva, start=1):
+        fabrica_reserva(mesa_id=mesa_id, estado=estado)
+
+    pagina = _listar(db)
+
+    assert [reserva.estado for reserva in pagina.items] == list(EstadoReserva)
+    assert pagina.total == 4
+
+
+def test_listar_reservas_sin_resultados_devuelve_pagina_vacia(db: Session) -> None:
+    pagina = _listar(db)
+
+    assert (pagina.items, pagina.total, pagina.limit, pagina.offset) == ([], 0, 50, 0)
+
+
+def test_listar_reservas_filtros_sin_coincidencias_devuelve_pagina_vacia(
+    db: Session, fabrica_reserva
+) -> None:
+    fabrica_reserva()
+
+    pagina = _listar(db, estado=EstadoReserva.ATENDIDA)
+
+    assert (pagina.items, pagina.total) == ([], 0)
+
+
+def test_listar_reservas_no_modifica_datos(db: Session, fabrica_reserva) -> None:
+    for mesa_id, estado in enumerate(EstadoReserva, start=1):
+        fabrica_reserva(mesa_id=mesa_id, estado=estado)
+    antes = [(r.id, r.mesa_id, r.fecha, r.hora, r.estado) for r in _reservas(db)]
+
+    _listar(db)
+    _listar(db, fecha=MANANA, estado=EstadoReserva.ACTIVA, limit=1, offset=1)
+
+    despues = [(r.id, r.mesa_id, r.fecha, r.hora, r.estado) for r in _reservas(db)]
+    assert despues == antes

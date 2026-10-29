@@ -1,4 +1,4 @@
-"""Pruebas del router de reservas: alta (HU-M5-01)."""
+"""Pruebas del router de reservas: alta (HU-M5-01) y listado (HU-M5-03)."""
 
 from datetime import date, time
 
@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.modules.reservas.models import Reserva
+from app.modules.reservas.models import EstadoReserva, Reserva
 
 RUTA = "/api/v1/reservas"
 # El reloj de las pruebas (conftest.py) marca el 2026-11-02 a las 12:00.
@@ -197,3 +197,103 @@ def test_post_reservas_error_404_tiene_solo_la_clave_detalle(
     assert respuesta.status_code == 404
     assert list(respuesta.json()) == ["detalle"]
     assert respuesta.json()["detalle"] == "La mesa 5 no existe"
+
+
+# HU-M5-03: listado paginado
+def _ids(respuesta) -> list[int]:
+    return [reserva["id"] for reserva in respuesta.json()["items"]]
+
+
+# CA 1 y CA 2
+def test_get_reservas_pagina_y_filtra(cliente: TestClient, fabrica_reserva) -> None:
+    hoy, manana = date(2026, 11, 2), date(2026, 11, 3)
+    for mesa_id in (1, 2, 3):
+        fabrica_reserva(mesa_id=mesa_id, fecha=hoy)
+    fabrica_reserva(mesa_id=4, fecha=hoy, estado=EstadoReserva.ATENDIDA)
+    fabrica_reserva(mesa_id=5, fecha=manana)
+    filtros = "fecha=2026-11-02&estado=ACTIVA&limit=2"
+
+    primera = cliente.get(f"{RUTA}?{filtros}&offset=0")
+    segunda = cliente.get(f"{RUTA}?{filtros}&offset=2")
+
+    assert primera.status_code == segunda.status_code == 200
+    assert (_ids(primera), primera.json()["total"]) == ([1, 2], 3)
+    assert (_ids(segunda), segunda.json()["total"]) == ([3], 3)
+    assert (segunda.json()["limit"], segunda.json()["offset"]) == (2, 2)
+
+
+def test_get_reservas_valores_por_defecto(cliente: TestClient, fabrica_reserva) -> None:
+    for mesa_id in range(1, 61):
+        fabrica_reserva(mesa_id=mesa_id)
+
+    cuerpo = cliente.get(RUTA).json()
+
+    assert (cuerpo["limit"], cuerpo["offset"], cuerpo["total"]) == (50, 0, 60)
+    assert len(cuerpo["items"]) == 50
+
+
+@pytest.mark.parametrize(
+    ("consulta", "campo"),
+    [
+        ("limit=101", "limit"),
+        ("limit=0", "limit"),
+        ("offset=-1", "offset"),
+        ("offset=abc", "offset"),
+    ],
+)
+def test_get_reservas_limit_fuera_de_rango_devuelve_422(
+    cliente: TestClient, consulta: str, campo: str
+) -> None:
+    respuesta = cliente.get(f"{RUTA}?{consulta}")
+
+    assert respuesta.status_code == 422
+    assert list(respuesta.json()) == ["detalle"]
+    assert campo in respuesta.json()["detalle"]
+
+
+@pytest.mark.parametrize(
+    ("consulta", "campo"),
+    [
+        ("estado=ABIERTA", "estado"),
+        ("estado=activa", "estado"),
+        ("fecha=02/11/2026", "fecha"),
+        ("fecha=2026-13-40", "fecha"),
+    ],
+)
+def test_get_reservas_estado_o_fecha_invalidos_devuelve_422(
+    cliente: TestClient, consulta: str, campo: str
+) -> None:
+    respuesta = cliente.get(f"{RUTA}?{consulta}")
+
+    assert respuesta.status_code == 422
+    assert list(respuesta.json()) == ["detalle"]
+    assert campo in respuesta.json()["detalle"]
+
+
+# CA 4
+def test_get_reservas_sin_resultados_devuelve_200_vacio(cliente: TestClient) -> None:
+    respuesta = cliente.get(RUTA)
+
+    assert respuesta.status_code == 200
+    assert respuesta.json() == {"items": [], "total": 0, "limit": 50, "offset": 0}
+
+
+# CA 2: el filtro por fecha acepta cualquier dia, tambien pasado (S22)
+def test_get_reservas_filtra_por_fecha_pasada(cliente: TestClient, fabrica_reserva) -> None:
+    fabrica_reserva(mesa_id=1, fecha=date(2026, 10, 20), estado=EstadoReserva.ATENDIDA)
+    fabrica_reserva(mesa_id=2, fecha=date(2026, 11, 2))
+
+    respuesta = cliente.get(f"{RUTA}?fecha=2026-10-20")
+
+    assert respuesta.status_code == 200
+    assert (_ids(respuesta), respuesta.json()["total"]) == ([1], 1)
+    assert respuesta.json()["items"][0]["estado"] == "ATENDIDA"
+
+
+# Decision 7
+def test_get_reservas_serializa_hora_en_minutos(cliente: TestClient, fabrica_reserva) -> None:
+    fabrica_reserva(hora=time(4, 5))
+
+    respuesta = cliente.get(RUTA)
+
+    assert [reserva["hora"] for reserva in respuesta.json()["items"]] == ["04:05"]

@@ -7,8 +7,9 @@ from sqlalchemy.orm import Session
 
 from app.modules.reservas import puente, repository
 from app.modules.reservas.models import EstadoReserva, Reserva
-from app.modules.reservas.schemas import ReservaCrear, ReservaSalida
+from app.modules.reservas.schemas import FiltroReservas, ReservaCrear, ReservaSalida
 from app.shared.excepciones import DatosInvalidosError, NoEncontradoError, ReglaDeNegocioError
+from app.shared.paginacion import Pagina
 
 
 def ahora() -> datetime:
@@ -84,3 +85,13 @@ def crear_reserva(db: Session, datos: ReservaCrear) -> ReservaSalida:
     )
     _confirmar(db, reserva)
     return ReservaSalida.model_validate(reserva)
+
+
+def listar_reservas(db: Session, filtro: FiltroReservas) -> Pagina[ReservaSalida]:
+    reservas, total = repository.listar_reservas(db, filtro, filtro.fecha, filtro.estado)
+    return Pagina[ReservaSalida](
+        items=[ReservaSalida.model_validate(reserva) for reserva in reservas],
+        total=total,
+        limit=filtro.limit,
+        offset=filtro.offset,
+    )

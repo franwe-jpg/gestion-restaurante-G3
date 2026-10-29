@@ -1,4 +1,4 @@
-"""Pruebas de los esquemas de reservas (HU-M5-01)."""
+"""Pruebas de los esquemas de reservas (HU-M5-01 y HU-M5-03)."""
 
 from datetime import date, time
 
@@ -6,7 +6,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.modules.reservas.models import EstadoReserva
-from app.modules.reservas.schemas import ReservaCrear, ReservaSalida
+from app.modules.reservas.schemas import FiltroReservas, ReservaCrear, ReservaSalida
 
 CUERPO = {
     "mesa_id": 5,
@@ -153,3 +153,47 @@ def test_reserva_salida_serializa_horas_con_cero_a_la_izquierda() -> None:
     )
 
     assert salida.model_dump(mode="json")["hora"] == "04:05"
+
+
+# HU-M5-03 CA 2: filtros por fecha y estado
+def test_filtro_reservas_acepta_fecha_y_estado() -> None:
+    filtro = FiltroReservas.model_validate({"fecha": "2026-11-02", "estado": "ACTIVA"})
+
+    assert filtro.fecha == date(2026, 11, 2)
+    assert filtro.estado == EstadoReserva.ACTIVA
+
+
+def test_filtro_reservas_sin_parametros_usa_los_valores_por_defecto() -> None:
+    filtro = FiltroReservas()
+
+    assert (filtro.fecha, filtro.estado) == (None, None)
+    assert (filtro.limit, filtro.offset) == (50, 0)
+
+
+# S22: el estado distingue mayusculas y minusculas
+@pytest.mark.parametrize("estado", ["ABIERTA", "activa"])
+def test_filtro_reservas_rechaza_estado_desconocido(estado: str) -> None:
+    with pytest.raises(ValidationError) as error:
+        FiltroReservas.model_validate({"estado": estado})
+
+    assert [str(falla["loc"][0]) for falla in error.value.errors()] == ["estado"]
+
+
+@pytest.mark.parametrize("fecha", ["02/11/2026", "2026-13-40"])
+def test_filtro_reservas_rechaza_fecha_invalida(fecha: str) -> None:
+    with pytest.raises(ValidationError) as error:
+        FiltroReservas.model_validate({"fecha": fecha})
+
+    assert [str(falla["loc"][0]) for falla in error.value.errors()] == ["fecha"]
+
+
+# HU-M5-03 CA 1: el filtro hereda los limites de ParametrosPaginacion (D-27)
+@pytest.mark.parametrize(
+    ("parametros", "campo"),
+    [({"limit": 0}, "limit"), ({"limit": 101}, "limit"), ({"offset": -1}, "offset")],
+)
+def test_filtro_reservas_hereda_limites_de_paginacion(parametros: dict, campo: str) -> None:
+    with pytest.raises(ValidationError) as error:
+        FiltroReservas.model_validate(parametros)
+
+    assert [str(falla["loc"][0]) for falla in error.value.errors()] == [campo]
