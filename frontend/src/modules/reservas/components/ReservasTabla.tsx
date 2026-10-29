@@ -1,7 +1,8 @@
-import { CalendarDays } from 'lucide-react';
+import { CalendarDays, Pencil } from 'lucide-react';
 
 import { EmptyState } from '../../../shared/components/EmptyState';
 import { Badge } from '../../../shared/components/ui/badge';
+import { Button } from '../../../shared/components/ui/button';
 import { DataTable } from '../../../shared/components/ui/data-table';
 import type { ColumnaTabla } from '../../../shared/components/ui/data-table';
 import type { Reserva } from '../types';
@@ -13,6 +14,8 @@ export interface ReservasTablaProps {
   cargando?: boolean;
   error?: string | null;
   onReintentar?: () => void;
+  /** Se ofrece solo en las filas `ACTIVA`: las demás reservas no se modifican (HU-M5-02 CA 5). */
+  onModificar: (reserva: Reserva) => void;
 }
 
 const MENSAJE_ERROR = 'No se pudieron cargar las reservas.';
@@ -38,10 +41,35 @@ const COLUMNAS: ColumnaTabla<Reserva>[] = [
   },
 ];
 
-export function ReservasTabla({ reservas, cargando, error, onReintentar }: ReservasTablaProps) {
+function columnaAcciones(onModificar: (reserva: Reserva) => void): ColumnaTabla<Reserva> {
+  return {
+    clave: 'acciones',
+    encabezado: <span className="sr-only">Acciones</span>,
+    className: 'text-right',
+    render: (r) =>
+      r.estado === 'ACTIVA' ? (
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-label="Modificar reserva"
+          onClick={() => onModificar(r)}
+        >
+          <Pencil className="h-4 w-4" aria-hidden="true" />
+        </Button>
+      ) : null,
+  };
+}
+
+export function ReservasTabla({
+  reservas,
+  cargando,
+  error,
+  onReintentar,
+  onModificar,
+}: ReservasTablaProps) {
   return (
     <DataTable
-      columnas={COLUMNAS}
+      columnas={[...COLUMNAS, columnaAcciones(onModificar)]}
       filas={reservas}
       obtenerClave={(reserva) => reserva.id}
       cargando={cargando}

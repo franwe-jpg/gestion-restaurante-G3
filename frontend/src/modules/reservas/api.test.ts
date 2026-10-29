@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { clienteHttp } from '../../shared/api/client';
 
-import { crearReserva, listarReservas } from './api';
-import type { ReservaCrear } from './types';
+import { crearReserva, listarReservas, modificarReserva } from './api';
+import type { ReservaCrear, ReservaModificar } from './types';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -38,6 +38,24 @@ describe('api de reservas', () => {
     const resultado = await listarReservas('2026-11-02', estado, limit, offset);
 
     expect(get).toHaveBeenCalledWith(ruta);
+    expect(resultado).toBe(respuesta);
+  });
+
+  it('modifica una reserva con PUT /reservas/{id} y solo fecha, hora y cantidad', async () => {
+    const datos: ReservaModificar = { fecha: '2026-11-03', hora: '22:00', cantidad_personas: 6 };
+    const respuesta = {
+      datos: { id: 7, mesa_id: 5, cliente_id: 7, estado: 'ACTIVA' as const, ...datos },
+      exito: true,
+    };
+    const put = vi.spyOn(clienteHttp, 'put').mockResolvedValue(respuesta);
+
+    const resultado = await modificarReserva(7, datos);
+
+    expect(put).toHaveBeenCalledWith('/reservas/7', {
+      fecha: '2026-11-03',
+      hora: '22:00',
+      cantidad_personas: 6,
+    });
     expect(resultado).toBe(respuesta);
   });
 });

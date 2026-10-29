@@ -9,8 +9,8 @@ export interface DatosFormularioReserva {
 
 export type ErroresReserva = Partial<Record<keyof DatosFormularioReserva, string>>;
 
-/** El modo edición se agrega con su prueba en la Fase 7. */
-export type ModoReserva = 'alta';
+/** En la edición Cliente y Mesa no cambian: se muestran deshabilitados y no se validan. */
+export type ModoReserva = 'alta' | 'edicion';
 
 const ENTERO_POSITIVO = /^[1-9]\d*$/;
 
@@ -36,22 +36,27 @@ function errorDeHora(
   return esHoy && hora <= horaActual ? 'La hora debe ser posterior a la hora actual.' : undefined;
 }
 
-/**
- * Valida el formulario sin leer el reloj: `hoy` (`YYYY-MM-DD`) y `horaActual` (`HH:MM`) llegan
- * por parámetro. Si la fecha es hoy, la hora tiene que ser posterior a la actual (S3).
- */
-export function validarReserva(
-  datos: DatosFormularioReserva,
-  _modo: ModoReserva,
-  hoy: string,
-  horaActual: string,
-): ErroresReserva {
-  const encontrados: ErroresReserva = {
+function erroresDeClienteYMesa(datos: DatosFormularioReserva): ErroresReserva {
+  return {
     cliente: errorDeEntero(
       datos.cliente,
       'El cliente es obligatorio.',
       'El cliente debe ser un entero positivo.',
     ),
+    mesa: errorDeEntero(
+      datos.mesa,
+      'La mesa es obligatoria.',
+      'La mesa debe ser un entero positivo.',
+    ),
+  };
+}
+
+function erroresDelTurno(
+  datos: DatosFormularioReserva,
+  hoy: string,
+  horaActual: string,
+): ErroresReserva {
+  return {
     fecha: errorDeFecha(datos.fecha, hoy),
     hora: errorDeHora(datos.hora, datos.fecha, hoy, horaActual),
     cantidad: errorDeEntero(
@@ -59,11 +64,23 @@ export function validarReserva(
       'La cantidad de personas es obligatoria.',
       'La cantidad de personas debe ser un entero positivo.',
     ),
-    mesa: errorDeEntero(
-      datos.mesa,
-      'La mesa es obligatoria.',
-      'La mesa debe ser un entero positivo.',
-    ),
+  };
+}
+
+/**
+ * Valida el formulario sin leer el reloj: `hoy` (`YYYY-MM-DD`) y `horaActual` (`HH:MM`) llegan
+ * por parámetro. Si la fecha es hoy, la hora tiene que ser posterior a la actual (S3). Cliente y
+ * Mesa solo se validan en el alta.
+ */
+export function validarReserva(
+  datos: DatosFormularioReserva,
+  modo: ModoReserva,
+  hoy: string,
+  horaActual: string,
+): ErroresReserva {
+  const encontrados: ErroresReserva = {
+    ...(modo === 'alta' ? erroresDeClienteYMesa(datos) : {}),
+    ...erroresDelTurno(datos, hoy, horaActual),
   };
   return Object.fromEntries(
     Object.entries(encontrados).filter(([, mensaje]) => mensaje !== undefined),

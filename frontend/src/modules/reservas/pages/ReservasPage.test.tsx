@@ -3,7 +3,7 @@ import { MemoryRouter, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ToastContext } from '../../../shared/components/ui/toast-context';
-import { crearReserva, listarReservas } from '../api';
+import { crearReserva, listarReservas, modificarReserva } from '../api';
 import type { Reserva } from '../types';
 
 import { ReservasPage } from './ReservasPage';
@@ -18,6 +18,16 @@ const RESERVA: Reserva = {
   hora: '21:30',
   cantidad_personas: 4,
   estado: 'ACTIVA',
+};
+
+/** Otra fila `ACTIVA`, con cliente, mesa y cantidad distintos de `RESERVA`. */
+const OTRA: Reserva = {
+  ...RESERVA,
+  id: 2,
+  hora: '22:00',
+  cliente_id: 9,
+  mesa_id: 3,
+  cantidad_personas: 2,
 };
 
 function pagina(items: Reserva[], total = items.length, offset = 0) {
@@ -213,6 +223,86 @@ describe('ReservasPage: panel de alta', () => {
       expect(screen.queryByRole('heading', { name: 'Nueva reserva' })).toBeNull(),
     );
     expect(crearReserva).toHaveBeenCalledTimes(1);
+    expect(listarReservas).toHaveBeenCalledTimes(2);
+    await asentar();
+  });
+});
+
+/** Pulsa «Modificar reserva» en la fila que ocupa ese lugar de la tabla (la primera por defecto). */
+async function modificar(fila = 0) {
+  fireEvent.click(screen.getAllByRole('button', { name: 'Modificar reserva' })[fila]!);
+  await asentar();
+}
+
+describe('ReservasPage: abrir el panel de edición', () => {
+  it('«Modificar reserva» abre el panel con los datos de la fila, sin pedir nada más', async () => {
+    abrir();
+    await screen.findByText('Cliente n.º 7');
+    expect(screen.queryByRole('heading', { name: 'Modificar reserva' })).toBeNull();
+
+    await modificar();
+
+    expect(screen.getByRole('heading', { name: 'Modificar reserva' })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Fecha/)).toHaveValue('2026-11-02');
+    expect(screen.getByLabelText(/Hora/)).toHaveValue('21:30');
+    expect(screen.getByLabelText(/Cantidad de personas/)).toHaveValue('4');
+    expect(screen.getByLabelText(/Cliente/)).toBeDisabled();
+    expect(screen.getByLabelText(/Mesa/)).toBeDisabled();
+    expect(screen.getByTestId('ruta')).toHaveTextContent('/reservas');
+    expect(listarReservas).toHaveBeenCalledTimes(1);
+    expect(crearReserva).not.toHaveBeenCalled();
+    expect(modificarReserva).not.toHaveBeenCalled();
+  });
+
+  it('«Modificar reserva» de otra fila con el panel abierto trae los datos de esa fila', async () => {
+    vi.mocked(listarReservas).mockResolvedValue(pagina([RESERVA, OTRA]));
+    abrir();
+    await screen.findByText('Cliente n.º 9');
+    await modificar(0);
+    expect(screen.getByLabelText(/Cantidad de personas/)).toHaveValue('4');
+
+    await modificar(1);
+
+    expect(screen.getByLabelText(/Cantidad de personas/)).toHaveValue('2');
+    expect(screen.getByLabelText(/Hora/)).toHaveValue('22:00');
+    expect(screen.getByLabelText(/Cliente/)).toHaveValue('9');
+    expect(screen.getByLabelText(/Mesa/)).toHaveValue('3');
+  });
+
+  it('«Nueva reserva» después de editar abre el panel vacío', async () => {
+    abrir();
+    await screen.findByText('Cliente n.º 7');
+    await modificar();
+
+    await pulsar('Nueva reserva');
+
+    expect(screen.getByRole('heading', { name: 'Nueva reserva' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Modificar reserva' })).toBeNull();
+    for (const etiqueta of [/Cliente/, /Fecha/, /Hora/, /Cantidad de personas/, /Mesa/]) {
+      expect(screen.getByLabelText(etiqueta)).toHaveValue('');
+      expect(screen.getByLabelText(etiqueta)).toBeEnabled();
+    }
+  });
+});
+
+describe('ReservasPage: guardar la edición', () => {
+  it('guardar envía el PUT, cierra el panel y vuelve a pedir la tabla', async () => {
+    vi.mocked(modificarReserva).mockResolvedValue({ datos: RESERVA, exito: true });
+    abrir();
+    await screen.findByText('Cliente n.º 7');
+    await modificar();
+    fireEvent.change(screen.getByLabelText(/Cantidad de personas/), { target: { value: '6' } });
+
+    await pulsar('Guardar reserva');
+
+    await waitFor(() =>
+      expect(screen.queryByRole('heading', { name: 'Modificar reserva' })).toBeNull(),
+    );
+    expect(modificarReserva).toHaveBeenCalledExactlyOnceWith(1, {
+      fecha: '2026-11-02',
+      hora: '21:30',
+      cantidad_personas: 6,
+    });
     expect(listarReservas).toHaveBeenCalledTimes(2);
     await asentar();
   });

@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ToastContext } from '../../../shared/components/ui/toast-context';
-import { crearReserva } from '../api';
+import { crearReserva, modificarReserva } from '../api';
 import type { Reserva } from '../types';
 
 import { ReservaFormulario } from './ReservaFormulario';
@@ -19,14 +19,17 @@ const CREADA: Reserva = {
   estado: 'ACTIVA',
 };
 
+/** Fila `ACTIVA` que se abre en el panel de edición. */
+const EXISTENTE: Reserva = { ...CREADA, id: 12 };
+
 const mostrarToast = vi.fn();
 
-function abrir() {
+function abrir(reserva?: Reserva) {
   const onCerrar = vi.fn();
   const onGuardado = vi.fn();
   render(
     <ToastContext.Provider value={{ mostrarToast }}>
-      <ReservaFormulario onCerrar={onCerrar} onGuardado={onGuardado} />
+      <ReservaFormulario reserva={reserva} onCerrar={onCerrar} onGuardado={onGuardado} />
     </ToastContext.Provider>,
   );
   return { onCerrar, onGuardado };
@@ -42,19 +45,22 @@ const ETIQUETAS = {
   mesa: /Mesa/,
 } as const;
 
+function escribir(valores: Campos) {
+  for (const [campo, valor] of Object.entries(valores)) {
+    const etiqueta = ETIQUETAS[campo as keyof typeof ETIQUETAS];
+    fireEvent.change(screen.getByLabelText(etiqueta), { target: { value: valor } });
+  }
+}
+
 function completar(campos: Campos = {}) {
-  const valores = {
+  escribir({
     cliente: '7',
     fecha: '2026-11-03',
     hora: '21:30',
     cantidad: '4',
     mesa: '5',
     ...campos,
-  };
-  for (const [campo, valor] of Object.entries(valores)) {
-    const etiqueta = ETIQUETAS[campo as keyof typeof ETIQUETAS];
-    fireEvent.change(screen.getByLabelText(etiqueta), { target: { value: valor } });
-  }
+  });
 }
 
 function guardar() {
@@ -227,5 +233,105 @@ describe('ReservaFormulario: errores del servidor', () => {
     guardar();
 
     expect(await screen.findByText('No se pudo crear la reserva')).toBeInTheDocument();
+  });
+});
+
+describe('ReservaFormulario: panel de edición', () => {
+  it('se titula «Modificar reserva» y trae los datos de la fila', () => {
+    abrir(EXISTENTE);
+
+    expect(screen.getByRole('heading', { name: 'Modificar reserva' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Nueva reserva' })).toBeNull();
+    expect(screen.getByLabelText(ETIQUETAS.fecha)).toHaveValue('2026-11-03');
+    expect(screen.getByLabelText(ETIQUETAS.hora)).toHaveValue('21:30');
+    expect(screen.getByLabelText(ETIQUETAS.cantidad)).toHaveValue('4');
+    expect(screen.getByRole('button', { name: 'Guardar reserva' })).toBeEnabled();
+  });
+
+  it('muestra Cliente y Mesa deshabilitados y deja editar los otros tres campos', () => {
+    abrir(EXISTENTE);
+
+    expect(screen.getByLabelText(ETIQUETAS.cliente)).toHaveValue('7');
+    expect(screen.getByLabelText(ETIQUETAS.cliente)).toBeDisabled();
+    expect(screen.getByLabelText(ETIQUETAS.mesa)).toHaveValue('5');
+    expect(screen.getByLabelText(ETIQUETAS.mesa)).toBeDisabled();
+    for (const campo of ['fecha', 'hora', 'cantidad'] as const) {
+      expect(screen.getByLabelText(ETIQUETAS[campo])).toBeEnabled();
+    }
+  });
+
+  it.each(['Cancelar', 'Cerrar formulario'])('«%s» cierra el panel sin enviar el PUT', (boton) => {
+    const { onCerrar, onGuardado } = abrir(EXISTENTE);
+    escribir({ cantidad: '6' });
+
+    fireEvent.click(screen.getByRole('button', { name: boton }));
+
+    expect(onCerrar).toHaveBeenCalledTimes(1);
+    expect(onGuardado).not.toHaveBeenCalled();
+    expect(modificarReserva).not.toHaveBeenCalled();
+  });
+});
+
+describe('ReservaFormulario: guardar la edición', () => {
+  it('envía solo fecha, hora y cantidad, avisa y notifica a quien lo abrió', async () => {
+    vi.mocked(modificarReserva).mockResolvedValue({ datos: EXISTENTE, exito: true });
+    const { onGuardado, onCerrar } = abrir(EXISTENTE);
+    escribir({ fecha: '2026-11-04', hora: '20:00', cantidad: '6' });
+
+    guardar();
+
+    await waitFor(() => expect(onGuardado).toHaveBeenCalledTimes(1));
+    expect(modificarReserva).toHaveBeenCalledExactlyOnceWith(12, {
+      fecha: '2026-11-04',
+      hora: '20:00',
+      cantidad_personas: 6,
+    });
+    expect(mostrarToast).toHaveBeenCalledWith(
+      expect.objectContaining({ titulo: 'Reserva modificada', variante: 'success' }),
+    );
+    expect(crearReserva).not.toHaveBeenCalled();
+    expect(onCerrar).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [{ fecha: '2026-11-01' }, 'La fecha no puede ser anterior a hoy.'],
+    [{ cantidad: '0' }, 'La cantidad de personas debe ser un entero positivo.'],
+  ])('con %j advierte «%s» y no envía el PUT', (cambio, aviso) => {
+    abrir(EXISTENTE);
+    escribir(cambio);
+
+    guardar();
+
+    expect(screen.getByText(aviso)).toBeVisible();
+    expect(modificarReserva).not.toHaveBeenCalled();
+  });
+});
+
+describe('ReservaFormulario: errores de la edición', () => {
+  it.each([
+    'La mesa 5 ya tiene una reserva activa el 2026-11-03 a las 21:30',
+    'La reserva 12 no está activa y no se puede modificar',
+    'La reserva 12 no existe',
+  ])('muestra «%s» como error general y deja el panel abierto', async (detalle) => {
+    vi.mocked(modificarReserva).mockResolvedValue({ datos: null, exito: false, error: detalle });
+    const { onGuardado } = abrir(EXISTENTE);
+    escribir({ cantidad: '6' });
+
+    guardar();
+
+    expect(await screen.findByText(detalle)).toBeInTheDocument();
+    expect(onGuardado).not.toHaveBeenCalled();
+    expect(screen.getByLabelText(ETIQUETAS.cantidad)).toHaveValue('6');
+    expect(screen.getByLabelText(ETIQUETAS.cliente)).toBeDisabled();
+    expect(screen.getByRole('heading', { name: 'Modificar reserva' })).toBeInTheDocument();
+  });
+
+  it('si la respuesta no trae detalle muestra un error general de la modificación', async () => {
+    vi.mocked(modificarReserva).mockResolvedValue({ datos: null, exito: false });
+    abrir(EXISTENTE);
+
+    guardar();
+
+    expect(await screen.findByText('No se pudo modificar la reserva')).toBeInTheDocument();
   });
 });

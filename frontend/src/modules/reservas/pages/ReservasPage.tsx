@@ -12,13 +12,20 @@ import {
   SelectorEstadoReserva,
 } from '../components';
 import { formatearFechaReserva } from '../fechas';
+import type { Reserva } from '../types';
 
 import { useListadoReservas } from './useListadoReservas';
 
-type Panel = 'cerrado' | 'alta';
+/** El panel lateral: cerrado, para una reserva nueva o para modificar la fila elegida. */
+type Panel = 'cerrado' | 'alta' | { edicion: Reserva };
+
+interface ListadoDelDiaProps {
+  listado: ReturnType<typeof useListadoReservas>;
+  onModificar: (reserva: Reserva) => void;
+}
 
 /** Navegador de fecha, filtro de estado, tabla del día y paginación. */
-function ListadoDelDia({ listado }: { listado: ReturnType<typeof useListadoReservas> }) {
+function ListadoDelDia({ listado, onModificar }: ListadoDelDiaProps) {
   const { fecha, estado, paginacion, reservas } = listado;
   return (
     <div className="min-w-0 flex-1 space-y-4">
@@ -36,6 +43,7 @@ function ListadoDelDia({ listado }: { listado: ReturnType<typeof useListadoReser
           cargando={reservas.cargando}
           error={reservas.error}
           onReintentar={reservas.recargar}
+          onModificar={onModificar}
         />
       </Card>
 
@@ -46,6 +54,28 @@ function ListadoDelDia({ listado }: { listado: ReturnType<typeof useListadoReser
           onCambiarPagina={paginacion.irAPagina}
         />
       )}
+    </div>
+  );
+}
+
+interface PanelDeReservaProps {
+  panel: Panel;
+  onCerrar: () => void;
+  onGuardado: () => void;
+}
+
+function PanelDeReserva({ panel, onCerrar, onGuardado }: PanelDeReservaProps) {
+  if (panel === 'cerrado') return null;
+  const reserva = panel === 'alta' ? undefined : panel.edicion;
+  return (
+    <div className="w-full lg:w-96 lg:shrink-0">
+      {/* La clave reinicia el formulario al pasar de una fila a otra o de la edición al alta. */}
+      <ReservaFormulario
+        key={reserva?.id ?? 'alta'}
+        reserva={reserva}
+        onCerrar={onCerrar}
+        onGuardado={onGuardado}
+      />
     </div>
   );
 }
@@ -73,12 +103,11 @@ export function ReservasPage() {
       />
 
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
-        <ListadoDelDia listado={listado} />
-        {panel === 'alta' && (
-          <div className="w-full lg:w-96 lg:shrink-0">
-            <ReservaFormulario onCerrar={() => setPanel('cerrado')} onGuardado={alGuardar} />
-          </div>
-        )}
+        <ListadoDelDia
+          listado={listado}
+          onModificar={(reserva) => setPanel({ edicion: reserva })}
+        />
+        <PanelDeReserva panel={panel} onCerrar={() => setPanel('cerrado')} onGuardado={alGuardar} />
       </div>
     </div>
   );

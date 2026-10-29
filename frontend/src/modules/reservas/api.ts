@@ -1,6 +1,6 @@
 import { clienteHttp } from '../../shared/api/client';
 import type { Pagina, RespuestaApi } from '../../shared/types';
-import type { FiltroEstadoReserva, Reserva, ReservaCrear } from './types';
+import type { FiltroEstadoReserva, Reserva, ReservaCrear, ReservaModificar } from './types';
 
 /** Reservas de un día. `'TODAS'` no envía `estado`: la API trae los cuatro estados. */
 export function listarReservas(
@@ -18,4 +18,12 @@ export function listarReservas(
 
 export function crearReserva(datos: ReservaCrear): Promise<RespuestaApi<Reserva>> {
   return clienteHttp.post<Reserva, ReservaCrear>('/reservas', datos);
+}
+
+/** Cambia solo fecha, hora y cantidad de personas: mesa, cliente y estado no se envían. */
+export function modificarReserva(
+  id: number,
+  datos: ReservaModificar,
+): Promise<RespuestaApi<Reserva>> {
+  return clienteHttp.put<Reserva, ReservaModificar>(`/reservas/${id}`, datos);
 }

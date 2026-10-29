@@ -77,6 +77,33 @@ describe('validarReserva: fecha y hora', () => {
   });
 });
 
+describe('validarReserva: modo edición', () => {
+  function validarEdicion(cambios: Partial<DatosFormularioReserva> = {}) {
+    return validarReserva({ ...VALIDOS, ...cambios }, 'edicion', HOY, AHORA);
+  }
+
+  it('acepta datos válidos', () => {
+    expect(validarEdicion()).toEqual({});
+  });
+
+  it('no valida Cliente ni Mesa, aunque estén vacíos o mal escritos', () => {
+    expect(validarEdicion({ cliente: '', mesa: 'abc' })).toEqual({});
+  });
+
+  it('valida fecha, hora y cantidad de personas igual que el alta', () => {
+    const invalidos = { fecha: '2026-11-01', hora: '', cantidad: '0' };
+
+    expect(validarEdicion(invalidos)).toEqual({
+      fecha: 'La fecha no puede ser anterior a hoy.',
+      hora: 'La hora es obligatoria.',
+      cantidad: 'La cantidad de personas debe ser un entero positivo.',
+    });
+    expect(validarEdicion({ fecha: HOY, hora: AHORA }).hora).toBe(
+      'La hora debe ser posterior a la hora actual.',
+    );
+  });
+});
+
 describe('errorDelServidor', () => {
   it('deja el texto del 404, 409 o 422 como error general', () => {
     const mensaje = 'La mesa 5 ya tiene una reserva activa el 2026-11-02 a las 21:30';
