@@ -29,8 +29,12 @@ def eliminar(db: Session, mesa: Mesa) -> None:
     db.delete(mesa)
 
 
-def existe_numero_en_sector(db: Session, sector_id: int, numero: int) -> bool:
+def existe_numero_en_sector(
+    db: Session, sector_id: int, numero: int, excluir_id: int | None = None
+) -> bool:
     consulta = select(Mesa.id).where(Mesa.sector_id == sector_id, Mesa.numero == numero)
+    if excluir_id is not None:
+        consulta = consulta.where(Mesa.id != excluir_id)
     return db.scalar(consulta.limit(1)) is not None
 
 

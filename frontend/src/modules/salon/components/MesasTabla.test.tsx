@@ -29,9 +29,11 @@ const TERRAZA_1: Mesa = {
   estado: 'FUERA_DE_SERVICIO',
 };
 
-describe('MesasTabla', () => {
+describe('MesasTabla: datos', () => {
   it('muestra número, sector, capacidad y estado de cada mesa (CA 1 de #41)', () => {
-    render(<MesasTabla mesas={[SALON_1, SALON_2, TERRAZA_1]} onEliminar={vi.fn()} />);
+    render(
+      <MesasTabla mesas={[SALON_1, SALON_2, TERRAZA_1]} onEditar={vi.fn()} onEliminar={vi.fn()} />,
+    );
 
     const filas = screen.getAllByRole('row').slice(1);
     const celdas = filas.map((fila) =>
@@ -49,7 +51,7 @@ describe('MesasTabla', () => {
   });
 
   it('muestra el sector de cada mesa (CA 3 de #41)', () => {
-    render(<MesasTabla mesas={[SALON_1, TERRAZA_1]} onEliminar={vi.fn()} />);
+    render(<MesasTabla mesas={[SALON_1, TERRAZA_1]} onEditar={vi.fn()} onEliminar={vi.fn()} />);
 
     const filas = screen.getAllByRole('row').slice(1);
 
@@ -59,19 +61,8 @@ describe('MesasTabla', () => {
     ]);
   });
 
-  it('ofrece «Eliminar» solo en las mesas que no están ocupadas (CA 3 de #37)', () => {
-    const onEliminar = vi.fn();
-    render(<MesasTabla mesas={[SALON_1, SALON_2]} onEliminar={onEliminar} />);
-
-    expect(screen.queryByRole('button', { name: 'Eliminar la mesa 2' })).toBeNull();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Eliminar la mesa 1' }));
-
-    expect(onEliminar).toHaveBeenCalledWith(SALON_1);
-  });
-
   it('con el listado vacío informa «No hay mesas disponibles» (CA 2 de #41)', () => {
-    render(<MesasTabla mesas={[]} onEliminar={vi.fn()} />);
+    render(<MesasTabla mesas={[]} onEditar={vi.fn()} onEliminar={vi.fn()} />);
 
     expect(screen.getByText('No hay mesas disponibles')).toBeInTheDocument();
   });
@@ -83,6 +74,7 @@ describe('MesasTabla', () => {
         mesas={[]}
         error="No se pudo conectar con el backend"
         onReintentar={onReintentar}
+        onEditar={vi.fn()}
         onEliminar={vi.fn()}
       />,
     );
@@ -91,5 +83,27 @@ describe('MesasTabla', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
 
     expect(onReintentar).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('MesasTabla: acciones', () => {
+  it('ofrece «Eliminar» solo en las mesas que no están ocupadas (CA 3 de #37)', () => {
+    const onEliminar = vi.fn();
+    render(<MesasTabla mesas={[SALON_1, SALON_2]} onEditar={vi.fn()} onEliminar={onEliminar} />);
+
+    expect(screen.queryByRole('button', { name: 'Eliminar la mesa 2' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Eliminar la mesa 1' }));
+
+    expect(onEliminar).toHaveBeenCalledWith(SALON_1);
+  });
+
+  it('ofrece «Editar» en cada mesa y entrega la fila (CA 1 de #39)', () => {
+    const onEditar = vi.fn();
+    render(<MesasTabla mesas={[SALON_1, SALON_2]} onEditar={onEditar} onEliminar={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Editar la mesa 2' }));
+
+    expect(onEditar).toHaveBeenCalledWith(SALON_2);
   });
 });

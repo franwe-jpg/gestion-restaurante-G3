@@ -1,6 +1,6 @@
 import { clienteHttp } from '../../shared/api/client';
 import type { Pagina, RespuestaApi } from '../../shared/types';
-import type { Mesa, MesaCrear, Sector, SectorCrear, SectorModificar } from './types';
+import type { Mesa, MesaCrear, MesaModificar, Sector, SectorCrear, SectorModificar } from './types';
 
 const LIMITE_SELECTOR = 100;
 
@@ -35,6 +35,11 @@ export function listarSectoresHabilitados(): Promise<RespuestaApi<Pagina<Sector>
 
 export function crearMesa(datos: MesaCrear): Promise<RespuestaApi<Mesa>> {
   return clienteHttp.post<Mesa, MesaCrear>('/mesas', datos);
+}
+
+/** HU-M3-06: reemplaza número, capacidad y sector de una mesa existente. */
+export function modificarMesa(id: number, datos: MesaModificar): Promise<RespuestaApi<Mesa>> {
+  return clienteHttp.put<Mesa, MesaModificar>(`/mesas/${id}`, datos);
 }
 
 /** HU-M3-08: listado paginado de mesas con su sector. */

@@ -10,9 +10,10 @@ import {
   listarMesas,
   listarSectores,
   listarSectoresHabilitados,
+  modificarMesa,
   modificarSector,
 } from './api';
-import type { MesaCrear, Sector, SectorCrear, SectorModificar } from './types';
+import type { MesaCrear, MesaModificar, Sector, SectorCrear, SectorModificar } from './types';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -198,6 +199,28 @@ describe('eliminarMesa', () => {
     const resultado = await eliminarMesa(4);
 
     expect(eliminar).toHaveBeenCalledWith('/mesas/4');
+    expect(resultado).toBe(respuesta);
+  });
+});
+
+describe('modificarMesa', () => {
+  it('envía la modificación por PUT a /mesas/{id} (CA 1 de #39)', async () => {
+    const datos: MesaModificar = { numero: 5, capacidad: 6, sector_id: 1 };
+    const respuesta = {
+      datos: {
+        id: 3,
+        numero: 5,
+        capacidad: 6,
+        sector: { id: 1, nombre: 'Salón principal' },
+        estado: 'LIBRE' as const,
+      },
+      exito: true,
+    };
+    const put = vi.spyOn(clienteHttp, 'put').mockResolvedValue(respuesta);
+
+    const resultado = await modificarMesa(3, datos);
+
+    expect(put).toHaveBeenCalledWith('/mesas/3', datos);
     expect(resultado).toBe(respuesta);
   });
 });

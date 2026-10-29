@@ -1,4 +1,4 @@
-import { Armchair, Trash2 } from 'lucide-react';
+import { Armchair, Pencil, Trash2 } from 'lucide-react';
 
 import { EmptyState } from '../../../shared/components/EmptyState';
 import { Badge } from '../../../shared/components/ui/badge';
@@ -22,28 +22,41 @@ const VARIANTES: Record<EstadoMesa, BadgeVariant> = {
 
 interface AccionesMesaProps {
   mesa: Mesa;
+  onEditar: (mesa: Mesa) => void;
   onEliminar: (mesa: Mesa) => void;
 }
 
-function AccionesMesa({ mesa, onEliminar }: AccionesMesaProps) {
-  if (mesa.estado === 'OCUPADA') return null;
-
+function AccionesMesa({ mesa, onEditar, onEliminar }: AccionesMesaProps) {
   return (
     <div className="flex items-center justify-end gap-1">
       <Button
         variant="ghost"
         size="sm"
-        aria-label={`Eliminar la mesa ${mesa.numero}`}
-        onClick={() => onEliminar(mesa)}
+        aria-label={`Editar la mesa ${mesa.numero}`}
+        onClick={() => onEditar(mesa)}
       >
-        <Trash2 className="h-4 w-4" aria-hidden="true" />
-        <span className="sr-only">Eliminar</span>
+        <Pencil className="h-4 w-4" aria-hidden="true" />
+        <span className="sr-only">Editar</span>
       </Button>
+      {mesa.estado !== 'OCUPADA' && (
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-label={`Eliminar la mesa ${mesa.numero}`}
+          onClick={() => onEliminar(mesa)}
+        >
+          <Trash2 className="h-4 w-4" aria-hidden="true" />
+          <span className="sr-only">Eliminar</span>
+        </Button>
+      )}
     </div>
   );
 }
 
-function columnas(onEliminar: (mesa: Mesa) => void): ColumnaTabla<Mesa>[] {
+function columnas(
+  onEditar: (mesa: Mesa) => void,
+  onEliminar: (mesa: Mesa) => void,
+): ColumnaTabla<Mesa>[] {
   return [
     {
       clave: 'numero',
@@ -66,8 +79,8 @@ function columnas(onEliminar: (mesa: Mesa) => void): ColumnaTabla<Mesa>[] {
     {
       clave: 'acciones',
       encabezado: <span className="sr-only">Acciones</span>,
-      render: (mesa) => <AccionesMesa mesa={mesa} onEliminar={onEliminar} />,
-      className: 'w-16',
+      render: (mesa) => <AccionesMesa mesa={mesa} onEditar={onEditar} onEliminar={onEliminar} />,
+      className: 'w-24',
     },
   ];
 }
@@ -77,6 +90,7 @@ export interface MesasTablaProps {
   cargando?: boolean;
   error?: string | null;
   onReintentar?: () => void;
+  onEditar: (mesa: Mesa) => void;
   onEliminar: (mesa: Mesa) => void;
 }
 
@@ -85,11 +99,12 @@ export function MesasTabla({
   cargando = false,
   error = null,
   onReintentar,
+  onEditar,
   onEliminar,
 }: MesasTablaProps) {
   return (
     <DataTable
-      columnas={columnas(onEliminar)}
+      columnas={columnas(onEditar, onEliminar)}
       filas={mesas}
       obtenerClave={(mesa) => mesa.id}
       cargando={cargando}

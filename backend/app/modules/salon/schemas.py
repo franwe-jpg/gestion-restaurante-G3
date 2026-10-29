@@ -54,6 +54,10 @@ class MesaCrear(BaseModel):
     sector_id: StrictInt = Field(gt=0)
 
 
+class MesaModificar(MesaCrear):
+    """Mismos campos y reglas que el alta; el estado no se recibe (HU-M3-06)."""
+
+
 class SectorResumen(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

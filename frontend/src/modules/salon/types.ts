@@ -43,6 +43,13 @@ export interface MesaCrear {
   sector_id: number;
 }
 
+// HU-M3-06: modificación de mesas. El estado no se envía: lo conserva la mesa.
+export interface MesaModificar {
+  numero: number;
+  capacidad: number;
+  sector_id: number;
+}
+
 export interface Mozo {
   id: string;
   nombre: string;

@@ -17,7 +17,7 @@ import { useBajaMesa } from '../components/useBajaMesa';
 import { useBajaSector } from '../components/useBajaSector';
 import { useMesasDelSalon } from '../components/useMesasDelSalon';
 import { useSectoresDelSalon } from '../components/useSectoresDelSalon';
-import type { Sector } from '../types';
+import type { Mesa, Sector } from '../types';
 
 const TITULO = 'Salón y Mozos';
 const DESCRIPCION = 'Mapa de mesas, distribución de sectores y asignación de mozos por turno.';
@@ -83,7 +83,13 @@ function SeccionSectores({ paginacion, ...tabla }: SeccionSectoresProps) {
   );
 }
 
-function SeccionMesas({ refresco }: { refresco: number }) {
+function SeccionMesas({
+  refresco,
+  onEditar,
+}: {
+  refresco: number;
+  onEditar: (mesa: Mesa) => void;
+}) {
   const { mesas, cargando, error, recargar, paginacion } = useMesasDelSalon(refresco);
   const { eliminar } = useBajaMesa({ onEliminada: recargar });
 
@@ -94,6 +100,7 @@ function SeccionMesas({ refresco }: { refresco: number }) {
         cargando={cargando}
         error={error}
         onReintentar={recargar}
+        onEditar={onEditar}
         onEliminar={(mesa) => void eliminar(mesa)}
       />
     </SeccionListado>
@@ -104,12 +111,14 @@ interface SeccionesDelSalonProps extends SeccionSectoresProps {
   pestania: string;
   refrescoMesas: number;
   onCambiarPestania: (id: string) => void;
+  onEditarMesa: (mesa: Mesa) => void;
 }
 
 function SeccionesDelSalon({
   pestania,
   onCambiarPestania,
   refrescoMesas,
+  onEditarMesa,
   ...sectores
 }: SeccionesDelSalonProps) {
   return (
@@ -118,7 +127,11 @@ function SeccionesDelSalon({
       onCambiar={onCambiarPestania}
       items={[
         { id: 'sectores', etiqueta: 'Sectores', contenido: <SeccionSectores {...sectores} /> },
-        { id: 'mesas', etiqueta: 'Mesas', contenido: <SeccionMesas refresco={refrescoMesas} /> },
+        {
+          id: 'mesas',
+          etiqueta: 'Mesas',
+          contenido: <SeccionMesas refresco={refrescoMesas} onEditar={onEditarMesa} />,
+        },
       ]}
     />
   );
@@ -128,10 +141,11 @@ interface DialogosSalonProps {
   sectorAbierto: boolean;
   sectorEnEdicion: Sector | null;
   mesaAbierta: boolean;
+  mesaEnEdicion: Mesa | null;
   onSectorOpenChange: (abierto: boolean) => void;
   onGuardadoSector: () => void;
   onMesaOpenChange: (abierto: boolean) => void;
-  onMesaCreada: () => void;
+  onMesaGuardada: () => void;
   onCrearSectorDesdeMesa: () => void;
 }
 
@@ -139,10 +153,11 @@ function DialogosSalon({
   sectorAbierto,
   sectorEnEdicion,
   mesaAbierta,
+  mesaEnEdicion,
   onSectorOpenChange,
   onGuardadoSector,
   onMesaOpenChange,
-  onMesaCreada,
+  onMesaGuardada,
   onCrearSectorDesdeMesa,
 }: DialogosSalonProps) {
   return (
@@ -156,7 +171,8 @@ function DialogosSalon({
       )}
       {mesaAbierta && (
         <MesaFormDialog
-          onCreado={onMesaCreada}
+          mesa={mesaEnEdicion}
+          onGuardado={onMesaGuardada}
           onOpenChange={onMesaOpenChange}
           onCrearSector={onCrearSectorDesdeMesa}
         />
@@ -169,6 +185,7 @@ function useDialogosDelSalon(recargar: () => void) {
   const [sectorAbierto, setSectorAbierto] = useState(false);
   const [sectorEnEdicion, setSectorEnEdicion] = useState<Sector | null>(null);
   const [mesaAbierta, setMesaAbierta] = useState(false);
+  const [mesaEnEdicion, setMesaEnEdicion] = useState<Mesa | null>(null);
   const [pestania, setPestania] = useState('sectores');
   const [refrescoMesas, setRefrescoMesas] = useState(0);
 
@@ -177,13 +194,19 @@ function useDialogosDelSalon(recargar: () => void) {
     setSectorAbierto(true);
   };
 
+  const abrirMesa = (mesa: Mesa | null = null) => {
+    setMesaEnEdicion(mesa);
+    setMesaAbierta(true);
+  };
+
   const alGuardarSector = () => {
     setSectorAbierto(false);
     recargar();
   };
 
-  const alCrearMesa = () => {
+  const alGuardarMesa = () => {
     setMesaAbierta(false);
+    setMesaEnEdicion(null);
     setPestania('mesas');
     setRefrescoMesas((previa) => previa + 1);
   };
@@ -192,11 +215,13 @@ function useDialogosDelSalon(recargar: () => void) {
     sectorAbierto,
     sectorEnEdicion,
     mesaAbierta,
+    mesaEnEdicion,
     setSectorAbierto,
     setMesaAbierta,
     abrirSector,
+    abrirMesa,
     alGuardarSector,
-    alCrearMesa,
+    alGuardarMesa,
     pestania,
     setPestania,
     refrescoMesas,
@@ -221,7 +246,7 @@ export function SalonPage() {
         acciones={
           <AccionesDelSalon
             onNuevoSector={() => dialogos.abrirSector()}
-            onNuevaMesa={() => dialogos.setMesaAbierta(true)}
+            onNuevaMesa={() => dialogos.abrirMesa()}
           />
         }
       />
@@ -236,15 +261,17 @@ export function SalonPage() {
         onReintentar={recargar}
         onEditar={dialogos.abrirSector}
         onEliminar={(sector) => void eliminar(sector)}
+        onEditarMesa={(mesa) => dialogos.abrirMesa(mesa)}
       />
       <DialogosSalon
         sectorAbierto={dialogos.sectorAbierto}
         sectorEnEdicion={dialogos.sectorEnEdicion}
         mesaAbierta={dialogos.mesaAbierta}
+        mesaEnEdicion={dialogos.mesaEnEdicion}
         onSectorOpenChange={dialogos.setSectorAbierto}
         onGuardadoSector={dialogos.alGuardarSector}
         onMesaOpenChange={dialogos.setMesaAbierta}
-        onMesaCreada={dialogos.alCrearMesa}
+        onMesaGuardada={dialogos.alGuardarMesa}
         onCrearSectorDesdeMesa={abrirSectorDesdeMesa}
       />
     </div>

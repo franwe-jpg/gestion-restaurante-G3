@@ -7,6 +7,7 @@ from app.modules.salon import repository
 from app.modules.salon.models import Mesa, Sector
 from app.modules.salon.schemas import (
     MesaCrear,
+    MesaModificar,
     MesaSalida,
     SectorCrear,
     SectorModificar,
@@ -110,6 +111,27 @@ def crear_mesa(db: Session, datos: MesaCrear) -> MesaSalida:
     sector = _validar_sector_habilitado(db, datos.sector_id)
     _validar_numero_libre(db, sector, datos.numero)
     return _a_salida(_guardar_mesa(db, datos, sector), sector)
+
+
+def modificar_mesa(db: Session, mesa_id: int, datos: MesaModificar) -> MesaSalida:
+    """Reemplazo completo de numero, capacidad y sector; el estado no se toca (HU-M3-06)."""
+    mesa = repository.obtener_mesa(db, mesa_id)
+    if mesa is None:
+        raise NoEncontradoError(f"La mesa {mesa_id} no existe")
+    sector = _validar_sector_habilitado(db, datos.sector_id)
+    if repository.existe_numero_en_sector(db, sector.id, datos.numero, mesa.id):
+        raise ReglaDeNegocioError(f"La mesa {datos.numero} ya existe en el sector {sector.nombre}")
+    mesa.numero = datos.numero
+    mesa.capacidad = datos.capacidad
+    mesa.sector_id = sector.id
+    try:
+        db.commit()
+    except IntegrityError as error:
+        db.rollback()
+        raise ReglaDeNegocioError(
+            f"La mesa {datos.numero} ya existe en el sector {sector.nombre}"
+        ) from error
+    return _a_salida(mesa, sector)
 
 
 def eliminar_mesa(db: Session, mesa_id: int) -> None:

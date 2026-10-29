@@ -10,6 +10,7 @@ from app.modules.salon import service
 from app.modules.salon.schemas import (
     FiltroSectores,
     MesaCrear,
+    MesaModificar,
     MesaSalida,
     SectorCrear,
     SectorModificar,
@@ -47,6 +48,11 @@ def listar_mesas(
     db: Sesion, filtro: Annotated[ParametrosPaginacion, Query()]
 ) -> Pagina[MesaSalida]:
     return service.listar_mesas(db, filtro)
+
+
+@router.put("/mesas/{mesa_id}")
+def modificar_mesa(mesa_id: int, datos: MesaModificar, db: Sesion) -> MesaSalida:
+    return service.modificar_mesa(db, mesa_id, datos)
 
 
 @router.delete("/mesas/{mesa_id}", status_code=status.HTTP_204_NO_CONTENT)

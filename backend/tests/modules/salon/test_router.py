@@ -631,3 +631,76 @@ def test_eliminar_mesa_con_id_no_entero_responde_422(cliente: TestClient) -> Non
 
     assert respuesta.status_code == 422
     assert "detalle" in respuesta.json()
+
+
+# HU-M3-06: modificacion de mesas
+def test_modificar_mesa_responde_200_con_la_forma_de_mesa_salida(
+    cliente: TestClient, fabrica_sector, fabrica_mesa
+) -> None:
+    salon = fabrica_sector("Salón principal")
+    mesa = fabrica_mesa(salon, numero=1, capacidad=2)
+
+    respuesta = cliente.put(
+        f"{RUTA_MESAS}/{mesa.id}",
+        json={"numero": 5, "capacidad": 6, "sector_id": salon.id},
+    )
+
+    assert respuesta.status_code == 200
+    assert respuesta.json() == {
+        "id": mesa.id,
+        "numero": 5,
+        "capacidad": 6,
+        "sector": {"id": salon.id, "nombre": "Salón principal"},
+        "estado": "LIBRE",
+    }
+    assert cliente.get(RUTA_MESAS).json()["items"][0]["numero"] == 5
+
+
+def test_modificar_mesa_con_datos_invalidos_responde_422(
+    cliente: TestClient, fabrica_sector, fabrica_mesa
+) -> None:
+    salon = fabrica_sector("Salón principal")
+    mesa = fabrica_mesa(salon, numero=1, capacidad=2)
+    cuerpos = (
+        {"numero": 0, "capacidad": 4, "sector_id": salon.id},
+        {"numero": 1, "capacidad": 0, "sector_id": salon.id},
+        {"numero": 1, "capacidad": 4},
+        {"numero": 1, "capacidad": 4, "sector_id": salon.id, "estado": "LIBRE"},
+    )
+
+    for cuerpo in cuerpos:
+        respuesta = cliente.put(f"{RUTA_MESAS}/{mesa.id}", json=cuerpo)
+
+        assert respuesta.status_code == 422, cuerpo
+        assert "detalle" in respuesta.json()
+
+
+def test_modificar_mesa_con_numero_repetido_responde_409(
+    cliente: TestClient, db: Session, fabrica_sector, fabrica_mesa
+) -> None:
+    salon = fabrica_sector("Salón principal")
+    fabrica_mesa(salon, numero=2)
+    mesa = fabrica_mesa(salon, numero=1)
+
+    respuesta = cliente.put(
+        f"{RUTA_MESAS}/{mesa.id}",
+        json={"numero": 2, "capacidad": 4, "sector_id": salon.id},
+    )
+
+    assert respuesta.status_code == 409
+    assert respuesta.json() == {"detalle": "La mesa 2 ya existe en el sector Salón principal"}
+    assert db.get(Mesa, mesa.id).numero == 1
+
+
+def test_modificar_mesa_inexistente_responde_404(cliente: TestClient) -> None:
+    respuesta = cliente.put(f"{RUTA_MESAS}/999", json={"numero": 1, "capacidad": 2, "sector_id": 1})
+
+    assert respuesta.status_code == 404
+    assert respuesta.json() == {"detalle": "La mesa 999 no existe"}
+
+
+def test_modificar_mesa_con_id_no_entero_responde_422(cliente: TestClient) -> None:
+    respuesta = cliente.put(f"{RUTA_MESAS}/abc", json={"numero": 1, "capacidad": 2, "sector_id": 1})
+
+    assert respuesta.status_code == 422
+    assert "detalle" in respuesta.json()

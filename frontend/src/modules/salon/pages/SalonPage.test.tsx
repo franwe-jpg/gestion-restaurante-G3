@@ -11,6 +11,7 @@ import {
   listarMesas,
   listarSectores,
   listarSectoresHabilitados,
+  modificarMesa,
   modificarSector,
 } from '../api';
 import type { Mesa, Sector } from '../types';
@@ -515,6 +516,95 @@ describe('SalonPage: baja de mesa', () => {
 
     expect(await screen.findByText(mensaje)).toBeInTheDocument();
     expect(screen.getByText('Libre')).toBeInTheDocument();
+    expect(listarMesas).toHaveBeenCalledTimes(1);
+  });
+});
+
+async function abrirEdicionDeMesa(mesa: Mesa = MESA_SALON) {
+  vi.mocked(listarMesas).mockResolvedValue(paginaMesas([mesa]));
+  vi.mocked(listarSectoresHabilitados).mockResolvedValue({
+    datos: { items: [SALON], total: 1, limit: 100, offset: 0 },
+    exito: true,
+  });
+  fireEvent.click(await screen.findByRole('tab', { name: 'Mesas' }));
+  fireEvent.click(await screen.findByRole('button', { name: `Editar la mesa ${mesa.numero}` }));
+  return screen.findByRole('heading', { name: 'Editar mesa' });
+}
+
+describe('SalonPage: edición de mesa', () => {
+  it('abre el diálogo precargado desde la fila (CA 1 de #39)', async () => {
+    render(<SalonPage />);
+
+    await abrirEdicionDeMesa();
+
+    expect(screen.getByLabelText(/Número/)).toHaveValue('1');
+    expect(screen.getByLabelText(/Capacidad/)).toHaveValue('2');
+    expect(screen.getByLabelText(/Sector/)).toHaveValue('1');
+    expect(modificarMesa).not.toHaveBeenCalled();
+  });
+
+  it('guarda la modificación, avisa y recarga el listado (CA 1 de #39)', async () => {
+    const modificada: Mesa = { ...MESA_SALON, numero: 7, capacidad: 6 };
+    vi.mocked(listarMesas)
+      .mockResolvedValueOnce(paginaMesas([MESA_SALON]))
+      .mockResolvedValue(paginaMesas([modificada]));
+    vi.mocked(listarSectoresHabilitados).mockResolvedValue({
+      datos: { items: [SALON], total: 1, limit: 100, offset: 0 },
+      exito: true,
+    });
+    vi.mocked(modificarMesa).mockResolvedValue({ datos: modificada, exito: true });
+    renderConToasts();
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Mesas' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar la mesa 1' }));
+    await screen.findByRole('heading', { name: 'Editar mesa' });
+
+    fireEvent.change(screen.getByLabelText(/Número/), { target: { value: '7' } });
+    fireEvent.change(screen.getByLabelText(/Capacidad/), { target: { value: '6' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+    expect(await screen.findByText('Mesa modificada')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(modificarMesa).toHaveBeenCalledWith(1, { numero: 7, capacidad: 6, sector_id: 1 });
+    await waitFor(() => expect(listarMesas).toHaveBeenCalledTimes(2));
+  });
+});
+
+describe('SalonPage: edición de mesa: validaciones', () => {
+  it('con un dato obligatorio vacío no guarda y lo informa (CA 2 de #39)', async () => {
+    render(<SalonPage />);
+    await abrirEdicionDeMesa();
+
+    fireEvent.change(screen.getByLabelText(/Número/), { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+    expect(screen.getByText('El número es obligatorio.')).toBeInTheDocument();
+    expect(modificarMesa).not.toHaveBeenCalled();
+  });
+
+  it('con un número repetido muestra el 409 bajo Número y conserva la fila (CA 3 de #39)', async () => {
+    const mensaje = 'La mesa 2 ya existe en el sector Salón principal';
+    render(<SalonPage />);
+    await abrirEdicionDeMesa();
+    vi.mocked(modificarMesa).mockResolvedValue({ datos: null, exito: false, error: mensaje });
+
+    fireEvent.change(screen.getByLabelText(/Número/), { target: { value: '2' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+    expect(await screen.findByText(mensaje)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Editar mesa' })).toBeInTheDocument();
+    expect(listarMesas).toHaveBeenCalledTimes(1);
+  });
+
+  it('al cancelar no envía la modificación (CA 4 de #39)', async () => {
+    render(<SalonPage />);
+    await abrirEdicionDeMesa();
+
+    fireEvent.change(screen.getByLabelText(/Número/), { target: { value: '9' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(modificarMesa).not.toHaveBeenCalled();
     expect(listarMesas).toHaveBeenCalledTimes(1);
   });
 });

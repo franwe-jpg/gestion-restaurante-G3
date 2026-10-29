@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.modules.salon import repository, service
 from app.modules.salon.models import Mesa, Sector
-from app.modules.salon.schemas import MesaCrear, SectorCrear, SectorModificar
+from app.modules.salon.schemas import MesaCrear, MesaModificar, SectorCrear, SectorModificar
 from app.shared.excepciones import NoEncontradoError, ReglaDeNegocioError
 from app.shared.models import Estado
 from app.shared.models.enums import EstadoMesa
@@ -507,3 +507,56 @@ def test_eliminar_mesa_ocupada_es_regla_de_negocio(
 def test_eliminar_mesa_inexistente_es_no_encontrado(db: Session) -> None:
     with pytest.raises(NoEncontradoError, match="La mesa 999 no existe"):
         service.eliminar_mesa(db, 999)
+
+
+# HU-M3-06: modificacion de mesas
+def test_modificar_mesa_actualiza_numero_capacidad_y_sector(
+    db: Session, fabrica_sector, fabrica_mesa
+) -> None:
+    salon = fabrica_sector("Salón principal")
+    terraza = fabrica_sector("Terraza")
+    mesa = fabrica_mesa(salon, numero=1, capacidad=2)
+
+    salida = service.modificar_mesa(
+        db, mesa.id, MesaModificar(numero=5, capacidad=6, sector_id=terraza.id)
+    )
+
+    assert salida.numero == 5
+    assert salida.capacidad == 6
+    assert salida.sector.nombre == "Terraza"
+    assert salida.estado == EstadoMesa.LIBRE
+    assert db.get(Mesa, mesa.id).sector_id == terraza.id
+
+
+def test_modificar_mesa_conserva_su_numero(db: Session, fabrica_sector, fabrica_mesa) -> None:
+    salon = fabrica_sector("Salón principal")
+    mesa = fabrica_mesa(salon, numero=3, capacidad=2)
+
+    salida = service.modificar_mesa(
+        db, mesa.id, MesaModificar(numero=3, capacidad=8, sector_id=salon.id)
+    )
+
+    assert salida.numero == 3
+    assert salida.capacidad == 8
+
+
+def test_modificar_mesa_con_numero_repetido_es_regla_de_negocio(
+    db: Session, fabrica_sector, fabrica_mesa
+) -> None:
+    salon = fabrica_sector("Salón principal")
+    fabrica_mesa(salon, numero=2)
+    mesa = fabrica_mesa(salon, numero=1)
+
+    with pytest.raises(
+        ReglaDeNegocioError, match="La mesa 2 ya existe en el sector Salón principal"
+    ):
+        service.modificar_mesa(
+            db, mesa.id, MesaModificar(numero=2, capacidad=4, sector_id=salon.id)
+        )
+
+    assert db.get(Mesa, mesa.id).numero == 1
+
+
+def test_modificar_mesa_inexistente_es_no_encontrado(db: Session) -> None:
+    with pytest.raises(NoEncontradoError, match="La mesa 999 no existe"):
+        service.modificar_mesa(db, 999, MesaModificar(numero=1, capacidad=2, sector_id=1))
