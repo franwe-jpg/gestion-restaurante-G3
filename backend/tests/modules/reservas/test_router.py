@@ -1,4 +1,4 @@
-"""Pruebas del router de reservas: alta (HU-M5-01) y listado (HU-M5-03)."""
+"""Pruebas del router de reservas: alta (HU-M5-01), consulta y modificacion (HU-M5-02), listado."""
 
 from datetime import date, time
 
@@ -297,3 +297,166 @@ def test_get_reservas_serializa_hora_en_minutos(cliente: TestClient, fabrica_res
     respuesta = cliente.get(RUTA)
 
     assert [reserva["hora"] for reserva in respuesta.json()["items"]] == ["04:05"]
+
+
+# HU-M5-02: consulta y modificacion
+CUERPO_PUT = {"fecha": "2026-11-03", "hora": "22:00", "cantidad_personas": 5}
+HOY = date(2026, 11, 2)
+
+
+def _ocupar_turno(fabrica_reserva, **cambios) -> Reserva:
+    """Deja una reserva ACTIVA en la mesa 5 del cliente 7, el 2026-11-02 a las 21:30."""
+    turno = {"mesa_id": 5, "cliente_id": 7, "fecha": HOY, "hora": time(21, 30)}
+    return fabrica_reserva(**(turno | cambios))
+
+
+# Escenario "Alta valida", segundo paso: lo creado se consulta con los mismos datos
+def test_get_reserva_por_id_devuelve_200(cliente: TestClient) -> None:
+    creada = cliente.post(RUTA, json=CUERPO).json()
+
+    respuesta = cliente.get(f"{RUTA}/{creada['id']}")
+
+    assert respuesta.status_code == 200
+    assert respuesta.json() == creada
+    assert respuesta.json()["estado"] == "ACTIVA"
+
+
+def test_get_reserva_no_activa_devuelve_200(cliente: TestClient, fabrica_reserva) -> None:
+    reserva = _ocupar_turno(fabrica_reserva, estado=EstadoReserva.ATENDIDA)
+
+    respuesta = cliente.get(f"{RUTA}/{reserva.id}")
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["estado"] == "ATENDIDA"
+
+
+def test_get_reserva_inexistente_devuelve_404(cliente: TestClient) -> None:
+    respuesta = cliente.get(f"{RUTA}/999")
+
+    assert respuesta.status_code == 404
+    assert respuesta.json() == {"detalle": "La reserva 999 no existe"}
+
+
+def test_get_reserva_con_id_no_numerico_devuelve_422(cliente: TestClient) -> None:
+    respuesta = cliente.get(f"{RUTA}/abc")
+
+    assert respuesta.status_code == 422
+    assert list(respuesta.json()) == ["detalle"]
+
+
+# CA 1: los valores nuevos se ven en la consulta por id y en el listado
+def test_put_reserva_modifica_y_devuelve_200(cliente: TestClient, fabrica_reserva) -> None:
+    reserva = _ocupar_turno(fabrica_reserva)
+    esperada = {
+        "id": reserva.id,
+        "mesa_id": 5,
+        "cliente_id": 7,
+        "fecha": "2026-11-03",
+        "hora": "22:00",
+        "cantidad_personas": 5,
+        "estado": "ACTIVA",
+    }
+
+    respuesta = cliente.put(f"{RUTA}/{reserva.id}", json=CUERPO_PUT)
+
+    assert respuesta.status_code == 200
+    assert respuesta.json() == esperada
+    assert cliente.get(f"{RUTA}/{reserva.id}").json() == esperada
+    assert cliente.get(RUTA).json()["items"] == [esperada]
+
+
+# CA 1 (S19) y CA 2 (S15): cada rechazo deja la reserva como estaba
+@pytest.mark.parametrize(
+    ("cuerpo", "campo"),
+    [
+        ({k: v for k, v in CUERPO_PUT.items() if k != "hora"}, "hora"),
+        (CUERPO_PUT | {"mesa_id": 6}, "mesa_id"),
+        (CUERPO_PUT | {"cliente_id": 8}, "cliente_id"),
+        (CUERPO_PUT | {"estado": "ATENDIDA"}, "estado"),
+    ],
+    ids=["sin-hora", "con-mesa", "con-cliente", "con-estado"],
+)
+def test_put_reserva_con_cuerpo_invalido_devuelve_422(
+    cliente: TestClient, db: Session, fabrica_reserva, cuerpo: dict, campo: str
+) -> None:
+    reserva = _ocupar_turno(fabrica_reserva)
+
+    respuesta = cliente.put(f"{RUTA}/{reserva.id}", json=cuerpo)
+
+    assert respuesta.status_code == 422
+    assert campo in respuesta.json()["detalle"]
+    db.expire_all()
+    assert (reserva.mesa_id, reserva.cliente_id, reserva.estado) == (5, 7, EstadoReserva.ACTIVA)
+    assert (reserva.fecha, reserva.hora, reserva.cantidad_personas) == (HOY, time(21, 30), 4)
+
+
+# CA 5
+def test_put_reserva_no_activa_devuelve_409(cliente: TestClient, fabrica_reserva) -> None:
+    reserva = _ocupar_turno(fabrica_reserva, estado=EstadoReserva.ATENDIDA)
+
+    respuesta = cliente.put(f"{RUTA}/{reserva.id}", json=CUERPO_PUT)
+
+    assert respuesta.status_code == 409
+    assert respuesta.json() == {
+        "detalle": f"La reserva {reserva.id} no está activa y no se puede modificar"
+    }
+
+
+# CA 4
+def test_put_reserva_turno_ocupado_devuelve_409(cliente: TestClient, fabrica_reserva) -> None:
+    _ocupar_turno(fabrica_reserva)
+    otra = _ocupar_turno(fabrica_reserva, hora=time(22, 0))
+
+    respuesta = cliente.put(
+        f"{RUTA}/{otra.id}", json=CUERPO_PUT | {"fecha": "2026-11-02", "hora": "21:30"}
+    )
+
+    assert respuesta.status_code == 409
+    assert respuesta.json() == {"detalle": TURNO_OCUPADO}
+
+
+# CA 3
+def test_put_reserva_fecha_pasada_devuelve_422(cliente: TestClient, fabrica_reserva) -> None:
+    reserva = _ocupar_turno(fabrica_reserva)
+
+    respuesta = cliente.put(f"{RUTA}/{reserva.id}", json=CUERPO_PUT | {"fecha": "2026-11-01"})
+
+    assert respuesta.status_code == 422
+    assert respuesta.json() == {"detalle": "La fecha de la reserva no puede ser anterior a hoy"}
+
+
+# CA 6
+def test_put_reserva_inexistente_devuelve_404(cliente: TestClient, db: Session) -> None:
+    respuesta = cliente.put(f"{RUTA}/999", json=CUERPO_PUT)
+
+    assert respuesta.status_code == 404
+    assert respuesta.json() == {"detalle": "La reserva 999 no existe"}
+    assert _cantidad_reservas(db) == 0
+
+
+def test_put_reserva_con_id_no_numerico_devuelve_422(cliente: TestClient) -> None:
+    respuesta = cliente.put(f"{RUTA}/abc", json=CUERPO_PUT)
+
+    assert respuesta.status_code == 422
+    assert list(respuesta.json()) == ["detalle"]
+
+
+# D-25 y D-26
+def test_put_reserva_errores_tienen_solo_la_clave_detalle(
+    cliente: TestClient, fabrica_reserva
+) -> None:
+    reserva = _ocupar_turno(fabrica_reserva)
+    atendida = _ocupar_turno(fabrica_reserva, mesa_id=6, estado=EstadoReserva.ATENDIDA)
+
+    respuestas = [
+        cliente.put(f"{RUTA}/999", json=CUERPO_PUT),
+        cliente.put(f"{RUTA}/{atendida.id}", json=CUERPO_PUT),
+        cliente.put(f"{RUTA}/{reserva.id}", json=CUERPO_PUT | {"cantidad_personas": 0}),
+    ]
+
+    assert [respuesta.status_code for respuesta in respuestas] == [404, 409, 422]
+    for respuesta in respuestas:
+        cuerpo = respuesta.json()
+        assert list(cuerpo) == ["detalle"]
+        assert isinstance(cuerpo["detalle"], str)
+        assert cuerpo["detalle"]

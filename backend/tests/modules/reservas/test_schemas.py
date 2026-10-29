@@ -1,4 +1,4 @@
-"""Pruebas de los esquemas de reservas (HU-M5-01 y HU-M5-03)."""
+"""Pruebas de los esquemas de reservas (HU-M5-01, HU-M5-02 y HU-M5-03)."""
 
 from datetime import date, time
 
@@ -6,7 +6,12 @@ import pytest
 from pydantic import ValidationError
 
 from app.modules.reservas.models import EstadoReserva
-from app.modules.reservas.schemas import FiltroReservas, ReservaCrear, ReservaSalida
+from app.modules.reservas.schemas import (
+    FiltroReservas,
+    ReservaCrear,
+    ReservaModificar,
+    ReservaSalida,
+)
 
 CUERPO = {
     "mesa_id": 5,
@@ -197,3 +202,52 @@ def test_filtro_reservas_hereda_limites_de_paginacion(parametros: dict, campo: s
         FiltroReservas.model_validate(parametros)
 
     assert [str(falla["loc"][0]) for falla in error.value.errors()] == [campo]
+
+
+# HU-M5-02: la modificacion solo trae fecha, hora y cantidad de personas
+CUERPO_MODIFICAR = {"fecha": "2026-11-03", "hora": "22:00", "cantidad_personas": 5}
+
+
+def _campos_con_error_al_modificar(cuerpo: dict) -> set[str]:
+    with pytest.raises(ValidationError) as error:
+        ReservaModificar.model_validate(cuerpo)
+    return {str(falla["loc"][0]) for falla in error.value.errors()}
+
+
+def test_reserva_modificar_acepta_fecha_hora_y_personas() -> None:
+    datos = ReservaModificar.model_validate(CUERPO_MODIFICAR)
+
+    assert datos.fecha == date(2026, 11, 3)
+    assert datos.hora == time(22, 0)
+    assert datos.cantidad_personas == 5
+
+
+# S19: el PUT exige los tres campos
+@pytest.mark.parametrize("campo", list(CUERPO_MODIFICAR))
+def test_reserva_modificar_exige_los_tres_campos(campo: str) -> None:
+    cuerpo = {nombre: valor for nombre, valor in CUERPO_MODIFICAR.items() if nombre != campo}
+
+    assert _campos_con_error_al_modificar(cuerpo) == {campo}
+
+
+# CA 2 (S15): mesa, cliente, estado e id no se reciben
+@pytest.mark.parametrize(
+    ("campo", "valor"),
+    [("mesa_id", 6), ("cliente_id", 8), ("estado", "ATENDIDA"), ("id", 1)],
+)
+def test_reserva_modificar_rechaza_mesa_cliente_estado_o_id(campo: str, valor: object) -> None:
+    assert _campos_con_error_al_modificar(CUERPO_MODIFICAR | {campo: valor}) == {campo}
+
+
+# La modificacion hereda las reglas de cantidad y de hora del alta
+@pytest.mark.parametrize(
+    ("campo", "valor"),
+    [
+        ("cantidad_personas", 0),
+        ("cantidad_personas", "4"),
+        ("cantidad_personas", True),
+        ("hora", "21:30:45"),
+    ],
+)
+def test_reserva_modificar_hereda_reglas_de_cantidad_y_hora(campo: str, valor: object) -> None:
+    assert _campos_con_error_al_modificar(CUERPO_MODIFICAR | {campo: valor}) == {campo}

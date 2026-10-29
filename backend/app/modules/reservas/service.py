@@ -7,7 +7,12 @@ from sqlalchemy.orm import Session
 
 from app.modules.reservas import puente, repository
 from app.modules.reservas.models import EstadoReserva, Reserva
-from app.modules.reservas.schemas import FiltroReservas, ReservaCrear, ReservaSalida
+from app.modules.reservas.schemas import (
+    FiltroReservas,
+    ReservaCrear,
+    ReservaModificar,
+    ReservaSalida,
+)
 from app.shared.excepciones import DatosInvalidosError, NoEncontradoError, ReglaDeNegocioError
 from app.shared.paginacion import Pagina
 
@@ -54,19 +59,26 @@ def _turno_ocupado(mesa_id: int, fecha: date, hora: time) -> ReglaDeNegocioError
     )
 
 
-def _validar_turno_libre(db: Session, mesa_id: int, fecha: date, hora: time) -> None:
-    if repository.existe_reserva_activa(db, mesa_id, fecha, hora):
+def _validar_turno_libre(
+    db: Session, mesa_id: int, fecha: date, hora: time, excluir_id: int | None = None
+) -> None:
+    if repository.existe_reserva_activa(db, mesa_id, fecha, hora, excluir_id):
         raise _turno_ocupado(mesa_id, fecha, hora)
 
 
 def _confirmar(db: Session, reserva: Reserva) -> None:
-    """Guarda la reserva; el indice unico parcial atrapa la carrera entre dos altas (R13)."""
+    """Guarda la reserva; el indice unico parcial atrapa la carrera entre dos escrituras (R13).
+
+    El error se arma antes de escribir: tras el rollback una reserva ya persistente se recarga
+    con los valores de la base y el mensaje nombraria el horario viejo, no el pedido.
+    """
+    conflicto = _turno_ocupado(reserva.mesa_id, reserva.fecha, reserva.hora)
     try:
         repository.agregar(db, reserva)
         db.commit()
     except IntegrityError as error:
         db.rollback()
-        raise _turno_ocupado(reserva.mesa_id, reserva.fecha, reserva.hora) from error
+        raise conflicto from error
 
 
 def crear_reserva(db: Session, datos: ReservaCrear) -> ReservaSalida:
@@ -83,6 +95,43 @@ def crear_reserva(db: Session, datos: ReservaCrear) -> ReservaSalida:
         cantidad_personas=datos.cantidad_personas,
         estado=EstadoReserva.ACTIVA,
     )
+    _confirmar(db, reserva)
+    return ReservaSalida.model_validate(reserva)
+
+
+def _obtener(db: Session, reserva_id: int) -> Reserva:
+    reserva = repository.obtener(db, reserva_id)
+    if reserva is None:
+        raise NoEncontradoError(f"La reserva {reserva_id} no existe")
+    return reserva
+
+
+def _validar_activa(reserva: Reserva) -> None:
+    """S7: solo se modifican las reservas ACTIVA."""
+    if reserva.estado != EstadoReserva.ACTIVA:
+        raise ReglaDeNegocioError(f"La reserva {reserva.id} no está activa y no se puede modificar")
+
+
+def _validar_capacidad_de_la_reserva(db: Session, reserva: Reserva, cantidad: int) -> None:
+    """S27: usa la mesa de la reserva y no exige que el puente todavia la encuentre."""
+    mesa = puente.obtener_mesa(db, reserva.mesa_id)
+    if mesa is not None:
+        _validar_capacidad(mesa, cantidad)
+
+
+def obtener_reserva(db: Session, reserva_id: int) -> ReservaSalida:
+    return ReservaSalida.model_validate(_obtener(db, reserva_id))
+
+
+def modificar_reserva(db: Session, reserva_id: int, datos: ReservaModificar) -> ReservaSalida:
+    reserva = _obtener(db, reserva_id)
+    _validar_activa(reserva)
+    _validar_momento(datos.fecha, datos.hora)
+    _validar_capacidad_de_la_reserva(db, reserva, datos.cantidad_personas)
+    _validar_turno_libre(db, reserva.mesa_id, datos.fecha, datos.hora, excluir_id=reserva.id)
+    reserva.fecha = datos.fecha
+    reserva.hora = datos.hora
+    reserva.cantidad_personas = datos.cantidad_personas
     _confirmar(db, reserva)
     return ReservaSalida.model_validate(reserva)
 

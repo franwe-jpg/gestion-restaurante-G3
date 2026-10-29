@@ -9,19 +9,31 @@ from app.modules.reservas.models import EstadoReserva, Reserva
 from app.shared.paginacion import ParametrosPaginacion, aplicar, contar
 
 
+def obtener(db: Session, reserva_id: int) -> Reserva | None:
+    return db.get(Reserva, reserva_id)
+
+
 def agregar(db: Session, reserva: Reserva) -> None:
+    """Inserta la reserva nueva o vuelca los cambios de una ya persistente (`add` no la repite)."""
     db.add(reserva)
     db.flush()
 
 
-def existe_reserva_activa(db: Session, mesa_id: int, fecha: date, hora: time) -> bool:
-    """Indica si la mesa ya tiene una reserva ACTIVA en esa fecha y hora exactas (R13)."""
+def existe_reserva_activa(
+    db: Session, mesa_id: int, fecha: date, hora: time, excluir_id: int | None = None
+) -> bool:
+    """Indica si la mesa ya tiene una reserva ACTIVA en esa fecha y hora exactas (R13).
+
+    Al modificar, `excluir_id` deja afuera a la propia reserva para que no choque consigo misma.
+    """
     consulta = select(Reserva.id).where(
         Reserva.mesa_id == mesa_id,
         Reserva.fecha == fecha,
         Reserva.hora == hora,
         Reserva.estado == EstadoReserva.ACTIVA,
     )
+    if excluir_id is not None:
+        consulta = consulta.where(Reserva.id != excluir_id)
     return db.scalar(consulta.limit(1)) is not None
 
 

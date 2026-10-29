@@ -31,6 +31,10 @@ class ReservaCrear(_DatosDelTurno):
     cliente_id: StrictInt = Field(gt=0)
 
 
+class ReservaModificar(_DatosDelTurno):
+    """Solo fecha, hora y cantidad: mesa, cliente y estado no cambian (S7, S15)."""
+
+
 class ReservaSalida(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
