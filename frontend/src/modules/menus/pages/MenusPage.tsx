@@ -1,11 +1,11 @@
-import { BookOpen, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { useState } from 'react';
 
 import { EmptyState } from '../../../shared/components/EmptyState';
 import { PageHeader } from '../../../shared/components/PageHeader';
 import { Card, CardContent } from '../../../shared/components/ui/card';
 import { Tabs } from '../../../shared/components/ui/tabs';
-import { MenuDelDiaTab } from '../components';
+import { MenuDelDiaTab, MenusEjecutivosTab } from '../components';
 
 const PESTANAS = [
   { id: 'ejecutivos', etiqueta: 'Menús ejecutivos' },
@@ -14,20 +14,10 @@ const PESTANAS = [
 ];
 
 export function MenusPage() {
-  const [pestana, setPestana] = useState('dia');
+  const [pestana, setPestana] = useState('ejecutivos');
 
   const contenido = {
-    ejecutivos: (
-      <Card>
-        <CardContent className="pt-6">
-          <EmptyState
-            icono={BookOpen}
-            titulo="Menús ejecutivos"
-            descripcion="La gestión de menús ejecutivos está pendiente de implementación."
-          />
-        </CardContent>
-      </Card>
-    ),
+    ejecutivos: <MenusEjecutivosTab />,
     dia: <MenuDelDiaTab />,
     promociones: (
       <Card>

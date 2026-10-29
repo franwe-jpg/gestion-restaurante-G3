@@ -12,10 +12,15 @@ from app.database import get_db
 from app.modules.menus import service
 from app.modules.menus.schemas import (
     FiltroMenusDelDia,
+    FiltroMenusEjecutivos,
     MenuDelDiaCrear,
     MenuDelDiaListado,
     MenuDelDiaModificar,
     MenuDelDiaSalida,
+    MenuEjecutivoActualizar,
+    MenuEjecutivoCrear,
+    MenuEjecutivoListado,
+    MenuEjecutivoSalida,
 )
 from app.modules.productos import imagenes
 from app.shared.paginacion import Pagina
@@ -86,3 +91,32 @@ def modificar_menu_del_dia(
 @router.post("/menus-del-dia/{menu_id}/baja")
 def dar_de_baja_menu_del_dia(menu_id: int, db: Sesion) -> MenuDelDiaSalida:
     return service.dar_de_baja_menu_del_dia(db, menu_id)
+
+
+@router.post("/menus-ejecutivos", status_code=status.HTTP_201_CREATED)
+def crear_menu_ejecutivo(datos: MenuEjecutivoCrear, db: Sesion) -> MenuEjecutivoSalida:
+    return service.crear_menu_ejecutivo(db, datos)
+
+
+@router.get("/menus-ejecutivos")
+def listar_menus_ejecutivos(
+    db: Sesion, filtro: Annotated[FiltroMenusEjecutivos, Query()]
+) -> Pagina[MenuEjecutivoListado]:
+    return service.listar_menus_ejecutivos(db, filtro)
+
+
+@router.get("/menus-ejecutivos/{menu_id}")
+def consultar_menu_ejecutivo(menu_id: int, db: Sesion) -> MenuEjecutivoSalida:
+    return service.obtener_menu_ejecutivo(db, menu_id)
+
+
+@router.put("/menus-ejecutivos/{menu_id}")
+def modificar_menu_ejecutivo(
+    menu_id: int, datos: MenuEjecutivoActualizar, db: Sesion
+) -> MenuEjecutivoSalida:
+    return service.modificar_menu_ejecutivo(db, menu_id, datos)
+
+
+@router.post("/menus-ejecutivos/{menu_id}/baja")
+def dar_de_baja_menu_ejecutivo(menu_id: int, db: Sesion) -> MenuEjecutivoSalida:
+    return service.dar_de_baja_menu_ejecutivo(db, menu_id)

@@ -5,6 +5,7 @@ from decimal import Decimal
 from pathlib import Path
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -17,7 +18,13 @@ FabricaProducto = Callable[..., Producto]
 
 @pytest.fixture
 def fabrica_seccion(db: Session) -> FabricaSeccion:
-    def crear(nombre: str = "Principales", orden: int = 1, estado: Estado = Estado.HABILITADO):
+    def crear(
+        nombre: str = "Principales",
+        orden: int | None = None,
+        estado: Estado = Estado.HABILITADO,
+    ) -> Seccion:
+        if orden is None:
+            orden = len(db.scalars(select(Seccion)).all()) + 1
         seccion = Seccion(nombre=nombre, orden=orden, estado=estado)
         db.add(seccion)
         db.commit()
@@ -34,11 +41,15 @@ def fabrica_producto(db: Session) -> FabricaProducto:
         categoria: Categoria = Categoria.PLATO,
         estado: Estado = Estado.HABILITADO,
         precio: Decimal = Decimal("1500.00"),
-    ):
+    ) -> Producto:
         producto = Producto(
             nombre=nombre,
             categoria=categoria,
             precio=precio,
+            ingredientes=[],
+            descripcion=None,
+            imagen=None,
+            etiquetas=[],
             estado=estado,
             seccion_id=seccion.id,
         )

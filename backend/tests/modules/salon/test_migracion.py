@@ -107,13 +107,13 @@ def test_upgrade_impone_la_unicidad_del_nombre_normalizado(
     get_settings.cache_clear()
 
 
-def test_downgrade_de_dos_pasos_elimina_sectores_y_conserva_las_tablas_de_m1(
+def test_downgrade_hasta_antes_de_sectores_elimina_sectores_y_conserva_las_tablas_de_m1(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     url, config = _preparar_base(tmp_path, monkeypatch, "baja.db")
     command.upgrade(config, "head")
 
-    command.downgrade(config, "-2")
+    command.downgrade(config, "c4e6a8b0d2f4")
     tablas, _columnas, _indices = _inspeccionar(url)
     get_settings.cache_clear()
 
@@ -249,13 +249,13 @@ def test_upgrade_impone_la_foreign_key_con_restrict(
     get_settings.cache_clear()
 
 
-def test_downgrade_de_un_paso_elimina_mesas_y_conserva_sectores(
+def test_downgrade_hasta_antes_de_mesas_elimina_mesas_y_conserva_sectores(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     url, config = _preparar_base(tmp_path, monkeypatch, "baja-mesas.db")
     command.upgrade(config, "head")
 
-    command.downgrade(config, "-1")
+    command.downgrade(config, "f3a5c7e9b1d2")
     tablas, _columnas, _restricciones = _inspeccionar_mesas(url)
     get_settings.cache_clear()
 

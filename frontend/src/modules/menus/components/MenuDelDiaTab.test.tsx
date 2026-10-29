@@ -19,7 +19,12 @@ import { MenuDelDiaTab } from './MenuDelDiaTab';
 vi.mock('../api');
 
 const SECCIONES = {
-  datos: { items: [{ id: 1, nombre: 'Principales' }], total: 1, limit: 100, offset: 0 },
+  datos: {
+    items: [{ id: 1, nombre: 'Principales', estado: 'HABILITADO' as const }],
+    total: 1,
+    limit: 100,
+    offset: 0,
+  },
   exito: true,
 };
 

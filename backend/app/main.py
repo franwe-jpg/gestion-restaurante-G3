@@ -24,8 +24,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(productos_router, prefix=API_PREFIX)
 app.include_router(menus_router, prefix=API_PREFIX)
+app.include_router(productos_router, prefix=API_PREFIX)
 app.include_router(salon_router, prefix=API_PREFIX)
 
 
