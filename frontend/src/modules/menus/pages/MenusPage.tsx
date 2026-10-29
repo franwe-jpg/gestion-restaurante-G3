@@ -4,21 +4,59 @@ import { PageHeader } from '../../../shared/components/PageHeader';
 import { BarraMenusEjecutivos, DialogoMenuEjecutivo, ListadoMenuEjecutivos } from '../components';
 import { useListaMenusEjecutivos } from '../components/useListaMenusEjecutivos';
 import { useOpcionesMenuEjecutivo } from '../components/useOpcionesMenuEjecutivo';
+import type { MenuEjecutivo } from '../types';
 
-export function MenusPage() {
+function useGestorMenus() {
   const [formularioAbierto, setFormularioAbierto] = useState(false);
+  const [menuEnEdicion, setMenuEnEdicion] = useState<MenuEjecutivo | null>(null);
   const opciones = useOpcionesMenuEjecutivo();
   const listado = useListaMenusEjecutivos();
 
   function cerrarFormulario() {
     setFormularioAbierto(false);
+    setMenuEnEdicion(null);
   }
 
-  function menuCreado() {
+  function abrirAlta() {
+    setMenuEnEdicion(null);
+    setFormularioAbierto(true);
+  }
+
+  function abrirEdicion(menu: MenuEjecutivo) {
+    setMenuEnEdicion(menu);
+    setFormularioAbierto(true);
+  }
+
+  function menuGuardado() {
+    const eraAlta = menuEnEdicion === null;
     cerrarFormulario();
-    listado.cambiarPagina(1);
+    if (eraAlta) listado.cambiarPagina(1);
     listado.recargar();
   }
+
+  return {
+    formularioAbierto,
+    menuEnEdicion,
+    opciones,
+    listado,
+    cerrarFormulario,
+    abrirAlta,
+    abrirEdicion,
+    menuGuardado,
+  };
+}
+
+export function MenusPage() {
+  const {
+    formularioAbierto,
+    menuEnEdicion,
+    opciones,
+    listado,
+    cerrarFormulario,
+    abrirAlta,
+    abrirEdicion,
+    menuGuardado,
+  } = useGestorMenus();
 
   return (
     <div className="space-y-6">
@@ -30,7 +68,7 @@ export function MenusPage() {
       <BarraMenusEjecutivos
         estado={listado.estado}
         onCambiarEstado={listado.cambiarEstado}
-        onNuevo={() => setFormularioAbierto(true)}
+        onNuevo={abrirAlta}
       />
 
       <ListadoMenuEjecutivos
@@ -41,16 +79,21 @@ export function MenusPage() {
         error={listado.error}
         onReintentar={listado.recargar}
         onCambiarPagina={listado.cambiarPagina}
+        onEditar={abrirEdicion}
+        onDadoDeBaja={listado.recargar}
       />
 
       <DialogoMenuEjecutivo
         abierto={formularioAbierto}
+        menu={menuEnEdicion}
         productos={opciones.productos}
         secciones={opciones.secciones}
         cargandoOpciones={opciones.cargando}
         errorCarga={opciones.error}
-        onCambiar={setFormularioAbierto}
-        onCreado={menuCreado}
+        onCambiar={(abierto) => {
+          if (!abierto) cerrarFormulario();
+        }}
+        onGuardado={menuGuardado}
       />
     </div>
   );

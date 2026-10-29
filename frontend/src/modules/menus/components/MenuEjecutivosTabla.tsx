@@ -6,11 +6,15 @@ import { DataTable } from '../../../shared/components/ui/data-table';
 import type { ColumnaTabla } from '../../../shared/components/ui/data-table';
 import type { MenuEjecutivo } from '../types';
 
+import { AccionesMenuEjecutivo } from './AccionesMenuEjecutivo';
+
 interface MenuEjecutivosTablaProps {
   menus: MenuEjecutivo[];
   cargando: boolean;
   error: string | null;
   onReintentar: () => void;
+  onEditar: (menu: MenuEjecutivo) => void;
+  onDadoDeBaja: () => void;
 }
 
 function incluidos(menu: MenuEjecutivo) {
@@ -29,27 +33,42 @@ function etiquetaEstado(estado: MenuEjecutivo['estado']) {
   return estado === 'HABILITADO' ? 'Habilitado' : 'Deshabilitado';
 }
 
-const COLUMNAS: ColumnaTabla<MenuEjecutivo>[] = [
-  { clave: 'nombre', encabezado: 'Nombre', render: (menu) => menu.nombre },
-  { clave: 'seccion', encabezado: 'Sección', render: (menu) => menu.seccion.nombre },
-  { clave: 'productos', encabezado: 'Incluye', render: incluidos },
-  {
-    clave: 'precio',
-    encabezado: 'Precio fijo',
-    render: (menu) => formatearMoneda(Number(menu.precio_fijo)),
-  },
-  { clave: 'estado', encabezado: 'Estado', render: (menu) => etiquetaEstado(menu.estado) },
-];
+function columnas(
+  onEditar: (menu: MenuEjecutivo) => void,
+  onDadoDeBaja: () => void,
+): ColumnaTabla<MenuEjecutivo>[] {
+  return [
+    { clave: 'nombre', encabezado: 'Nombre', render: (menu) => menu.nombre },
+    { clave: 'seccion', encabezado: 'Sección', render: (menu) => menu.seccion.nombre },
+    { clave: 'productos', encabezado: 'Incluye', render: incluidos },
+    {
+      clave: 'precio',
+      encabezado: 'Precio fijo',
+      render: (menu) => formatearMoneda(Number(menu.precio_fijo)),
+    },
+    { clave: 'estado', encabezado: 'Estado', render: (menu) => etiquetaEstado(menu.estado) },
+    {
+      clave: 'acciones',
+      encabezado: <span className="sr-only">Acciones</span>,
+      render: (menu) => (
+        <AccionesMenuEjecutivo menu={menu} onEditar={onEditar} onDadoDeBaja={onDadoDeBaja} />
+      ),
+      className: 'w-40',
+    },
+  ];
+}
 
 export function MenuEjecutivosTabla({
   menus,
   cargando,
   error,
   onReintentar,
+  onEditar,
+  onDadoDeBaja,
 }: MenuEjecutivosTablaProps) {
   return (
     <DataTable
-      columnas={COLUMNAS}
+      columnas={columnas(onEditar, onDadoDeBaja)}
       filas={menus}
       obtenerClave={(menu) => menu.id}
       cargando={cargando}

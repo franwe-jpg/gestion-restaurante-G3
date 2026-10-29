@@ -8,11 +8,24 @@ from app.shared.models import Estado, Producto
 from app.shared.paginacion import ParametrosPaginacion, aplicar, contar
 
 
-def existe_nombre_normalizado(db: Session, nombre_normalizado: str) -> bool:
+def existe_nombre_normalizado(
+    db: Session, nombre_normalizado: str, excluir_id: int | None = None
+) -> bool:
     consulta = select(MenuEjecutivo.id).where(
         MenuEjecutivo.nombre_normalizado == nombre_normalizado
     )
+    if excluir_id is not None:
+        consulta = consulta.where(MenuEjecutivo.id != excluir_id)
     return db.scalar(consulta.limit(1)) is not None
+
+
+def obtener(db: Session, menu_id: int) -> MenuEjecutivo | None:
+    consulta = (
+        select(MenuEjecutivo)
+        .where(MenuEjecutivo.id == menu_id)
+        .options(selectinload(MenuEjecutivo.productos))
+    )
+    return db.scalar(consulta)
 
 
 def obtener_productos(db: Session, producto_ids: list[int]) -> list[Producto]:

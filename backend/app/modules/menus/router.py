@@ -9,6 +9,7 @@ from app.database import get_db
 from app.modules.menus import service
 from app.modules.menus.schemas import (
     FiltroMenusEjecutivos,
+    MenuEjecutivoActualizar,
     MenuEjecutivoCrear,
     MenuEjecutivoListado,
     MenuEjecutivoSalida,
@@ -30,3 +31,20 @@ def listar_menus_ejecutivos(
     db: Sesion, filtro: Annotated[FiltroMenusEjecutivos, Query()]
 ) -> Pagina[MenuEjecutivoListado]:
     return service.listar_menus_ejecutivos(db, filtro)
+
+
+@router.get("/menus-ejecutivos/{menu_id}")
+def consultar_menu_ejecutivo(menu_id: int, db: Sesion) -> MenuEjecutivoSalida:
+    return service.obtener_menu_ejecutivo(db, menu_id)
+
+
+@router.put("/menus-ejecutivos/{menu_id}")
+def modificar_menu_ejecutivo(
+    menu_id: int, datos: MenuEjecutivoActualizar, db: Sesion
+) -> MenuEjecutivoSalida:
+    return service.modificar_menu_ejecutivo(db, menu_id, datos)
+
+
+@router.post("/menus-ejecutivos/{menu_id}/baja")
+def dar_de_baja_menu_ejecutivo(menu_id: int, db: Sesion) -> MenuEjecutivoSalida:
+    return service.dar_de_baja_menu_ejecutivo(db, menu_id)

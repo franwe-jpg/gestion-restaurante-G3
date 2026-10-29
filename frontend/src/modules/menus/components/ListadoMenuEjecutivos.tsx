@@ -12,6 +12,8 @@ interface ListadoMenuEjecutivosProps {
   error: string | null;
   onReintentar: () => void;
   onCambiarPagina: (pagina: number) => void;
+  onEditar: (menu: MenuEjecutivo) => void;
+  onDadoDeBaja: () => void;
 }
 
 export function ListadoMenuEjecutivos({
@@ -22,6 +24,8 @@ export function ListadoMenuEjecutivos({
   error,
   onReintentar,
   onCambiarPagina,
+  onEditar,
+  onDadoDeBaja,
 }: ListadoMenuEjecutivosProps) {
   return (
     <Card>
@@ -31,6 +35,8 @@ export function ListadoMenuEjecutivos({
           cargando={cargando}
           error={error}
           onReintentar={onReintentar}
+          onEditar={onEditar}
+          onDadoDeBaja={onDadoDeBaja}
         />
         {totalPaginas > 1 && (
           <Pagination

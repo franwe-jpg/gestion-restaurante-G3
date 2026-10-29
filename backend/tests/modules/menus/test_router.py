@@ -1,4 +1,6 @@
-"""Pruebas de los endpoints de menús ejecutivos (HU-M2-01)."""
+"""Pruebas de los endpoints de menús ejecutivos (HU-M2-01, HU-M2-02 y HU-M2-03)."""
+
+from decimal import Decimal
 
 import pytest
 from fastapi.testclient import TestClient
@@ -12,9 +14,9 @@ from app.shared.models import Categoria, Estado, Producto
 RUTA = "/api/v1/menus-ejecutivos"
 
 
-def _cuerpo(seccion_id: int, producto_ids: list[int]) -> dict:
+def _cuerpo(seccion_id: int, producto_ids: list[int], nombre: str = "Almuerzo ejecutivo") -> dict:
     return {
-        "nombre": "Almuerzo ejecutivo",
+        "nombre": nombre,
         "precio_fijo": "1500.00",
         "producto_ids": producto_ids,
         "seccion_id": seccion_id,
@@ -145,3 +147,259 @@ def test_listar_menus_ejecutivos_paginado(cliente: TestClient, db: Session) -> N
     assert respuesta.status_code == 200
     assert respuesta.json()["total"] == 1
     assert respuesta.json()["items"][0]["nombre"] == "Almuerzo ejecutivo"
+
+
+def _crear_menu(
+    cliente: TestClient,
+    seccion_id: int,
+    producto_ids: list[int],
+    nombre: str = "Almuerzo ejecutivo",
+) -> dict:
+    respuesta = cliente.post(RUTA, json=_cuerpo(seccion_id, producto_ids, nombre=nombre))
+    assert respuesta.status_code == 201
+    return respuesta.json()
+
+
+def test_consultar_menu_ejecutivo_responde_200(cliente: TestClient, db: Session) -> None:
+    seccion = _crear_seccion(db)
+    producto = _crear_producto(db, seccion.id)
+    creado = _crear_menu(cliente, seccion.id, [producto.id])
+
+    respuesta = cliente.get(f"{RUTA}/{creado['id']}")
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["nombre"] == "Almuerzo ejecutivo"
+    assert respuesta.json()["productos"][0]["id"] == producto.id
+
+
+def test_consultar_menu_ejecutivo_inexistente_responde_404(cliente: TestClient) -> None:
+    respuesta = cliente.get(f"{RUTA}/99")
+
+    assert respuesta.status_code == 404
+    assert "detalle" in respuesta.json()
+
+
+def test_modificar_menu_ejecutivo_actualiza_datos_y_composicion(
+    cliente: TestClient, db: Session
+) -> None:
+    seccion = _crear_seccion(db)
+    otra_seccion = _crear_seccion(db)
+    producto = _crear_producto(db, seccion.id)
+    otro_producto = _crear_producto(db, seccion.id)
+    creado = _crear_menu(cliente, seccion.id, [producto.id])
+
+    respuesta = cliente.put(
+        f"{RUTA}/{creado['id']}",
+        json={
+            "nombre": "Cena ejecutiva",
+            "precio_fijo": "2000.50",
+            "producto_ids": [otro_producto.id],
+            "seccion_id": otra_seccion.id,
+            "descripcion": None,
+        },
+    )
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["nombre"] == "Cena ejecutiva"
+    assert respuesta.json()["precio_fijo"] == "2000.50"
+    assert respuesta.json()["seccion"]["id"] == otra_seccion.id
+    assert [p["id"] for p in respuesta.json()["productos"]] == [otro_producto.id]
+    db.expire_all()
+    menu = db.get(MenuEjecutivo, creado["id"])
+    assert menu is not None
+    assert menu.nombre == "Cena ejecutiva"
+    assert [p.id for p in menu.productos] == [otro_producto.id]
+
+
+def test_modificar_menu_ejecutivo_permite_conservar_su_nombre(
+    cliente: TestClient, db: Session
+) -> None:
+    seccion = _crear_seccion(db)
+    producto = _crear_producto(db, seccion.id)
+    creado = _crear_menu(cliente, seccion.id, [producto.id])
+
+    respuesta = cliente.put(
+        f"{RUTA}/{creado['id']}",
+        json=_cuerpo(seccion.id, [producto.id]) | {"precio_fijo": "1800.00"},
+    )
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["precio_fijo"] == "1800.00"
+
+
+def test_modificar_menu_ejecutivo_rechaza_nombre_de_otro_menu(
+    cliente: TestClient, db: Session
+) -> None:
+    seccion = _crear_seccion(db)
+    producto = _crear_producto(db, seccion.id)
+    _crear_menu(cliente, seccion.id, [producto.id])
+    segundo = _crear_menu(cliente, seccion.id, [producto.id], nombre="Cena ejecutiva")
+
+    respuesta = cliente.put(
+        f"{RUTA}/{segundo['id']}",
+        json=_cuerpo(seccion.id, [producto.id]) | {"nombre": " ALMUERZO EJECUTIVO "},
+    )
+
+    assert respuesta.status_code == 409
+    assert "detalle" in respuesta.json()
+    assert cliente.get(f"{RUTA}/{segundo['id']}").json()["nombre"] == "Cena ejecutiva"
+
+
+@pytest.mark.parametrize(
+    "cambio,campo",
+    [
+        ({"nombre": " "}, "nombre"),
+        ({"precio_fijo": "0"}, "precio_fijo"),
+        ({"producto_ids": []}, "producto_ids"),
+        ({"seccion_id": 0}, "seccion_id"),
+    ],
+    ids=["sin-nombre", "precio-cero", "sin-productos", "seccion-invalida"],
+)
+def test_modificar_menu_ejecutivo_invalido_responde_422_sin_aplicar(
+    cliente: TestClient, db: Session, cambio: dict, campo: str
+) -> None:
+    seccion = _crear_seccion(db)
+    producto = _crear_producto(db, seccion.id)
+    creado = _crear_menu(cliente, seccion.id, [producto.id])
+
+    respuesta = cliente.put(
+        f"{RUTA}/{creado['id']}",
+        json=_cuerpo(seccion.id, [producto.id]) | cambio,
+    )
+
+    assert respuesta.status_code == 422
+    assert campo in respuesta.json()["detalle"]
+    db.expire_all()
+    menu = db.get(MenuEjecutivo, creado["id"])
+    assert menu is not None
+    assert menu.precio_fijo == Decimal(creado["precio_fijo"])
+    assert [p.id for p in menu.productos] == [producto.id]
+
+
+@pytest.mark.parametrize(
+    "categoria,estado,mensaje",
+    [
+        (Categoria.PLATO, Estado.DESHABILITADO, "habilitados"),
+        (Categoria.MENU_DEL_DIA, Estado.HABILITADO, "menús del día"),
+    ],
+    ids=["producto-deshabilitado", "menu-del-dia"],
+)
+def test_modificar_menu_ejecutivo_rechaza_producto_no_permitido(
+    cliente: TestClient,
+    db: Session,
+    categoria: Categoria,
+    estado: Estado,
+    mensaje: str,
+) -> None:
+    seccion = _crear_seccion(db)
+    producto = _crear_producto(db, seccion.id)
+    creado = _crear_menu(cliente, seccion.id, [producto.id])
+    no_permitido = _crear_producto(db, seccion.id, categoria, estado)
+
+    respuesta = cliente.put(
+        f"{RUTA}/{creado['id']}",
+        json=_cuerpo(seccion.id, [no_permitido.id]),
+    )
+
+    assert respuesta.status_code == 409
+    assert mensaje in respuesta.json()["detalle"]
+    db.expire_all()
+    menu = db.get(MenuEjecutivo, creado["id"])
+    assert menu is not None
+    assert [p.id for p in menu.productos] == [producto.id]
+
+
+def test_modificar_menu_ejecutivo_rechaza_mover_a_seccion_deshabilitada(
+    cliente: TestClient, db: Session
+) -> None:
+    seccion = _crear_seccion(db)
+    deshabilitada = _crear_seccion(db, estado=Estado.DESHABILITADO)
+    producto = _crear_producto(db, seccion.id)
+    creado = _crear_menu(cliente, seccion.id, [producto.id])
+
+    respuesta = cliente.put(
+        f"{RUTA}/{creado['id']}",
+        json=_cuerpo(deshabilitada.id, [producto.id]),
+    )
+
+    assert respuesta.status_code == 409
+    assert "deshabilitada" in respuesta.json()["detalle"]
+
+
+def test_modificar_menu_ejecutivo_conserva_una_seccion_que_quedo_deshabilitada(
+    cliente: TestClient, db: Session
+) -> None:
+    seccion = _crear_seccion(db)
+    producto = _crear_producto(db, seccion.id)
+    creado = _crear_menu(cliente, seccion.id, [producto.id])
+    seccion.estado = Estado.DESHABILITADO
+    db.commit()
+
+    respuesta = cliente.put(
+        f"{RUTA}/{creado['id']}",
+        json=_cuerpo(seccion.id, [producto.id]) | {"nombre": "Almuerzo especial"},
+    )
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["nombre"] == "Almuerzo especial"
+
+
+def test_modificar_menu_ejecutivo_reactiva_y_vuelve_al_listado(
+    cliente: TestClient, db: Session
+) -> None:
+    seccion = _crear_seccion(db)
+    producto = _crear_producto(db, seccion.id)
+    creado = _crear_menu(cliente, seccion.id, [producto.id])
+    cliente.post(f"{RUTA}/{creado['id']}/baja")
+
+    respuesta = cliente.put(
+        f"{RUTA}/{creado['id']}",
+        json=_cuerpo(seccion.id, [producto.id]) | {"estado": "HABILITADO"},
+    )
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["estado"] == "HABILITADO"
+    listado = cliente.get(RUTA, params={"estado": "HABILITADO", "limit": 10, "offset": 0})
+    assert listado.json()["total"] == 1
+
+
+def test_dar_de_baja_menu_ejecutivo_conserva_registro_y_productos(
+    cliente: TestClient, db: Session
+) -> None:
+    seccion = _crear_seccion(db)
+    producto = _crear_producto(db, seccion.id)
+    creado = _crear_menu(cliente, seccion.id, [producto.id])
+
+    respuesta = cliente.post(f"{RUTA}/{creado['id']}/baja")
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["estado"] == "DESHABILITADO"
+    assert respuesta.json()["productos"][0]["id"] == producto.id
+    db.expire_all()
+    menu = db.get(MenuEjecutivo, creado["id"])
+    assert menu is not None
+    assert menu.estado == Estado.DESHABILITADO
+    assert db.get(Producto, producto.id).estado == Estado.HABILITADO
+    listado = cliente.get(RUTA, params={"estado": "HABILITADO", "limit": 10, "offset": 0})
+    assert listado.json()["total"] == 0
+    assert cliente.get(f"{RUTA}/{creado['id']}").status_code == 200
+
+
+def test_dar_de_baja_menu_ejecutivo_ya_deshabilitado_responde_409(
+    cliente: TestClient, db: Session
+) -> None:
+    seccion = _crear_seccion(db)
+    producto = _crear_producto(db, seccion.id)
+    creado = _crear_menu(cliente, seccion.id, [producto.id])
+    cliente.post(f"{RUTA}/{creado['id']}/baja")
+
+    respuesta = cliente.post(f"{RUTA}/{creado['id']}/baja")
+
+    assert respuesta.status_code == 409
+    assert "deshabilitado" in respuesta.json()["detalle"]
+
+
+def test_dar_de_baja_menu_ejecutivo_inexistente_responde_404(cliente: TestClient) -> None:
+    respuesta = cliente.post(f"{RUTA}/99/baja")
+
+    assert respuesta.status_code == 404

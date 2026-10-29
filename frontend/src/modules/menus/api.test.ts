@@ -4,11 +4,13 @@ import { clienteHttp } from '../../shared/api/client';
 
 import {
   crearMenuEjecutivo,
+  darDeBajaMenuEjecutivo,
   listarMenusEjecutivos,
   listarProductosHabilitados,
   listarSeccionesHabilitadas,
+  modificarMenuEjecutivo,
 } from './api';
-import type { MenuEjecutivoCrear } from './types';
+import type { MenuEjecutivoActualizar, MenuEjecutivoCrear } from './types';
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -27,6 +29,34 @@ describe('crearMenuEjecutivo', () => {
     await crearMenuEjecutivo(datos);
 
     expect(post).toHaveBeenCalledWith('/menus-ejecutivos', datos);
+  });
+});
+
+describe('modificarMenuEjecutivo', () => {
+  it('envía todos los datos y el estado por PUT', async () => {
+    const datos: MenuEjecutivoActualizar = {
+      nombre: 'Cena ejecutiva',
+      precio_fijo: '2000.00',
+      producto_ids: [3],
+      seccion_id: 2,
+      descripcion: null,
+      estado: 'HABILITADO',
+    };
+    const put = vi.spyOn(clienteHttp, 'put').mockResolvedValue({ datos: null, exito: true });
+
+    await modificarMenuEjecutivo(7, datos);
+
+    expect(put).toHaveBeenCalledWith('/menus-ejecutivos/7', datos);
+  });
+});
+
+describe('darDeBajaMenuEjecutivo', () => {
+  it('solicita la baja sin borrar el registro', async () => {
+    const post = vi.spyOn(clienteHttp, 'post').mockResolvedValue({ datos: null, exito: true });
+
+    await darDeBajaMenuEjecutivo(7);
+
+    expect(post).toHaveBeenCalledWith('/menus-ejecutivos/7/baja', {});
   });
 });
 

@@ -27,6 +27,10 @@ export interface MenuEjecutivoCrear {
   descripcion: string | null;
 }
 
+export interface MenuEjecutivoActualizar extends MenuEjecutivoCrear {
+  estado: Estado;
+}
+
 export interface MenuEjecutivo {
   id: number;
   nombre: string;

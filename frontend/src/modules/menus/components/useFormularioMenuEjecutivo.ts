@@ -1,14 +1,15 @@
 import { useState } from 'react';
 
 import { useToast } from '../../../shared/hooks/useToast';
-import { crearMenuEjecutivo } from '../api';
-import type { MenuEjecutivoCrear } from '../types';
+import { crearMenuEjecutivo, modificarMenuEjecutivo } from '../api';
+import type { Estado, MenuEjecutivo, MenuEjecutivoCrear } from '../types';
 
 import { errorDelServidor, validarMenuEjecutivo } from './validarMenuEjecutivo';
 import type { DatosFormularioMenuEjecutivo, ErroresMenuEjecutivo } from './validarMenuEjecutivo';
 
 interface OpcionesFormulario {
-  onCreado: () => void;
+  menu?: MenuEjecutivo | null;
+  onGuardado: () => void;
 }
 
 const INICIAL: DatosFormularioMenuEjecutivo = {
@@ -18,6 +19,17 @@ const INICIAL: DatosFormularioMenuEjecutivo = {
   seccion_id: '',
   descripcion: '',
 };
+
+function datosIniciales(menu?: MenuEjecutivo | null): DatosFormularioMenuEjecutivo {
+  if (!menu) return INICIAL;
+  return {
+    nombre: menu.nombre,
+    precio_fijo: menu.precio_fijo,
+    producto_ids: menu.productos.map((producto) => producto.id),
+    seccion_id: String(menu.seccion.id),
+    descripcion: menu.descripcion ?? '',
+  };
+}
 
 function datosDeEnvio(datos: DatosFormularioMenuEjecutivo): MenuEjecutivoCrear {
   return {
@@ -29,8 +41,17 @@ function datosDeEnvio(datos: DatosFormularioMenuEjecutivo): MenuEjecutivoCrear {
   };
 }
 
-export function useFormularioMenuEjecutivo({ onCreado }: OpcionesFormulario) {
-  const [datos, setDatos] = useState(INICIAL);
+function errorAlGuardar(mensaje: string | undefined, editando: boolean): string {
+  if (mensaje) return mensaje;
+  return editando
+    ? 'No se pudo actualizar el menú ejecutivo'
+    : 'No se pudo crear el menú ejecutivo';
+}
+
+export function useFormularioMenuEjecutivo({ menu, onGuardado }: OpcionesFormulario) {
+  const editando = Boolean(menu);
+  const [datos, setDatos] = useState(() => datosIniciales(menu));
+  const [estado, setEstado] = useState<Estado>(menu?.estado ?? 'HABILITADO');
   const [errores, setErrores] = useState<ErroresMenuEjecutivo>({});
   const [enviando, setEnviando] = useState(false);
   const { mostrarToast } = useToast();
@@ -49,18 +70,23 @@ export function useFormularioMenuEjecutivo({ onCreado }: OpcionesFormulario) {
 
     setEnviando(true);
     try {
-      const respuesta = await crearMenuEjecutivo(datosDeEnvio(datos));
+      const respuesta = menu
+        ? await modificarMenuEjecutivo(menu.id, { ...datosDeEnvio(datos), estado })
+        : await crearMenuEjecutivo(datosDeEnvio(datos));
       if (!respuesta.exito || respuesta.datos === null) {
-        setErrores(errorDelServidor(respuesta.error ?? 'No se pudo crear el menú ejecutivo'));
+        setErrores(errorDelServidor(errorAlGuardar(respuesta.error, editando)));
         return;
       }
-      mostrarToast({ titulo: 'Menú ejecutivo creado', variante: 'success' });
+      mostrarToast({
+        titulo: editando ? 'Menú ejecutivo actualizado' : 'Menú ejecutivo creado',
+        variante: 'success',
+      });
       setDatos(INICIAL);
-      onCreado();
+      onGuardado();
     } finally {
       setEnviando(false);
     }
   }
 
-  return { datos, errores, enviando, actualizar, enviar };
+  return { datos, estado, errores, enviando, actualizar, cambiarEstado: setEstado, enviar };
 }

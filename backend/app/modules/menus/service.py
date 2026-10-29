@@ -9,6 +9,7 @@ from app.modules.menus import repository
 from app.modules.menus.models import MenuEjecutivo
 from app.modules.menus.schemas import (
     FiltroMenusEjecutivos,
+    MenuEjecutivoActualizar,
     MenuEjecutivoCrear,
     MenuEjecutivoListado,
     MenuEjecutivoSalida,
@@ -35,6 +36,18 @@ def _validar_seccion(db: Session, seccion_id: int) -> SeccionDeCarta:
     if seccion.estado != Estado.HABILITADO:
         raise ReglaDeNegocioError(f"La sección {seccion.nombre} está deshabilitada")
     return seccion
+
+
+def _validar_seccion_si_cambia(db: Session, menu: MenuEjecutivo, seccion_id: int) -> SeccionDeCarta:
+    """Conserva una sección que quedó deshabilitada; para mover el menú exige una habilitada."""
+    if seccion_id == menu.seccion_id:
+        return productos_service.obtener_seccion(db, seccion_id)
+    return _validar_seccion(db, seccion_id)
+
+
+def _validar_nombre_libre(db: Session, nombre: str, excluir_id: int | None = None) -> None:
+    if repository.existe_nombre_normalizado(db, normalizar_nombre(nombre), excluir_id):
+        raise ReglaDeNegocioError("El nombre del menú ejecutivo ya existe")
 
 
 def _cargar_productos(db: Session, producto_ids: list[int]) -> list[Producto]:
@@ -89,11 +102,21 @@ def _a_salida(menu: MenuEjecutivo, seccion: SeccionDeCarta) -> MenuEjecutivoSali
     )
 
 
+def _obtener_menu(db: Session, menu_id: int) -> MenuEjecutivo:
+    menu = repository.obtener(db, menu_id)
+    if menu is None:
+        raise NoEncontradoError(f"El menú ejecutivo {menu_id} no existe")
+    return menu
+
+
+def obtener_menu_ejecutivo(db: Session, menu_id: int) -> MenuEjecutivoSalida:
+    menu = _obtener_menu(db, menu_id)
+    return _a_salida(menu, productos_service.obtener_seccion(db, menu.seccion_id))
+
+
 def crear_menu_ejecutivo(db: Session, datos: MenuEjecutivoCrear) -> MenuEjecutivoSalida:
     seccion = _validar_seccion(db, datos.seccion_id)
-    nombre_normalizado = normalizar_nombre(datos.nombre)
-    if repository.existe_nombre_normalizado(db, nombre_normalizado):
-        raise ReglaDeNegocioError("El nombre del menú ejecutivo ya existe")
+    _validar_nombre_libre(db, datos.nombre)
     productos = _cargar_productos(db, datos.producto_ids)
     _validar_productos(productos)
     menu = MenuEjecutivo(
@@ -106,6 +129,36 @@ def crear_menu_ejecutivo(db: Session, datos: MenuEjecutivoCrear) -> MenuEjecutiv
     )
     _guardar(db, menu)
     return _a_salida(menu, seccion)
+
+
+def modificar_menu_ejecutivo(
+    db: Session, menu_id: int, datos: MenuEjecutivoActualizar
+) -> MenuEjecutivoSalida:
+    """Reemplaza datos y composición; no toca comandas ni reportes ya generados (HU-M2-02)."""
+    menu = _obtener_menu(db, menu_id)
+    seccion = _validar_seccion_si_cambia(db, menu, datos.seccion_id)
+    _validar_nombre_libre(db, datos.nombre, menu.id)
+    productos = _cargar_productos(db, datos.producto_ids)
+    _validar_productos(productos)
+    menu.nombre = datos.nombre
+    menu.descripcion = datos.descripcion
+    menu.precio_fijo = datos.precio_fijo
+    menu.seccion_id = seccion.id
+    if datos.estado is not None:
+        menu.estado = datos.estado
+    menu.productos = productos
+    _guardar(db, menu)
+    return _a_salida(menu, seccion)
+
+
+def dar_de_baja_menu_ejecutivo(db: Session, menu_id: int) -> MenuEjecutivoSalida:
+    """Deshabilita el menú sin borrar filas ni tocar el estado de sus productos (HU-M2-03)."""
+    menu = _obtener_menu(db, menu_id)
+    if menu.estado == Estado.DESHABILITADO:
+        raise ReglaDeNegocioError("El menú ejecutivo ya está deshabilitado")
+    menu.estado = Estado.DESHABILITADO
+    db.commit()
+    return _a_salida(menu, productos_service.obtener_seccion(db, menu.seccion_id))
 
 
 def _a_listado(db: Session, menu: MenuEjecutivo) -> MenuEjecutivoListado:

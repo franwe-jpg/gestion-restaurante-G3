@@ -59,6 +59,12 @@ class MenuEjecutivoCrear(BaseModel):
         return descripcion or None
 
 
+class MenuEjecutivoActualizar(MenuEjecutivoCrear):
+    """Reemplazo completo del alta; si falta `estado`, conserva el actual."""
+
+    estado: Estado | None = None
+
+
 class SeccionResumen(BaseModel):
     id: int
     nombre: str

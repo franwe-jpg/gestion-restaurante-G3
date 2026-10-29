@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ToastContext } from '../../../shared/components/ui/toast-context';
-import { crearMenuEjecutivo } from '../api';
+import { crearMenuEjecutivo, modificarMenuEjecutivo } from '../api';
 import type { MenuEjecutivo } from '../types';
 
 import { useFormularioMenuEjecutivo } from './useFormularioMenuEjecutivo';
@@ -22,15 +22,15 @@ const CREADO: MenuEjecutivo = {
 
 const mostrarToast = vi.fn();
 
-function preparar() {
-  const onCreado = vi.fn();
+function preparar(menu?: MenuEjecutivo) {
+  const onGuardado = vi.fn();
   const envoltorio = ({ children }: { children: ReactNode }) => (
     <ToastContext.Provider value={{ mostrarToast }}>{children}</ToastContext.Provider>
   );
-  const { result } = renderHook(() => useFormularioMenuEjecutivo({ onCreado }), {
+  const { result } = renderHook(() => useFormularioMenuEjecutivo({ menu, onGuardado }), {
     wrapper: envoltorio,
   });
-  return { result, onCreado };
+  return { result, onGuardado };
 }
 
 type Formulario = ReturnType<typeof preparar>['result'];
@@ -60,7 +60,7 @@ describe('useFormularioMenuEjecutivo', () => {
 
   it('recorta datos, crea el menú y actualiza la pantalla', async () => {
     vi.mocked(crearMenuEjecutivo).mockResolvedValue({ datos: CREADO, exito: true });
-    const { result, onCreado } = preparar();
+    const { result, onGuardado } = preparar();
     completar(result);
 
     await act(() => result.current.enviar());
@@ -76,23 +76,56 @@ describe('useFormularioMenuEjecutivo', () => {
       titulo: 'Menú ejecutivo creado',
       variante: 'success',
     });
-    expect(onCreado).toHaveBeenCalledOnce();
+    expect(onGuardado).toHaveBeenCalledOnce();
   });
+});
 
+describe('useFormularioMenuEjecutivo en edición', () => {
+  it('carga los datos del menú y envía la actualización con su estado', async () => {
+    vi.mocked(modificarMenuEjecutivo).mockResolvedValue({ datos: CREADO, exito: true });
+    const { result, onGuardado } = preparar(CREADO);
+
+    expect(result.current.datos.nombre).toBe('Almuerzo ejecutivo');
+    expect(result.current.datos.producto_ids).toEqual([3]);
+    expect(result.current.estado).toBe('HABILITADO');
+
+    act(() => {
+      result.current.actualizar('nombre', 'Cena ejecutiva');
+      result.current.cambiarEstado('DESHABILITADO');
+    });
+    await act(() => result.current.enviar());
+
+    expect(modificarMenuEjecutivo).toHaveBeenCalledWith(1, {
+      nombre: 'Cena ejecutiva',
+      precio_fijo: '1500.00',
+      producto_ids: [3],
+      seccion_id: 2,
+      descripcion: null,
+      estado: 'DESHABILITADO',
+    });
+    expect(mostrarToast).toHaveBeenCalledWith({
+      titulo: 'Menú ejecutivo actualizado',
+      variante: 'success',
+    });
+    expect(onGuardado).toHaveBeenCalledOnce();
+  });
+});
+
+describe('useFormularioMenuEjecutivo con errores', () => {
   it('muestra el conflicto de nombre debajo del campo sin cerrar el formulario', async () => {
     vi.mocked(crearMenuEjecutivo).mockResolvedValue({
       datos: null,
       exito: false,
       error: 'El nombre del menú ejecutivo ya existe',
     });
-    const { result, onCreado } = preparar();
+    const { result, onGuardado } = preparar();
     completar(result);
 
     await act(() => result.current.enviar());
 
     expect(result.current.errores.nombre).toBe('Ya existe un menú ejecutivo con ese nombre.');
     expect(result.current.enviando).toBe(false);
-    expect(onCreado).not.toHaveBeenCalled();
+    expect(onGuardado).not.toHaveBeenCalled();
     expect(mostrarToast).not.toHaveBeenCalled();
   });
 });

@@ -1,7 +1,8 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  darDeBajaMenuEjecutivo,
   listarMenusEjecutivos,
   listarProductosHabilitados,
   listarSeccionesHabilitadas,
@@ -55,5 +56,28 @@ describe('MenusPage', () => {
     expect(screen.getByRole('dialog', { name: 'Nuevo menú ejecutivo' })).toBeInTheDocument();
     expect(await screen.findByRole('checkbox', { name: 'Incluir Plato' })).toBeInTheDocument();
     expect(await screen.findByRole('option', { name: 'Principal' })).toBeInTheDocument();
+  });
+
+  it('abre la edición con los datos del menú cargados', async () => {
+    render(<MenusPage />);
+    await screen.findByText('Almuerzo ejecutivo');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Editar «Almuerzo ejecutivo»' }));
+
+    const dialogo = screen.getByRole('dialog', { name: 'Editar menú ejecutivo' });
+    expect(within(dialogo).getByLabelText(/Nombre/)).toHaveValue('Almuerzo ejecutivo');
+    expect(within(dialogo).getByLabelText(/Precio fijo/)).toHaveValue('1500.00');
+    expect(within(dialogo).getByLabelText(/Estado/)).toHaveValue('HABILITADO');
+    expect(within(dialogo).getByRole('checkbox', { name: 'Incluir Plato' })).toBeChecked();
+  });
+
+  it('no da de baja el menú si se cancela la confirmación', async () => {
+    render(<MenusPage />);
+    await screen.findByText('Almuerzo ejecutivo');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dar de baja «Almuerzo ejecutivo»' }));
+
+    await waitFor(() => expect(darDeBajaMenuEjecutivo).not.toHaveBeenCalled());
+    expect(screen.getByText('Almuerzo ejecutivo')).toBeInTheDocument();
   });
 });

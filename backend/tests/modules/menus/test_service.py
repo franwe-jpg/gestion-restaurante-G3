@@ -1,4 +1,6 @@
-"""Pruebas del servicio de menús ejecutivos (HU-M2-01)."""
+"""Pruebas del servicio de menús ejecutivos (HU-M2-01, HU-M2-02 y HU-M2-03)."""
+
+from decimal import Decimal
 
 import pytest
 from sqlalchemy import select
@@ -6,7 +8,11 @@ from sqlalchemy.orm import Session
 
 from app.modules.menus import repository, service
 from app.modules.menus.models import MenuEjecutivo
-from app.modules.menus.schemas import FiltroMenusEjecutivos, MenuEjecutivoCrear
+from app.modules.menus.schemas import (
+    FiltroMenusEjecutivos,
+    MenuEjecutivoActualizar,
+    MenuEjecutivoCrear,
+)
 from app.shared.excepciones import NoEncontradoError, ReglaDeNegocioError
 from app.shared.models import Categoria, Estado
 
@@ -154,3 +160,153 @@ def test_listar_menus_ejecutivos_pagina_y_filtra_por_estado(
     assert pagina.total == 1
     assert len(pagina.items) == 1
     assert pagina.items[0].nombre == "Almuerzo ejecutivo"
+
+
+def _actualizar(
+    nombre: str = "Cena ejecutiva",
+    precio: str = "2000.50",
+    producto_ids: list[int] | None = None,
+    seccion_id: int = 1,
+    estado: Estado | None = None,
+) -> MenuEjecutivoActualizar:
+    return MenuEjecutivoActualizar(
+        nombre=nombre,
+        precio_fijo=precio,
+        producto_ids=producto_ids or [1],
+        seccion_id=seccion_id,
+        descripcion="Actualizado",
+        estado=estado,
+    )
+
+
+def test_modificar_menu_ejecutivo_cambia_datos_y_productos(
+    db: Session, fabrica_seccion, fabrica_producto
+) -> None:
+    seccion = fabrica_seccion()
+    otra = fabrica_seccion(nombre="Cena")
+    producto = fabrica_producto(seccion)
+    otro_producto = fabrica_producto(seccion, nombre="Postre")
+    creado = service.crear_menu_ejecutivo(
+        db, _datos(seccion_id=seccion.id, producto_ids=[producto.id])
+    )
+
+    salida = service.modificar_menu_ejecutivo(
+        db,
+        creado.id,
+        _actualizar(
+            producto_ids=[otro_producto.id],
+            seccion_id=otra.id,
+            estado=Estado.HABILITADO,
+        ),
+    )
+
+    assert salida.nombre == "Cena ejecutiva"
+    assert salida.seccion.id == otra.id
+    assert [item.id for item in salida.productos] == [otro_producto.id]
+    actual = service.obtener_menu_ejecutivo(db, creado.id)
+    assert actual.precio_fijo == Decimal("2000.50")
+
+
+def test_modificar_menu_ejecutivo_no_aplica_cambios_si_el_nombre_se_repite(
+    db: Session, fabrica_seccion, fabrica_producto
+) -> None:
+    seccion = fabrica_seccion()
+    producto = fabrica_producto(seccion)
+    datos = _datos(seccion_id=seccion.id, producto_ids=[producto.id])
+    service.crear_menu_ejecutivo(db, datos)
+    segundo = service.crear_menu_ejecutivo(
+        db, _datos("Cena", seccion_id=seccion.id, producto_ids=[producto.id])
+    )
+
+    with pytest.raises(ReglaDeNegocioError, match="ya existe"):
+        service.modificar_menu_ejecutivo(
+            db,
+            segundo.id,
+            _actualizar(
+                nombre="  ALMUERZO EJECUTIVO ",
+                producto_ids=[producto.id],
+                seccion_id=seccion.id,
+            ),
+        )
+
+    actual = service.obtener_menu_ejecutivo(db, segundo.id)
+    assert actual.nombre == "Cena"
+    assert [item.id for item in actual.productos] == [producto.id]
+
+
+def test_modificar_menu_ejecutivo_conserva_seccion_deshabilitada(
+    db: Session, fabrica_seccion, fabrica_producto
+) -> None:
+    seccion = fabrica_seccion()
+    producto = fabrica_producto(seccion)
+    creado = service.crear_menu_ejecutivo(
+        db, _datos(seccion_id=seccion.id, producto_ids=[producto.id])
+    )
+    seccion.estado = Estado.DESHABILITADO
+    db.commit()
+
+    salida = service.modificar_menu_ejecutivo(
+        db,
+        creado.id,
+        _actualizar(nombre="Almuerzo especial", producto_ids=[producto.id], seccion_id=seccion.id),
+    )
+
+    assert salida.seccion.id == seccion.id
+    assert salida.nombre == "Almuerzo especial"
+
+
+def test_modificar_menu_ejecutivo_reactiva(db: Session, fabrica_seccion, fabrica_producto) -> None:
+    seccion = fabrica_seccion()
+    producto = fabrica_producto(seccion)
+    creado = service.crear_menu_ejecutivo(
+        db, _datos(seccion_id=seccion.id, producto_ids=[producto.id])
+    )
+    service.dar_de_baja_menu_ejecutivo(db, creado.id)
+
+    salida = service.modificar_menu_ejecutivo(
+        db,
+        creado.id,
+        _actualizar(
+            nombre=creado.nombre,
+            producto_ids=[producto.id],
+            seccion_id=seccion.id,
+            estado=Estado.HABILITADO,
+        ),
+    )
+
+    assert salida.estado == Estado.HABILITADO
+    pagina = service.listar_menus_ejecutivos(
+        db, FiltroMenusEjecutivos(limit=10, offset=0, estado=Estado.HABILITADO)
+    )
+    assert pagina.total == 1
+
+
+def test_dar_de_baja_menu_ejecutivo_conserva_registro_y_productos(
+    db: Session, fabrica_seccion, fabrica_producto
+) -> None:
+    seccion = fabrica_seccion()
+    producto = fabrica_producto(seccion)
+    creado = service.crear_menu_ejecutivo(
+        db, _datos(seccion_id=seccion.id, producto_ids=[producto.id])
+    )
+
+    salida = service.dar_de_baja_menu_ejecutivo(db, creado.id)
+
+    assert salida.estado == Estado.DESHABILITADO
+    assert db.get(type(producto), producto.id).estado == Estado.HABILITADO
+    assert _cantidad(db) == 1
+    assert service.obtener_menu_ejecutivo(db, creado.id).estado == Estado.DESHABILITADO
+
+
+def test_dar_de_baja_menu_ejecutivo_ya_deshabilitado(
+    db: Session, fabrica_seccion, fabrica_producto
+) -> None:
+    seccion = fabrica_seccion()
+    producto = fabrica_producto(seccion)
+    creado = service.crear_menu_ejecutivo(
+        db, _datos(seccion_id=seccion.id, producto_ids=[producto.id])
+    )
+    service.dar_de_baja_menu_ejecutivo(db, creado.id)
+
+    with pytest.raises(ReglaDeNegocioError, match="ya está deshabilitado"):
+        service.dar_de_baja_menu_ejecutivo(db, creado.id)

@@ -3,6 +3,7 @@ import type { Pagina, RespuestaApi } from '../../shared/types';
 import type {
   FiltroEstado,
   MenuEjecutivo,
+  MenuEjecutivoActualizar,
   MenuEjecutivoCrear,
   ProductoSeleccionable,
   SeccionMenu,
@@ -14,6 +15,17 @@ export function crearMenuEjecutivo(
   datos: MenuEjecutivoCrear,
 ): Promise<RespuestaApi<MenuEjecutivo>> {
   return clienteHttp.post<MenuEjecutivo, MenuEjecutivoCrear>('/menus-ejecutivos', datos);
+}
+
+export function modificarMenuEjecutivo(
+  id: number,
+  datos: MenuEjecutivoActualizar,
+): Promise<RespuestaApi<MenuEjecutivo>> {
+  return clienteHttp.put<MenuEjecutivo, MenuEjecutivoActualizar>(`/menus-ejecutivos/${id}`, datos);
+}
+
+export function darDeBajaMenuEjecutivo(id: number): Promise<RespuestaApi<MenuEjecutivo>> {
+  return clienteHttp.post<MenuEjecutivo, Record<string, never>>(`/menus-ejecutivos/${id}/baja`, {});
 }
 
 export function listarMenusEjecutivos(

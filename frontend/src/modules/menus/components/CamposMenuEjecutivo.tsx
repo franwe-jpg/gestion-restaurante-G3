@@ -2,7 +2,7 @@ import { FormField } from '../../../shared/components/ui/form-field';
 import { Input } from '../../../shared/components/ui/input';
 import { Select } from '../../../shared/components/ui/select';
 import { Textarea } from '../../../shared/components/ui/textarea';
-import type { ProductoSeleccionable, SeccionMenu } from '../types';
+import type { Estado, ProductoMenu, SeccionMenu } from '../types';
 
 import { SelectorProductosMenu } from './SelectorProductosMenu';
 import type { DatosFormularioMenuEjecutivo, ErroresMenuEjecutivo } from './validarMenuEjecutivo';
@@ -10,12 +10,15 @@ import type { DatosFormularioMenuEjecutivo, ErroresMenuEjecutivo } from './valid
 interface CamposMenuEjecutivoProps {
   datos: DatosFormularioMenuEjecutivo;
   errores: ErroresMenuEjecutivo;
-  productos: ProductoSeleccionable[];
+  productos: ProductoMenu[];
   secciones: SeccionMenu[];
+  estado: Estado;
+  editando: boolean;
   onCambiar: <K extends keyof DatosFormularioMenuEjecutivo>(
     campo: K,
     valor: DatosFormularioMenuEjecutivo[K],
   ) => void;
+  onCambiarEstado: (estado: Estado) => void;
 }
 
 function CampoNombre({ datos, errores, onCambiar }: CamposMenuEjecutivoProps) {
@@ -86,6 +89,22 @@ function CampoProductos({ productos, datos, errores, onCambiar }: CamposMenuEjec
   );
 }
 
+function CampoEstado({ estado, editando, onCambiarEstado }: CamposMenuEjecutivoProps) {
+  if (!editando) return null;
+  return (
+    <FormField id="estado" label="Estado" required>
+      <Select
+        id="estado"
+        value={estado}
+        onChange={(evento) => onCambiarEstado(evento.currentTarget.value as Estado)}
+      >
+        <option value="HABILITADO">Habilitado</option>
+        <option value="DESHABILITADO">Deshabilitado</option>
+      </Select>
+    </FormField>
+  );
+}
+
 function CampoDescripcion({ datos, errores, onCambiar }: CamposMenuEjecutivoProps) {
   return (
     <FormField
@@ -111,6 +130,7 @@ export function CamposMenuEjecutivo(props: CamposMenuEjecutivoProps) {
       <CampoNombre {...props} />
       <CampoPrecio {...props} />
       <CampoSeccion {...props} />
+      <CampoEstado {...props} />
       <CampoProductos {...props} />
       <CampoDescripcion {...props} />
     </div>

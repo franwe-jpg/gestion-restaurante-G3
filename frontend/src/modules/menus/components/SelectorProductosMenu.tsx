@@ -1,10 +1,10 @@
 import { useState } from 'react';
 
 import { Input } from '../../../shared/components/ui/input';
-import type { ProductoSeleccionable } from '../types';
+import type { ProductoMenu } from '../types';
 
 interface SelectorProductosMenuProps {
-  productos: ProductoSeleccionable[];
+  productos: ProductoMenu[];
   seleccionados: number[];
   error?: string;
   onCambiar: (ids: number[]) => void;
@@ -19,7 +19,7 @@ function ProductoDisponible({
   seleccionado,
   onCambiar,
 }: {
-  producto: ProductoSeleccionable;
+  producto: ProductoMenu;
   seleccionado: boolean;
   onCambiar: () => void;
 }) {
@@ -32,7 +32,10 @@ function ProductoDisponible({
         onChange={onCambiar}
       />
       <span>{producto.nombre}</span>
-      <span className="text-xs text-slate-500">{producto.categoria.toLowerCase()}</span>
+      <span className="text-xs text-slate-500">
+        {producto.categoria.toLowerCase()}
+        {producto.estado === 'DESHABILITADO' ? ' · deshabilitado' : ''}
+      </span>
     </label>
   );
 }
@@ -84,7 +87,7 @@ function ListaProductosDisponibles({
         />
       ))}
       {productos.length === 0 && (
-        <p className="text-sm text-slate-500">No hay productos habilitados que coincidan.</p>
+        <p className="text-sm text-slate-500">No hay productos que coincidan.</p>
       )}
     </div>
   );
