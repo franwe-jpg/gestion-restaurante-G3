@@ -1,2 +1,2 @@
 // Componentes específicos del módulo de reservas
-export {};
+export { ReservaFormulario } from './ReservaFormulario';
