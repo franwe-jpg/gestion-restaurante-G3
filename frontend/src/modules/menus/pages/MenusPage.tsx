@@ -1,99 +1,51 @@
+import { Sparkles } from 'lucide-react';
 import { useState } from 'react';
 
+import { EmptyState } from '../../../shared/components/EmptyState';
 import { PageHeader } from '../../../shared/components/PageHeader';
-import { BarraMenusEjecutivos, DialogoMenuEjecutivo, ListadoMenuEjecutivos } from '../components';
-import { useListaMenusEjecutivos } from '../components/useListaMenusEjecutivos';
-import { useOpcionesMenuEjecutivo } from '../components/useOpcionesMenuEjecutivo';
-import type { MenuEjecutivo } from '../types';
+import { Card, CardContent } from '../../../shared/components/ui/card';
+import { Tabs } from '../../../shared/components/ui/tabs';
+import { MenuDelDiaTab, MenusEjecutivosTab } from '../components';
 
-function useGestorMenus() {
-  const [formularioAbierto, setFormularioAbierto] = useState(false);
-  const [menuEnEdicion, setMenuEnEdicion] = useState<MenuEjecutivo | null>(null);
-  const opciones = useOpcionesMenuEjecutivo();
-  const listado = useListaMenusEjecutivos();
-
-  function cerrarFormulario() {
-    setFormularioAbierto(false);
-    setMenuEnEdicion(null);
-  }
-
-  function abrirAlta() {
-    setMenuEnEdicion(null);
-    setFormularioAbierto(true);
-  }
-
-  function abrirEdicion(menu: MenuEjecutivo) {
-    setMenuEnEdicion(menu);
-    setFormularioAbierto(true);
-  }
-
-  function menuGuardado() {
-    const eraAlta = menuEnEdicion === null;
-    cerrarFormulario();
-    if (eraAlta) listado.cambiarPagina(1);
-    listado.recargar();
-  }
-
-  return {
-    formularioAbierto,
-    menuEnEdicion,
-    opciones,
-    listado,
-    cerrarFormulario,
-    abrirAlta,
-    abrirEdicion,
-    menuGuardado,
-  };
-}
+const PESTANAS = [
+  { id: 'ejecutivos', etiqueta: 'Menús ejecutivos' },
+  { id: 'dia', etiqueta: 'Menú del día' },
+  { id: 'promociones', etiqueta: 'Promociones' },
+];
 
 export function MenusPage() {
-  const {
-    formularioAbierto,
-    menuEnEdicion,
-    opciones,
-    listado,
-    cerrarFormulario,
-    abrirAlta,
-    abrirEdicion,
-    menuGuardado,
-  } = useGestorMenus();
+  const [pestana, setPestana] = useState('ejecutivos');
+
+  const contenido = {
+    ejecutivos: <MenusEjecutivosTab />,
+    dia: <MenuDelDiaTab />,
+    promociones: (
+      <Card>
+        <CardContent className="pt-6">
+          <EmptyState
+            icono={Sparkles}
+            titulo="Promociones"
+            descripcion="Las promociones se implementan en el Sprint 3."
+          />
+        </CardContent>
+      </Card>
+    ),
+  };
 
   return (
     <div className="space-y-6">
       <PageHeader
         titulo="Menús y Promociones"
-        descripcion="Creá menús ejecutivos con productos habilitados y precio fijo."
+        descripcion="Menús del día, menús ejecutivos y promociones de la carta."
       />
 
-      <BarraMenusEjecutivos
-        estado={listado.estado}
-        onCambiarEstado={listado.cambiarEstado}
-        onNuevo={abrirAlta}
-      />
-
-      <ListadoMenuEjecutivos
-        menus={listado.menus}
-        pagina={listado.pagina}
-        totalPaginas={listado.totalPaginas}
-        cargando={listado.cargando}
-        error={listado.error}
-        onReintentar={listado.recargar}
-        onCambiarPagina={listado.cambiarPagina}
-        onEditar={abrirEdicion}
-        onDadoDeBaja={listado.recargar}
-      />
-
-      <DialogoMenuEjecutivo
-        abierto={formularioAbierto}
-        menu={menuEnEdicion}
-        productos={opciones.productos}
-        secciones={opciones.secciones}
-        cargandoOpciones={opciones.cargando}
-        errorCarga={opciones.error}
-        onCambiar={(abierto) => {
-          if (!abierto) cerrarFormulario();
-        }}
-        onGuardado={menuGuardado}
+      <Tabs
+        items={PESTANAS.map((pestanaActual) => ({
+          ...pestanaActual,
+          contenido: contenido[pestanaActual.id as keyof typeof contenido],
+        }))}
+        valor={pestana}
+        onCambiar={setPestana}
       />
     </div>
   );

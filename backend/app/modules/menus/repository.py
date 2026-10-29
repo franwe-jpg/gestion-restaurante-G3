@@ -1,4 +1,8 @@
-"""menus: acceso a datos."""
+"""menus: acceso a datos.
+
+El menu del dia es un `Producto` y persiste a traves de `productos.service` (D-05).
+Aca viven solo las consultas propias de los menus ejecutivos.
+"""
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload

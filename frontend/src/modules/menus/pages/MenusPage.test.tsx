@@ -41,7 +41,12 @@ beforeEach(() => {
     exito: true,
   });
   vi.mocked(listarSeccionesHabilitadas).mockResolvedValue({
-    datos: [{ id: 2, nombre: 'Principal', estado: 'HABILITADO' }],
+    datos: {
+      items: [{ id: 2, nombre: 'Principal', estado: 'HABILITADO' }],
+      total: 1,
+      limit: 100,
+      offset: 0,
+    },
     exito: true,
   });
 });

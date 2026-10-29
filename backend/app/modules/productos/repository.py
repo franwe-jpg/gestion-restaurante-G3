@@ -40,6 +40,12 @@ def obtener_seccion(db: Session, seccion_id: int) -> Seccion | None:
     return db.get(Seccion, seccion_id)
 
 
+def obtener_secciones_por_ids(db: Session, ids: Sequence[int]) -> dict[int, Seccion]:
+    """Secciones por id en un solo viaje, para armar varios productos sin N+1 (M2)."""
+    consulta = select(Seccion).where(Seccion.id.in_(ids))
+    return {seccion.id: seccion for seccion in db.scalars(consulta)}
+
+
 def existe_producto(
     db: Session, categoria: Categoria, nombre_normalizado: str, excluir_id: int | None = None
 ) -> bool:
@@ -87,11 +93,17 @@ def listar_secciones(
 
 
 def listar_productos(
-    db: Session, parametros: ParametrosPaginacion, estado: Estado | None
+    db: Session,
+    parametros: ParametrosPaginacion,
+    estado: Estado | None,
+    categoria: Categoria | None = None,
+    categoria_excluida: Categoria | None = None,
 ) -> tuple[list[tuple[Producto, Seccion]], int]:
     """Devuelve la pagina de productos con su seccion actual y el total.
 
     Con `estado`, el listado y el total cuentan solo los productos en ese estado.
+    Con `categoria`, solo los de esa categoria (M2 lista los menus del dia).
+    Con `categoria_excluida`, omite esa categoria del listado general de productos.
     """
     consulta = (
         select(Producto, Seccion)
@@ -100,6 +112,10 @@ def listar_productos(
     )
     if estado is not None:
         consulta = consulta.where(Producto.estado == estado)
+    if categoria is not None:
+        consulta = consulta.where(Producto.categoria == categoria)
+    if categoria_excluida is not None:
+        consulta = consulta.where(Producto.categoria != categoria_excluida)
     filas = db.execute(aplicar(consulta, parametros)).all()
     return [(producto, seccion) for producto, seccion in filas], contar(db, consulta)
 

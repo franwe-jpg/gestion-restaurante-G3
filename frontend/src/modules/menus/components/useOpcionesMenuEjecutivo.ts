@@ -21,7 +21,7 @@ export function useOpcionesMenuEjecutivo() {
           return;
         }
         setProductos(respuestaProductos.datos ?? []);
-        setSecciones(respuestaSecciones.datos ?? []);
+        setSecciones(respuestaSecciones.datos?.items ?? []);
       })
       .finally(() => {
         if (vigente) setCargando(false);
