@@ -1,5 +1,5 @@
 import type { BadgeVariant } from '../../../shared/components/ui/badge';
-import type { EstadoReserva } from '../types';
+import type { EstadoReserva, FiltroEstadoReserva } from '../types';
 
 interface PresentacionEstado {
   etiqueta: string;
@@ -13,3 +13,12 @@ export const ESTADOS_RESERVA: Record<EstadoReserva, PresentacionEstado> = {
   CANCELADA_ANTICIPADA: { etiqueta: 'Cancelada anticipada', variante: 'neutral' },
   CANCELADA_POR_AUSENCIA: { etiqueta: 'Cancelada por ausencia', variante: 'danger' },
 };
+
+/** Opciones del selector de estado, en el orden de la pantalla. */
+export const OPCIONES_FILTRO_ESTADO: FiltroEstadoReserva[] = [
+  'ACTIVA',
+  'ATENDIDA',
+  'CANCELADA_ANTICIPADA',
+  'CANCELADA_POR_AUSENCIA',
+  'TODAS',
+];
