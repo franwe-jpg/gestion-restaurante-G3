@@ -4,11 +4,14 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.modules.salon import repository
-from app.modules.salon.models import Mesa, Sector
+from app.modules.salon.models import Mesa, Mozo, Sector
 from app.modules.salon.schemas import (
     MesaCrear,
     MesaModificar,
     MesaSalida,
+    MozoCrear,
+    MozoModificar,
+    MozoSalida,
     SectorCrear,
     SectorModificar,
     SectorResumen,
@@ -178,6 +181,77 @@ def listar_mesas(db: Session, parametros: ParametrosPaginacion) -> Pagina[MesaSa
     filas, total = repository.listar_mesas(db, parametros)
     return Pagina[MesaSalida](
         items=[_a_salida(mesa, sector) for mesa, sector in filas],
+        total=total,
+        limit=parametros.limit,
+        offset=parametros.offset,
+    )
+
+
+def _validar_dni_libre(db: Session, dni: str, excluir_id: int | None = None) -> None:
+    if repository.existe_dni(db, dni, excluir_id):
+        raise ReglaDeNegocioError(f"Ya existe un mozo con el DNI {dni}")
+
+
+def _guardar_mozo(db: Session, datos: MozoCrear) -> Mozo:
+    mozo = Mozo(
+        dni=datos.dni,
+        nombre=datos.nombre,
+        apellido=datos.apellido,
+        telefono=datos.telefono,
+        estado=Estado.HABILITADO,
+    )
+    try:
+        repository.agregar(db, mozo)
+        db.commit()
+    except IntegrityError as error:
+        db.rollback()
+        raise ReglaDeNegocioError(f"Ya existe un mozo con el DNI {datos.dni}") from error
+    return mozo
+
+
+def crear_mozo(db: Session, datos: MozoCrear) -> MozoSalida:
+    """Alta de mozo: el sistema lo deja Habilitado (HU-M3-09)."""
+    _validar_dni_libre(db, datos.dni)
+    return MozoSalida.model_validate(_guardar_mozo(db, datos))
+
+
+def modificar_mozo(db: Session, mozo_id: int, datos: MozoModificar) -> MozoSalida:
+    """Reemplazo completo de los datos; el estado no se toca (HU-M3-10)."""
+    mozo = repository.obtener_mozo(db, mozo_id)
+    if mozo is None:
+        raise NoEncontradoError(f"El mozo {mozo_id} no existe")
+    _validar_dni_libre(db, datos.dni, mozo.id)
+    mozo.dni = datos.dni
+    mozo.nombre = datos.nombre
+    mozo.apellido = datos.apellido
+    mozo.telefono = datos.telefono
+    try:
+        db.commit()
+    except IntegrityError as error:
+        db.rollback()
+        raise ReglaDeNegocioError(f"Ya existe un mozo con el DNI {datos.dni}") from error
+    return MozoSalida.model_validate(mozo)
+
+
+def dar_de_baja_mozo(db: Session, mozo_id: int) -> MozoSalida:
+    """Baja lógica: el mozo deja de estar disponible y conserva sus datos (HU-M3-11)."""
+    mozo = repository.obtener_mozo(db, mozo_id)
+    if mozo is None:
+        raise NoEncontradoError(f"El mozo {mozo_id} no existe")
+    if mozo.estado == Estado.DESHABILITADO:
+        raise ReglaDeNegocioError("El mozo ya está dado de baja")
+    mozo.estado = Estado.DESHABILITADO
+    db.commit()
+    return MozoSalida.model_validate(mozo)
+
+
+def listar_mozos(
+    db: Session, parametros: ParametrosPaginacion, estado: Estado | None = None
+) -> Pagina[MozoSalida]:
+    """Listado paginado de mozos; con `estado=HABILITADO` son los disponibles (HU-M3-12)."""
+    mozos, total = repository.listar_mozos(db, parametros, estado)
+    return Pagina[MozoSalida](
+        items=[MozoSalida.model_validate(mozo) for mozo in mozos],
         total=total,
         limit=parametros.limit,
         offset=parametros.offset,

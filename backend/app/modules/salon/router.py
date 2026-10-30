@@ -8,10 +8,14 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.modules.salon import service
 from app.modules.salon.schemas import (
+    FiltroMozos,
     FiltroSectores,
     MesaCrear,
     MesaModificar,
     MesaSalida,
+    MozoCrear,
+    MozoModificar,
+    MozoSalida,
     SectorCrear,
     SectorModificar,
     SectorSalida,
@@ -63,3 +67,23 @@ def eliminar_mesa(mesa_id: int, db: Sesion) -> None:
 @router.get("/sectores")
 def listar_sectores(db: Sesion, filtro: Annotated[FiltroSectores, Query()]) -> Pagina[SectorSalida]:
     return service.listar_sectores(db, filtro, filtro.estado)
+
+
+@router.post("/mozos", status_code=status.HTTP_201_CREATED)
+def crear_mozo(datos: MozoCrear, db: Sesion) -> MozoSalida:
+    return service.crear_mozo(db, datos)
+
+
+@router.get("/mozos")
+def listar_mozos(db: Sesion, filtro: Annotated[FiltroMozos, Query()]) -> Pagina[MozoSalida]:
+    return service.listar_mozos(db, filtro, filtro.estado)
+
+
+@router.put("/mozos/{mozo_id}")
+def modificar_mozo(mozo_id: int, datos: MozoModificar, db: Sesion) -> MozoSalida:
+    return service.modificar_mozo(db, mozo_id, datos)
+
+
+@router.post("/mozos/{mozo_id}/baja")
+def dar_de_baja_mozo(mozo_id: int, db: Sesion) -> MozoSalida:
+    return service.dar_de_baja_mozo(db, mozo_id)

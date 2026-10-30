@@ -107,13 +107,13 @@ def test_upgrade_impone_la_unicidad_del_nombre_normalizado(
     get_settings.cache_clear()
 
 
-def test_downgrade_de_dos_pasos_elimina_sectores_y_conserva_las_tablas_de_m1(
+def test_downgrade_de_tres_pasos_elimina_sectores_y_conserva_las_tablas_de_m1(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     url, config = _preparar_base(tmp_path, monkeypatch, "baja.db")
     command.upgrade(config, "head")
 
-    command.downgrade(config, "-2")
+    command.downgrade(config, "-3")
     tablas, _columnas, _indices = _inspeccionar(url)
     get_settings.cache_clear()
 
@@ -249,15 +249,101 @@ def test_upgrade_impone_la_foreign_key_con_restrict(
     get_settings.cache_clear()
 
 
-def test_downgrade_de_un_paso_elimina_mesas_y_conserva_sectores(
+def test_downgrade_de_dos_pasos_elimina_mesas_y_conserva_sectores(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     url, config = _preparar_base(tmp_path, monkeypatch, "baja-mesas.db")
     command.upgrade(config, "head")
 
-    command.downgrade(config, "-1")
+    command.downgrade(config, "-2")
     tablas, _columnas, _restricciones = _inspeccionar_mesas(url)
     get_settings.cache_clear()
 
+    assert "mozos" not in tablas
     assert "mesas" not in tablas
+    assert "sectores" in tablas
+
+
+# --- HU-M3-09: tabla mozos ---
+
+COLUMNAS_MOZOS = {"id", "dni", "nombre", "apellido", "telefono", "estado"}
+UNICO_MOZOS = "ux_mozos_dni"
+
+
+def _inspeccionar_mozos(url: str) -> tuple[set[str], dict[str, dict], list[dict]]:
+    motor = crear_motor(url)
+    inspector = inspect(motor)
+    tablas = set(inspector.get_table_names())
+    if "mozos" in tablas:
+        columnas = {columna["name"]: columna for columna in inspector.get_columns("mozos")}
+        unicos = inspector.get_unique_constraints("mozos")
+    else:
+        columnas, unicos = {}, []
+    motor.dispose()
+    return tablas, columnas, unicos
+
+
+def _insertar_mozo(url: str, dni: str, estado: str = "HABILITADO") -> None:
+    motor = crear_motor(url)
+    with motor.begin() as conexion:
+        conexion.execute(
+            text(
+                "INSERT INTO mozos (dni, nombre, apellido, telefono, estado) "
+                "VALUES (:dni, 'Juan', 'Fernández', NULL, :estado)"
+            ),
+            {"dni": dni, "estado": estado},
+        )
+    motor.dispose()
+
+
+def test_upgrade_crea_mozos_con_columnas_y_unicidad_de_dni(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    url, config = _preparar_base(tmp_path, monkeypatch, "mozos.db")
+
+    command.upgrade(config, "head")
+    tablas, columnas, unicos = _inspeccionar_mozos(url)
+    cabezas = ScriptDirectory.from_config(config).get_heads()
+    get_settings.cache_clear()
+
+    assert len(cabezas) == 1
+    assert "mozos" in tablas
+    assert set(columnas) == COLUMNAS_MOZOS
+    assert columnas["dni"]["type"].length == 8
+    assert columnas["nombre"]["type"].length == 60
+    assert columnas["apellido"]["type"].length == 60
+    assert columnas["telefono"]["type"].length == 30
+    assert columnas["telefono"]["nullable"] is True
+    assert all(
+        not columna["nullable"] for nombre, columna in columnas.items() if nombre != "telefono"
+    )
+
+    unico = next(restriccion for restriccion in unicos if restriccion["name"] == UNICO_MOZOS)
+    assert unico["column_names"] == ["dni"]
+
+
+def test_upgrade_impone_la_unicidad_del_dni(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    url, config = _preparar_base(tmp_path, monkeypatch, "unico-mozos.db")
+    command.upgrade(config, "head")
+    _insertar_mozo(url, "30123456")
+
+    with pytest.raises(IntegrityError):
+        _insertar_mozo(url, "30123456")
+    get_settings.cache_clear()
+
+
+def test_downgrade_de_un_paso_elimina_mozos_y_conserva_mesas(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    url, config = _preparar_base(tmp_path, monkeypatch, "baja-mozos.db")
+    command.upgrade(config, "head")
+
+    command.downgrade(config, "-1")
+    tablas, _columnas, _unicos = _inspeccionar_mozos(url)
+    get_settings.cache_clear()
+
+    assert "mozos" not in tablas
+    assert "mesas" in tablas
     assert "sectores" in tablas
