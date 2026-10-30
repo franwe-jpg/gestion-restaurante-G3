@@ -90,12 +90,35 @@ def crear_mesa(db: Session, datos: MesaCrear) -> MesaSalida:
     return _a_salida(_guardar_mesa(db, datos, sector), sector)
 
 
+def obtener_mesa(db: Session, mesa_id: int) -> MesaSalida:
+    """Lee una mesa puntual con su sector; único punto de lectura que otro módulo puede usar
+    (RNF-MAN-09). No valida disponibilidad por horario: esa regla es de quien reserva (M5)."""
+    mesa = repository.obtener_mesa(db, mesa_id)
+    if mesa is None:
+        raise NoEncontradoError(f"La mesa {mesa_id} no existe")
+    sector = repository.obtener_sector(db, mesa.sector_id)
+    if sector is None:  # pragma: no cover - la FK RESTRICT lo hace inalcanzable
+        raise NoEncontradoError(f"La mesa {mesa_id} no existe")
+    return _a_salida(mesa, sector)
+
+
 def listar_sectores(
     db: Session, parametros: ParametrosPaginacion, estado: Estado | None = None
 ) -> Pagina[SectorSalida]:
     sectores, total = repository.listar_sectores(db, parametros, estado)
     return Pagina[SectorSalida](
         items=[SectorSalida.model_validate(sector) for sector in sectores],
+        total=total,
+        limit=parametros.limit,
+        offset=parametros.offset,
+    )
+
+
+def listar_mesas(db: Session, parametros: ParametrosPaginacion) -> Pagina[MesaSalida]:
+    """Listado paginado de mesas con su sector (HU-M3-08, traida desde `main`; ver repository)."""
+    filas, total = repository.listar_mesas(db, parametros)
+    return Pagina[MesaSalida](
+        items=[_a_salida(mesa, sector) for mesa, sector in filas],
         total=total,
         limit=parametros.limit,
         offset=parametros.offset,

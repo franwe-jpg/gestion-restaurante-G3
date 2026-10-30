@@ -258,3 +258,35 @@ def test_listar_sectores_con_parametros_invalidos_responde_422(
 
     assert respuesta.status_code == 422
     assert "detalle" in respuesta.json()
+
+
+# --- GET /mesas (HU-M3-08, traida desde `main`; ver repository.listar_mesas) ---
+
+
+def test_listar_mesas_devuelve_las_mesas_con_su_sector(
+    cliente: TestClient, fabrica_sector, fabrica_mesa
+) -> None:
+    sector = fabrica_sector("Terraza")
+    fabrica_mesa(sector, numero=1)
+
+    respuesta = cliente.get(RUTA_MESAS)
+
+    assert respuesta.status_code == 200
+    cuerpo = respuesta.json()
+    assert cuerpo["items"] == [
+        {
+            "id": 1,
+            "numero": 1,
+            "capacidad": 4,
+            "sector": {"id": sector.id, "nombre": "Terraza"},
+            "estado": "LIBRE",
+        }
+    ]
+    assert cuerpo["total"] == 1
+
+
+def test_listar_mesas_con_parametros_invalidos_responde_422(cliente: TestClient) -> None:
+    respuesta = cliente.get(f"{RUTA_MESAS}?limit=101")
+
+    assert respuesta.status_code == 422
+    assert "detalle" in respuesta.json()

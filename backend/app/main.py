@@ -12,6 +12,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.config import API_PREFIX, get_settings
 from app.modules.menus.router import router as menus_router
 from app.modules.productos.router import router as productos_router
+from app.modules.reservas.router import router as reservas_router
 from app.modules.salon.router import router as salon_router
 from app.shared.excepciones import DatosInvalidosError, NoEncontradoError, ReglaDeNegocioError
 
@@ -26,6 +27,7 @@ app.add_middleware(
 
 app.include_router(menus_router, prefix=API_PREFIX)
 app.include_router(productos_router, prefix=API_PREFIX)
+app.include_router(reservas_router, prefix=API_PREFIX)
 app.include_router(salon_router, prefix=API_PREFIX)
 
 

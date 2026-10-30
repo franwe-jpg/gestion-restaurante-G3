@@ -17,6 +17,10 @@ def obtener_sector(db: Session, sector_id: int) -> Sector | None:
     return db.get(Sector, sector_id)
 
 
+def obtener_mesa(db: Session, mesa_id: int) -> Mesa | None:
+    return db.get(Mesa, mesa_id)
+
+
 def existe_numero_en_sector(db: Session, sector_id: int, numero: int) -> bool:
     consulta = select(Mesa.id).where(Mesa.sector_id == sector_id, Mesa.numero == numero)
     return db.scalar(consulta.limit(1)) is not None
@@ -40,3 +44,19 @@ def listar_sectores(
     consulta_ordenada = consulta.order_by(Sector.nombre, Sector.id)
     filas = db.scalars(aplicar(consulta_ordenada, parametros)).all()
     return list(filas), contar(db, consulta)
+
+
+def listar_mesas(
+    db: Session, parametros: ParametrosPaginacion
+) -> tuple[list[tuple[Mesa, Sector]], int]:
+    """Pagina de mesas con su sector, ordenada por sector y numero (HU-M3-08).
+
+    Traida desde `main` (HU-M3-08, ya aprobada) porque `develop` quedo atrasado: dos PRs de
+    salon (#192, #194) se integraron directo a `main` en lugar de `develop`. HU-M5-01 necesita
+    este listado para el selector de mesas disponibles; se avisa a Giuliano para reconciliar
+    ambas ramas.
+    """
+    consulta = select(Mesa, Sector).join(Sector, Mesa.sector_id == Sector.id)
+    ordenada = consulta.order_by(Sector.nombre, Mesa.numero, Mesa.id)
+    filas = db.execute(aplicar(ordenada, parametros)).all()
+    return [(mesa, sector) for mesa, sector in filas], contar(db, select(Mesa.id))

@@ -202,3 +202,51 @@ def test_listar_sectores_filtra_por_estado(db: Session, fabrica_sector) -> None:
 
     assert [sector.nombre for sector in pagina.items] == ["Terraza"]
     assert pagina.total == 1
+
+
+# --- lectura de apoyo de mesas (RNF-MAN-09, consumida por reservas) ---
+
+
+def test_obtener_mesa_devuelve_la_mesa_con_su_sector(
+    db: Session, fabrica_sector, fabrica_mesa
+) -> None:
+    sector = fabrica_sector("Terraza")
+    mesa = fabrica_mesa(sector, numero=7, capacidad=2, estado=EstadoMesa.FUERA_DE_SERVICIO)
+
+    salida = service.obtener_mesa(db, mesa.id)
+
+    assert salida.id == mesa.id
+    assert salida.numero == 7
+    assert salida.capacidad == 2
+    assert salida.sector.id == sector.id
+    assert salida.sector.nombre == "Terraza"
+    assert salida.estado == EstadoMesa.FUERA_DE_SERVICIO
+
+
+def test_obtener_mesa_inexistente_es_no_encontrado(db: Session) -> None:
+    with pytest.raises(NoEncontradoError, match="La mesa 99 no existe"):
+        service.obtener_mesa(db, 99)
+
+
+# --- listado de mesas (HU-M3-08, traida desde `main`; ver repository) ---
+
+
+def test_listar_mesas_ordena_por_sector_y_numero(db: Session, fabrica_sector, fabrica_mesa) -> None:
+    terraza = fabrica_sector("Terraza")
+    salon = fabrica_sector("Salón principal")
+    fabrica_mesa(terraza, numero=1)
+    fabrica_mesa(salon, numero=2)
+    fabrica_mesa(salon, numero=1)
+
+    pagina = service.listar_mesas(db, ParametrosPaginacion())
+
+    vistas = [(mesa.sector.nombre, mesa.numero) for mesa in pagina.items]
+    assert vistas == [("Salón principal", 1), ("Salón principal", 2), ("Terraza", 1)]
+    assert pagina.total == 3
+
+
+def test_listar_mesas_sin_mesas_devuelve_pagina_vacia(db: Session) -> None:
+    pagina = service.listar_mesas(db, ParametrosPaginacion())
+
+    assert pagina.items == []
+    assert pagina.total == 0

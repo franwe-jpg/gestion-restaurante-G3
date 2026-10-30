@@ -14,7 +14,7 @@ from app.modules.salon.schemas import (
     SectorCrear,
     SectorSalida,
 )
-from app.shared.paginacion import Pagina
+from app.shared.paginacion import Pagina, ParametrosPaginacion
 
 router = APIRouter()
 
@@ -34,3 +34,10 @@ def crear_mesa(datos: MesaCrear, db: Sesion) -> MesaSalida:
 @router.get("/sectores")
 def listar_sectores(db: Sesion, filtro: Annotated[FiltroSectores, Query()]) -> Pagina[SectorSalida]:
     return service.listar_sectores(db, filtro, filtro.estado)
+
+
+@router.get("/mesas")
+def listar_mesas(
+    db: Sesion, filtro: Annotated[ParametrosPaginacion, Query()]
+) -> Pagina[MesaSalida]:
+    return service.listar_mesas(db, filtro)

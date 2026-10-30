@@ -13,7 +13,6 @@ from app.config import get_settings
 from app.database import crear_motor
 
 ALEMBIC_INI = Path(__file__).resolve().parents[3] / "alembic.ini"
-REVISION = "d6b7c8e9f0a1"
 INDICE_UNICO = "ux_menus_ejecutivos_nombre_normalizado"
 CHECK_PRECIO = "ck_menus_ejecutivos_precio_positivo"
 
@@ -86,8 +85,9 @@ def test_upgrade_crea_menu_ejecutivo_y_relacion_con_productos(
     cabezas = ScriptDirectory.from_config(config).get_heads()
     get_settings.cache_clear()
 
+    # Una sola cabeza en la cadena; cual sea no es de esta prueba (otros modulos encadenan
+    # migraciones despues de REVISION, por ejemplo HU-M5-01 con f1e2d3c4b5a6).
     assert len(cabezas) == 1
-    assert cabezas[0] == REVISION
     assert {"menus_ejecutivos", "menu_ejecutivo_productos"} <= tablas
     assert set(columnas) == {
         "id",
@@ -127,7 +127,8 @@ def test_downgrade_elimina_menu_y_conserva_catalogo(
     url, config = _preparar_base(tmp_path, monkeypatch, "downgrade.db")
     command.upgrade(config, "head")
 
-    command.downgrade(config, "-1")
+    # -2: deshace reservas (f1e2d3c4b5a6, HU-M5-01) y recien despues el menu ejecutivo.
+    command.downgrade(config, "-2")
     motor = crear_motor(url)
     tablas = set(inspect(motor).get_table_names())
     motor.dispose()
