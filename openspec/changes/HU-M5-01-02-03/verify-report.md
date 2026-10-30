@@ -1,5 +1,7 @@
 # Informe de verificación: HU-M5-01-02-03 Crear, modificar y listar reservas
 
+> **Nota del 2026-10-30:** el requisito «Capacidad de la mesa (HU-M5-01 CA 8, S5)» se quitó después de este informe, por el issue #61 (la cantidad de personas no se valida contra la capacidad de la mesa; se resuelve en forma presencial). Las menciones de capacidad de este informe describen el estado verificado en `f1a210f` y ya no rigen; ver «Ajuste posterior» en `apply-progress.md`.
+
 - **Cambio:** `HU-M5-01-02-03` (ABM de `Reserva`, módulo M5). **Rama:** `feature/HU-M5-01-02-03-abm-reservas`. **HEAD verificado:** `f1a210f` (10 commits sobre `develop`, que sigue en `0bff1e0`, el punto de partida de la rama).
 - **Fecha:** 2026-10-29. **Modo:** Strict TDD. **Almacén de artefactos:** OpenSpec. **Rol:** verificación independiente de solo lectura; este archivo es lo único que se creó.
 - **Alcance de la lectura:** `tasks.md`, `apply-progress.md`, `design.md`, `specs/reservas-gestion/spec.md`, todo el código de producción de `backend/app/modules/reservas/`, la migración, `main.py`, el código de producción de `frontend/src/modules/reservas/` y los nombres y el contenido clave de las pruebas.

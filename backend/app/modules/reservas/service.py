@@ -22,11 +22,9 @@ def ahora() -> datetime:
     return datetime.now()
 
 
-def _obtener_mesa(db: Session, mesa_id: int) -> puente.MesaReservable:
-    mesa = puente.obtener_mesa(db, mesa_id)
-    if mesa is None:
+def _validar_mesa(db: Session, mesa_id: int) -> None:
+    if puente.obtener_mesa(db, mesa_id) is None:
         raise NoEncontradoError(f"La mesa {mesa_id} no existe")
-    return mesa
 
 
 def _validar_cliente(db: Session, cliente_id: int) -> None:
@@ -41,15 +39,6 @@ def _validar_momento(fecha: date, hora: time) -> None:
         raise DatosInvalidosError("La fecha de la reserva no puede ser anterior a hoy")
     if fecha == actual.date() and (hora.hour, hora.minute) <= (actual.hour, actual.minute):
         raise DatosInvalidosError("La hora de la reserva debe ser posterior a la hora actual")
-
-
-def _validar_capacidad(mesa: puente.MesaReservable, cantidad_personas: int) -> None:
-    """S5: solo se controla cuando el puente informa la capacidad de la mesa."""
-    if mesa.capacidad is not None and cantidad_personas > mesa.capacidad:
-        raise DatosInvalidosError(
-            f"La mesa {mesa.id} tiene capacidad para {mesa.capacidad} personas "
-            f"y la reserva pide {cantidad_personas}"
-        )
 
 
 def _turno_ocupado(mesa_id: int, fecha: date, hora: time) -> ReglaDeNegocioError:
@@ -82,10 +71,9 @@ def _confirmar(db: Session, reserva: Reserva) -> None:
 
 
 def crear_reserva(db: Session, datos: ReservaCrear) -> ReservaSalida:
-    mesa = _obtener_mesa(db, datos.mesa_id)
+    _validar_mesa(db, datos.mesa_id)
     _validar_cliente(db, datos.cliente_id)
     _validar_momento(datos.fecha, datos.hora)
-    _validar_capacidad(mesa, datos.cantidad_personas)
     _validar_turno_libre(db, datos.mesa_id, datos.fecha, datos.hora)
     reserva = Reserva(
         mesa_id=datos.mesa_id,
@@ -112,13 +100,6 @@ def _validar_activa(reserva: Reserva) -> None:
         raise ReglaDeNegocioError(f"La reserva {reserva.id} no está activa y no se puede modificar")
 
 
-def _validar_capacidad_de_la_reserva(db: Session, reserva: Reserva, cantidad: int) -> None:
-    """S27: usa la mesa de la reserva y no exige que el puente todavia la encuentre."""
-    mesa = puente.obtener_mesa(db, reserva.mesa_id)
-    if mesa is not None:
-        _validar_capacidad(mesa, cantidad)
-
-
 def obtener_reserva(db: Session, reserva_id: int) -> ReservaSalida:
     return ReservaSalida.model_validate(_obtener(db, reserva_id))
 
@@ -127,7 +108,6 @@ def modificar_reserva(db: Session, reserva_id: int, datos: ReservaModificar) -> 
     reserva = _obtener(db, reserva_id)
     _validar_activa(reserva)
     _validar_momento(datos.fecha, datos.hora)
-    _validar_capacidad_de_la_reserva(db, reserva, datos.cantidad_personas)
     _validar_turno_libre(db, reserva.mesa_id, datos.fecha, datos.hora, excluir_id=reserva.id)
     reserva.fecha = datos.fecha
     reserva.hora = datos.hora

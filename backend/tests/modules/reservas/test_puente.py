@@ -6,11 +6,11 @@ from sqlalchemy.orm import Session
 from app.modules.reservas import puente
 
 
-# S5 y S20: toda mesa con id positivo existe y no informa su capacidad.
-def test_obtener_mesa_stub_devuelve_mesa_sin_capacidad(db: Session) -> None:
+# S5 y S20: toda mesa con id positivo existe; el puente solo informa su id, no su capacidad.
+def test_obtener_mesa_stub_devuelve_la_mesa_con_su_id(db: Session) -> None:
     mesa = puente.obtener_mesa(db, 5)
 
-    assert mesa == puente.MesaReservable(id=5, capacidad=None)
+    assert mesa == puente.MesaReservable(id=5)
 
 
 # S6 y S20: todo cliente con id positivo existe.

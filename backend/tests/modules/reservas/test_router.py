@@ -156,19 +156,13 @@ def test_post_reservas_con_estado_en_el_cuerpo_devuelve_422(
     assert _cantidad_reservas(db) == 0
 
 
-# CA 8
-def test_post_reservas_capacidad_excedida_devuelve_422(
-    cliente: TestClient, db: Session, puente_con_capacidad
-) -> None:
-    puente_con_capacidad(6)
+# CA 7, S5 (issue #61): solo se exige un entero mayor a cero, sin compararlo con la mesa
+def test_post_reservas_cantidad_muy_grande_devuelve_201(cliente: TestClient, db: Session) -> None:
+    respuesta = cliente.post(RUTA, json=CUERPO | {"cantidad_personas": 100})
 
-    respuesta = cliente.post(RUTA, json=CUERPO | {"cantidad_personas": 7})
-
-    assert respuesta.status_code == 422
-    assert respuesta.json() == {
-        "detalle": "La mesa 5 tiene capacidad para 6 personas y la reserva pide 7"
-    }
-    assert _cantidad_reservas(db) == 0
+    assert respuesta.status_code == 201
+    assert respuesta.json()["cantidad_personas"] == 100
+    assert db.get(Reserva, respuesta.json()["id"]).cantidad_personas == 100
 
 
 # D-25 y D-26
@@ -363,6 +357,17 @@ def test_put_reserva_modifica_y_devuelve_200(cliente: TestClient, fabrica_reserv
     assert respuesta.json() == esperada
     assert cliente.get(f"{RUTA}/{reserva.id}").json() == esperada
     assert cliente.get(RUTA).json()["items"] == [esperada]
+
+
+# CA 3, S5 (issue #61): la modificacion tampoco compara la cantidad con la capacidad de la mesa
+def test_put_reserva_cantidad_muy_grande_devuelve_200(cliente: TestClient, fabrica_reserva) -> None:
+    reserva = _ocupar_turno(fabrica_reserva)
+
+    respuesta = cliente.put(f"{RUTA}/{reserva.id}", json=CUERPO_PUT | {"cantidad_personas": 100})
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["cantidad_personas"] == 100
+    assert cliente.get(f"{RUTA}/{reserva.id}").json()["cantidad_personas"] == 100
 
 
 # CA 1 (S19) y CA 2 (S15): cada rechazo deja la reserva como estaba

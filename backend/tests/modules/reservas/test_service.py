@@ -168,33 +168,14 @@ def test_crear_reserva_acepta_cualquier_id_positivo_con_el_stub(db: Session) -> 
     assert salida.cliente_id == 456
 
 
-# CA 8 (S5): este es tambien el escenario "puente de reemplazo con capacidad"
-def test_crear_reserva_rechaza_capacidad_excedida(db: Session, puente_con_capacidad) -> None:
-    puente_con_capacidad(6)
+# CA 7, S5 (issue #61): la cantidad solo debe ser un entero mayor a cero; no se la compara con
+# la capacidad de la mesa (se resuelve en forma presencial)
+def test_crear_reserva_acepta_una_cantidad_muy_grande_de_personas(db: Session) -> None:
+    salida = service.crear_reserva(db, _datos(cantidad_personas=100))
 
-    with pytest.raises(
-        DatosInvalidosError,
-        match="La mesa 5 tiene capacidad para 6 personas y la reserva pide 7",
-    ):
-        service.crear_reserva(db, _datos(cantidad_personas=7))
-
-    assert _reservas(db) == []
-
-
-# CA 8, limite
-def test_crear_reserva_acepta_capacidad_justa(db: Session, puente_con_capacidad) -> None:
-    puente_con_capacidad(6)
-
-    salida = service.crear_reserva(db, _datos(cantidad_personas=6))
-
-    assert salida.cantidad_personas == 6
-
-
-# CA 8: el stub no informa la capacidad y entonces no se controla
-def test_crear_reserva_sin_capacidad_informada_no_controla(db: Session) -> None:
-    salida = service.crear_reserva(db, _datos(cantidad_personas=50))
-
-    assert salida.cantidad_personas == 50
+    assert salida.cantidad_personas == 100
+    db.expire_all()
+    assert db.get(Reserva, salida.id).cantidad_personas == 100
 
 
 # CA 9
@@ -271,7 +252,7 @@ def test_crear_reserva_permite_mismo_cliente_en_mesas_distintas(
 def test_crear_reserva_conflicto_no_depende_del_puente(db: Session, fabrica_reserva) -> None:
     _ocupar_turno(fabrica_reserva)
 
-    assert puente.obtener_mesa(db, 5) == puente.MesaReservable(id=5, capacidad=None)
+    assert puente.obtener_mesa(db, 5) == puente.MesaReservable(id=5)
     with pytest.raises(ReglaDeNegocioError, match="ya tiene una reserva activa"):
         service.crear_reserva(db, _datos())
 
@@ -286,26 +267,21 @@ def test_crear_reserva_orden_de_validacion(
     ayer = date(2026, 11, 1)
 
     with pytest.raises(NoEncontradoError, match="La mesa 5 no existe"):
-        service.crear_reserva(db, _datos(fecha=ayer, cantidad_personas=7))
+        service.crear_reserva(db, _datos(fecha=ayer))
 
-    monkeypatch.setattr(
-        puente, "obtener_mesa", lambda _db, mesa_id: puente.MesaReservable(mesa_id, 3)
-    )
+    monkeypatch.setattr(puente, "obtener_mesa", lambda _db, mesa_id: puente.MesaReservable(mesa_id))
     with pytest.raises(NoEncontradoError, match="El cliente 7 no existe"):
-        service.crear_reserva(db, _datos(fecha=ayer, cantidad_personas=7))
+        service.crear_reserva(db, _datos(fecha=ayer))
 
     monkeypatch.setattr(puente, "existe_cliente", lambda _db, _cliente_id: True)
     with pytest.raises(DatosInvalidosError, match="La fecha de la reserva"):
-        service.crear_reserva(db, _datos(fecha=ayer, cantidad_personas=7))
+        service.crear_reserva(db, _datos(fecha=ayer))
 
     with pytest.raises(DatosInvalidosError, match="La hora de la reserva"):
-        service.crear_reserva(db, _datos(hora=time(11, 0), cantidad_personas=7))
-
-    with pytest.raises(DatosInvalidosError, match="tiene capacidad para 3 personas"):
-        service.crear_reserva(db, _datos(cantidad_personas=7))
+        service.crear_reserva(db, _datos(hora=time(11, 0)))
 
     with pytest.raises(ReglaDeNegocioError, match="ya tiene una reserva activa"):
-        service.crear_reserva(db, _datos(cantidad_personas=3))
+        service.crear_reserva(db, _datos())
 
 
 @pytest.mark.parametrize(
@@ -313,15 +289,10 @@ def test_crear_reserva_orden_de_validacion(
     [
         {"fecha": date(2026, 11, 1)},
         {"hora": time(11, 59)},
-        {"cantidad_personas": 7},
     ],
-    ids=["fecha-pasada", "hora-pasada", "capacidad-excedida"],
+    ids=["fecha-pasada", "hora-pasada"],
 )
-def test_crear_reserva_dato_invalido_no_guarda_nada(
-    db: Session, puente_con_capacidad, cambios: dict
-) -> None:
-    puente_con_capacidad(6)
-
+def test_crear_reserva_dato_invalido_no_guarda_nada(db: Session, cambios: dict) -> None:
     with pytest.raises(DatosInvalidosError):
         service.crear_reserva(db, _datos(**cambios))
 
@@ -643,28 +614,16 @@ def test_modificar_reserva_rechaza_hora_pasada_de_hoy(db: Session, fabrica_reser
     assert _guardada(db, reserva.id) == antes
 
 
-def test_modificar_reserva_rechaza_capacidad_excedida(
-    db: Session, fabrica_reserva, puente_con_capacidad
-) -> None:
-    puente_con_capacidad(6)
-    reserva = _ocupar_turno(fabrica_reserva)
-    antes = _guardada(db, reserva.id)
-
-    with pytest.raises(
-        DatosInvalidosError,
-        match="La mesa 5 tiene capacidad para 6 personas y la reserva pide 7",
-    ):
-        _modificar(db, reserva.id, cantidad_personas=7)
-
-    assert _guardada(db, reserva.id) == antes
-
-
-def test_modificar_reserva_sin_capacidad_informada_no_controla(
+# CA 3, S5 (issue #61): la cantidad no se compara con la capacidad de la mesa
+def test_modificar_reserva_acepta_una_cantidad_muy_grande_de_personas(
     db: Session, fabrica_reserva
 ) -> None:
     reserva = _ocupar_turno(fabrica_reserva)
 
-    assert _modificar(db, reserva.id, cantidad_personas=50).cantidad_personas == 50
+    salida = _modificar(db, reserva.id, cantidad_personas=100)
+
+    assert salida.cantidad_personas == 100
+    assert _guardada(db, reserva.id) == salida
 
 
 # S27: la modificacion no consulta si la mesa o el cliente existen
@@ -780,17 +739,12 @@ def test_modificar_reserva_traduce_conflicto_del_indice_en_409(
 
 
 # S17: orden de validacion. Cada paso corrige el error anterior y deja el siguiente.
-def test_modificar_reserva_orden_de_validacion(
-    db: Session, fabrica_reserva, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_modificar_reserva_orden_de_validacion(db: Session, fabrica_reserva) -> None:
     _ocupar_turno(fabrica_reserva)
     b = _ocupar_turno(fabrica_reserva, hora=time(22, 0))
     atendida = _ocupar_turno(fabrica_reserva, mesa_id=6, estado=EstadoReserva.ATENDIDA)
-    monkeypatch.setattr(
-        puente, "obtener_mesa", lambda _db, mesa_id: puente.MesaReservable(mesa_id, 3)
-    )
     ayer = date(2026, 11, 1)
-    todo_mal = {"fecha": ayer, "hora": time(11, 0), "cantidad_personas": 7}
+    todo_mal = {"fecha": ayer, "hora": time(11, 0)}
 
     with pytest.raises(NoEncontradoError, match="La reserva 999 no existe"):
         _modificar(db, 999, **todo_mal)
@@ -804,8 +758,5 @@ def test_modificar_reserva_orden_de_validacion(
     with pytest.raises(DatosInvalidosError, match="La hora de la reserva"):
         _modificar(db, b.id, **(todo_mal | {"fecha": HOY}))
 
-    with pytest.raises(DatosInvalidosError, match="tiene capacidad para 3 personas"):
-        _modificar(db, b.id, hora=time(21, 30), cantidad_personas=7)
-
     with pytest.raises(ReglaDeNegocioError, match="ya tiene una reserva activa"):
-        _modificar(db, b.id, hora=time(21, 30), cantidad_personas=3)
+        _modificar(db, b.id, hora=time(21, 30))

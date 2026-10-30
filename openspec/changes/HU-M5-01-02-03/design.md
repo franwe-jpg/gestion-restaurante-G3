@@ -31,12 +31,11 @@ El módulo `reservas` se construye de punta a punta con el mismo patrón que M1 
 @dataclass(frozen=True)
 class MesaReservable:
     id: int
-    capacidad: int | None  # None: el puente no informa la capacidad (stub, S5)
 
 
 def obtener_mesa(db: Session, mesa_id: int) -> MesaReservable | None:
-    """Stub hasta que M3 exponga obtener_mesa (S4, S5): toda mesa con id positivo existe."""
-    return MesaReservable(id=mesa_id, capacidad=None) if mesa_id > 0 else None
+    """Stub hasta que M3 exponga obtener_mesa (S4): toda mesa con id positivo existe."""
+    return MesaReservable(id=mesa_id) if mesa_id > 0 else None
 
 
 def existe_cliente(db: Session, cliente_id: int) -> bool:
@@ -51,7 +50,7 @@ El `service` lo usa siempre a través del módulo (`from app.modules.reservas im
 - Consultar la tabla `mesas` con SQL propio desde `reservas`: rompe el espíritu de RNF-MAN-09 (acceder a datos de otro módulo sin su `service`) aunque `lint-imports` no lo detecte.
 - Importar `salon.service` ahora: `salon.service` no expone `obtener_mesa` (`backend/app/modules/salon/service.py`) y modificar M3 está fuera de alcance.
 
-**Justificación:** el puente recibe `db` para que el reemplazo futuro sea una sola línea por función (`return salon_service.obtener_mesa(db, mesa_id)`, adaptado a `MesaReservable`). `MesaReservable.capacidad` es `None` en el stub, así que el control de capacidad (S5) existe en el `service` pero solo se activa cuando el puente real informe la capacidad. El archivo fuera de las cinco capas tiene precedente en `productos/imagenes.py`. Ningún contrato de `backend/pyproject.toml` aplica a `app.modules.reservas.puente`, y el reemplazo futuro (importar `app.modules.salon.service` y `app.modules.atencion.service`) está permitido por los contratos de las líneas 53-69 y 138-154.
+**Justificación:** el puente recibe `db` para que el reemplazo futuro sea una sola línea por función (`return salon_service.obtener_mesa(db, mesa_id)`, adaptado a `MesaReservable`). `MesaReservable` lleva solo el `id`: el issue #61 dice que el sistema no valida la cantidad de personas contra la capacidad de la mesa (se resuelve en forma presencial), así que el puente no informa la capacidad y el `service` no la controla (S5). El archivo fuera de las cinco capas tiene precedente en `productos/imagenes.py`. Ningún contrato de `backend/pyproject.toml` aplica a `app.modules.reservas.puente`, y el reemplazo futuro (importar `app.modules.salon.service` y `app.modules.atencion.service`) está permitido por los contratos de las líneas 53-69 y 138-154.
 
 ### Decisión 3: reloj parcheable `ahora()` en el `service`, sin `freezegun`
 
@@ -97,13 +96,11 @@ Las reglas de S3 usan `ahora().date()` y `ahora().time()`. Las pruebas del `serv
 | Crear | 1. mesa existe (`puente.obtener_mesa`) | `NoEncontradoError` → 404 |
 | | 2. cliente existe (`puente.existe_cliente`) | `NoEncontradoError` → 404 |
 | | 3. fecha y hora no pasadas (S3) | `DatosInvalidosError` → 422 |
-| | 4. capacidad, solo si el puente la informa (S5) | `DatosInvalidosError` → 422 |
-| | 5. sin otra reserva `ACTIVA` en mesa, fecha y hora (S4) | `ReglaDeNegocioError` → 409 |
+| | 4. sin otra reserva `ACTIVA` en mesa, fecha y hora (S4) | `ReglaDeNegocioError` → 409 |
 | Modificar | 1. la reserva existe | `NoEncontradoError` → 404 |
 | | 2. la reserva está `ACTIVA` (S7) | `ReglaDeNegocioError` → 409 |
 | | 3. fecha y hora no pasadas | `DatosInvalidosError` → 422 |
-| | 4. capacidad con la mesa de la reserva (si el puente la informa) | `DatosInvalidosError` → 422 |
-| | 5. sin conflicto, excluyendo la propia reserva | `ReglaDeNegocioError` → 409 |
+| | 4. sin conflicto, excluyendo la propia reserva | `ReglaDeNegocioError` → 409 |
 | Consultar | la reserva existe | `NoEncontradoError` → 404 |
 
 **Alternativas descartadas:** responder 409 para la fecha pasada (es un dato inválido, no un choque con otra entidad; D-25 reserva 409 para conflictos de regla).
@@ -164,7 +161,6 @@ POST /api/v1/reservas  (ReservaCrear)
                               ├─ puente.obtener_mesa ─────── 404 si None
                               ├─ puente.existe_cliente ────── 404 si False
                               ├─ _validar_momento(ahora()) ── 422 si es pasado
-                              ├─ _validar_capacidad ───────── 422 si excede (solo con capacidad)
                               ├─ repository.existe_reserva_activa ── 409 si hay otra ACTIVA
                               ├─ repository.agregar (flush)
                               └─ _confirmar: commit ── IntegrityError (índice parcial) → rollback → 409
@@ -172,7 +168,7 @@ POST /api/v1/reservas  (ReservaCrear)
 
 PUT /api/v1/reservas/{id}  (ReservaModificar: fecha, hora, cantidad_personas)
   service.modificar_reserva: _obtener (404) → _validar_activa (409) → _validar_momento (422)
-    → _validar_capacidad (puente.obtener_mesa de la mesa de la reserva) → existe_reserva_activa(excluir_id=id) (409)
+    → existe_reserva_activa(excluir_id=id) (409)
     → asigna campos → _confirmar → 200 ReservaSalida
 
 GET /api/v1/reservas?fecha=&estado=&limit=&offset=
@@ -265,7 +261,7 @@ def modificar_reserva(db: Session, reserva_id: int, datos: ReservaModificar) -> 
 def listar_reservas(db: Session, filtro: FiltroReservas) -> Pagina[ReservaSalida]
 ```
 
-Funciones privadas (cada una de pocas líneas, para cumplir el límite de 50 líneas y complejidad 10 de RNF-MAN-05): `_obtener_mesa`, `_validar_cliente`, `_validar_momento(fecha, hora)`, `_validar_capacidad(mesa, cantidad)`, `_validar_turno_libre(db, mesa_id, fecha, hora, excluir_id)`, `_obtener(db, reserva_id)`, `_validar_activa(reserva)`, `_confirmar(db, reserva)`. Como en `productos.service.modificar_seccion` (`backend/app/modules/productos/service.py:119-144`), la reserva se modifica recién después de validar todo.
+Funciones privadas (cada una de pocas líneas, para cumplir el límite de 50 líneas y complejidad 10 de RNF-MAN-05): `_validar_mesa`, `_validar_cliente`, `_validar_momento(fecha, hora)`, `_validar_turno_libre(db, mesa_id, fecha, hora, excluir_id)`, `_obtener(db, reserva_id)`, `_validar_activa(reserva)`, `_confirmar(db, reserva)`. Como en `productos.service.modificar_seccion` (`backend/app/modules/productos/service.py:119-144`), la reserva se modifica recién después de validar todo.
 
 ### Backend: router (`reservas/router.py`) y registro
 
@@ -340,19 +336,19 @@ Cada prueba se escribe primero, se ve fallar (RED) y después se implementa (GRE
 
 - `reloj` (autouse): `monkeypatch.setattr(service, "ahora", lambda: AHORA)` con `AHORA = datetime(2026, 11, 2, 12, 0)`.
 - `fabrica_reserva(db)`: inserta una `Reserva` con valores por defecto (mesa 1, cliente 1, `2026-11-03`, `21:30`, 4 personas, `ACTIVA`) y permite cambiar cualquiera.
-- `puente_sin_mesa`, `puente_sin_cliente`, `puente_con_capacidad(n)`: fixtures que reemplazan `puente.obtener_mesa` o `puente.existe_cliente` con `monkeypatch`.
+- `puente_sin_mesa`, `puente_sin_cliente`: fixtures que reemplazan `puente.obtener_mesa` o `puente.existe_cliente` con `monkeypatch`.
 
 ### Backend
 
 | Capa | Archivo | Pruebas (una por escenario crítico) |
 | --- | --- | --- |
-| Puente | `test_puente.py` | `test_obtener_mesa_stub_devuelve_mesa_sin_capacidad`, `test_existe_cliente_stub_acepta_id_positivo` |
+| Puente | `test_puente.py` | `test_obtener_mesa_stub_devuelve_la_mesa_con_su_id`, `test_existe_cliente_stub_acepta_id_positivo` |
 | Schemas | `test_schemas.py` | `test_reserva_crear_acepta_datos_validos`, `test_reserva_crear_rechaza_cantidad_no_positiva` (parametrizada 0 y -1), `test_reserva_crear_rechaza_tipos_laxos` (`"4"`, `true`), `test_reserva_crear_rechaza_estado`, `test_reserva_crear_rechaza_hora_con_segundos`, `test_reserva_modificar_rechaza_mesa_o_cliente`, `test_reserva_salida_serializa_hora_en_minutos`, `test_filtro_reservas_rechaza_estado_desconocido` |
-| Service, HU-M5-01 | `test_service.py` | `test_crear_reserva_queda_activa`, `test_crear_reserva_rechaza_fecha_pasada`, `test_crear_reserva_rechaza_hora_pasada_de_hoy`, `test_crear_reserva_acepta_hoy_con_hora_futura` (límite), `test_crear_reserva_rechaza_mesa_inexistente`, `test_crear_reserva_rechaza_cliente_inexistente`, `test_crear_reserva_rechaza_capacidad_excedida`, `test_crear_reserva_acepta_capacidad_justa` (límite), `test_crear_reserva_rechaza_turno_ocupado`, `test_crear_reserva_permite_turno_de_reserva_cancelada`, `test_crear_reserva_permite_misma_hora_en_otra_mesa` |
+| Service, HU-M5-01 | `test_service.py` | `test_crear_reserva_queda_activa`, `test_crear_reserva_rechaza_fecha_pasada`, `test_crear_reserva_rechaza_hora_pasada_de_hoy`, `test_crear_reserva_acepta_hoy_con_hora_futura` (límite), `test_crear_reserva_rechaza_mesa_inexistente`, `test_crear_reserva_rechaza_cliente_inexistente`, `test_crear_reserva_acepta_una_cantidad_muy_grande_de_personas` (límite: 100 personas, sin control contra la capacidad; S5), `test_crear_reserva_rechaza_turno_ocupado`, `test_crear_reserva_permite_turno_de_reserva_cancelada`, `test_crear_reserva_permite_misma_hora_en_otra_mesa` |
 | Service, R13 | `test_service.py` | `test_crear_reserva_traduce_conflicto_del_indice_en_409`: se reemplaza `repository.existe_reserva_activa` por una función que devuelve `False` (simula dos altas simultáneas) y el `commit` choca con el índice parcial; se espera `ReglaDeNegocioError` y la sesión queda usable (`rollback`) |
 | Service, HU-M5-03 | `test_service.py` | `test_listar_reservas_ordena_por_fecha_hora_e_id`, `test_listar_reservas_filtra_por_fecha`, `test_listar_reservas_filtra_por_estado`, `test_listar_reservas_pagina_y_cuenta_total`, `test_listar_reservas_sin_resultados_devuelve_pagina_vacia` |
-| Service, HU-M5-02 | `test_service.py` | `test_obtener_reserva_inexistente`, `test_modificar_reserva_cambia_fecha_hora_y_personas`, `test_modificar_reserva_conserva_mesa_y_cliente`, `test_modificar_reserva_no_choca_consigo_misma`, `test_modificar_reserva_rechaza_turno_de_otra_reserva`, `test_modificar_reserva_rechaza_reserva_no_activa`, `test_modificar_reserva_rechaza_fecha_pasada`, `test_modificar_reserva_inexistente` |
-| Router | `test_router.py` | `test_post_reservas_crea_y_devuelve_201`, `test_post_reservas_turno_ocupado_devuelve_409_con_detalle`, `test_post_reservas_fecha_pasada_devuelve_422`, `test_post_reservas_mesa_inexistente_devuelve_404`, `test_post_reservas_datos_invalidos_devuelve_422`, `test_get_reservas_pagina_y_filtra`, `test_get_reservas_limit_fuera_de_rango_devuelve_422`, `test_get_reserva_por_id_devuelve_200`, `test_get_reserva_inexistente_devuelve_404`, `test_put_reserva_modifica_y_devuelve_200`, `test_put_reserva_no_activa_devuelve_409` |
+| Service, HU-M5-02 | `test_service.py` | `test_obtener_reserva_inexistente`, `test_modificar_reserva_cambia_fecha_hora_y_personas`, `test_modificar_reserva_conserva_mesa_y_cliente`, `test_modificar_reserva_no_choca_consigo_misma`, `test_modificar_reserva_rechaza_turno_de_otra_reserva`, `test_modificar_reserva_rechaza_reserva_no_activa`, `test_modificar_reserva_rechaza_fecha_pasada`, `test_modificar_reserva_acepta_una_cantidad_muy_grande_de_personas` (límite: 100 personas; S5), `test_modificar_reserva_inexistente` |
+| Router | `test_router.py` | `test_post_reservas_crea_y_devuelve_201`, `test_post_reservas_turno_ocupado_devuelve_409_con_detalle`, `test_post_reservas_fecha_pasada_devuelve_422`, `test_post_reservas_mesa_inexistente_devuelve_404`, `test_post_reservas_datos_invalidos_devuelve_422`, `test_post_reservas_cantidad_muy_grande_devuelve_201` (S5), `test_get_reservas_pagina_y_filtra`, `test_get_reservas_limit_fuera_de_rango_devuelve_422`, `test_get_reserva_por_id_devuelve_200`, `test_get_reserva_inexistente_devuelve_404`, `test_put_reserva_modifica_y_devuelve_200`, `test_put_reserva_cantidad_muy_grande_devuelve_200` (S5), `test_put_reserva_no_activa_devuelve_409` |
 | Migración | `test_migracion.py` | `test_upgrade_head_crea_reservas_con_una_sola_cabeza`, `test_upgrade_define_columnas_no_nulas_check_e_indices`, `test_upgrade_impone_el_check_de_cantidad_personas`, `test_upgrade_impide_dos_reservas_activas_en_el_mismo_turno` (R13 a nivel de base), `test_upgrade_permite_turno_repetido_si_una_no_esta_activa`, `test_downgrade_a_m3_elimina_reservas_y_conserva_mesas` (`command.downgrade(config, "b2d4f6a8c0e1")`), `test_downgrade_y_upgrade_de_nuevo_recrean_reservas` |
 
 Las pruebas de migración siguen el estilo de `backend/tests/modules/salon/test_migracion.py` (base propia en `tmp_path`, `get_settings.cache_clear()`, inserciones con `text()`). El índice parcial se prueba por comportamiento (inserción repetida → `IntegrityError`), no por reflexión, porque la reflexión de `sqlite_where` depende de la versión de SQLAlchemy.
@@ -422,7 +418,7 @@ No se modifican `backend/alembic/env.py`, `backend/pyproject.toml`, `backend/app
 | `backend/` | módulo ~300 (models 35, schemas 65, repository 45, puente 30, service 95, router 35), migración ~50, `main.py` 2, M3 4 (2 líneas cambiadas) → ~360 | conftest 40, puente 15, schemas 70, service 200, router 120, migración 90 → ~535 | **~850 a 900** | Puede superar 800 por las pruebas |
 | `frontend/` | types 25, api 40, fechas 40, estados 15, validar 50, hook 80, formulario 110, tabla 70, navegador 45, página 85, index 5 → ~565 | ~480 | **~1000 a 1050** | Supera 800 |
 
-La estimación es mayor que la de la propuesta (backend 650 a 800, frontend 750 a 950) porque el diseño agrega pruebas de R13, de migración y de los límites de fecha y capacidad. Es informativo: la HU va en un solo PR (AGENTS.md §4) y la nota del PR informa el total.
+La estimación es mayor que la de la propuesta (backend 650 a 800, frontend 750 a 950) porque el diseño agrega pruebas de R13, de migración y de los límites de fecha y de cantidad de personas. Es informativo: la HU va en un solo PR (AGENTS.md §4) y la nota del PR informa el total.
 
 ## Orden de implementación sugerido
 

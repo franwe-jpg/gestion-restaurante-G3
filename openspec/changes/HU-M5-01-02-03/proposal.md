@@ -4,7 +4,7 @@
   - **HU-M5-01:** «Como encargado, quiero crear una reserva para asegurar una mesa al cliente.»
   - **HU-M5-02:** «Como encargado, quiero modificar una reserva para cambiar fecha, hora o comensales.»
   - **HU-M5-03:** «Como encargado, quiero listar las reservas para planificar el servicio.»
-- **Issues:** no se leyeron en esta fase (no hubo autorización). Hay que completar el número de cada issue antes del PR (`Closes #<HU-M5-01>`, `Closes #<HU-M5-02>`, `Closes #<HU-M5-03>`); se buscan en el [GitHub Project #2](https://github.com/users/franwe-jpg/projects/2). Los criterios de aceptación de abajo salen de la consigna, el diagrama de clases, S1-07, S2-02 y la maqueta. Lo que no está definido se marca `Supuesto:`.
+- **Issues:** no se leyeron en esta fase (no hubo autorización). Hay que completar el número de cada issue antes del PR (`Closes #<HU-M5-01>`, `Closes #<HU-M5-02>`, `Closes #<HU-M5-03>`); se buscan en el [GitHub Project #2](https://github.com/users/franwe-jpg/projects/2). Los criterios de aceptación de abajo salen de la consigna, el diagrama de clases, S1-07, S2-02 y la maqueta. Lo que no está definido se marca `Supuesto:`. Excepción posterior: se consultó el issue #61 (HU-M5-01), que resolvió la capacidad de la mesa (S5).
 - **Módulo:** M5 Reservas. **Responsable:** Federico Cabaña. **Rama:** `feature/HU-M5-01-02-03-abm-reservas` (desde `develop`). Es un solo cambio con un solo PR, porque es el grupo ABM de una entidad con un mismo responsable (AGENTS.md §4).
 - **Exploración:** `openspec/changes/HU-M5-01-02-03/exploration.md`.
 
@@ -64,11 +64,11 @@ M3 (Mesa) y M4 (Cliente) todavía no exponen lo que M5 necesita. Por eso el mód
 | S2 | **Horario de atención:** ninguna fuente lo define, así que no se restringe la hora de la reserva (vale cualquier hora del día). Si el equipo define un horario, se agrega como validación 422 en un cambio posterior. |
 | S3 | **Fecha y hora pasadas:** `fecha` tiene que ser hoy o posterior (diagrama `{>= hoy}`). Si `fecha` es hoy, `hora` tiene que ser posterior a la hora actual del servidor. Si no se cumple, responde 422. La hora se maneja en minutos (sin segundos). |
 | S4 | **Mesa «disponible»:** la mesa existe según el puente y no tiene otra reserva `ACTIVA` con la misma fecha y hora exactas. No se modela duración ni el estado físico de la mesa (LIBRE/OCUPADA de M3). |
-| S5 | **Capacidad:** S1-07 exige `cantidadPersonas <= capacidad` de la mesa; el diagrama no lo pide. Se valida solo cuando el puente informa la capacidad. El stub no la informa, así que el control queda activo recién al conectar el `service` real de M3. Si se excede, responde 422. |
+| S5 | **Capacidad:** resuelto por el issue #61 (HU-M5-01): «Cantidad de personas (obligatoria): número entero mayor a cero. El sistema no la valida contra la capacidad de la mesa (se resuelve en forma presencial)». La cantidad de personas no se valida contra la capacidad de la mesa; se resuelve en forma presencial, y el puente no informa la capacidad. S1-07 pedía `cantidadPersonas <= capacidad`, pero el issue manda sobre esa guía (AGENTS.md §2). |
 | S6 | **Cliente:** se identifica por `cliente_id` entero. El stub da por válido cualquier id positivo hasta que M4 exponga Cliente. S1-07 no menciona al cliente; el diagrama sí (Cliente 1 - Reserva). |
-| S7 | **Modificar:** solo se puede modificar una reserva `ACTIVA` (si no, 409). Se modifican `fecha`, `hora` y `cantidadPersonas`. Se revalidan S3, S4 y S5 sin contar la propia reserva. La mesa y el cliente no cambian (diagrama). No hay control de concurrencia: gana la última modificación. |
+| S7 | **Modificar:** solo se puede modificar una reserva `ACTIVA` (si no, 409). Se modifican `fecha`, `hora` y `cantidadPersonas`. Se revalidan S3 y S4 sin contar la propia reserva. La mesa y el cliente no cambian (diagrama). No hay control de concurrencia: gana la última modificación. |
 | S8 | **Listado:** paginado (D-27); filtros opcionales `fecha` (día exacto) y `estado`; orden ascendente por `fecha`, `hora` e `id`. Sin filtros, la API devuelve todas las reservas. El frontend arranca con el filtro de estado `ACTIVA`. |
-| S9 | **Códigos de error:** 404 si la reserva no existe, y también si la mesa o el cliente indicados no existen según el puente. 409 si hay conflicto con otra reserva `ACTIVA` o si se intenta modificar una reserva que no está `ACTIVA`. 422 para errores de validación (fecha u hora pasadas, `cantidadPersonas <= 0`, capacidad excedida). El diseño lo alinea con el criterio que usaron M1 y M3. |
+| S9 | **Códigos de error:** 404 si la reserva no existe, y también si la mesa o el cliente indicados no existen según el puente. 409 si hay conflicto con otra reserva `ACTIVA` o si se intenta modificar una reserva que no está `ACTIVA`. 422 para errores de validación (fecha u hora pasadas, `cantidadPersonas <= 0`). El diseño lo alinea con el criterio que usaron M1 y M3. |
 | S10 | **Sin claves foráneas:** la tabla `clientes` no existe (M4 vacío) y el módulo es autocontenido. La integridad referencial la cubre el puente; las FK se agregan con una migración posterior, cuando M3 y M4 estén integrados. |
 | S11 | **Fechas en el frontend:** `formatearFecha` (`frontend/src/shared/lib/format.ts:9-18`) muestra el día anterior en UTC-3 con fechas `YYYY-MM-DD`. M5 formatea sus fechas dentro del módulo, sin tocar `shared/`, y se avisa al equipo para corregir la función compartida. |
 | S12 | **Insignia de estado:** `StatusBadge` no conoce los estados de `EstadoReserva`. M5 asigna el texto y la variante dentro del módulo, sin modificar `shared/`. |
@@ -93,7 +93,7 @@ M3 (Mesa) y M4 (Cliente) todavía no exponen lo que M5 necesita. Por eso el mód
 | --- | --- | --- |
 | La nueva revisión de Alembic rompe los tests de migración de M3. | (a estimar por el equipo) | Ajuste mínimo previsto en el alcance; avisar a Giuliano en el PR. |
 | Otro PR (por ejemplo, de M3) agrega una revisión sobre `b2d4f6a8c0e1` al mismo tiempo y deja dos heads. | (a estimar por el equipo) | Antes del PR, `git pull origin develop` y rebasar `down_revision` sobre el head vigente; comprobar con `alembic heads`. |
-| El stub del puente deja pasar mesas o clientes inexistentes hasta conectar M3/M4. | (a estimar por el equipo) | Abstracción explícita y tareas de seguimiento; S5, S6 y S10 visibles para el equipo. |
+| El stub del puente deja pasar mesas o clientes inexistentes hasta conectar M3/M4. | (a estimar por el equipo) | Abstracción explícita y tareas de seguimiento; S6 y S10 visibles para el equipo. |
 | El equipo elige `PENDIENTE` (S1-07) en lugar de `ACTIVA`. | (a estimar por el equipo) | El valor vive en un solo enum; cambiarlo es local, más un ajuste de migración si ya se integró. |
 | El frontend supera el punto de control de 800 líneas. | (a estimar por el equipo) | Informativo: un solo PR, nunca se divide; la nota del PR informa el total. |
 | Fechas corridas un día por zona horaria. | (a estimar por el equipo) | Formateo propio del módulo con pruebas en UTC-3 (S11). |
@@ -114,7 +114,7 @@ El `downgrade()` de la migración se prueba en `backend/tests/modules/reservas/`
 
 - Ninguna bloqueante: el módulo es autocontenido gracias al puente.
 - **Seguimiento (tareas posteriores, fuera de este PR):**
-  - Reemplazar el stub de Mesa por `salon.service.obtener_mesa` / `listar_mesas` cuando M3 los exponga, y activar el control de capacidad (S5).
+  - Reemplazar el stub de Mesa por `salon.service.obtener_mesa` / `listar_mesas` cuando M3 los exponga (el puente informa solo el `id`; la cantidad de personas no se valida contra la capacidad, S5).
   - Reemplazar el stub de Cliente por el `service` de Cliente cuando M4 lo exponga (S6).
   - Agregar las FK `mesa_id` y `cliente_id` con una migración nueva (S10).
   - Cambiar el formulario a selectores de mesa y cliente (S13).

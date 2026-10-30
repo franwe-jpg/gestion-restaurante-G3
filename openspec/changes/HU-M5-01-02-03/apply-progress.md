@@ -353,3 +353,47 @@ Evidencia observada al cierre, con HEAD `f1a210f` sobre `develop` local (`0bff1e
 | 8.7 Commit 10 | Documentos de SDD con el informe de verificación |
 
 Revisiones nativas (Gentle AI, lente de confiabilidad) de los tramos de código, todas aprobadas y con la autoridad cerrada: frontend del alta (`af07415` y `f65027f`), listado (`e2103d4`, `af90732` y `0d02c8e`), `PUT` y `GET` por id (`61acb81`) y modificación del frontend (`f1a210f`). Los commits `3d4d57a` y `55be2c6` (tabla, migración y alta del backend) no pudieron revisarse: el candidato excedió el presupuesto del revisor y no se creó autoridad.
+
+## Ajuste posterior: se quita la validación de capacidad (issue #61)
+
+- **Motivo:** el issue #61 (HU-M5-01, fuente de verdad según AGENTS.md §2) dice: «Cantidad de personas (obligatoria): número entero mayor a cero. El sistema no la valida contra la capacidad de la mesa (se resuelve en forma presencial)». La implementación anterior contradecía esa regla: `service.py` tenía `_validar_capacidad` y `_validar_capacidad_de_la_reserva` (alta y modificación), y `puente.MesaReservable` llevaba un campo `capacidad` (el stub devolvía `None`, así que el control estaba dormido, pero un puente real habría empezado a responder 422). Decisión aprobada por la persona: quitar la validación por completo, incluido el campo del puente.
+- **Modo:** Strict TDD (`strict_tdd: true` en `openspec/config.yaml`). Comandos en Docker (`g3-backend-test`, sin red, `backend/` montado en `/app`).
+- **Este ajuste no cambia los totales de la spec:** siguen siendo 31 requisitos. El requisito «Capacidad de la mesa (HU-M5-01 CA 8, S5)» conservó su lugar y su numeración, y pasó a enunciar la regla nueva. Los escenarios pasaron de 129 a 126 (se quitaron 6 de capacidad y se agregaron 3: cantidad muy grande en el alta, cantidad cero sigue rechazada y cantidad muy grande en la modificación). El supuesto S5 conserva su número.
+
+### Evidencia RED → GREEN → REFACTOR
+
+| Paso | Comando | Resultado observado |
+| --- | --- | --- |
+| RED | `pytest --no-cov -q -p no:cacheprovider tests/modules/reservas` con las pruebas ya editadas y el código de producción sin tocar | **3 fallos, 188 pasan.** Los 3 fallos son `TypeError: MesaReservable.__init__() missing 1 required positional argument: 'capacidad'`: `test_obtener_mesa_stub_devuelve_la_mesa_con_su_id`, `test_crear_reserva_conflicto_no_depende_del_puente` y `test_crear_reserva_orden_de_validacion` |
+| GREEN | el mismo comando, tras quitar la validación y el campo del puente | **191 pasan**, 1 advertencia (`httpx` en `starlette.testclient`, ya existente) |
+| REFACTOR | `_obtener_mesa` pasó a `_validar_mesa(db, mesa_id) -> None`, simétrica con `_validar_cliente` | Sin la validación de capacidad, `mesa` quedaba como variable sin uso en `crear_reserva`; el cambio evita eso sin tocar el comportamiento. Una pasada de `ruff format --check` detectó un salto de línea de más en `test_service.py` (`1 file would be reformatted`) y se corrigió a mano |
+
+Observación honesta sobre el RED: las 4 pruebas nuevas de «100 personas» (`test_crear_reserva_acepta_una_cantidad_muy_grande_de_personas`, `test_modificar_reserva_acepta_una_cantidad_muy_grande_de_personas`, `test_post_reservas_cantidad_muy_grande_devuelve_201` y `test_put_reserva_cantidad_muy_grande_devuelve_200`) **ya pasaban en el RED**, porque el stub nunca informaba la capacidad y el control estaba dormido. Quedan como pruebas de límite que fijan la regla del issue #61 y como red de seguridad ante una reactivación; el RED real del ajuste fue el contrato del puente (`MesaReservable(id=5)` sin `capacidad`).
+
+### Verificación final (ejecutada sola, sin otras corridas de Docker en paralelo)
+
+| Comando | Resultado observado |
+| --- | --- |
+| `sh -c 'ruff check . && ruff format --check . && lint-imports && pytest -q -p no:cacheprovider'` (desde `backend/`) | Salida 0. `ruff check`: «All checks passed!». `ruff format --check`: «99 files already formatted». `lint-imports`: «Contracts: 10 kept, 0 broken.». `pytest`: **958 pasan**, 1 advertencia; cobertura 99,47 % (umbral 70 %) |
+
+La línea base antes de este ajuste era de 961 pruebas y 99,47 %. La diferencia de −3 sale de quitar 7 casos (3 de capacidad del alta en `test_service.py`, el caso `capacidad-excedida` de la prueba parametrizada de datos inválidos, 2 de capacidad de la modificación y 1 de `test_router.py`) y agregar 4.
+
+### Archivos tocados
+
+| Archivo | Cambio |
+| --- | --- |
+| `backend/app/modules/reservas/service.py` | Se borraron `_validar_capacidad` y `_validar_capacidad_de_la_reserva` y sus llamadas en el alta y en la modificación; `_obtener_mesa` pasó a `_validar_mesa`. El resto (fecha y hora no pasadas, mesa existente, R13 con la verificación previa y `IntegrityError` → 409) no cambió |
+| `backend/app/modules/reservas/puente.py` | `MesaReservable` lleva solo `id`; `obtener_mesa` devuelve `MesaReservable(id=mesa_id)` para ids positivos y `None` en los demás casos; se corrigieron el docstring del módulo y los de las funciones |
+| `backend/tests/modules/reservas/conftest.py` | Se quitaron la fixture `puente_con_capacidad` y el alias `ConfigurarCapacidad` |
+| `backend/tests/modules/reservas/test_puente.py` | `MesaReservable(id=5)`; la prueba pasó a llamarse `test_obtener_mesa_stub_devuelve_la_mesa_con_su_id` |
+| `backend/tests/modules/reservas/test_service.py` | Se quitaron las pruebas y los casos de capacidad (alta y modificación); `test_crear_reserva_orden_de_validacion` y `test_modificar_reserva_orden_de_validacion` sin el paso de capacidad; pruebas nuevas con 100 personas en el alta y en la modificación |
+| `backend/tests/modules/reservas/test_router.py` | Se quitó la prueba del 422 por capacidad; pruebas nuevas `test_post_reservas_cantidad_muy_grande_devuelve_201` y `test_put_reserva_cantidad_muy_grande_devuelve_200` |
+| `openspec/changes/HU-M5-01-02-03/{proposal,design,tasks}.md` y `specs/reservas-gestion/spec.md` | Reescritos los enunciados que exigían o planificaban el control de capacidad; S5 resuelto por el issue #61; nueva Fase 9 en `tasks.md` y filas de trazabilidad actualizadas |
+| `openspec/changes/HU-M5-01-02-03/verify-report.md` | Una nota fechada al comienzo; el cuerpo del informe no se reescribió |
+
+No se tocó `exploration.md` (registro histórico), ni `frontend/` (no tenía ningún control de capacidad), ni migraciones, ni otro módulo ni `shared/`.
+
+### Menciones que quedan de «capacidad»
+
+- Código y pruebas de `reservas/`: solo comentarios y docstrings que dicen que la cantidad **no** se valida contra la capacidad (`puente.py:6`, `test_router.py`, `test_puente.py`, `test_service.py`).
+- Artefactos del cambio: el requisito y los escenarios nuevos de la spec, el supuesto S5 (propuesta y spec), el contrato del puente y S20, y el nombre del requisito en la trazabilidad; en `design.md`, la Decisión 2 y una fila de la tabla de diferencias con la maqueta (la maqueta muestra la mesa con sector y capacidad: es una descripción de la maqueta, no una regla); en `proposal.md`, el título de sección «Capacidades» (término de SDD, no la capacidad de la mesa). Los textos históricos de este archivo, de `verify-report.md` (cuerpo) y de `exploration.md` describen lo que se hizo y verificó antes del issue #61, y se conservan como registro.

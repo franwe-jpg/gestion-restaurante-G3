@@ -36,12 +36,12 @@ Esquemas (nombres JSON en `snake_case`; `cantidad_personas` es el `cantidadPerso
 
 Parámetros del listado: `fecha` (día exacto, `YYYY-MM-DD`) y `estado` (uno de los cuatro valores de `EstadoReserva`, con esa capitalización). Valores inválidos responden 422 (S22).
 
-Mensajes de negocio de referencia (S18): 404 «La reserva {id} no existe», «La mesa {id} no existe» y «El cliente {id} no existe»; 409 «La mesa {mesa_id} ya tiene una reserva activa el {fecha} a las {hora}» y «La reserva {id} no está activa y no se puede modificar»; 422 «La fecha de la reserva no puede ser anterior a hoy», «La hora de la reserva debe ser posterior a la hora actual» y «La mesa {mesa_id} tiene capacidad para {capacidad} personas y la reserva pide {cantidad_personas}». Los 422 de forma usan el manejador global existente (`Datos invalidos. <campo>: <mensaje>`), que nombra cada campo inválido.
+Mensajes de negocio de referencia (S18): 404 «La reserva {id} no existe», «La mesa {id} no existe» y «El cliente {id} no existe»; 409 «La mesa {mesa_id} ya tiene una reserva activa el {fecha} a las {hora}» y «La reserva {id} no está activa y no se puede modificar»; 422 «La fecha de la reserva no puede ser anterior a hoy» y «La hora de la reserva debe ser posterior a la hora actual». Los 422 de forma usan el manejador global existente (`Datos invalidos. <campo>: <mensaje>`), que nombra cada campo inválido.
 
 Orden de validación (S17):
 
-- Alta: 422 de forma, 404 de mesa, 404 de cliente, 422 de fecha, 422 de hora, 422 de capacidad y 409 de conflicto.
-- Modificación: 422 de forma, 404 de la reserva, 409 por no estar `ACTIVA`, 422 de fecha, 422 de hora, 422 de capacidad y 409 de conflicto.
+- Alta: 422 de forma, 404 de mesa, 404 de cliente, 422 de fecha, 422 de hora y 409 de conflicto.
+- Modificación: 422 de forma, 404 de la reserva, 409 por no estar `ACTIVA`, 422 de fecha, 422 de hora y 409 de conflicto.
 
 ## Datos
 
@@ -68,10 +68,10 @@ El `service` de `reservas` consulta a Mesa y a Cliente solo a través de un puen
 
 | Operación | Entrada | Resultado |
 | --- | --- | --- |
-| `obtener_mesa` | `mesa_id: int` | La mesa con su `id` y su `capacidad` opcional (`int` o ausente), o ausencia si la mesa no existe. |
+| `obtener_mesa` | `mesa_id: int` | La mesa con su `id`, o ausencia si la mesa no existe. No informa la capacidad: la cantidad de personas no se valida contra ella (S5). |
 | `existe_cliente` | `cliente_id: int` | `true` si el cliente existe; `false` si no. |
 
-Implementación incluida en este cambio (stub, S5, S6, S20): toda mesa con id positivo existe y no informa capacidad; todo cliente con id positivo existe. El puente no participa en la regla de doble reserva: esa regla usa solo la tabla `reservas`. Las implementaciones reales (llamadas a los `service` de M3 y M4) quedan para un cambio posterior y no deben exigir cambios en las reglas de esta spec.
+Implementación incluida en este cambio (stub, S6, S20): toda mesa con id positivo existe; todo cliente con id positivo existe. El puente no participa en la regla de doble reserva: esa regla usa solo la tabla `reservas`. Las implementaciones reales (llamadas a los `service` de M3 y M4) quedan para un cambio posterior y no deben exigir cambios en las reglas de esta spec.
 
 ## ADDED Requirements
 
@@ -236,27 +236,21 @@ La `hora` DEBE tener formato `HH:MM` (S16). Ninguna fuente define el horario de 
 - CUANDO se hace `POST /reservas`
 - ENTONCES responde 422 y no se crea nada
 
-### Requisito: Capacidad de la mesa (HU-M5-01 CA 8, S5)
+### Requisito: La cantidad de personas no se valida contra la capacidad de la mesa (HU-M5-01 CA 8, S5)
 
-Solo cuando el puente informa la `capacidad` de la mesa, el sistema DEBE verificar que `cantidad_personas` no la supere; si la supera, DEBE responder 422 «La mesa {mesa_id} tiene capacidad para {capacidad} personas y la reserva pide {cantidad_personas}» sin guardar. Si el puente no informa la capacidad, como el stub, el sistema NO DEBE aplicar este control.
+El sistema NO DEBE validar `cantidad_personas` contra la capacidad de la mesa, ni en el alta ni en la modificación: la capacidad se resuelve en forma presencial (issue #61). La única regla sobre la cantidad es la de «Cantidad de personas positiva» (entero estricto mayor a cero); cualquier entero positivo, por grande que sea, DEBE aceptarse. El puente NO informa la capacidad de la mesa y ninguna respuesta del sistema DEBE rechazar una reserva por exceder la capacidad.
 
-#### Escenario: Capacidad excedida
+#### Escenario: Cantidad muy grande en el alta
 
-- DADO un puente que informa que la mesa 5 tiene capacidad 6
-- CUANDO se crea una reserva en la mesa 5 con `cantidad_personas` 7
-- ENTONCES responde 422 con «La mesa 5 tiene capacidad para 6 personas y la reserva pide 7» y no se crea nada
+- DADO el stub del puente y la mesa 5
+- CUANDO se hace `POST /reservas` con la mesa 5 y `cantidad_personas` 100
+- ENTONCES responde 201 con `cantidad_personas` 100 y la reserva queda guardada (S5: sin control contra la capacidad)
 
-#### Escenario: Cantidad igual a la capacidad
+#### Escenario: Cantidad cero sigue rechazada
 
-- DADO un puente que informa que la mesa 5 tiene capacidad 6
-- CUANDO se crea una reserva en la mesa 5 con `cantidad_personas` 6
-- ENTONCES responde 201
-
-#### Escenario: El puente no informa la capacidad
-
-- DADO el stub del puente, que no informa capacidad
-- CUANDO se crea una reserva con `cantidad_personas` 50
-- ENTONCES responde 201 (S5: el control queda activo al conectar el `service` real de M3)
+- DADO `cantidad_personas` igual a `0`
+- CUANDO se hace `POST /reservas` con los demás datos válidos
+- ENTONCES responde 422 nombrando `cantidad_personas` y no se crea nada (la única validación de la cantidad es «entero mayor a cero»)
 
 ### Requisito: Mesa sin otra reserva activa (HU-M5-01 CA 9, R13)
 
@@ -393,7 +387,7 @@ La modificación NO DEBE cambiar `mesa_id`, `cliente_id`, `estado` ni `id`. Si `
 
 ### Requisito: Revalidar las reglas del alta (HU-M5-02 CA 3)
 
-Al modificar, el sistema DEBE aplicar las mismas reglas de fecha no pasada, hora válida y no pasada, `cantidad_personas` positiva y capacidad de la mesa (solo si el puente la informa) que el alta. Si algún dato es inválido, DEBE responder 422 con el mismo mensaje del alta y NO DEBE aplicar ningún cambio. Para la capacidad usa la `mesa_id` de la reserva y no consulta si la mesa o el cliente existen (S27).
+Al modificar, el sistema DEBE aplicar las mismas reglas de fecha no pasada, hora válida y no pasada y `cantidad_personas` positiva que el alta, sin compararla con la capacidad de la mesa (S5). Si algún dato es inválido, DEBE responder 422 con el mismo mensaje del alta y NO DEBE aplicar ningún cambio. No consulta si la mesa o el cliente existen (S27).
 
 #### Escenario: Fecha pasada
 
@@ -413,17 +407,11 @@ Al modificar, el sistema DEBE aplicar las mismas reglas de fecha no pasada, hora
 - CUANDO se hace `PUT` con `cantidad_personas` `0`
 - ENTONCES responde 422 nombrando `cantidad_personas` y la reserva no cambia
 
-#### Escenario: Capacidad excedida
+#### Escenario: Cantidad muy grande
 
-- DADO un puente que informa capacidad 6 para la mesa 5 y una reserva `ACTIVA` en esa mesa
-- CUANDO se hace `PUT` con `cantidad_personas` 7
-- ENTONCES responde 422 con «La mesa 5 tiene capacidad para 6 personas y la reserva pide 7» y la reserva no cambia
-
-#### Escenario: Capacidad no informada
-
-- DADO el stub del puente y una reserva `ACTIVA`
-- CUANDO se hace `PUT` con `cantidad_personas` 50
-- ENTONCES responde 200
+- DADO el stub del puente y una reserva `ACTIVA` con 4 personas
+- CUANDO se hace `PUT` con `cantidad_personas` 100
+- ENTONCES responde 200 con `cantidad_personas` 100 y `GET /reservas/{id}` devuelve 100 (S5: sin control contra la capacidad)
 
 ### Requisito: Conflicto sin contar la propia reserva (HU-M5-02 CA 4)
 
@@ -639,21 +627,15 @@ Toda respuesta 404, 409 o 422 de estas rutas DEBE tener el cuerpo `{"detalle": "
 - CUANDO el servicio responde
 - ENTONCES el `detalle` no contiene SQL, nombres de tabla ni de índice
 
-### Requisito: Puente con Mesa y Cliente (S5, S6, S10, S20)
+### Requisito: Puente con Mesa y Cliente (S6, S10, S20)
 
-El `service` de `reservas` DEBE depender solo del puente definido en «Contrato del puente Mesa y Cliente» y NO DEBE importar nada de `salon` ni de `atencion`. El módulo DEBE incluir la implementación stub de S20 y DEBE poder sustituirla por otra sin cambiar las reglas de esta spec ni los contratos de la API. La existencia de la mesa y del cliente y la capacidad vienen solo del puente; la tabla no tiene claves foráneas hacia Mesa ni Cliente (S10).
+El `service` de `reservas` DEBE depender solo del puente definido en «Contrato del puente Mesa y Cliente» y NO DEBE importar nada de `salon` ni de `atencion`. El módulo DEBE incluir la implementación stub de S20 y DEBE poder sustituirla por otra sin cambiar las reglas de esta spec ni los contratos de la API. La existencia de la mesa y del cliente viene solo del puente; la tabla no tiene claves foráneas hacia Mesa ni Cliente (S10).
 
 #### Escenario: El stub acepta identificadores positivos
 
 - DADO el stub del puente
 - CUANDO se consulta la mesa 5 y el cliente 7
-- ENTONCES la mesa existe sin capacidad informada y el cliente existe
-
-#### Escenario: Puente de reemplazo con capacidad
-
-- DADO una implementación alternativa del puente que informa capacidad 4 para la mesa 5
-- CUANDO se crea una reserva con `cantidad_personas` 5 en esa mesa
-- ENTONCES el control de S5 está activo y responde 422, sin cambiar el `service`
+- ENTONCES la mesa existe y el cliente existe
 
 #### Escenario: Puente de reemplazo sin la mesa
 
@@ -994,11 +976,11 @@ Los supuestos S1 a S14 son los de la propuesta, con la misma numeración. S15 en
 - Supuesto: S2. Horario de atención: ninguna fuente lo define, así que no se restringe la hora de la reserva (vale cualquier hora del día). Si el equipo define un horario, se agrega como validación 422 en un cambio posterior.
 - Supuesto: S3. Fecha y hora pasadas: `fecha` tiene que ser hoy o posterior (diagrama `{>= hoy}`). Si `fecha` es hoy, `hora` tiene que ser posterior a la hora actual del servidor. Si no se cumple, responde 422. La hora se maneja en minutos (sin segundos).
 - Supuesto: S4. Mesa «disponible»: la mesa existe según el puente y no tiene otra reserva `ACTIVA` con la misma fecha y hora exactas. No se modela duración ni el estado físico de la mesa (`LIBRE`/`OCUPADA`/`FUERA_DE_SERVICIO` de M3).
-- Supuesto: S5. Capacidad: S1-07 exige `cantidadPersonas <= capacidad` de la mesa; el diagrama no lo pide. Se valida solo cuando el puente informa la capacidad. El stub no la informa, así que el control queda activo recién al conectar el `service` real de M3. Si se excede, responde 422.
+- Supuesto: S5. Capacidad: resuelto por el issue #61 (HU-M5-01), que dice «Cantidad de personas (obligatoria): número entero mayor a cero. El sistema no la valida contra la capacidad de la mesa (se resuelve en forma presencial)». La cantidad de personas no se valida contra la capacidad de la mesa; se resuelve en forma presencial. S1-07 pedía `cantidadPersonas <= capacidad`, pero el issue manda sobre esa guía (AGENTS.md §2). El puente no informa la capacidad y no existe una respuesta 422 por capacidad excedida.
 - Supuesto: S6. Cliente: se identifica por `cliente_id` entero. El stub da por válido cualquier id positivo hasta que M4 exponga Cliente. S1-07 no menciona al cliente; el diagrama sí (Cliente 1 - Reserva).
-- Supuesto: S7. Modificar: solo se puede modificar una reserva `ACTIVA` (si no, 409). Se modifican `fecha`, `hora` y `cantidad_personas`. Se revalidan S3, S4 y S5 sin contar la propia reserva. La mesa y el cliente no cambian (diagrama). No hay control de concurrencia: gana la última modificación.
+- Supuesto: S7. Modificar: solo se puede modificar una reserva `ACTIVA` (si no, 409). Se modifican `fecha`, `hora` y `cantidad_personas`. Se revalidan S3 y S4 sin contar la propia reserva. La mesa y el cliente no cambian (diagrama). No hay control de concurrencia: gana la última modificación.
 - Supuesto: S8. Listado: paginado (D-27); filtros opcionales `fecha` (día exacto) y `estado`; orden ascendente por `fecha`, `hora` e `id`. Sin filtros, la API devuelve todas las reservas. El frontend arranca con el filtro de estado `ACTIVA`.
-- Supuesto: S9. Códigos de error: 404 si la reserva no existe, y también si la mesa o el cliente indicados no existen según el puente. 409 si hay conflicto con otra reserva `ACTIVA` o si se intenta modificar una reserva que no está `ACTIVA`. 422 para errores de validación (fecha u hora pasadas, `cantidad_personas <= 0`, capacidad excedida). Igual criterio que M1 y M3.
+- Supuesto: S9. Códigos de error: 404 si la reserva no existe, y también si la mesa o el cliente indicados no existen según el puente. 409 si hay conflicto con otra reserva `ACTIVA` o si se intenta modificar una reserva que no está `ACTIVA`. 422 para errores de validación (fecha u hora pasadas, `cantidad_personas <= 0`). Igual criterio que M1 y M3.
 - Supuesto: S10. Sin claves foráneas: la tabla `clientes` no existe (M4 vacío) y el módulo es autocontenido. La integridad referencial la cubre el puente; las FK se agregan con una migración posterior, cuando M3 y M4 estén integrados.
 - Supuesto: S11. Fechas en el frontend: `formatearFecha` (`frontend/src/shared/lib/format.ts`) muestra el día anterior en UTC-3 con fechas `YYYY-MM-DD`. M5 formatea sus fechas dentro del módulo, sin tocar `shared/`, y se avisa al equipo para corregir la función compartida.
 - Supuesto: S12. Insignia de estado: `StatusBadge` no conoce los estados de `EstadoReserva`. M5 asigna el texto y la variante dentro del módulo, sin modificar `shared/`.
@@ -1009,12 +991,12 @@ Los supuestos S1 a S14 son los de la propuesta, con la misma numeración. S15 en
 - Supuesto: S17. Orden de validación: el de «Contrato de la API» (forma, 404, 422 de negocio, 409). Un dato inválido nunca deja cambios parciales.
 - Supuesto: S18. Los textos de los mensajes de negocio son los de referencia de «Contrato de la API»; el diseño puede ajustar el redactado sin cambiar el código de estado ni la clave `detalle`.
 - Supuesto: S19. `PUT /reservas/{id}` exige los tres campos modificables (`fecha`, `hora`, `cantidad_personas`); no se ofrece una modificación parcial (`PATCH`).
-- Supuesto: S20. El stub del puente da por existente toda mesa con id positivo y no informa su capacidad. Por eso los 404 de mesa o cliente y el control de capacidad se prueban con una implementación alternativa del puente.
+- Supuesto: S20. El stub del puente da por existente toda mesa con id positivo y no informa su capacidad (S5). Por eso los 404 de mesa o cliente se prueban con una implementación alternativa del puente.
 - Supuesto: S21. Un mismo cliente PUEDE tener varias reservas `ACTIVA`, incluso en la misma fecha y hora en mesas distintas. La única regla de conflicto es la de mesa, fecha y hora (diagrama).
 - Supuesto: S22. En el listado, `estado` distingue mayúsculas y minúsculas (`activa` responde 422, como en `GET /productos` y `GET /secciones`); `fecha` usa `YYYY-MM-DD`; el filtro de fecha acepta cualquier día, también pasado, a diferencia del alta.
 - Supuesto: S23. `ReservaSalida` y la tabla de pantalla traen `mesa_id` y `cliente_id` y no nombres de mesa, sector, cliente ni teléfono, porque el puente stub no los devuelve. La maqueta muestra Cliente, Teléfono y Mesa con texto: la diferencia se anota en el PR.
 - Supuesto: S24. El frontend es una sola pantalla: `ReservasPage` en la ruta `/reservas`, que ya existe, con un panel lateral para el alta y la edición, como muestra la maqueta. No se agregan rutas ni se modifica `frontend/src/App.tsx` ni ningún archivo compartido. La edición parte de los datos de la fila, así que el frontend no usa `GET /reservas/{id}` (la ruta existe en el backend porque la pide HU-M5-02).
 - Supuesto: S25. Fecha y filtros de la pantalla, según la maqueta: la tabla muestra las reservas de un día, que arranca en hoy (fecha local del navegador), con los botones «Día anterior» y «Día siguiente», el campo «Día» y el botón «Hoy». El estado arranca en `ACTIVA` (S8) y el selector ofrece además «Todas». Cambiar de día vuelve a la página 1. El día se maneja como texto `YYYY-MM-DD` (S11).
 - Supuesto: S26. Los textos de los estados vacío y de error de la tabla son los de «Estados vacío y error del listado». El aviso de éxito del panel es un toast del sistema de avisos compartido, sin modificarlo.
-- Supuesto: S27. Al modificar, el `service` no revalida que la mesa o el cliente existan, porque no cambian; solo usa la capacidad que informe el puente para la mesa de la reserva.
+- Supuesto: S27. Al modificar, el `service` no revalida que la mesa o el cliente existan, porque no cambian, y tampoco consulta al puente.
 - Supuesto: S28. «Hoy» y «hora actual» son la fecha y la hora locales del servidor. Las pruebas fijan ese reloj para los escenarios con fecha de hoy.

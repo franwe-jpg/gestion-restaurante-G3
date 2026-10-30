@@ -13,7 +13,6 @@ from app.modules.reservas.models import EstadoReserva, Reserva
 AHORA = datetime(2026, 11, 2, 12, 0)
 
 FabricaReserva = Callable[..., Reserva]
-ConfigurarCapacidad = Callable[[int], None]
 
 
 @pytest.fixture(autouse=True)
@@ -60,17 +59,3 @@ def puente_sin_cliente(monkeypatch: pytest.MonkeyPatch) -> None:
     from app.modules.reservas import puente
 
     monkeypatch.setattr(puente, "existe_cliente", lambda _db, _cliente_id: False)
-
-
-@pytest.fixture
-def puente_con_capacidad(monkeypatch: pytest.MonkeyPatch) -> ConfigurarCapacidad:
-    from app.modules.reservas import puente
-
-    def configurar(capacidad: int) -> None:
-        monkeypatch.setattr(
-            puente,
-            "obtener_mesa",
-            lambda _db, mesa_id: puente.MesaReservable(id=mesa_id, capacidad=capacidad),
-        )
-
-    return configurar
