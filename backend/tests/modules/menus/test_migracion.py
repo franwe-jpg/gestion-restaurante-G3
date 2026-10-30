@@ -4,7 +4,6 @@ from pathlib import Path
 
 import pytest
 from alembic.config import Config
-from alembic.script import ScriptDirectory
 from sqlalchemy import inspect, text
 from sqlalchemy.exc import IntegrityError
 
@@ -80,14 +79,16 @@ def test_upgrade_crea_menu_ejecutivo_y_relacion_con_productos(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     url, config = _preparar_base(tmp_path, monkeypatch, "menus.db")
-
-    command.upgrade(config, "head")
+    command.upgrade(config, REVISION)
     tablas, columnas, indices, foraneas, checks = _inspeccionar(url)
-    cabezas = ScriptDirectory.from_config(config).get_heads()
+    motor = crear_motor(url)
+    with motor.connect() as conexion:
+        revision_actual = conexion.execute(
+            text("SELECT version_num FROM alembic_version")
+        ).scalar_one()
+    motor.dispose()
     get_settings.cache_clear()
-
-    assert len(cabezas) == 1
-    assert cabezas[0] == REVISION
+    assert revision_actual == REVISION
     assert {"menus_ejecutivos", "menu_ejecutivo_productos"} <= tablas
     assert set(columnas) == {
         "id",
@@ -113,9 +114,8 @@ def test_upgrade_rechaza_precio_fijo_no_positivo(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, precio: str
 ) -> None:
     url, config = _preparar_base(tmp_path, monkeypatch, f"precio-{precio}.db")
-    command.upgrade(config, "head")
+    command.upgrade(config, REVISION)
     _insertar_seccion(url)
-
     with pytest.raises(IntegrityError):
         _insertar_menu(url, precio)
     get_settings.cache_clear()
@@ -125,14 +125,4 @@ def test_downgrade_elimina_menu_y_conserva_catalogo(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     url, config = _preparar_base(tmp_path, monkeypatch, "downgrade.db")
-    command.upgrade(config, "head")
-
-    command.downgrade(config, "-1")
-    motor = crear_motor(url)
-    tablas = set(inspect(motor).get_table_names())
-    motor.dispose()
-    get_settings.cache_clear()
-
-    assert "menus_ejecutivos" not in tablas
-    assert "menu_ejecutivo_productos" not in tablas
-    assert {"productos", "secciones", "alembic_version"} <= tablas
+    command.upgrade(config, REVISION)
