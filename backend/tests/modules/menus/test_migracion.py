@@ -83,11 +83,12 @@ def test_upgrade_crea_menu_ejecutivo_y_relacion_con_productos(
 
     command.upgrade(config, "head")
     tablas, columnas, indices, foraneas, checks = _inspeccionar(url)
-    cabezas = ScriptDirectory.from_config(config).get_heads()
+    script = ScriptDirectory.from_config(config)
+    cabezas = script.get_heads()
     get_settings.cache_clear()
 
     assert len(cabezas) == 1
-    assert cabezas[0] == REVISION
+    assert script.get_revision(REVISION) is not None
     assert {"menus_ejecutivos", "menu_ejecutivo_productos"} <= tablas
     assert set(columnas) == {
         "id",
@@ -127,7 +128,7 @@ def test_downgrade_elimina_menu_y_conserva_catalogo(
     url, config = _preparar_base(tmp_path, monkeypatch, "downgrade.db")
     command.upgrade(config, "head")
 
-    command.downgrade(config, "-1")
+    command.downgrade(config, "b2d4f6a8c0e1")
     motor = crear_motor(url)
     tablas = set(inspect(motor).get_table_names())
     motor.dispose()
