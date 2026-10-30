@@ -224,6 +224,32 @@ def test_listar_productos_items_con_detalle(
     assert items[0]["estado"] == "HABILITADO"
 
 
+def test_listar_productos_excluye_menus_del_dia_y_m2_los_conserva(
+    cliente: TestClient, fabrica_seccion, fabrica_producto
+) -> None:
+    seccion = fabrica_seccion("Carta", 1)
+    menu_habilitado = fabrica_producto(seccion, "Menú de hoy", categoria=Categoria.MENU_DEL_DIA)
+    menu_deshabilitado = fabrica_producto(
+        seccion, "Menú anterior", Estado.DESHABILITADO, categoria=Categoria.MENU_DEL_DIA
+    )
+    fabrica_producto(seccion, "Milanesa", categoria=Categoria.PLATO)
+    fabrica_producto(seccion, "Flan", Estado.DESHABILITADO, categoria=Categoria.POSTRE)
+
+    productos = cliente.get(RUTA_PRODUCTOS, params={"estado": "TODOS"}).json()
+    menus = cliente.get("/api/v1/menus-del-dia", params={"estado": "TODOS"}).json()
+
+    assert [(item["nombre"], item["categoria"]) for item in productos["items"]] == [
+        ("Flan", "POSTRE"),
+        ("Milanesa", "PLATO"),
+    ]
+    assert productos["total"] == 2
+    assert {menu["id"] for menu in menus["items"]} == {
+        menu_habilitado.id,
+        menu_deshabilitado.id,
+    }
+    assert menus["total"] == 2
+
+
 # CA 2
 def test_listar_productos_sin_productos_estado_todos_vacio(cliente: TestClient) -> None:
     respuesta = cliente.get(RUTA_PRODUCTOS, params={"estado": "TODOS"})
