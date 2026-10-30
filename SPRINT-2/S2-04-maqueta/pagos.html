@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pagos</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="estilos.css">
+<style>
+/* Rules for this page only. A rule with the same selector as in estilos.css overrides it here. */
+.tbl{width:100%;border-collapse:collapse;font-size:14px;min-width:640px}
+.tbl td{padding:12px 16px;border-bottom:1px solid #f1f5f9;color:#1e293b;vertical-align:middle}
+.tb{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 16px;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;background:transparent;font-family:inherit;font-size:14px;font-weight:600;color:#475569;cursor:pointer}
+</style>
+</head>
+<body>
+<div style="min-height: 100vh; display: flex; flex-wrap: wrap; align-items: stretch; background: #f8fafc">
+<aside aria-label="Navegación principal" style="flex: 1 1 240px; min-width: 0; background: #ffffff; border-right: 1px solid #e2e8f0; display: flex; flex-direction: column; justify-content: space-between">
+<div>
+<a href="index.html" style="display: flex; align-items: center; gap: 10px; height: 64px; padding: 0 16px; text-decoration: none; color: #0f172a">
+<span style="width: 36px; height: 36px; border-radius: 8px; background: #b45309; color: #ffffff; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21a1 1 0 0 0 1-1v-5.35c0-.457.316-.844.727-1.041a4 4 0 0 0-2.134-7.589 5 5 0 0 0-9.186 0 4 4 0 0 0-2.134 7.588c.411.198.727.585.727 1.041V20a1 1 0 0 0 1 1Z"></path><path d="M6 17h12"></path></svg></span>
+<span class="h" style="font-size: 16px; font-weight: 700">GastroAdmin</span>
+</a>
+<nav aria-label="Módulos del restaurante" style="display: flex; flex-direction: column; gap: 4px; padding: 8px; border-top: 1px solid #e2e8f0">
+<a class="nav" href="index.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="9" x="3" y="3" rx="1"></rect><rect width="7" height="5" x="14" y="3" rx="1"></rect><rect width="7" height="9" x="14" y="12" rx="1"></rect><rect width="7" height="5" x="3" y="16" rx="1"></rect></svg>Inicio</a>
+<a class="nav" href="productos.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"></path><path d="M7 2v20"></path><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"></path></svg>Productos y Carta</a>
+<a class="nav" href="menus.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>Menús y Promociones</a>
+<a class="nav" href="salon.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>Salón y Mozos</a>
+<a class="nav" href="comandas.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M12 11h4"></path><path d="M12 16h4"></path><path d="M8 11h.01"></path><path d="M8 16h.01"></path></svg>Atención al Público</a>
+<a class="nav" href="reservas.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M16 2v4"></path><path d="M8 2v4"></path><path d="M3 10h18"></path></svg>Reservas</a>
+<a class="nav on" href="pagos.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="14" x="2" y="5" rx="2"></rect><path d="M2 10h20"></path></svg>Pagos</a>
+</nav>
+</div>
+<div style="padding: 12px 16px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #64748b">Turno Noche · 24/10/2026</div>
+</aside>
+<div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+<header style="min-height: 64px; background: #ffffff; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 8px 24px">
+<nav aria-label="Ruta" style="display: flex; gap: 8px; align-items: center; font-size: 28px; color: #64748b; text-decoration-line: none"><br></nav>
+<div style="display: flex; align-items: center; gap: 12px">
+<span class="sup">SUPUESTO #172</span>
+<span style="width: 36px; height: 36px; border-radius: 999px; background: #a7f3d0; color: #064e3b; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700">PR</span>
+<span style="display: flex; flex-direction: column; line-height: 1.25"><span style="font-size: 14px; font-weight: 600">Pablo Ríos</span><span style="font-size: 12px; color: #64748b">Cajero</span></span>
+<a class="ib" href="login.html" aria-label="Cerrar sesión"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><path d="m16 17 5-5-5-5"></path><path d="M21 12H9"></path></svg></a>
+</div>
+</header>
+<main style="width: 100%; max-width: 1280px; padding: 24px; display: flex; flex-direction: column; gap: 20px">
+<div>
+<h1 class="h" style="margin: 0; font-size: 26px; font-weight: 800">Pagos</h1>
+<p id="descripcion" style="margin: 4px 0 0; font-size: 14px; color: #64748b">Formas de cobro que acepta el local.</p>
+</div>
+<div class="tabs" role="tablist" id="tabs"></div>
+
+<div id="panel-medios" style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+<div class="card tw" style="flex: 999 1 520px; min-width: 0">
+<table class="tbl">
+<thead><tr><th>Nombre</th><th>Tipo</th><th>Descripción</th><th>Estado</th><th><span style="position: absolute; left: -9999px">Acciones</span></th></tr></thead>
+<tbody id="lista-medios"></tbody>
+</table>
+</div>
+<form class="card" aria-labelledby="titulo-medio" style="flex: 1 1 320px; min-width: 0; padding: 20px; display: flex; flex-direction: column; gap: 16px">
+<h2 id="titulo-medio" class="h" style="margin: 0; font-size: 18px; font-weight: 700">Nuevo medio de pago</h2>
+<div><label class="lbl" for="nombre">Nombre</label><input class="inp" id="nombre" type="text" value="Billetera QR" maxlength="50"><div class="hint">De 3 a 50 caracteres. No se puede repetir.</div></div>
+<div><label class="lbl" for="tipo">Tipo</label><select class="inp" id="tipo"><option>Billetera virtual</option><option>Efectivo</option><option>Tarjeta</option><option>Transferencia</option></select></div>
+<div><label class="lbl" for="desc">Descripción</label><textarea class="inp" id="desc" rows="3" maxlength="200" style="resize: vertical">Cobro con código QR en la mesa.</textarea></div>
+<div style="display: flex; align-items: center; gap: 10px"><button type="button" class="sw" role="switch" aria-checked="true" aria-label="Habilitado"><span></span></button><span style="font-size: 14px; font-weight: 500">Habilitado</span></div>
+<div style="display: flex; gap: 8px; justify-content: flex-end"><button type="button" class="btn bo">Cancelar</button><button type="button" class="btn bp">Guardar</button></div>
+</form>
+</div>
+
+<div id="panel-facturas" hidden class="card tw">
+<table class="tbl">
+<thead><tr><th>N°</th><th>Comanda</th><th>Mesa</th><th>Emisión</th><th class="num">Total</th><th class="num">Saldo pendiente</th><th>Estado</th><th><span style="position: absolute; left: -9999px">Acciones</span></th></tr></thead>
+<tbody id="lista-facturas"></tbody>
+</table>
+</div>
+</main>
+</div>
+</div>
+<script>
+(function () {
+  // Tabs: [key, label, planned for Sprint 3, description].
+  var tabs = [
+    ['medios', 'Medios de pago', false, 'Formas de cobro que acepta el local.'],
+    ['facturas', 'Facturas', true, '']
+  ];
+  // Sample payment methods: [name, type, description, enabled].
+  var medios = [
+    ['Efectivo', 'Efectivo', 'Pago en caja.', true],
+    ['Tarjeta de crédito', 'Tarjeta', 'Crédito en un pago.', true],
+    ['Tarjeta de débito', 'Tarjeta', 'Débito con posnet.', false],
+    ['Transferencia', 'Transferencia', 'A la cuenta del local.', true]
+  ];
+  // Sample invoices: [number, order, table, issued, total, balance, state].
+  var facturas = [
+    ['0001-00000452', '#121', 'Salón principal · Mesa 5', '24/10 14:20', '$ 42.700', '$ 0', 'Pagada'],
+    ['0001-00000453', '#122', 'Terraza · Mesa 1', '24/10 14:35', '$ 21.300', '$ 9.300', 'Adeudada'],
+    ['0001-00000454', '#119', 'Salón principal · Mesa 9', '24/10 13:55', '$ 14.100', '$ 14.100', 'Adeudada']
+  ];
+
+  var state = { tab: 'medios' };
+
+  var ACCIONES = '<td style="text-align: right; white-space: nowrap"><button type="button" class="ib" aria-label="Modificar"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path></svg></button><button type="button" class="ib del" aria-label="Eliminar"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg></button></td>';
+
+  function esc(v) {
+    return String(v).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function filaMedio(m) {
+    return `<tr>
+<td style="font-weight: 600">${esc(m[0])}</td>
+<td>${esc(m[1])}</td>
+<td style="color: #475569">${esc(m[2])}</td>
+<td><span class="${m[3] ? 'bdg ok' : 'bdg off'}">${m[3] ? 'Habilitado' : 'Deshabilitado'}</span></td>
+${ACCIONES}
+</tr>`;
+  }
+
+  function filaFactura(f) {
+    var cobrar = f[6] === 'Adeudada' ? '<button type="button" class="btn bp" style="min-height: 34px; padding: 0 12px; font-size: 13px">Cobrar</button>' : '';
+    return `<tr>
+<td style="font-variant-numeric: tabular-nums">${esc(f[0])}</td>
+<td>${esc(f[1])}</td>
+<td>${esc(f[2])}</td>
+<td>${esc(f[3])}</td>
+<td class="num">${esc(f[4])}</td>
+<td class="num" style="font-weight: 600">${esc(f[5])}</td>
+<td><span class="${f[6] === 'Pagada' ? 'bdg ok' : 'bdg err'}">${esc(f[6])}</span></td>
+<td style="text-align: right">${cobrar}</td>
+</tr>`;
+  }
+
+  function render() {
+    document.getElementById('tabs').innerHTML = tabs.map(function (t) {
+      var s3 = t[2] ? '<span class="s3">SPRINT 3</span>' : '';
+      return `<button type="button" role="tab" class="${t[0] === state.tab ? 'tb on' : 'tb'}" data-tab="${t[0]}">${esc(t[1])}${s3}</button>`;
+    }).join('\n');
+    var actual = tabs.filter(function (t) { return t[0] === state.tab; })[0];
+    document.getElementById('descripcion').textContent = actual[3];
+    document.getElementById('panel-medios').hidden = state.tab !== 'medios';
+    document.getElementById('panel-facturas').hidden = state.tab !== 'facturas';
+    document.getElementById('lista-medios').innerHTML = medios.map(filaMedio).join('\n');
+    document.getElementById('lista-facturas').innerHTML = facturas.map(filaFactura).join('\n');
+  }
+
+  document.getElementById('tabs').addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-tab]');
+    if (!b) return;
+    state.tab = b.getAttribute('data-tab');
+    render();
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

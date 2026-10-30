@@ -1,0 +1,17 @@
+# Configuracion local y secretos
+.env
+
+# Base de datos SQLite (archivo local, WAL y journal)
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/

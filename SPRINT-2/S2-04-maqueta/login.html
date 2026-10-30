@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inicio de sesión</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="estilos.css">
+<style>
+/* Rules for this page only. A rule with the same selector as in estilos.css overrides it here. */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 16px;border-radius:8px;font-family:inherit;font-size:15px;font-weight:600;border:1px solid transparent;cursor:pointer;text-decoration:none;white-space:nowrap}
+.inp{min-height:44px;width:100%;border:1px solid #cbd5e1;border-radius:8px;padding:8px 12px;font-family:inherit;font-size:15px;color:#0f172a;background:#ffffff}
+.sup{display:inline-flex;align-items:center;font-size:11px;font-weight:700;color:#075985;background:#f0f9ff;border:1px dashed #0369a1;border-radius:4px;padding:2px 6px;letter-spacing:.02em;white-space:normal}
+</style>
+</head>
+<body>
+<div style="min-height: 100vh; display: flex; flex-wrap: wrap; background: #f8fafc">
+<section style="flex: 1 1 420px; background: #0f172a; color: #f8fafc; padding: 48px; display: flex; flex-direction: column; justify-content: space-between; gap: 32px">
+<div style="display: flex; align-items: center; gap: 12px">
+<span style="width: 44px; height: 44px; border-radius: 10px; background: #b45309; color: #ffffff; display: flex; align-items: center; justify-content: center"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21a1 1 0 0 0 1-1v-5.35c0-.457.316-.844.727-1.041a4 4 0 0 0-2.134-7.589 5 5 0 0 0-9.186 0 4 4 0 0 0-2.134 7.588c.411.198.727.585.727 1.041V20a1 1 0 0 0 1 1Z"></path><path d="M6 17h12"></path></svg></span>
+<span class="h" style="font-size: 20px; font-weight: 700">GastroAdmin</span>
+</div>
+<div style="max-width: 460px">
+<h1 class="h" style="margin: 0; font-size: 40px; line-height: 1.1; font-weight: 800">Gestión del restaurante</h1>
+<p style="margin: 16px 0 0; font-size: 16px; line-height: 1.5; color: #cbd5e1">Carta, salón, comandas, reservas y pagos en un solo lugar.</p>
+</div>
+<p style="margin: 0; font-size: 13px; color: #94a3b8"><br></p>
+</section>
+<section style="flex: 999 1 480px; display: flex; align-items: center; justify-content: center; padding: 48px 24px">
+<form style="width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 20px">
+<div>
+<span class="sup">SUPUESTO #172 · PENDIENTE DE VALIDAR</span>
+<h2 class="h" style="margin: 16px 0 0; font-size: 28px; font-weight: 800">Ingresá al sistema</h2>
+
+</div>
+<div>
+<label class="lbl" for="usuario">Usuario</label>
+<input class="inp" id="usuario" type="text" value="lgomez" autocomplete="username">
+</div>
+<div>
+<label class="lbl" for="clave">Contraseña</label>
+<input class="inp" id="clave" type="password" value="contraseña" autocomplete="current-password">
+</div>
+<div style="display: none; padding: 10px 12px; border-radius: 8px; background: #fff1f2; color: #9f1239; font-size: 14px">Usuario o contraseña incorrectos.</div>
+<a class="btn bp" href="index.html">Ingresar</a>
+</form>
+</section>
+</div>
+</body>
+</html>

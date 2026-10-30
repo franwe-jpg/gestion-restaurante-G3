@@ -1,9 +1,6 @@
-# Course material (copyrighted, large binaries)
-material-catedra/
-
-# Working spreadsheets live in the team's Google Drive
-*.xlsx
-*.ods
+# Sprint 0 working spreadsheets live in the team's Google Drive
+SPRINT-0/*.xlsx
+SPRINT-0/*.ods
 
 # Office lock files
 .~lock.*#
@@ -20,3 +17,16 @@ node_modules/
 
 # Environment
 .env
+
+# Imagenes subidas por la aplicacion (MEDIA_DIR)
+backend/media/
+
+# Sprint 0 documents shared through the team's Drive
+SPRINT-0/*.docx
+
+# Copyrighted textbooks: shared through the team's Drive, not the public repo
+material-catedra/Ingeniería de Software - Ian Sommerville - 7º edición.pdf
+material-catedra/Ingenieria del Software - Roger Pressman - 7º edición.pdf
+
+# Registro de skills de Gentle AI: es propio de cada compu (rutas absolutas) y se regenera solo
+.atl/

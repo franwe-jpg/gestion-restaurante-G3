@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atención al Público</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="estilos.css">
+<style>
+/* Rules for this page only. A rule with the same selector as in estilos.css overrides it here. */
+.inp{min-height:40px;border:1px solid #cbd5e1;border-radius:8px;padding:8px 12px;font-family:inherit;font-size:14px;color:#0f172a;background:#ffffff;width:auto}
+.tbl td{padding:10px 16px;border-bottom:1px solid #f1f5f9;color:#1e293b;vertical-align:middle}
+.mut{color:#475569}
+.seg{display:inline-flex;border:1px solid #e2e8f0;border-radius:8px;padding:2px;background:#f1f5f9;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<div style="min-height: 100vh; display: flex; flex-wrap: wrap; align-items: stretch; background: #f8fafc">
+<aside aria-label="Navegación principal" style="flex: 1 1 240px; min-width: 0; background: #ffffff; border-right: 1px solid #e2e8f0; display: flex; flex-direction: column; justify-content: space-between">
+<div>
+<a href="index.html" style="display: flex; align-items: center; gap: 10px; height: 64px; padding: 0 16px; text-decoration: none; color: #0f172a">
+<span style="width: 36px; height: 36px; border-radius: 8px; background: #b45309; color: #ffffff; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21a1 1 0 0 0 1-1v-5.35c0-.457.316-.844.727-1.041a4 4 0 0 0-2.134-7.589 5 5 0 0 0-9.186 0 4 4 0 0 0-2.134 7.588c.411.198.727.585.727 1.041V20a1 1 0 0 0 1 1Z"></path><path d="M6 17h12"></path></svg></span>
+<span class="h" style="font-size: 16px; font-weight: 700">GastroAdmin</span>
+</a>
+<nav aria-label="Módulos del restaurante" style="display: flex; flex-direction: column; gap: 4px; padding: 8px; border-top: 1px solid #e2e8f0">
+<a class="nav" href="index.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="9" x="3" y="3" rx="1"></rect><rect width="7" height="5" x="14" y="3" rx="1"></rect><rect width="7" height="9" x="14" y="12" rx="1"></rect><rect width="7" height="5" x="3" y="16" rx="1"></rect></svg>Inicio</a>
+<a class="nav" href="productos.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"></path><path d="M7 2v20"></path><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"></path></svg>Productos y Carta</a>
+<a class="nav" href="menus.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>Menús y Promociones</a>
+<a class="nav" href="salon.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>Salón y Mozos</a>
+<a class="nav on" href="comandas.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M12 11h4"></path><path d="M12 16h4"></path><path d="M8 11h.01"></path><path d="M8 16h.01"></path></svg>Atención al Público</a>
+<a class="nav" href="reservas.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M16 2v4"></path><path d="M8 2v4"></path><path d="M3 10h18"></path></svg>Reservas</a>
+<a class="nav" href="pagos.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="14" x="2" y="5" rx="2"></rect><path d="M2 10h20"></path></svg>Pagos</a>
+</nav>
+</div>
+<div style="padding: 12px 16px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #64748b">Turno Noche · 24/10/2026</div>
+</aside>
+<div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+<header style="min-height: 64px; background: #ffffff; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 8px 24px">
+<nav aria-label="Ruta" style="display: flex; gap: 8px; align-items: center; font-size: 30px; color: #64748b"></nav>
+<div style="display: flex; align-items: center; gap: 12px">
+<span class="sup">SUPUESTO #172</span>
+<span style="width: 36px; height: 36px; border-radius: 999px; background: #bae6fd; color: #0c4a6e; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700">JF</span>
+<span style="display: flex; flex-direction: column; line-height: 1.25"><span style="font-size: 14px; font-weight: 600">Juan Fernández</span><span style="font-size: 12px; color: #64748b">Mozo</span></span>
+<a class="ib" href="login.html" aria-label="Cerrar sesión"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><path d="m16 17 5-5-5-5"></path><path d="M21 12H9"></path></svg></a>
+</div>
+</header>
+<main style="width: 100%; max-width: 1280px; padding: 24px; display: flex; flex-direction: column; gap: 20px">
+<div style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 12px">
+<div>
+<h1 class="h" style="margin: 0; font-size: 26px; font-weight: 800">Atención al Público</h1>
+<p id="descripcion" style="margin: 4px 0 0; font-size: 14px; color: #64748b"></p>
+</div>
+<a id="nueva-comanda" class="btn bp" href="comanda-nueva.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>Nueva comanda</a>
+</div>
+<div class="tabs" role="tablist" id="tabs"></div>
+<div id="filtros-comandas" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center">
+<select class="inp" aria-label="Mesa"><option>Todas las mesas</option><option>Salón principal · Mesa 2</option><option>Salón principal · Mesa 4</option><option>Terraza · Mesa 2</option></select>
+<div class="seg" role="group" aria-label="Estado" id="filtros-estado"></div>
+</div>
+<div id="filtros-clientes" hidden style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center; justify-content: space-between">
+<label style="position: relative; display: flex; align-items: center">
+<span style="position: absolute; left: 12px; color: #64748b; display: flex"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg></span>
+<input class="inp" type="search" placeholder="Buscar por nombre o teléfono" aria-label="Buscar cliente" style="padding-left: 36px; width: 300px">
+</label>
+<span style="font-size: 13px; color: #475569">Los clientes se crean al cargar una reserva.</span>
+</div>
+<div class="card tw">
+<table class="tbl">
+<thead><tr id="columnas"></tr></thead>
+<tbody id="filas"></tbody>
+</table>
+</div>
+</main>
+</div>
+</div>
+<script>
+(function () {
+  var BADGES = { 'Abierta': 'bdg warn', 'Cerrada': 'bdg ok', 'Anulada': 'bdg err' };
+  // Cell helpers: plain text, muted text, right-aligned number, bold text.
+  function t(txt) { return { txt: txt, cls: '', td: '' }; }
+  function m(txt) { return { txt: txt, cls: 'mut', td: '' }; }
+  function n(txt) { return { txt: txt, cls: '', td: 'num' }; }
+  function f(txt) { return { txt: txt, cls: 'fw', td: '' }; }
+
+  // Sample orders: [number, table, date and time, shift, delivered, total, state].
+  var comandas = [
+    ['128', 'Salón principal · Mesa 2', '24/10 20:15', 'Noche', '4 de 6', '$ 37.000', 'Abierta'],
+    ['129', 'Salón principal · Mesa 11', '24/10 20:30', 'Noche', '3 de 3', '$ 23.300', 'Abierta'],
+    ['130', 'Salón principal · Mesa 4', '24/10 20:45', 'Noche', '1 de 4', '$ 30.000', 'Abierta'],
+    ['131', 'Salón principal · Mesa 7', '24/10 21:05', 'Noche', '0 de 3', '$ 44.700', 'Abierta'],
+    ['132', 'Terraza · Mesa 2', '24/10 21:10', 'Noche', '2 de 2', '$ 11.700', 'Abierta'],
+    ['121', 'Salón principal · Mesa 5', '24/10 13:10', 'Almuerzo', '5 de 5', '$ 42.700', 'Cerrada'],
+    ['122', 'Terraza · Mesa 1', '24/10 13:40', 'Almuerzo', '3 de 3', '$ 21.300', 'Cerrada'],
+    ['124', 'Salón principal · Mesa 3', '24/10 14:05', 'Almuerzo', '0 de 2', '$ 8.400', 'Anulada']
+  ];
+  // Sample customers: [name, phone, reservations].
+  var clientes = [
+    ['María Pérez', '280 455-1020', '3'], ['Jorge Díaz', '280 433-8812', '1'], ['Lucía Sosa', '280 466-2301', '2'],
+    ['Carlos Pérez', '280 421-7745', '5'], ['Valeria Gómez', '280 499-3110', '1']
+  ];
+  var filtros = [['Abierta', 'Abiertas'], ['Cerrada', 'Cerradas'], ['Anulada', 'Anuladas'], ['Todas', 'Todas']];
+
+  var state = { tab: 'comandas', filtro: 'Abierta' };
+
+  function esc(v) {
+    return String(v).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function attrClase(cls) { return cls ? ` class="${cls}"` : ''; }
+
+  // Builds the visible tab: title, description, columns and rows.
+  function vista() {
+    if (state.tab === 'clientes') {
+      return {
+        descripcion: 'Clientes registrados a partir de sus reservas.',
+        columnas: [['Nombre', ''], ['Teléfono', ''], ['Reservas', 'num']],
+        filas: clientes.map(function (c) { return { celdas: [f(c[0]), t(c[1]), n(c[2])], cerrable: false, etiqueta: 'Modificar cliente' }; })
+      };
+    }
+    return {
+      descripcion: '',
+      columnas: [['N°', 'num'], ['Mesa', ''], ['Fecha y hora', ''], ['Turno', ''], ['Entregados', ''], ['Total', 'num'], ['Estado', '']],
+      filas: comandas.filter(function (c) { return state.filtro === 'Todas' || c[6] === state.filtro; }).map(function (c) {
+        return { celdas: [n(c[0]), f(c[1]), t(c[2]), m(c[3]), m(c[4]), n(c[5]), { txt: c[6], cls: BADGES[c[6]], td: '' }], cerrable: c[6] === 'Abierta', etiqueta: 'Ver comanda' };
+      })
+    };
+  }
+
+  function fila(r) {
+    var tds = r.celdas.map(function (c) {
+      return `<td${attrClase(c.td)}><span${attrClase(c.cls)}>${esc(c.txt)}</span></td>`;
+    }).join('');
+    var cerrar = r.cerrable ? '<button type="button" class="btn bo" style="min-height: 34px; padding: 0 12px; font-size: 13px">Cerrar</button>' : '';
+    return `<tr>
+${tds}
+<td style="text-align: right; white-space: nowrap">
+${cerrar}
+<button type="button" class="ib" aria-label="${esc(r.etiqueta)}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path></svg></button>
+</td>
+</tr>`;
+  }
+
+  function render() {
+    var v = vista();
+    var enComandas = state.tab === 'comandas';
+    document.getElementById('tabs').innerHTML = [['comandas', 'Comandas'], ['clientes', 'Clientes']].map(function (k) {
+      return `<button type="button" role="tab" class="${k[0] === state.tab ? 'tb on' : 'tb'}" data-tab="${k[0]}">${k[1]}</button>`;
+    }).join('\n');
+    document.getElementById('descripcion').textContent = v.descripcion;
+    document.getElementById('nueva-comanda').hidden = !enComandas;
+    document.getElementById('filtros-comandas').hidden = !enComandas;
+    document.getElementById('filtros-clientes').hidden = enComandas;
+    document.getElementById('filtros-estado').innerHTML = filtros.map(function (x) {
+      return `<button type="button" class="${x[0] === state.filtro ? 'sg on' : 'sg'}" data-filtro="${x[0]}">${x[1]}</button>`;
+    }).join('\n');
+    document.getElementById('columnas').innerHTML = v.columnas.map(function (c) {
+      return `<th${attrClase(c[1])}>${esc(c[0])}</th>`;
+    }).join('') + '\n<th><span style="position: absolute; left: -9999px">Acciones</span></th>';
+    document.getElementById('filas').innerHTML = v.filas.map(fila).join('\n');
+  }
+
+  document.addEventListener('click', function (ev) {
+    var el = ev.target.closest('[data-tab], [data-filtro]');
+    if (!el) return;
+    if (el.hasAttribute('data-tab')) state.tab = el.getAttribute('data-tab');
+    if (el.hasAttribute('data-filtro')) state.filtro = el.getAttribute('data-filtro');
+    render();
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

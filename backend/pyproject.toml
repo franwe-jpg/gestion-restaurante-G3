@@ -1,0 +1,186 @@
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["."]
+extend-exclude = ["alembic/versions"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",   # estilo PEP 8
+    "F",        # errores (imports sin usar, nombres no definidos)
+    "I",        # orden de imports
+    "N",        # nombres
+    "UP",       # sintaxis moderna de Python
+    "B",        # errores comunes
+    "C90",      # complejidad ciclomatica
+    "ANN",      # type hints
+    "S",        # seguridad (incluye SQL armado con texto)
+    "SIM",      # simplificaciones
+    "PLR0915",  # maximo de sentencias por funcion
+]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.pylint]
+max-statements = 50
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI usa Depends() y Query() como valores por defecto
+extend-immutable-calls = [
+    "fastapi.Depends", "fastapi.Query", "fastapi.Path", "fastapi.Body",
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "ANN"]   # assert y funciones de prueba sin tipos de retorno
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=app --cov-report=term-missing --cov-fail-under=70"
+
+[tool.coverage.run]
+source = ["app"]
+
+# Reglas de dependencia entre capas y modulos (S0-05, seccion 3.3). La CI las verifica con
+# lint-imports (D-04, RNF-MAN-01, RNF-MAN-09). Solo se controlan las importaciones directas
+# (allow_indirect_imports): una cadena valida como service -> service -> repository no es un error.
+[tool.importlinter]
+root_package = "app"
+include_external_packages = true   # necesario para controlar que service no importe FastAPI
+[[tool.importlinter.contracts]]
+name = "Otros modulos solo usan el service de atencion (RNF-MAN-09)"
+type = "forbidden"
+source_modules = [
+    "app.modules.menus",
+    "app.modules.pagos",
+    "app.modules.productos",
+    "app.modules.reservas",
+    "app.modules.salon",
+]
+forbidden_modules = [
+    "app.modules.atencion.router",
+    "app.modules.atencion.repository",
+    "app.modules.atencion.models",
+    "app.modules.atencion.schemas",
+]
+allow_indirect_imports = true
+[[tool.importlinter.contracts]]
+name = "Otros modulos solo usan el service de menus (RNF-MAN-09)"
+type = "forbidden"
+source_modules = [
+    "app.modules.atencion",
+    "app.modules.pagos",
+    "app.modules.productos",
+    "app.modules.reservas",
+    "app.modules.salon",
+]
+forbidden_modules = [
+    "app.modules.menus.router",
+    "app.modules.menus.repository",
+    "app.modules.menus.models",
+    "app.modules.menus.schemas",
+]
+allow_indirect_imports = true
+[[tool.importlinter.contracts]]
+name = "Otros modulos solo usan el service de pagos (RNF-MAN-09)"
+type = "forbidden"
+source_modules = [
+    "app.modules.atencion",
+    "app.modules.menus",
+    "app.modules.productos",
+    "app.modules.reservas",
+    "app.modules.salon",
+]
+forbidden_modules = [
+    "app.modules.pagos.router",
+    "app.modules.pagos.repository",
+    "app.modules.pagos.models",
+    "app.modules.pagos.schemas",
+]
+allow_indirect_imports = true
+[[tool.importlinter.contracts]]
+name = "Otros modulos solo usan el service de productos (RNF-MAN-09)"
+type = "forbidden"
+source_modules = [
+    "app.modules.atencion",
+    "app.modules.menus",
+    "app.modules.pagos",
+    "app.modules.reservas",
+    "app.modules.salon",
+]
+forbidden_modules = [
+    "app.modules.productos.router",
+    "app.modules.productos.repository",
+    "app.modules.productos.models",
+    "app.modules.productos.schemas",
+]
+allow_indirect_imports = true
+[[tool.importlinter.contracts]]
+name = "Otros modulos solo usan el service de reservas (RNF-MAN-09)"
+type = "forbidden"
+source_modules = [
+    "app.modules.atencion",
+    "app.modules.menus",
+    "app.modules.pagos",
+    "app.modules.productos",
+    "app.modules.salon",
+]
+forbidden_modules = [
+    "app.modules.reservas.router",
+    "app.modules.reservas.repository",
+    "app.modules.reservas.models",
+    "app.modules.reservas.schemas",
+]
+allow_indirect_imports = true
+[[tool.importlinter.contracts]]
+name = "Otros modulos solo usan el service de salon (RNF-MAN-09)"
+type = "forbidden"
+source_modules = [
+    "app.modules.atencion",
+    "app.modules.menus",
+    "app.modules.pagos",
+    "app.modules.productos",
+    "app.modules.reservas",
+]
+forbidden_modules = [
+    "app.modules.salon.router",
+    "app.modules.salon.repository",
+    "app.modules.salon.models",
+    "app.modules.salon.schemas",
+]
+allow_indirect_imports = true
+[[tool.importlinter.contracts]]
+name = "router no importa repository ni models (D-02, RNF-MAN-01)"
+type = "forbidden"
+source_modules = ["app.modules.*.router"]
+forbidden_modules = ["app.modules.*.repository", "app.modules.*.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "service no importa router ni FastAPI (RNF-MAN-01)"
+type = "forbidden"
+source_modules = ["app.modules.*.service"]
+forbidden_modules = ["app.modules.*.router", "fastapi"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "repository no importa router ni service (S0-05, 3.3)"
+type = "forbidden"
+source_modules = ["app.modules.*.repository"]
+forbidden_modules = ["app.modules.*.router", "app.modules.*.service"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "models solo importa shared (S0-05, 3.3)"
+type = "forbidden"
+source_modules = ["app.modules.*.models"]
+forbidden_modules = [
+    "app.modules.*.router",
+    "app.modules.*.service",
+    "app.modules.*.repository",
+    "app.modules.*.schemas",
+]
+allow_indirect_imports = true

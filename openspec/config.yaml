@@ -1,0 +1,75 @@
+schema: spec-driven
+
+context: |
+  Proyecto: sistema de gestión de restaurante (ISFPP 2026, UNPSJB), monorepo con 6 módulos (M1 a M6), uno por integrante.
+  Backend (backend/): Python 3.12, FastAPI, SQLAlchemy 2, Alembic, SQLite, Pydantic Settings. Capas router -> service -> repository -> models.
+  Frontend (frontend/): React 19, TypeScript, Vite, React Router, Tailwind 4. Estructura por módulo: pages, components, api.ts, types.ts.
+  Pruebas: backend pytest + pytest-cov (>= 70 %); frontend Vitest + Testing Library + jsdom (>= 60 %).
+  Estilo: ruff (lint y formato) en el backend; ESLint (--max-warnings=0) y Prettier en el frontend. Nombres de negocio en español, palabras técnicas en inglés.
+  Reglas del proyecto: AGENTS.md (raíz). Arquitectura: SPRINT-0/S0-05-arquitectura.md. RNF: SPRINT-0/S0-04-rnf.md. Estándares: SPRINT-1/S1-02 y S1-03.
+  Idioma de los artefactos: español neutro y profesional (proposal, specs, design, tasks); los identificadores de código siguen los estándares.
+  Cada cambio de SDD se llama como la HU (por ejemplo, HU-M5-01), o con todos los números si agrupa el ABM y el listado de una misma entidad con un mismo responsable (por ejemplo, HU-M1-02-03; AGENTS.md, sección 4).
+
+strict_tdd: true
+
+testing:
+  strict_tdd: true
+  detected: 2026-10-21
+  backend:
+    working_dir: backend
+    runner: pytest
+    command: pytest
+    coverage: { available: true, tool: pytest-cov, command: "pytest (addopts --cov=app --cov-fail-under=70)", threshold: 70 }
+    linter: "ruff check ."
+    formatter: "ruff format --check ."
+    type_checker: null
+    import_contracts: "lint-imports (import-linter; contratos en backend/pyproject.toml)"
+  frontend:
+    working_dir: frontend
+    runner: vitest
+    command: "npm test"
+    coverage: { available: true, tool: "@vitest/coverage-v8", command: "npm run test:coverage", threshold: 60 }
+    linter: "npm run lint"
+    formatter: "npm run format:check"
+    type_checker: "npm run typecheck"
+    build: "npm run build"
+  layers:
+    unit: { available: true, tool: "pytest, vitest" }
+    integration: { available: true, tool: "httpx (TestClient), Testing Library" }
+    e2e: { available: false, tool: null }
+
+rules:
+  proposal:
+    - Escribir en español neutro y profesional.
+    - Nombrar el cambio como la HU (HU-Mx-nn) o como el grupo ABM (HU-Mx-nn-nn) y enlazar cada issue.
+    - Incluir plan de reversión si el cambio toca el esquema de la base de datos.
+  specs:
+    - Escribir en español neutro; usar palabras clave RFC 2119 (DEBE, NO DEBE, DEBERÍA, PUEDE) y escenarios Dado/Cuando/Entonces.
+    - Definir el contrato de la API (rutas, schemas, códigos de estado), los datos y un escenario por criterio de aceptación.
+    - Usar los nombres de entidades del diagrama de clases; marcar lo no definido como "Supuesto:".
+  design:
+    - Respetar capas router -> service -> repository -> models y los contratos de importación entre módulos (S0-05 sección 3.3).
+    - 'Errores con formato {"detalle": "mensaje"} y códigos 404, 409 o 422; listados paginados con shared/paginacion.py.'
+    - Documentar decisiones con su justificación y referenciar las D-xx de S0-05.
+  tasks:
+    - Agrupar por fase con numeración jerárquica; cada tarea completable en una sesión.
+    - Incluir una prueba por criterio de aceptación (camino feliz y error o límite).
+    - Incluir el pronóstico del presupuesto de revisión, separado por lado - 800 líneas en frontend/ y 800 en backend/ (punto de control, no bloqueo; la HU nunca se divide en varios PR).
+    - Trabajar solo dentro del módulo de la persona; avisar si hace falta tocar shared/ u otro módulo.
+  apply:
+    guidelines:
+      - Seguir los estándares S1-02 (frontend) y S1-03 (backend) y los patrones existentes.
+      - Funciones de hasta 50 líneas y complejidad ciclomática 10.
+      - No bajar umbrales ni desactivar reglas de lint o de CI; sin secretos; dependencias con versión exacta.
+    tdd: true
+    test_command: "backend: pytest | frontend: npm test"
+  verify:
+    test_command: "backend: pytest | frontend: npm run test:coverage"
+    build_command: "frontend: npm run build"
+    quality_commands:
+      - "backend: ruff check . && ruff format --check ."
+      - "frontend: npm run lint && npm run format:check && npm run typecheck"
+    coverage_threshold: 70   # backend; el frontend exige 60
+  archive:
+    - Advertir antes de fusionar deltas destructivos.
+    - No modificar cambios archivados.

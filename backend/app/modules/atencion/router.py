@@ -1,0 +1,1 @@
+"""atencion: endpoints HTTP."""
