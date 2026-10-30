@@ -3,7 +3,7 @@
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.modules.salon.models import Mesa, Sector
+from app.modules.salon.models import Mesa, Mozo, Sector
 from app.shared.models import Estado
 from app.shared.paginacion import ParametrosPaginacion, aplicar, contar
 
@@ -72,3 +72,29 @@ def listar_mesas(
     ordenada = consulta.order_by(Sector.nombre, Mesa.numero, Mesa.id)
     filas = db.execute(aplicar(ordenada, parametros)).all()
     return [(mesa, sector) for mesa, sector in filas], contar(db, select(Mesa.id))
+
+
+def existe_dni(db: Session, dni: str, excluir_id: int | None = None) -> bool:
+    consulta = select(Mozo.id).where(Mozo.dni == dni)
+    if excluir_id is not None:
+        consulta = consulta.where(Mozo.id != excluir_id)
+    return db.scalar(consulta.limit(1)) is not None
+
+
+def obtener_mozo(db: Session, mozo_id: int) -> Mozo | None:
+    return db.get(Mozo, mozo_id)
+
+
+def listar_mozos(
+    db: Session, parametros: ParametrosPaginacion, estado: Estado | None
+) -> tuple[list[Mozo], int]:
+    """Devuelve la página de mozos ordenada por apellido y nombre, y el total.
+
+    Con `estado`, el listado y el total cuentan solo los mozos en ese estado.
+    """
+    consulta = select(Mozo)
+    if estado is not None:
+        consulta = consulta.where(Mozo.estado == estado)
+    consulta_ordenada = consulta.order_by(Mozo.apellido, Mozo.nombre, Mozo.id)
+    filas = db.scalars(aplicar(consulta_ordenada, parametros)).all()
+    return list(filas), contar(db, consulta)
