@@ -7,6 +7,7 @@ from app.modules.salon.schemas import (
     MesaCrear,
     MesaSalida,
     SectorCrear,
+    SectorModificar,
     SectorResumen,
     SectorSalida,
 )
@@ -98,6 +99,63 @@ def test_sector_salida_expone_id_nombre_descripcion_y_estado() -> None:
         "descripcion": None,
         "estado": "HABILITADO",
     }
+
+
+# --- HU-M3-02: esquema de modificacion de sector ---
+
+
+def _modificar(**cambios) -> SectorModificar:
+    return SectorModificar.model_validate({"nombre": "Terraza"} | cambios)
+
+
+def _campos_modificar_con_error(**cambios) -> set[str]:
+    with pytest.raises(ValidationError) as error:
+        _modificar(**cambios)
+    return {str(falla["loc"][0]) for falla in error.value.errors()}
+
+
+def test_sector_modificar_hereda_las_reglas_del_alta() -> None:
+    assert issubclass(SectorModificar, SectorCrear)
+    assert set(SectorModificar.model_fields) == {"nombre", "descripcion"}
+
+
+# CA 2
+def test_sector_modificar_exige_el_nombre() -> None:
+    with pytest.raises(ValidationError) as error:
+        SectorModificar.model_validate({})
+
+    assert {str(falla["loc"][0]) for falla in error.value.errors()} == {"nombre"}
+
+
+@pytest.mark.parametrize("nombre", ["", "   "], ids=["vacio", "solo-espacios"])
+def test_sector_modificar_rechaza_nombre_vacio(nombre: str) -> None:
+    assert _campos_modificar_con_error(nombre=nombre) == {"nombre"}
+
+
+def test_sector_modificar_recorta_y_mide_el_nombre() -> None:
+    assert _modificar(nombre="  Terraza  ").nombre == "Terraza"
+    assert _modificar(nombre="a" * 30).nombre == "a" * 30
+    assert _campos_modificar_con_error(nombre="a" * 31) == {"nombre"}
+
+
+@pytest.mark.parametrize("descripcion", ["", "   ", None])
+def test_sector_modificar_convierte_descripcion_vacia_en_none(descripcion: str | None) -> None:
+    assert _modificar(descripcion=descripcion).descripcion is None
+
+
+def test_sector_modificar_recorta_la_descripcion_y_rechaza_201() -> None:
+    assert _modificar(descripcion="  Al aire libre  ").descripcion == "Al aire libre"
+    assert _campos_modificar_con_error(descripcion="a" * 201) == {"descripcion"}
+
+
+# CA 6 y M6: el estado no se recibe
+@pytest.mark.parametrize(
+    "campo, valor",
+    [("estado", "DESHABILITADO"), ("id", 1)],
+    ids=["estado", "id"],
+)
+def test_sector_modificar_rechaza_campos_desconocidos(campo: str, valor: object) -> None:
+    assert _campos_modificar_con_error(**{campo: valor}) == {campo}
 
 
 # --- HU-M3-05: esquemas de mesa ---
