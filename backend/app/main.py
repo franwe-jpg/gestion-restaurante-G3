@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import API_PREFIX, get_settings
+from app.modules.atencion.router import router as atencion_router
 from app.modules.menus.router import router as menus_router
 from app.modules.productos.router import router as productos_router
 from app.modules.reservas.router import router as reservas_router
@@ -25,6 +26,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(atencion_router, prefix=API_PREFIX)
 app.include_router(menus_router, prefix=API_PREFIX)
 app.include_router(productos_router, prefix=API_PREFIX)
 app.include_router(salon_router, prefix=API_PREFIX)

@@ -5,12 +5,13 @@ from collections.abc import Callable
 import pytest
 from sqlalchemy.orm import Session
 
-from app.modules.salon.models import Mesa, Sector
+from app.modules.salon.models import Mesa, Mozo, Sector
 from app.shared.models import Estado
 from app.shared.models.enums import EstadoMesa
 
 FabricaSector = Callable[..., Sector]
 FabricaMesa = Callable[..., Mesa]
+FabricaMozo = Callable[..., Mozo]
 
 
 @pytest.fixture
@@ -45,5 +46,28 @@ def fabrica_mesa(db: Session) -> FabricaMesa:
         db.add(mesa)
         db.commit()
         return mesa
+
+    return crear
+
+
+@pytest.fixture
+def fabrica_mozo(db: Session) -> FabricaMozo:
+    def crear(
+        dni: str = "30123456",
+        nombre: str = "Juan",
+        apellido: str = "Fernández",
+        telefono: str | None = None,
+        estado: Estado = Estado.HABILITADO,
+    ) -> Mozo:
+        mozo = Mozo(
+            dni=dni,
+            nombre=nombre,
+            apellido=apellido,
+            telefono=telefono,
+            estado=estado,
+        )
+        db.add(mozo)
+        db.commit()
+        return mozo
 
     return crear

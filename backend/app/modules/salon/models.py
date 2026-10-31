@@ -30,6 +30,23 @@ class Sector(Base):
         return nombre
 
 
+class Mozo(Base):
+    __tablename__ = "mozos"
+    __table_args__ = (
+        # A1: el DNI identifica a la persona y no se repite.
+        sa.UniqueConstraint("dni", name="ux_mozos_dni"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    dni: Mapped[str] = mapped_column(sa.String(8))
+    nombre: Mapped[str] = mapped_column(sa.String(60))
+    apellido: Mapped[str] = mapped_column(sa.String(60))
+    telefono: Mapped[str | None] = mapped_column(sa.String(30))
+    estado: Mapped[Estado] = mapped_column(
+        sa.Enum(Estado, native_enum=False), default=Estado.HABILITADO
+    )
+
+
 class Mesa(Base):
     __tablename__ = "mesas"
     __table_args__ = (

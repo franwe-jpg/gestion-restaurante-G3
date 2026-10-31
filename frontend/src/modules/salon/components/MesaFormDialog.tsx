@@ -5,11 +5,13 @@ import { FormField } from '../../../shared/components/ui/form-field';
 import { Input } from '../../../shared/components/ui/input';
 import { Select } from '../../../shared/components/ui/select';
 import { Spinner } from '../../../shared/components/ui/spinner';
+import type { Mesa } from '../types';
 
 import { useFormularioMesa } from './useFormularioMesa';
 
 export interface MesaFormDialogProps {
-  onCreado: () => void;
+  mesa?: Mesa | null;
+  onGuardado: () => void;
   onOpenChange: (abierto: boolean) => void;
   onCrearSector?: () => void;
 }
@@ -57,10 +59,11 @@ function CamposNumericos({ formulario }: { formulario: Formulario }) {
 interface CamposMesaProps {
   formulario: Formulario;
   sinSectores: boolean;
+  esEdicion: boolean;
   onCrearSector?: () => void;
 }
 
-function CamposMesa({ formulario, sinSectores, onCrearSector }: CamposMesaProps) {
+function CamposMesa({ formulario, sinSectores, esEdicion, onCrearSector }: CamposMesaProps) {
   const { errores } = formulario;
 
   return (
@@ -91,23 +94,31 @@ function CamposMesa({ formulario, sinSectores, onCrearSector }: CamposMesaProps)
         </Select>
       </FormField>
       <CamposNumericos formulario={formulario} />
-      <p className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-600">
-        La mesa se crea en estado <strong>Libre</strong>.
-      </p>
+      {!esEdicion && !sinSectores && (
+        <p className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-600">
+          La mesa se crea en estado <strong>Libre</strong>.
+        </p>
+      )}
     </div>
   );
 }
 
-/** Se monta solo mientras está abierto: cada apertura empieza con los campos vacíos. */
-export function MesaFormDialog({ onCreado, onOpenChange, onCrearSector }: MesaFormDialogProps) {
-  const formulario = useFormularioMesa({ onCreado });
+/** Se monta solo mientras está abierto: cada apertura parte de los datos de la mesa o vacía. */
+export function MesaFormDialog({
+  mesa = null,
+  onGuardado,
+  onOpenChange,
+  onCrearSector,
+}: MesaFormDialogProps) {
+  const formulario = useFormularioMesa({ mesa, onGuardado });
   const sinSectores = !formulario.cargandoSectores && formulario.sectores.length === 0;
+  const esEdicion = mesa !== null;
 
   return (
     <Dialog
       open
       onOpenChange={onOpenChange}
-      title="Nueva mesa"
+      title={esEdicion ? 'Editar mesa' : 'Nueva mesa'}
       description="El estado de la mesa lo asigna el sistema."
       footer={
         <>
@@ -118,7 +129,7 @@ export function MesaFormDialog({ onCreado, onOpenChange, onCrearSector }: MesaFo
             onClick={() => void formulario.enviar()}
             disabled={formulario.enviando || sinSectores}
           >
-            Guardar mesa
+            {esEdicion ? 'Guardar cambios' : 'Guardar mesa'}
           </Button>
         </>
       }
@@ -129,6 +140,7 @@ export function MesaFormDialog({ onCreado, onOpenChange, onCrearSector }: MesaFo
         <CamposMesa
           formulario={formulario}
           sinSectores={sinSectores}
+          esEdicion={esEdicion}
           onCrearSector={onCrearSector}
         />
       )}

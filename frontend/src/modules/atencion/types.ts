@@ -7,3 +7,21 @@ export interface Comanda {
   estado: EstadoComanda;
   itemsCount: number;
 }
+
+export interface Cliente {
+  id: number;
+  nombre: string;
+  telefono: string;
+}
+
+export interface ClienteModificar {
+  nombre: string;
+  telefono: string;
+}
+
+export interface PaginaCliente {
+  items: Cliente[];
+  total: number;
+  limit: number;
+  offset: number;
+}

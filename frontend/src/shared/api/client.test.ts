@@ -167,6 +167,19 @@ describe('ClienteApi', () => {
     });
   });
 
+  it('envia un DELETE y trata el 204 como éxito sin cuerpo', async () => {
+    vi.stubEnv('VITE_API_URL', 'http://api.test');
+    const fetchMock = vi.fn().mockResolvedValue(respuestaJson(null, 204, 'No Content'));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const respuesta = await new ClienteApi().delete('/mesas/3');
+
+    expect(respuesta).toEqual({ datos: null, exito: true });
+    expect(fetchMock).toHaveBeenCalledWith('http://api.test/api/v1/mesas/3', {
+      method: 'DELETE',
+    });
+  });
+
   it('envia un formulario con PUT y sin Content-Type', async () => {
     vi.stubEnv('VITE_API_URL', 'http://api.test');
     const fetchMock = vi.fn().mockResolvedValue(respuestaJson({ id: 7 }));
