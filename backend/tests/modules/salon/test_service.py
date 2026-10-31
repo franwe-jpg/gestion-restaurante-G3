@@ -560,3 +560,58 @@ def test_modificar_mesa_con_numero_repetido_es_regla_de_negocio(
 def test_modificar_mesa_inexistente_es_no_encontrado(db: Session) -> None:
     with pytest.raises(NoEncontradoError, match="La mesa 999 no existe"):
         service.modificar_mesa(db, 999, MesaModificar(numero=1, capacidad=2, sector_id=1))
+
+
+# HU-M4-04: consulta y ocupación de una mesa para atencion
+def test_obtener_mesa_existente(db: Session, fabrica_sector, fabrica_mesa) -> None:
+    salon = fabrica_sector("Salón principal")
+    mesa = fabrica_mesa(salon, numero=5, capacidad=4)
+
+    salida = service.obtener_mesa(db, mesa.id)
+
+    assert salida.id == mesa.id
+    assert salida.numero == 5
+    assert salida.capacidad == 4
+    assert salida.sector.nombre == "Salón principal"
+    assert salida.estado == EstadoMesa.LIBRE
+    assert db.get(Mesa, mesa.id).estado == EstadoMesa.LIBRE
+
+
+def test_obtener_mesa_inexistente(db: Session) -> None:
+    with pytest.raises(NoEncontradoError, match="La mesa 999 no existe"):
+        service.obtener_mesa(db, 999)
+
+
+def test_ocupar_mesa_libre_confirmada(db: Session, fabrica_sector, fabrica_mesa) -> None:
+    mesa = fabrica_mesa(fabrica_sector("Salón principal"), numero=5)
+
+    service.ocupar_mesa(db, mesa.id)
+    db.commit()
+
+    assert db.get(Mesa, mesa.id).estado == EstadoMesa.OCUPADA
+
+
+def test_ocupar_mesa_rollback_la_deja_libre(db: Session, fabrica_sector, fabrica_mesa) -> None:
+    mesa = fabrica_mesa(fabrica_sector("Salón principal"), numero=5)
+
+    service.ocupar_mesa(db, mesa.id)
+    db.rollback()
+
+    assert db.get(Mesa, mesa.id).estado == EstadoMesa.LIBRE
+
+
+@pytest.mark.parametrize("estado_inicial", [EstadoMesa.OCUPADA, EstadoMesa.FUERA_DE_SERVICIO])
+def test_ocupar_mesa_no_libre_lanza_regla_de_negocio(
+    db: Session, fabrica_sector, fabrica_mesa, estado_inicial: EstadoMesa
+) -> None:
+    mesa = fabrica_mesa(fabrica_sector("Salón principal"), numero=7, estado=estado_inicial)
+
+    with pytest.raises(ReglaDeNegocioError, match="La mesa 7 no está libre"):
+        service.ocupar_mesa(db, mesa.id)
+
+    assert db.get(Mesa, mesa.id).estado == estado_inicial
+
+
+def test_ocupar_mesa_inexistente(db: Session) -> None:
+    with pytest.raises(NoEncontradoError, match="La mesa 999 no existe"):
+        service.ocupar_mesa(db, 999)
