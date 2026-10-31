@@ -210,9 +210,11 @@ El script `SPRINT-0/cargar_github.py` hizo la carga inicial de issues y no se vu
 | Sprint 0 | 24/09 – 07/10 (2 semanas) | Planificación y Gestión, RNF, arquitectura y diagrama de clases | G0 · 07/10 |
 | Sprint 1 | 08/10 – 21/10 (2 semanas) | Estimación por PF (PFNA, 14 factores, LDC, esfuerzo y cotización), estándares de codificación, `AGENTS.md` y `CLAUDE.md`, esqueletos, criterios de conformidad, diseño de pruebas, GitFlow y CI | G1 · 21/10 |
 | Sprint 2 | 22/10 – 28/10 (1 semana) | Implementación: entidades base y ABM de cada módulo, con tests | — |
-| Sprint 3 | 29/10 – 04/11 (1 semana) | Implementación: flujos (comanda, reserva, facturación, promociones) | G2 · 04/11 |
-| Sprint 4 | 05/11 – 11/11 (1 semana) | Implementación: reportes, integración entre módulos y correcciones | — |
-| Cierre | 12/11 – 15/11 (4 días) | Métricas LDC vs. estimación, análisis estático, retrospectiva de riesgos y entrega | Entrega · 15/11 (a confirmar) |
+| Sprint 3 | 31/10 – 06/11 (1 semana) | Implementación: flujos (comanda, reserva, facturación, promociones) | G2 · 06/11 |
+| Sprint 4 | 07/11 – 13/11 (1 semana) | Implementación: reportes, integración entre módulos y correcciones | — |
+| Cierre | 14/11 – 15/11 (2 días) | Métricas LDC vs. estimación, análisis estático, retrospectiva de riesgos y entrega | Entrega · 15/11 (a confirmar) |
+
+El Sprint 2 se subestimó y terminó un día después de lo previsto. Eso dejó poco tiempo para completar sus cards, así que el 30/10 se usó para terminarlas y el Sprint 3 empieza el 31/10. El Sprint 3 y el Sprint 4 se corren dos días, y el Cierre pasa de 4 a 2 días para que la entrega siga siendo el 15/11. El equipo aceptó achicar el Cierre.
 
 En todas las etapas se mantiene la división por módulos: en el Sprint 1 cada uno cuenta los Puntos de Función de su módulo, y en la implementación cada uno construye y prueba el suyo.
 
@@ -271,3 +273,55 @@ Las dependencias salen de los datos de las HU: un Menú se arma con productos y 
 - [ ] Comanda permite crear, listar y cerrar, y su contrato está publicado (riesgo R04).
 - [ ] Los supuestos y la fecha de entrega están confirmados con los docentes, o está anotado qué falta (riesgos R06 y R20).
 - [ ] Informe del Sprint 2 con burndown.
+
+### Tareas del Sprint 3
+
+Las 7 tareas del Sprint 3 (31/10 – 06/11) están en la hoja «Sprint 3» de `G3_Backlog.xlsx`. Es el sprint de los flujos: el ciclo de la comanda, las cancelaciones y la comanda desde una reserva, la factura, el cobro y el comprobante, y las promociones. También se terminan las HU que quedaron pendientes del Sprint 2: el cliente (M4), el ABM de reservas (M5) y los medios de pago (M6). El sprint cierra con el gateway G2 el 06/11.
+
+| ID | Tarea | Responsable | Depende de | Semana |
+| --- | --- | --- | --- | --- |
+| S3-01 | Plan y mensaje del Sprint 3 | Franco Martín Soler | — | 1 |
+| S3-M1 | Crear, marcar como entregado y cerrar la comanda | Franco Martín Soler | S3-M4 (cliente) | 1 |
+| S3-M2 | Promociones | Joaquín Cardoso Díaz | — | 1 |
+| S3-M3 | Modificar y reabrir la comanda, y cobrar una factura adeudada | Giuliano Giannoncelli | S3-M1 (crear y cerrar comanda), S3-M6 (factura) | 1 |
+| S3-M4 | Cliente, listar y eliminar comandas | Juan Ignacio Riquelme | S3-M1 (crear comanda) | 1 |
+| S3-M5 | ABM de reservas, cancelaciones y comanda desde una reserva | Federico Cabaña | S3-M4 (cliente), S3-M1 (crear comanda) | 1 |
+| S3-M6 | Medios de pago, factura y comprobante | Héctor Sánchez | S3-M1 (cerrar comanda), S3-M3 (cobro) | 1 |
+
+Las dependencias son entre HU, no entre cards completas: por eso S3-M1 y S3-M4, o S3-M3 y S3-M6, dependen una de otra sin bloquearse. Cada card dice qué HU espera a cuál.
+
+Reparto de las HU (26 en total). Los reportes (HU-M1-15, HU-M2-10, HU-M3-13, HU-M4-11, HU-M5-07 y HU-M6-08) quedan para el Sprint 4.
+
+| Responsable | HU del Sprint 3 | Cantidad |
+| --- | --- | --- |
+| Franco Martín Soler | HU-M4-04, HU-M4-08 y HU-M4-09 (reasignadas de M4) | 3 |
+| Joaquín Cardoso Díaz | HU-M2-07 a HU-M2-09 | 3 |
+| Giuliano Giannoncelli | HU-M4-05 y HU-M4-10 (reasignadas de M4) y HU-M6-02 (reasignada de M6) | 3 |
+| Juan Ignacio Riquelme | HU-M4-01 a HU-M4-03 (pendientes del Sprint 2), HU-M4-06 y HU-M4-07 | 5 |
+| Federico Cabaña | HU-M5-01 a HU-M5-03 (pendientes del Sprint 2) y HU-M5-04 a HU-M5-06 | 6 |
+| Héctor Sánchez | HU-M6-04 a HU-M6-07 (pendientes del Sprint 2), HU-M6-01 y HU-M6-03 | 6 |
+
+**Decisión del equipo: reasignar HU fuera de su módulo.** Al cierre del Sprint 2, M1 y M3 tienen su ABM terminado, y M4, M5 y M6 tienen HU pendientes. Para que nadie espere a otro, Franco (M1) y Giuliano (M3) toman el camino crítico de la comanda, y Juan (M4) y Federico (M5) quedan con la carga más liviana y al final de la cadena de dependencias. Se reasignan 6 HU: cinco de M4 (HU-M4-04, 08 y 09 a Franco; HU-M4-05 y 10 a Giuliano) y una de M6 (HU-M6-02 a Giuliano).
+
+- La regla «no tocar módulos ajenos» (`AGENTS.md`, regla 9.3) se respeta por acuerdo con el responsable del módulo. `Supuesto:` la reasignación necesita el acuerdo de Juan (M4) y de Héctor (M6); si alguno no está de acuerdo, se avisa en la daily y se vuelve a repartir.
+- `Supuesto:` el responsable del módulo revisa la spec y el pull request de cada HU reasignada, para que el módulo siga siendo coherente.
+- Las métricas LDC del Cierre registran quién implementó cada HU, para no atribuir al responsable del módulo un esfuerzo que hizo otro integrante.
+
+### Camino crítico del Sprint 3
+
+1. **Día 1 (31/10), sin bloqueos.** Juan integra el cliente (PR #196) en `develop`; con eso, Federico actualiza su rama con `develop` y abre el pull request del ABM de reservas. Antes, Federico cambia el `down_revision` de su migración `f1e2d3c4b5a6_crea_reservas` de `d6b7c8e9f0a1` a `0e9f2fe2e157`, que es la cabeza actual de Alembic en `develop`. En paralelo, Franco empieza crear comanda, Héctor los medios de pago, Joaquín las promociones y Giuliano escribe sus specs.
+2. **Crear comanda (HU-M4-04, Franco)** destraba listar y eliminar comandas (Juan), modificar la comanda (Giuliano) y la comanda desde una reserva (Federico).
+3. **Marcar como entregado y cerrar (HU-M4-08 y HU-M4-09, Franco)** destraban la factura (Héctor) y reabrir la comanda (Giuliano). Marcar como entregado va antes que cerrar porque el contrato de Comanda (supuesto A02 de `openspec/changes/S2-01-contrato-comanda/`) no deja cerrar una comanda con productos sin entregar.
+4. **Factura (HU-M6-01, Héctor) → cobro (HU-M6-02, Giuliano) → comprobante (HU-M6-03, Héctor).**
+
+Las promociones (M2) no bloquean a nadie: la comanda funciona sin ellas. Mientras una HU espera algo de otro, se escribe su spec y sus pruebas, y se sigue con esa HU solo cuando lo que falta está en `develop`. Si una dependencia se demora, se avisa a su responsable y en la daily.
+
+### Criterios de cierre del Sprint 3 (06/11, gateway G2)
+
+- [ ] Comanda permite crear, marcar un producto como entregado, cerrar y listar, en `develop` con sus pruebas.
+- [ ] Reserva tiene su ABM, las cancelaciones (anticipada y por ausencia) y la comanda a partir de una reserva, en `develop`.
+- [ ] Pagos tiene los medios de pago, la factura, el cobro y el comprobante, en `develop`.
+- [ ] Las promociones están en `develop`.
+- [ ] La CI está en verde y la cobertura cumple RNF-MAN-04 (70 % en el backend y 60 % en el frontend).
+- [ ] Está registrado quién implementó cada HU reasignada, para las métricas LDC del Cierre.
+- [ ] Informe del Sprint 3 con burndown.

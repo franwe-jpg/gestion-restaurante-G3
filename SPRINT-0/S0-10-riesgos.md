@@ -123,9 +123,9 @@ Dado que la entrega es el 15/11 y el Sprint 4 concentra reportes, integración e
 | Categoría | Proyecto |
 | P · I · E | 0,5 · 3 · 1,5 |
 | Por qué | P: sin semana de colchón después del Sprint 4. Impacto: defectos en flujos centrales sin tiempo de corrección dejan HU obligatorias fallando. |
-| Mitigación | Cada HU se entrega con sus pruebas en el mismo PR (RNF-MAN-04) y la CI corre la suite completa. En G2 (04/11) se corre un flujo completo reserva → comanda → factura → cobro con datos semilla; en el Sprint 4 solo se corrige. |
+| Mitigación | Cada HU se entrega con sus pruebas en el mismo PR (RNF-MAN-04) y la CI corre la suite completa. En G2 (06/11) se corre un flujo completo reserva → comanda → factura → cobro con datos semilla; en el Sprint 4 solo se corrige. |
 | Contingencia | Congelar funcionalidad nueva el 08/11 y dedicar el resto del Sprint 4 y el cierre a corregir flujos centrales; los reportes menos críticos se entregan con defectos conocidos documentados. |
-| Disparador | En G2 (04/11) el flujo completo no corre de punta a punta, o la cobertura queda bajo el umbral de RNF-MAN-04. |
+| Disparador | En G2 (06/11) el flujo completo no corre de punta a punta, o la cobertura queda bajo el umbral de RNF-MAN-04. |
 | Responsable | Giuliano Giannoncelli |
 
 ### R06 · Supuestos propios que la cátedra no confirma
@@ -174,7 +174,7 @@ Los planes completos de estos riesgos están en la planilla. Aquí se muestra qu
 | R17 | Baja de producto o sección que está en uso | 0,4 · 2 · 0,8 | Un listado de carta, promoción o menú muestra un producto deshabilitado, o un mozo reporta que un producto activo no aparece. | Franco Martín Soler |
 | R18 | Turno y franja horaria mal calculados en los reportes | 0,4 · 2 · 0,8 | En el Sprint 4 las pruebas del reporte fallan o el turno no coincide con comandas cargadas a mano. | Franco Martín Soler |
 | R19 | Reportes con resultados que no coinciden con los datos | 0,4 · 2 · 0,8 | La suma del reporte difiere de la suma de los registros de origen del conjunto de datos de prueba. | Giuliano Giannoncelli |
-| R20 | Fecha de entrega del 15/11 sin confirmar | 0,2 · 3 · 0,6 | La cátedra comunica una fecha anterior al 15/11, o no hay confirmación antes de G2 (04/11). | Joaquín Cardoso Díaz |
+| R20 | Fecha de entrega del 15/11 sin confirmar | 0,2 · 3 · 0,6 | La cátedra comunica una fecha anterior al 15/11, o no hay confirmación antes de G2 (06/11). | Joaquín Cardoso Díaz |
 | R21 | Factura duplicada para la misma comanda | 0,2 · 3 · 0,6 | Aparecen dos facturas para la misma comanda en el listado o en los datos de prueba. | Héctor Sánchez |
 | R22 | Cobro con medio de pago deshabilitado o eliminado | 0,3 · 2 · 0,6 | Un cobro queda registrado con un medio DESHABILITADO, o el reporte omite un medio eliminado. | Héctor Sánchez |
 | R23 | Fotos HEIC que no se ven en la carta | 0,3 · 2 · 0,6 | En las pruebas del Sprint 2 una foto HEIC subida desde el celular no se ve en Chrome o la conversión falla. | Franco Martín Soler |
