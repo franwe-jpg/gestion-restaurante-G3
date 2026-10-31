@@ -431,11 +431,17 @@ La lista DEBE ordenarse de forma ascendente por nombre del sector, `numero` e `i
 - CUANDO se hace `GET /reservas/mesas-disponibles`
 - ENTONCES responde 422 y el `detalle` nombra `hora`
 
-#### Escenario: Formato de fecha u hora inválido
+#### Escenario: Formato de fecha inválido
 
-- DADO `fecha=02/11/2026` o `fecha=2026-13-40`, u `hora=25:00`, `hora=9pm` o `hora=21:30:45`
-- CUANDO se hace `GET /reservas/mesas-disponibles`
-- ENTONCES responde 422 nombrando el campo inválido
+- DADO una `hora` válida (`hora=21:30`)
+- CUANDO se hace `GET /reservas/mesas-disponibles`, cada vez con una `fecha` distinta: `02/11/2026` y `2026-13-40`
+- ENTONCES cada pedido responde 422 con un detalle que nombra el campo `fecha`
+
+#### Escenario: Formato de hora inválido
+
+- DADO una `fecha` válida y posterior a hoy (`fecha=2026-11-02`)
+- CUANDO se hace `GET /reservas/mesas-disponibles`, cada vez con una `hora` distinta: `25:00`, `9pm` y `21:30:45` (los segundos distintos de cero no se aceptan, S16)
+- ENTONCES cada pedido responde 422 con un detalle que nombra el campo `hora`
 
 #### Escenario: Fecha anterior a hoy
 
@@ -1073,7 +1079,7 @@ El campo Mesa DEBE ser un selector que se llena con `GET /reservas/mesas-disponi
 
 - La lista se pide cuando Fecha y Hora pasan la validación local. Mientras alguna no la pase, el selector queda deshabilitado, sin opciones y sin pedir la lista.
 - Cada opción DEBE leerse «Sector · Mesa N (capacidad personas)», por ejemplo «Salón · Mesa 5 (4 personas)», y su valor DEBE ser el `id` de la mesa. Ese `id` es el `mesa_id` que se envía.
-- Mientras la lista se carga, el selector DEBE mostrar un estado de carga.
+- Mientras la lista se carga, el selector DEBE estar deshabilitado y mostrar «Cargando mesas…» como única opción.
 - Si la lista llega vacía, DEBE mostrar «No hay mesas disponibles para esa fecha y hora» y el botón «Guardar reserva» DEBE quedar deshabilitado.
 - Si la consulta falla, DEBE mostrar el mensaje de error de la API junto al campo Mesa y no ofrecer mesas.
 - Al cambiar Fecha u Hora, DEBE volver a pedir la lista. Si la mesa elegida ya no figura en la lista nueva, DEBE borrar la elección; si todavía figura, DEBE conservarla.
@@ -1146,7 +1152,8 @@ La lista es una ayuda: la API vuelve a verificar la mesa al guardar (S35). El pa
 
 - DADO el panel con Fecha y Hora válidas y una API que todavía no respondió
 - CUANDO se muestra el selector de Mesa
-- ENTONCES el selector muestra un estado de carga y no ofrece ninguna mesa para elegir
+- ENTONCES el selector está deshabilitado y su única opción dice «Cargando mesas…», sin ninguna mesa para elegir
+- Y el botón «Guardar reserva» sigue habilitado, pero pulsarlo no envía nada y marca el error de Mesa obligatoria (S34)
 
 #### Escenario: Sin mesas disponibles
 
