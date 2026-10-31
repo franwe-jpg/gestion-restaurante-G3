@@ -15,7 +15,7 @@ from app.database import crear_motor
 from app.modules.atencion.models import Cliente
 
 ALEMBIC_INI = Path(__file__).resolve().parents[3] / "alembic.ini"
-REVISION_ANTERIOR = "d6b7c8e9f0a1"
+REVISION_ANTERIOR = "0e9f2fe2e157"
 
 
 @pytest.fixture
@@ -118,7 +118,7 @@ def test_downgrade_elimina_clientes_y_conserva_tablas_previas(
     try:
         tablas = set(inspect(motor).get_table_names())
         assert "clientes" not in tablas
-        assert {"menus_ejecutivos", "mesas", "productos", "alembic_version"} <= tablas
+        assert {"menus_ejecutivos", "mesas", "mozos", "productos", "alembic_version"} <= tablas
     finally:
         motor.dispose()
 
