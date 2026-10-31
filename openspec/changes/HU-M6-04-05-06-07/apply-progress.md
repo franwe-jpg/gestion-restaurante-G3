@@ -19,5 +19,5 @@ El plan preveía dos escritores en paralelo. Los dos se detuvieron porque no pod
 
 ## Pendiente
 
-- Comprobación manual en el navegador (tarea 3.2).
+- Ninguno propio de esta HU. La comprobación manual en el navegador (tarea 3.2) se hizo y funcionó.
 - Escenarios diferidos al Sprint 3 (S5): ver `verify-report.md`.

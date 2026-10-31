@@ -53,4 +53,4 @@ Nota: AGENTS.md §4 fija un PR por cambio; el límite 800/800 es un punto de con
 ## Fase 3: Cierre
 
 - [x] 3.1 `apply-progress.md` y `verify-report.md`: un resultado por escenario y los diferidos (S5) marcados.
-- [ ] 3.2 Comprobación manual: levantar backend y frontend, crear, editar, deshabilitar, eliminar y listar desde `/pagos`.
+- [x] 3.2 Comprobación manual: levantar backend y frontend, crear, editar, deshabilitar, eliminar y listar desde `/pagos`.
