@@ -19,7 +19,7 @@ M3 (Mesa) y M4 (Cliente) todavía no exponen lo que M5 necesita. Por eso el mód
 ### Incluido
 
 - **Backend:** `models` (`Reserva` y enum `EstadoReserva` con `ACTIVA`, `ATENDIDA`, `CANCELADA_ANTICIPADA` y `CANCELADA_POR_AUSENCIA`), `schemas`, `repository`, `service` y `router` de `reservas`, y registro del `router` en `backend/app/main.py`.
-- **Migración Alembic** nueva sobre el head `d6b7c8e9f0a1` (menús de M2; antes `b2d4f6a8c0e1`), que crea la tabla de reservas.
+- **Migración Alembic** nueva sobre el head `e7a9c1d3f5b7` (clientes de M4; antes `b2d4f6a8c0e1`), que crea la tabla de reservas.
 - **Puente Mesa/Cliente** dentro de `reservas/`: una función o protocolo del `service` con una implementación stub, aislada y fácil de reemplazar.
 - **HU-M5-01:** crear una reserva (mesa, cliente, fecha, hora, cantidad de personas) que queda en estado `ACTIVA`.
 - **HU-M5-02:** consultar una reserva por id y modificar su fecha, hora y cantidad de personas. Las reglas del alta se revalidan sin contar la propia reserva. La mesa y el cliente no cambian.
@@ -80,7 +80,7 @@ M3 (Mesa) y M4 (Cliente) todavía no exponen lo que M5 necesita. Por eso el mód
 | Área | Impacto | Descripción |
 | --- | --- | --- |
 | `backend/app/modules/reservas/{models,schemas,repository,service,router}.py` | Nuevo (hoy solo docstrings) | Entidad, reglas, puente stub y API |
-| `backend/alembic/versions/<nueva>.py` | Nuevo | Tabla de reservas; `down_revision = d6b7c8e9f0a1` |
+| `backend/alembic/versions/<nueva>.py` | Nuevo | Tabla de reservas; `down_revision = e7a9c1d3f5b7` |
 | `backend/app/main.py` | Modificado | Registrar el `router` de reservas |
 | `backend/tests/modules/reservas/` | Nuevo | Pruebas de `service`, `router` y migración |
 | `backend/tests/modules/salon/test_migracion.py` | Modificado (mínimo; módulo de M3, avisar a Giuliano) | Anclar el `downgrade` a la revisión de M3 |
@@ -105,8 +105,8 @@ Los riesgos no llevan valores de probabilidad (AGENTS.md §9.9).
 El cambio **toca el esquema** (nueva migración Alembic):
 
 1. **Antes de integrar:** descartar la rama; `develop` no cambia.
-2. **Ya integrado en `develop`:** en cada base que haya aplicado la migración, ejecutar `alembic downgrade d6b7c8e9f0a1` desde `backend/` (bajar a `b2d4f6a8c0e1` borraría también las tablas de menús de M2). El `downgrade()` de la revisión borra la tabla de reservas (se pierden las reservas cargadas; exportarlas antes si hay datos que conservar). Después, revertir el merge en `develop` (`git revert -m 1 <merge>`), que también deshace el registro del `router`, el frontend y el ajuste de los tests de M3.
-3. **Verificación:** `alembic heads` muestra `d6b7c8e9f0a1` como único head, y `pytest` (incluido `salon/test_migracion.py`) queda en verde.
+2. **Ya integrado en `develop`:** en cada base que haya aplicado la migración, ejecutar `alembic downgrade e7a9c1d3f5b7` desde `backend/` (bajar a `b2d4f6a8c0e1` borraría también las tablas de menús, mozos y clientes de otros módulos). El `downgrade()` de la revisión borra la tabla de reservas (se pierden las reservas cargadas; exportarlas antes si hay datos que conservar). Después, revertir el merge en `develop` (`git revert -m 1 <merge>`), que también deshace el registro del `router`, el frontend y el ajuste de los tests de M3.
+3. **Verificación:** `alembic heads` muestra `e7a9c1d3f5b7` como único head, y `pytest` (incluido `salon/test_migracion.py`) queda en verde.
 
 El `downgrade()` de la migración se prueba en `backend/tests/modules/reservas/` (upgrade, downgrade y upgrade otra vez).
 

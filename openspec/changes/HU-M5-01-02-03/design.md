@@ -220,7 +220,7 @@ class Reserva(Base):
 
 ### Backend: migración (`backend/alembic/versions/d6f8a0c2e4b6_crea_reservas.py`)
 
-- `revision = "d6f8a0c2e4b6"`, `down_revision = "d6b7c8e9f0a1"` (menús de M2, head de `develop` al integrar), cabecera y constantes con el estilo de `b2d4f6a8c0e1_crea_mesas.py` (`ESTADO_RESERVA = sa.Enum("ACTIVA", "ATENDIDA", "CANCELADA_ANTICIPADA", "CANCELADA_POR_AUSENCIA", name="estadoreserva", native_enum=False)`, `CHECK_CANTIDAD`, `UNICO_ACTIVA`, `INDICE_FECHA`).
+- `revision = "d6f8a0c2e4b6"`, `down_revision = "e7a9c1d3f5b7"` (clientes de M4, head de `develop` al integrar), cabecera y constantes con el estilo de `b2d4f6a8c0e1_crea_mesas.py` (`ESTADO_RESERVA = sa.Enum("ACTIVA", "ATENDIDA", "CANCELADA_ANTICIPADA", "CANCELADA_POR_AUSENCIA", name="estadoreserva", native_enum=False)`, `CHECK_CANTIDAD`, `UNICO_ACTIVA`, `INDICE_FECHA`).
 - `upgrade()`: `op.create_table("reservas", ...)` con las siete columnas `nullable=False`, el `CheckConstraint` y la `PrimaryKeyConstraint`; luego `op.create_index(UNICO_ACTIVA, "reservas", ["mesa_id", "fecha", "hora"], unique=True, sqlite_where=sa.text("estado = 'ACTIVA'"))` y `op.create_index(INDICE_FECHA, "reservas", ["fecha", "hora"])`.
 - `downgrade()`: borra los dos índices y la tabla.
 - `backend/alembic/env.py:19` ya importa `app.modules.reservas.models`: no se modifica.
@@ -349,7 +349,7 @@ Cada prueba se escribe primero, se ve fallar (RED) y después se implementa (GRE
 | Service, HU-M5-03 | `test_service.py` | `test_listar_reservas_ordena_por_fecha_hora_e_id`, `test_listar_reservas_filtra_por_fecha`, `test_listar_reservas_filtra_por_estado`, `test_listar_reservas_pagina_y_cuenta_total`, `test_listar_reservas_sin_resultados_devuelve_pagina_vacia` |
 | Service, HU-M5-02 | `test_service.py` | `test_obtener_reserva_inexistente`, `test_modificar_reserva_cambia_fecha_hora_y_personas`, `test_modificar_reserva_conserva_mesa_y_cliente`, `test_modificar_reserva_no_choca_consigo_misma`, `test_modificar_reserva_rechaza_turno_de_otra_reserva`, `test_modificar_reserva_rechaza_reserva_no_activa`, `test_modificar_reserva_rechaza_fecha_pasada`, `test_modificar_reserva_acepta_una_cantidad_muy_grande_de_personas` (límite: 100 personas; S5), `test_modificar_reserva_inexistente` |
 | Router | `test_router.py` | `test_post_reservas_crea_y_devuelve_201`, `test_post_reservas_turno_ocupado_devuelve_409_con_detalle`, `test_post_reservas_fecha_pasada_devuelve_422`, `test_post_reservas_mesa_inexistente_devuelve_404`, `test_post_reservas_datos_invalidos_devuelve_422`, `test_post_reservas_cantidad_muy_grande_devuelve_201` (S5), `test_get_reservas_pagina_y_filtra`, `test_get_reservas_limit_fuera_de_rango_devuelve_422`, `test_get_reserva_por_id_devuelve_200`, `test_get_reserva_inexistente_devuelve_404`, `test_put_reserva_modifica_y_devuelve_200`, `test_put_reserva_cantidad_muy_grande_devuelve_200` (S5), `test_put_reserva_no_activa_devuelve_409` |
-| Migración | `test_migracion.py` | `test_upgrade_head_crea_reservas_con_una_sola_cabeza`, `test_upgrade_define_columnas_no_nulas_check_e_indices`, `test_upgrade_impone_el_check_de_cantidad_personas`, `test_upgrade_impide_dos_reservas_activas_en_el_mismo_turno` (R13 a nivel de base), `test_upgrade_permite_turno_repetido_si_una_no_esta_activa`, `test_downgrade_a_menus_elimina_reservas_y_conserva_mesas` (`command.downgrade(config, "d6b7c8e9f0a1")`), `test_downgrade_y_upgrade_de_nuevo_recrean_reservas` |
+| Migración | `test_migracion.py` | `test_upgrade_head_crea_reservas_con_una_sola_cabeza`, `test_upgrade_define_columnas_no_nulas_check_e_indices`, `test_upgrade_impone_el_check_de_cantidad_personas`, `test_upgrade_impide_dos_reservas_activas_en_el_mismo_turno` (R13 a nivel de base), `test_upgrade_permite_turno_repetido_si_una_no_esta_activa`, `test_downgrade_a_clientes_elimina_reservas_y_conserva_mesas` (`command.downgrade(config, "e7a9c1d3f5b7")`), `test_downgrade_y_upgrade_de_nuevo_recrean_reservas` |
 
 Las pruebas de migración siguen el estilo de `backend/tests/modules/salon/test_migracion.py` (base propia en `tmp_path`, `get_settings.cache_clear()`, inserciones con `text()`). El índice parcial se prueba por comportamiento (inserción repetida → `IntegrityError`), no por reflexión, porque la reflexión de `sqlite_where` depende de la versión de SQLAlchemy.
 
@@ -432,7 +432,7 @@ La estimación es mayor que la de la propuesta (backend 650 a 800, frontend 750 
 
 ## Migración y puesta en marcha
 
-- Migración nueva `d6f8a0c2e4b6` sobre `d6b7c8e9f0a1`; reversión con `alembic downgrade d6b7c8e9f0a1` (borra la tabla y sus datos), como describe el plan de reversión de la propuesta.
+- Migración nueva `d6f8a0c2e4b6` sobre `e7a9c1d3f5b7`; reversión con `alembic downgrade e7a9c1d3f5b7` (borra la tabla y sus datos), como describe el plan de reversión de la propuesta.
 - Sin banderas de funcionalidad: el endpoint y la pantalla quedan activos al integrar.
 
 ## Preguntas abiertas

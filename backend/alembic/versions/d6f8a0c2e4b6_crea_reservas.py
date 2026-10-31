@@ -1,7 +1,7 @@
 """crea reservas
 
 Revision ID: d6f8a0c2e4b6
-Revises: d6b7c8e9f0a1
+Revises: e7a9c1d3f5b7
 Create Date: 2026-10-28 10:00:00.000000
 
 """
@@ -14,7 +14,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = "d6f8a0c2e4b6"
-down_revision: Union[str, Sequence[str], None] = "d6b7c8e9f0a1"
+down_revision: Union[str, Sequence[str], None] = "e7a9c1d3f5b7"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
