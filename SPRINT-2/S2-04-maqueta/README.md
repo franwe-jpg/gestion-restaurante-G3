@@ -14,6 +14,8 @@ La maqueta es una **guía, no un contrato**. Al implementar las pantallas de una
 - **Datos:** los nombres de campos y entidades salen del diagrama de clases y de la spec, no de los datos de ejemplo.
 - Si la pantalla se aparta de la maqueta, anotar la diferencia en el PR.
 
+**Diferencia conocida: formularios en un modal.** En la maqueta, los formularios de alta y edición se abren en una página aparte (`producto-nuevo.html`, `comanda-nueva.html`). En el sistema se abren en un modal sobre la misma página, con el componente `Dialog` de `frontend/src/shared/components/ui/dialog.tsx`, como `SeccionFormDialog`, `ProductoFormDialog`, `MesaFormDialog` o `ClienteFormDialog`. No se crean páginas ni rutas nuevas para un formulario.
+
 ## Cómo verla
 
 1. Abrir `index.html` en el navegador (doble clic). No hace falta instalar nada ni levantar un servidor.
