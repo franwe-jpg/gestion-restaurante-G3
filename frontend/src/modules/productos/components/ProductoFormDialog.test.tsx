@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { crearProducto, listarSeccionesHabilitadas } from '../api';
@@ -7,7 +7,7 @@ import { CONFIGURACIONES } from '../categorias';
 import type { CategoriaAlta } from '../categorias';
 import type { ProductoSalida, SeccionListado } from '../types';
 
-import { ProductoNuevoPage } from './ProductoNuevoPage';
+import { ProductoFormDialog } from './ProductoFormDialog';
 
 vi.mock('../api');
 
@@ -63,15 +63,26 @@ function secciones(items: SeccionListado[]) {
   });
 }
 
-async function abrir(categoria: CategoriaAlta) {
+const onGuardado = vi.fn();
+const onOpenChange = vi.fn();
+const onIrASecciones = vi.fn();
+
+function mostrar(categoria: CategoriaAlta) {
   render(
-    <MemoryRouter initialEntries={['/productos/nuevo']}>
-      <Routes>
-        <Route path="/productos/nuevo" element={<ProductoNuevoPage categoria={categoria} />} />
-        <Route path="/productos" element={<p>Listado de productos</p>} />
-      </Routes>
+    <MemoryRouter>
+      <ProductoFormDialog
+        categoria={categoria}
+        onGuardado={onGuardado}
+        onDadoDeBaja={vi.fn()}
+        onIrASecciones={onIrASecciones}
+        onOpenChange={onOpenChange}
+      />
     </MemoryRouter>,
   );
+}
+
+async function abrir(categoria: CategoriaAlta) {
+  mostrar(categoria);
   await screen.findByLabelText(/Nombre/);
 }
 
@@ -101,10 +112,10 @@ afterEach(() => {
   vi.resetAllMocks();
 });
 
-describe.each(CATEGORIAS)('ProductoNuevoPage %s: alta', (categoria) => {
+describe.each(CATEGORIAS)('ProductoFormDialog %s: alta', (categoria) => {
   const config = CONFIGURACIONES[categoria];
 
-  it('da de alta el mínimo, avisa y vuelve al listado (CA 1 y CA 14)', async () => {
+  it('da de alta el mínimo y avisa para cerrar el diálogo (CA 1 y CA 14)', async () => {
     secciones([PLATOS, ENTRADAS]);
     vi.mocked(crearProducto).mockResolvedValue({ datos: CREADO, exito: true });
     await abrir(categoria);
@@ -112,7 +123,7 @@ describe.each(CATEGORIAS)('ProductoNuevoPage %s: alta', (categoria) => {
 
     fireEvent.click(screen.getByRole('button', { name: config.botonGuardar }));
 
-    expect(await screen.findByText('Listado de productos')).toBeInTheDocument();
+    await waitFor(() => expect(onGuardado).toHaveBeenCalledTimes(1));
     expect(crearProducto).toHaveBeenCalledTimes(1);
     expect(crearProducto).toHaveBeenCalledWith(
       categoria,
@@ -149,7 +160,7 @@ describe.each(CATEGORIAS)('ProductoNuevoPage %s: alta', (categoria) => {
   });
 });
 
-describe.each(CATEGORIAS)('ProductoNuevoPage %s: validaciones', (categoria) => {
+describe.each(CATEGORIAS)('ProductoFormDialog %s: validaciones', (categoria) => {
   const config = CONFIGURACIONES[categoria];
 
   it('con campos vacíos no envía y marca cada campo obligatorio (CA 2)', async () => {
@@ -167,7 +178,7 @@ describe.each(CATEGORIAS)('ProductoNuevoPage %s: validaciones', (categoria) => {
     expect(crearProducto).not.toHaveBeenCalled();
   });
 
-  it('advierte el 409 de nombre repetido en el campo y no sale de la página (CA 3)', async () => {
+  it('advierte el 409 de nombre repetido en el campo y no cierra el diálogo (CA 3)', async () => {
     secciones([PLATOS]);
     vi.mocked(crearProducto).mockResolvedValue({
       datos: null,
@@ -180,13 +191,11 @@ describe.each(CATEGORIAS)('ProductoNuevoPage %s: validaciones', (categoria) => {
     fireEvent.click(screen.getByRole('button', { name: config.botonGuardar }));
 
     expect(await screen.findByText(config.nombreRepetido)).toBeInTheDocument();
-    expect(screen.queryByText('Listado de productos')).not.toBeInTheDocument();
+    expect(onGuardado).not.toHaveBeenCalled();
   });
 });
 
-describe.each(CATEGORIAS)('ProductoNuevoPage %s: formulario', (categoria) => {
-  const config = CONFIGURACIONES[categoria];
-
+describe.each(CATEGORIAS)('ProductoFormDialog %s: formulario', (categoria) => {
   it('muestra el estado fijo «Habilitado» sin control para cambiarlo (S10)', async () => {
     secciones([PLATOS]);
     await abrir(categoria);
@@ -208,14 +217,6 @@ describe.each(CATEGORIAS)('ProductoNuevoPage %s: formulario', (categoria) => {
       'Entradas',
     ]);
     expect(listarSeccionesHabilitadas).toHaveBeenCalledTimes(1);
-  });
-
-  it('muestra el título y las migas de la categoría', async () => {
-    secciones([PLATOS]);
-    await abrir(categoria);
-
-    expect(screen.getAllByText(config.titulo)).toHaveLength(2);
-    expect(screen.getByRole('button', { name: config.botonGuardar })).toBeInTheDocument();
   });
 
   it('rechaza un ingrediente repetido (CA 6)', async () => {
@@ -247,7 +248,46 @@ describe.each(CATEGORIAS)('ProductoNuevoPage %s: formulario', (categoria) => {
   });
 });
 
-describe.each(CATEGORIAS)('ProductoNuevoPage %s: sin secciones habilitadas', (categoria) => {
+describe.each(CATEGORIAS)('ProductoFormDialog %s: diálogo', (categoria) => {
+  const config = CONFIGURACIONES[categoria];
+
+  it('se abre como diálogo con el título de la categoría', async () => {
+    secciones([PLATOS]);
+    await abrir(categoria);
+
+    const dialogo = screen.getByRole('dialog', { name: config.titulo });
+    expect(within(dialogo).getByRole('button', { name: config.botonGuardar })).toBeInTheDocument();
+  });
+
+  it('«Cancelar» cierra el diálogo sin enviar nada', async () => {
+    secciones([PLATOS]);
+    await abrir(categoria);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(crearProducto).not.toHaveBeenCalled();
+  });
+
+  it('muestra «Cargando secciones...» con el botón de guardar deshabilitado', () => {
+    vi.mocked(listarSeccionesHabilitadas).mockReturnValue(new Promise(() => undefined));
+    mostrar(categoria);
+
+    expect(screen.getByText('Cargando secciones...')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: config.botonGuardar })).toBeDisabled();
+  });
+
+  it('«Ir a Secciones» pide pasar a la pestaña Secciones (CA 8)', async () => {
+    secciones([]);
+    mostrar(categoria);
+
+    fireEvent.click(await screen.findByRole('link', { name: 'Ir a Secciones' }));
+
+    expect(onIrASecciones).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe.each(CATEGORIAS)('ProductoFormDialog %s: sin secciones habilitadas', (categoria) => {
   const config = CONFIGURACIONES[categoria];
 
   const AVISO = 'Primero hay que crear una sección';
@@ -259,11 +299,7 @@ describe.each(CATEGORIAS)('ProductoNuevoPage %s: sin secciones habilitadas', (ca
     'avisa, enlaza a «Secciones» y deshabilita el botón de guardar si %s (CA 8)',
     async (_, items) => {
       secciones(items);
-      render(
-        <MemoryRouter>
-          <ProductoNuevoPage categoria={categoria} />
-        </MemoryRouter>,
-      );
+      mostrar(categoria);
 
       expect(await screen.findByText(AVISO)).toBeInTheDocument();
       expect(screen.getByText(config.avisoSinSecciones, { exact: false })).toBeInTheDocument();
@@ -289,18 +325,14 @@ describe.each(CATEGORIAS)('ProductoNuevoPage %s: sin secciones habilitadas', (ca
       exito: false,
       error: 'No se pudo conectar con el backend',
     });
-    render(
-      <MemoryRouter>
-        <ProductoNuevoPage categoria={categoria} />
-      </MemoryRouter>,
-    );
+    mostrar(categoria);
 
     expect(await screen.findByText('No se pudo conectar con el backend')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: config.botonGuardar })).toBeDisabled();
   });
 });
 
-describe('ProductoNuevoPage BEBIDA: ingredientes opcionales', () => {
+describe('ProductoFormDialog BEBIDA: ingredientes opcionales', () => {
   it('guarda sin ingredientes y los envía como lista vacía (S44)', async () => {
     secciones([PLATOS]);
     vi.mocked(crearProducto).mockResolvedValue({ datos: CREADO, exito: true });
@@ -311,7 +343,7 @@ describe('ProductoNuevoPage BEBIDA: ingredientes opcionales', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Guardar bebida' }));
 
-    expect(await screen.findByText('Listado de productos')).toBeInTheDocument();
+    await waitFor(() => expect(onGuardado).toHaveBeenCalledTimes(1));
     expect(crearProducto).toHaveBeenCalledWith(
       'BEBIDA',
       expect.objectContaining({ nombre: 'Limonada', ingredientes: [] }),
@@ -332,7 +364,7 @@ describe('ProductoNuevoPage BEBIDA: ingredientes opcionales', () => {
   });
 });
 
-describe.each(CATEGORIAS)('ProductoNuevoPage %s: ingredientes', (categoria) => {
+describe.each(CATEGORIAS)('ProductoFormDialog %s: ingredientes', (categoria) => {
   it('marca «Ingredientes» con asterisco solo si son obligatorios (S55)', async () => {
     secciones([PLATOS]);
     await abrir(categoria);

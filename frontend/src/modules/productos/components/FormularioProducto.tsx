@@ -1,9 +1,6 @@
-import type { ReactNode } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
 import { Alert } from '../../../shared/components/ui/alert';
-import { Button } from '../../../shared/components/ui/button';
-import { Card, CardContent } from '../../../shared/components/ui/card';
 import { FormField } from '../../../shared/components/ui/form-field';
 import { Input } from '../../../shared/components/ui/input';
 import { Select } from '../../../shared/components/ui/select';
@@ -26,13 +23,15 @@ import {
 
 type Formulario = ReturnType<typeof useFormularioProducto>;
 
-/** Lo que solo existe al editar: estado editable, imagen vigente y acciones extra. */
+/** El diálogo envía el formulario desde su pie con `<button form={ID_FORMULARIO_PRODUCTO}>`. */
+export const ID_FORMULARIO_PRODUCTO = 'formulario-producto';
+
+/** Lo que solo existe al editar: estado editable e imagen vigente. */
 export interface EdicionFormulario {
   estado: Estado;
   onCambiarEstado: (estado: Estado) => void;
   imagenActual: string | null;
   onQuitarImagenActual: () => void;
-  acciones?: ReactNode;
 }
 
 function CampoEstado({ edicion }: { edicion?: EdicionFormulario }) {
@@ -156,95 +155,73 @@ function CamposDeTexto({
   );
 }
 
-function AvisoSinSecciones({ mensaje }: { mensaje: string }) {
+interface AvisoSinSeccionesProps {
+  mensaje: string;
+  /** Lleva a la pestaña «Secciones» de la misma página (cierra el diálogo). */
+  onIrASecciones?: () => void;
+}
+
+function AvisoSinSecciones({ mensaje, onIrASecciones }: AvisoSinSeccionesProps) {
   return (
     <Alert variant="warning" titulo="Primero hay que crear una sección">
       {mensaje}{' '}
-      <Link to="/productos?pestania=secciones" className="font-medium underline">
+      <Link
+        to="/productos?pestania=secciones"
+        className="font-medium underline"
+        onClick={onIrASecciones}
+      >
         Ir a Secciones
       </Link>
     </Alert>
   );
 }
 
-function Botones({
-  guardar,
-  deshabilitado,
-  acciones,
-}: {
-  guardar: string;
-  deshabilitado: boolean;
-  acciones?: ReactNode;
-}) {
-  const navigate = useNavigate();
-  return (
-    <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-4">
-      {acciones && <div className="mr-auto">{acciones}</div>}
-      <Button variant="outline" onClick={() => navigate('/productos')}>
-        Cancelar
-      </Button>
-      <Button type="submit" disabled={deshabilitado}>
-        {guardar}
-      </Button>
-    </div>
-  );
-}
-
 export interface FormularioProductoProps {
   f: Formulario;
-  configuracion: Pick<
-    ConfiguracionAlta,
-    'botonGuardar' | 'avisoSinSecciones' | 'ingredientesObligatorios'
-  >;
+  configuracion: Pick<ConfiguracionAlta, 'avisoSinSecciones' | 'ingredientesObligatorios'>;
   secciones: OpcionSeccion[];
   errorDeCarga: string | null;
   edicion?: EdicionFormulario;
+  onIrASecciones?: () => void;
 }
 
+/** Campos del producto; los botones de guardar y cancelar los pone el diálogo que lo contiene. */
 export function FormularioProducto({
   f,
   configuracion,
   secciones,
   errorDeCarga,
   edicion,
+  onIrASecciones,
 }: FormularioProductoProps) {
-  const sinSecciones = secciones.length === 0;
-
   return (
     <form
+      id={ID_FORMULARIO_PRODUCTO}
       noValidate
-      className="flex flex-wrap items-start gap-5"
+      className="space-y-5"
       onSubmit={(evento) => {
         evento.preventDefault();
         void f.enviar();
       }}
     >
-      <Card className="min-w-0 flex-[999_1_480px]">
-        <CardContent className="space-y-5 pt-6">
-          {errorDeCarga && <Alert variant="danger">{errorDeCarga}</Alert>}
-          {!errorDeCarga && sinSecciones && (
-            <AvisoSinSecciones mensaje={configuracion.avisoSinSecciones} />
-          )}
-          {f.errores.general && <Alert variant="danger">{f.errores.general}</Alert>}
-          <CamposPrincipales f={f} secciones={secciones} edicion={edicion} />
-          <CamposDeTexto f={f} ingredientesObligatorios={configuracion.ingredientesObligatorios} />
-          <Botones
-            guardar={configuracion.botonGuardar}
-            deshabilitado={sinSecciones || f.enviando}
-            acciones={edicion?.acciones}
-          />
-        </CardContent>
-      </Card>
-      <Card className="min-w-0 flex-[1_1_320px]">
-        <CardContent className="space-y-3 pt-6">
-          <span className="text-sm font-medium text-slate-700">Imagen</span>
-          <SelectorImagen
-            onCambiar={f.setImagen}
-            imagenActual={edicion?.imagenActual}
-            onQuitarActual={edicion?.onQuitarImagenActual}
-          />
-        </CardContent>
-      </Card>
+      {errorDeCarga && <Alert variant="danger">{errorDeCarga}</Alert>}
+      {!errorDeCarga && secciones.length === 0 && (
+        <AvisoSinSecciones
+          mensaje={configuracion.avisoSinSecciones}
+          onIrASecciones={onIrASecciones}
+        />
+      )}
+      {f.errores.general && <Alert variant="danger">{f.errores.general}</Alert>}
+      <CamposPrincipales f={f} secciones={secciones} edicion={edicion} />
+      <CamposDeTexto f={f} ingredientesObligatorios={configuracion.ingredientesObligatorios} />
+      <div className="space-y-3">
+        <span className="text-sm font-medium text-slate-700">Imagen</span>
+        <SelectorImagen
+          onCambiar={f.setImagen}
+          imagenActual={edicion?.imagenActual}
+          onQuitarActual={edicion?.onQuitarImagenActual}
+        />
+      </div>
     </form>
   );
 }

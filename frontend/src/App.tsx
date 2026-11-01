@@ -1,5 +1,5 @@
 import { lazy } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Route, Routes } from 'react-router-dom';
 
 import { ComponentesPage } from './shared/components/ComponentesPage';
 import { AppProviders } from './shared/components/AppProviders';
@@ -20,18 +20,6 @@ const ProductosPage = lazy(() =>
 const CartaPage = lazy(() =>
   import('./modules/productos/pages/CartaPage').then((modulo) => ({
     default: modulo.CartaPage,
-  })),
-);
-
-const ProductoNuevoPage = lazy(() =>
-  import('./modules/productos/pages/ProductoNuevoPage').then((modulo) => ({
-    default: modulo.ProductoNuevoPage,
-  })),
-);
-
-const ProductoEditarPage = lazy(() =>
-  import('./modules/productos/pages/ProductoEditarPage').then((modulo) => ({
-    default: modulo.ProductoEditarPage,
   })),
 );
 
@@ -73,31 +61,6 @@ export default function App() {
           <Route index element={<Inicio />} />
           <Route path="productos" element={<ProductosPage />} />
           <Route path="productos/carta" element={<CartaPage />} />
-          <Route path="productos/platos/nuevo" element={<ProductoNuevoPage categoria="PLATO" />} />
-          <Route
-            path="productos/postres/nuevo"
-            element={<ProductoNuevoPage categoria="POSTRE" />}
-          />
-          <Route
-            path="productos/bebidas/nuevo"
-            element={<ProductoNuevoPage categoria="BEBIDA" />}
-          />
-          <Route
-            path="productos/platos/:id/editar"
-            element={<ProductoEditarPage categoria="PLATO" />}
-          />
-          <Route
-            path="productos/postres/:id/editar"
-            element={<ProductoEditarPage categoria="POSTRE" />}
-          />
-          <Route
-            path="productos/bebidas/:id/editar"
-            element={<ProductoEditarPage categoria="BEBIDA" />}
-          />
-          <Route
-            path="productos/nuevo"
-            element={<Navigate to="/productos/platos/nuevo" replace />}
-          />
           <Route path="menus" element={<MenusPage />} />
           <Route path="salon" element={<SalonPage />} />
           <Route path="atencion" element={<AtencionPage />} />

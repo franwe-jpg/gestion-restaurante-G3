@@ -1,5 +1,4 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ConfirmContext } from '../../../shared/components/ui/confirm-context';
@@ -23,21 +22,14 @@ const PLATO: ProductoListado = {
 
 const mostrarToast = vi.fn();
 const confirmar = vi.fn();
+const onEditar = vi.fn();
 
 function mostrar(producto: ProductoListado) {
   const onDadoDeBaja = vi.fn();
   render(
     <ConfirmContext.Provider value={confirmar}>
       <ToastContext.Provider value={{ mostrarToast }}>
-        <MemoryRouter>
-          <Routes>
-            <Route
-              path="/"
-              element={<AccionesProducto producto={producto} onDadoDeBaja={onDadoDeBaja} />}
-            />
-            <Route path="/productos/:segmento/:id/editar" element={<p>Pantalla de edición</p>} />
-          </Routes>
-        </MemoryRouter>
+        <AccionesProducto producto={producto} onEditar={onEditar} onDadoDeBaja={onDadoDeBaja} />
       </ToastContext.Provider>
     </ConfirmContext.Provider>,
   );
@@ -52,17 +44,16 @@ const POSTRE: ProductoListado = { ...PLATO, id: 9, nombre: 'Flan', categoria: 'P
 const BEBIDA: ProductoListado = { ...PLATO, id: 11, nombre: 'Limonada', categoria: 'BEBIDA' };
 
 describe.each([
-  ['PLATO', PLATO, 'platos', 'Plato dado de baja'],
-  ['POSTRE', POSTRE, 'postres', 'Postre dado de baja'],
-  ['BEBIDA', BEBIDA, 'bebidas', 'Bebida dada de baja'],
-] as const)('AccionesProducto: %s', (categoria, producto, segmento, aviso) => {
-  it('ofrece editar con un enlace a su pantalla de edición (S27, S31)', () => {
+  ['PLATO', PLATO, 'Plato dado de baja'],
+  ['POSTRE', POSTRE, 'Postre dado de baja'],
+  ['BEBIDA', BEBIDA, 'Bebida dada de baja'],
+] as const)('AccionesProducto: %s', (categoria, producto, aviso) => {
+  it('«Editar» pide abrir el diálogo de edición de su categoría (S27, S31)', () => {
     mostrar(producto);
 
-    const enlace = screen.getByRole('link', { name: `Editar «${producto.nombre}»` });
-    expect(enlace).toHaveAttribute('href', `/productos/${segmento}/${producto.id}/editar`);
-    fireEvent.click(enlace);
-    expect(screen.getByText('Pantalla de edición')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: `Editar «${producto.nombre}»` }));
+
+    expect(onEditar).toHaveBeenCalledWith(categoria, producto.id);
   });
 
   it('al confirmar da de baja, avisa y notifica (S28)', async () => {
@@ -102,7 +93,7 @@ describe.each([
   it('deshabilitado ofrece editar y no dar de baja', () => {
     mostrar({ ...producto, estado: 'DESHABILITADO' });
 
-    expect(screen.getByRole('link', { name: `Editar «${producto.nombre}»` })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: `Editar «${producto.nombre}»` })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Dar de baja/ })).not.toBeInTheDocument();
   });
 });
@@ -111,7 +102,6 @@ describe('AccionesProducto: otras categorías', () => {
   it('una fila MENU_DEL_DIA no ofrece acciones (S57)', () => {
     mostrar({ ...PLATO, categoria: 'MENU_DEL_DIA' });
 
-    expect(screen.queryByRole('link')).not.toBeInTheDocument();
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 });

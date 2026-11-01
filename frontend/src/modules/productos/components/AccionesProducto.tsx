@@ -1,7 +1,5 @@
-import { Link } from 'react-router-dom';
-
 import { Button } from '../../../shared/components/ui/button';
-import { esCategoriaEdicion, rutaDeEdicion } from '../categorias';
+import { esCategoriaEdicion } from '../categorias';
 import type { CategoriaEdicion } from '../categorias';
 import type { ProductoListado } from '../types';
 
@@ -9,6 +7,8 @@ import { useBajaProducto } from './useBajaProducto';
 
 export interface AccionesProductoProps {
   producto: ProductoListado;
+  /** Abre el diálogo de edición del producto en la misma página. */
+  onEditar: (categoria: CategoriaEdicion, productoId: number) => void;
   onDadoDeBaja: () => void;
 }
 
@@ -16,18 +16,19 @@ interface AccionesEdicionProps extends AccionesProductoProps {
   categoria: CategoriaEdicion;
 }
 
-function AccionesEdicion({ categoria, producto, onDadoDeBaja }: AccionesEdicionProps) {
+function AccionesEdicion({ categoria, producto, onEditar, onDadoDeBaja }: AccionesEdicionProps) {
   const { dandoDeBaja, darDeBaja } = useBajaProducto({ categoria, producto, onDadoDeBaja });
 
   return (
     <div className="flex items-center justify-end gap-2">
-      <Link
-        to={rutaDeEdicion(categoria, producto.id)}
+      <Button
+        variant="ghost"
+        size="sm"
         aria-label={`Editar «${producto.nombre}»`}
-        className="text-sm font-medium text-amber-700 hover:underline"
+        onClick={() => onEditar(categoria, producto.id)}
       >
         Editar
-      </Link>
+      </Button>
       {producto.estado === 'HABILITADO' && (
         <Button
           variant="ghost"
@@ -44,13 +45,7 @@ function AccionesEdicion({ categoria, producto, onDadoDeBaja }: AccionesEdicionP
 }
 
 /** Acciones de una fila: los platos y los postres se editan y se dan de baja (S28, S31, E21). */
-export function AccionesProducto({ producto, onDadoDeBaja }: AccionesProductoProps) {
-  if (!esCategoriaEdicion(producto.categoria)) return null;
-  return (
-    <AccionesEdicion
-      categoria={producto.categoria}
-      producto={producto}
-      onDadoDeBaja={onDadoDeBaja}
-    />
-  );
+export function AccionesProducto(props: AccionesProductoProps) {
+  if (!esCategoriaEdicion(props.producto.categoria)) return null;
+  return <AccionesEdicion {...props} categoria={props.producto.categoria} />;
 }
