@@ -634,3 +634,162 @@ Mediciones con `diff` contra las copias hechas al empezar (sin git): `schemas.py
 
 - 10.20: commit 12 (`feat: agrega las mesas disponibles y rechaza la mesa fuera de servicio en el alta (HU-M5-01)`), a cargo del orquestador, con `conftest.py` y `test_puente.py` incluidos (ver desvío 2).
 - Unidad C (commit 13) y el cierre (14).
+
+## Fase 10 · Unidad C (selector de mesas disponibles)
+
+- **Alcance:** tareas 10.21 a 10.33 de la Unidad C (commit 13, Decisiones 18 y 19 del diseño, frontend). La tarea 10.34 (el commit) queda para el orquestador, dueño de git: este lote no usó git para nada (las mediciones de tamaño y las restauraciones de las mutaciones se hicieron con copias en el directorio temporal y `diff`). No se levantó ningún servidor: el humo manual (10.40) queda para la persona.
+- **Modo:** Strict TDD (`strict_tdd: true` en `openspec/config.yaml`, ejecutor Vitest). Comandos desde `frontend/`, de a uno por vez.
+- **Línea base:** `npx vitest run src/modules/reservas`: 96 pruebas en 7 archivos pasando (red de seguridad antes de tocar nada). Suite completa informada por el orquestador y confirmada al terminar la unidad: 684 pruebas en 63 archivos antes del lote.
+- **Estado:** 13 de 13 tareas del lote completas (10.21 a 10.33). Queda 10.34 (commit).
+
+### Tareas completadas
+
+| Tarea | Estado | Resultado observado |
+| --- | --- | --- |
+| 10.21 Rojo (`api.test.ts`) | Hecha | `TypeError: listarMesasDisponibles is not a function`; 1 falla, 5 pasan |
+| 10.22 Verde (`types.ts`, `api.ts`) | Hecha | `SectorResumenMesa`, `MesaDisponible` y `listarMesasDisponibles` con `URLSearchParams`; 6 pasan |
+| 10.23 Rojo (`validarReserva.test.ts`) | Hecha | 11 fallan, 20 pasan: 8 por `turnoValido is not a function` y 3 por Mesa `abc`, `-1` y `0` (la regla de entero positivo sigue vigente) |
+| 10.24 Verde (`validarReserva.ts`) | Hecha | `turnoValido` reutiliza `errorDeFecha` y `errorDeHora`; Mesa del alta solo obligatoria; 31 pasan |
+| 10.25 Rojo (`useMesasDisponibles.test.ts`) | Hecha | El archivo no carga: `Failed to resolve import "./useMesasDisponibles"` (módulo ausente) |
+| 10.26 Verde (`useMesasDisponibles.ts`) | Hecha | Estado derivado en el render, bandera `vigente` en la limpieza del efecto, sin `AbortController`; 10 pasan |
+| 10.27 Rojo (`SelectorMesa.test.tsx`) | Hecha | El archivo no carga: `Failed to resolve import "./SelectorMesa"` |
+| 10.28 Verde (`SelectorMesa.tsx`) | Hecha | `FormField` + `Select`, sin estilos nuevos; 13 pasan |
+| 10.29 y 10.30 Rojo (`ReservaFormulario.test.tsx`, `ReservasPage.test.tsx`) | Hecha | 29 fallan, 33 pasan (62): ver «Evidencia RED y GREEN por paso» |
+| 10.31 Verde (`useFormularioReserva.ts`, `ReservaFormulario.tsx`) | Hecha | Módulo `reservas`: 150 pasan (después, con la prueba de la mutación F2, 151) |
+| 10.32 Refactor | Hecha | `useMesasDelTurno` extraído (hook privado); 150 pasan antes y después; `eslint` y `tsc` sin hallazgos; sin `any`, sin textos repetidos |
+| 10.33 Verificación | Hecha | Comando enfocado, `V-FRONT` completo y `V-TZ` en verde (ver «Verificación final») |
+| 10.34 Commit 13 | **Pendiente (orquestador)** | No es parte de este lote |
+
+### TDD Cycle Evidence
+
+| Tarea | Archivo de prueba | Capa | Red de seguridad | RED | GREEN | TRIANGULAR | REFACTOR |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 10.21 y 10.22 | `api.test.ts` | Unidad (HTTP simulado) | 5/5 | 1 falla | 6/6 | Un solo pedido: se compara ruta y parámetros ya decodificados | Sin cambios |
+| 10.23 y 10.24 | `validarReserva.test.ts` | Unidad (funciones puras) | 18/18 | 11 fallan | 31/31 | 5 casos `false` y 3 `true` de `turnoValido`; 4 valores de Mesa | Sin cambios |
+| 10.25 y 10.26 | `useMesasDisponibles.test.ts` | Hook (`renderHook`) | N/A (nuevo) | No carga | 10/10 | Éxito, vacía, error con y sin detalle, datos nulos, cambio de turno, dos respuestas fuera de orden | Sin cambios |
+| 10.27 y 10.28 | `SelectorMesa.test.tsx` | Componente | N/A (nuevo) | No carga | 13/13 | Cinco estados, mismo número en dos sectores, capacidad 1, precedencia del error | Sin cambios |
+| 10.29 a 10.31 | `ReservaFormulario.test.tsx`, `ReservasPage.test.tsx` | Integración (formulario y página con la API simulada) | 96/96 del módulo | 29 fallan | 150/150 (151 con la prueba de F2) | Mesas 5 y 12 (id distinto del número), lista nueva con y sin la mesa elegida, vuelta al turno anterior | Ver 10.32 |
+| 10.32 | Las anteriores | N/A | 150/150 | N/A | 150/150 | N/A | `useMesasDelTurno` extraído |
+
+### Evidencia RED y GREEN por paso
+
+Comando enfocado de todos los pasos: `npx vitest run <archivo>` (y `src/modules/reservas` para el módulo), desde `frontend/`.
+
+- **10.21 (Rojo):** `api.test.ts`: `1 failed | 5 passed`, `TypeError: listarMesasDisponibles is not a function`. Motivo correcto: la función no existe. **Desvío menor de la aserción:** `URLSearchParams.toString()` escribe `:` como `%3A`, así que el pedido real es `?fecha=2026-11-02&hora=21%3A30`, que el servidor decodifica a `21:30`; la prueba compara la ruta y los parámetros ya decodificados (`new URL(...)`) en lugar de un texto con `:` literal.
+- **10.22 (Verde):** `6 passed (6)`.
+- **10.23 (Rojo):** `11 failed | 20 passed` en `validarReserva.test.ts`. Fallan: los 8 casos de `turnoValido` (`TypeError: turnoValido is not a function`) y los 3 casos de Mesa `abc`, `-1` y `0` (`expected { Object (mesa) } to deeply equal {}`). **Guardas (ya pasan en el Rojo):** «pide la mesa cuando está vacía» y Mesa `5` sin error (la regla actual ya los cumple), más las 18 pruebas existentes (entre ellas «rechaza Cliente 0», que antes era «Cliente 0 y Mesa -1»).
+- **10.24 (Verde):** `31 passed (31)`.
+- **10.25 (Rojo):** `Failed to resolve import "./useMesasDisponibles"`; `Tests no tests`.
+- **10.26 (Verde):** `10 passed (10)`. `eslint src/modules/reservas` sin hallazgos de `react-hooks` (sin `setState` sincrónico en el efecto).
+- **10.27 (Rojo):** `Failed to resolve import "./SelectorMesa"`.
+- **10.28 (Verde):** `13 passed (13)`.
+- **10.29 y 10.30 (Rojo):** `29 failed | 33 passed (62)` sobre los dos archivos, con el campo Mesa numérico todavía vigente. Los motivos observados: `expect(element).toBeDisabled()` recibe el `<input id="reserva-mesa" inputmode="numeric">` (recién abierto, fecha pasada, hora vacía y «Nueva reserva» después de editar, tanto en el formulario como en la página); `Unable to find an accessible element with the role "option" and name "Cargando mesas…"`; y el ayudante `elegirMesa`, que espera la opción `option[value="5"]` en el selector, agota su espera de 1 s en todas las pruebas que eligen una mesa (alta correcta de la página incluida). **Guardas (pasan en el Rojo):** «con campos vacíos…» (Mesa ya marcaba «obligatoria»), las pruebas con fecha o hora inválidas (no eligen mesa, como pide la tarea), `la edición no pide la lista de mesas`, `la edición muestra Mesa de solo lectura…`, todas las demás de la edición y las de la página que no tocan el alta. La tarea 10.30 anticipaba que en la página solo fallaba la prueba de alta; también falla «Nueva reserva» después de editar (ver desvío 7).
+- **10.31 (Verde):** primera corrida `1 failed | 149 passed` en el módulo: «Nueva reserva» después de editar fallaba por un defecto de **la prueba**, no del código (`toHaveValue('')` sobre un `<select>` sin opciones devuelve `undefined`); se corrigió la aserción (es un `SELECT`, está deshabilitado y no ofrece mesas). Segunda corrida: `150 passed (150)`.
+- **10.32 (Refactor):** `useMesasDelTurno` (hook privado con el turno válido, la lista, la mesa vigente y el borrado de la elección); `150 passed` antes y después; `eslint src/modules/reservas --max-warnings=0` y `tsc --noEmit` sin salida; `rg` no encuentra `any`, `fetch(`, `AbortController` ni imports de `modules/salon` o `modules/atencion` en `reservas/`. Cada texto del selector y de Mesa vive en un solo archivo.
+- **Lint durante la unidad:** `max-lines-per-function` (50) marcó dos bloques `describe` de prueba (`api.test.ts` con 58 y `ReservaFormulario.test.tsx` con 55); se partieron en dos `describe` cada uno, sin tocar las aserciones.
+
+### Comprobación de mutaciones (para que las pruebas no sean decorativas)
+
+Se alteró un archivo de producción por vez (28 mutaciones, script en el directorio temporal), se corrió `npx vitest run src/modules/reservas` completo, se restauró el archivo copiándolo desde la copia de respaldo del árbol final (no con git) y se comparó con `diff` (idéntico después de cada una y al final). La suite sana tenía 150 pruebas. **26 se detectaron de entrada, 1 sobrevivió por una prueba que faltaba (F2, corregida) y 1 sobrevive por ser equivalente (P3).**
+
+| Mutación | Pruebas que fallan |
+| --- | --- |
+| H1 · `useMesasDisponibles` sin la bandera `vigente` (guarda siempre) | 2: `una respuesta vieja que llega después de la nueva se descarta` y `una respuesta que llega después de que el turno dejó de ser válido se descarta` |
+| H2 · sin comparar la clave del turno (muestra el último resultado guardado) | 1: `al cambiar la hora vuelve a pedir y, mientras llega la respuesta nueva, está cargando y no muestra la lista del turno anterior` |
+| H3 · el efecto pide aunque no haya turno válido | 14, entre ellas `sin un turno válido no pide la lista y queda inactivo`, las 4 de «no pide la lista», `la edición no pide la lista de mesas…` y las de la página |
+| H4 · `inactivo` pasa a `cargando` | 7 (las de «inactivo» y «no pide la lista») |
+| H5 · el error pierde el mensaje de la API | 2: `si la consulta falla queda en error con el mensaje de la API` y `si la consulta de la lista falla muestra el mensaje junto a Mesa` |
+| S1 · el texto usa la capacidad en lugar del número | 5 (texto de la opción, capacidad 1, mismo número en dos sectores, alta de la página) |
+| S2 · el valor de la opción es el número y no el `id` | 6, entre ellas `elegir la mesa 12 y guardar envía su id como mesa_id` |
+| S3 · la lista vacía deja el selector habilitado | 2 |
+| S4 · «cargando» deja el selector habilitado | 4 |
+| S5 · gana el mensaje de la consulta sobre el error local | 1 |
+| S6 · el error de la consulta no se muestra | 2 |
+| F1 · no se borra la elección que ya no figura | 1: `la mesa borrada no vuelve al volver al turno anterior` |
+| **F2 · se valida con el texto guardado y no con la mesa vigente** | **0 al principio: sobrevivió.** Faltaba la prueba de «mesa elegida, cambio de hora y Guardar mientras carga la lista nueva». Se agregó `con una mesa elegida, al cambiar la hora y guardar mientras carga la lista nueva no envía la mesa anterior` (pasa sobre el código real, falla bajo F2) y la mutación se repitió: **1 falla, detectada** |
+| F3 · el alta pide la lista sin exigir un turno válido | 9 |
+| F4 · la edición también pide la lista | 4: `la edición no pide la lista de mesas…`, `«Modificar reserva» abre el panel…` y otras 2 de la página |
+| F5 · «Guardar reserva» no se deshabilita con la lista vacía | 1: `con la lista vacía muestra el aviso y deshabilita Guardar reserva` |
+| F6 · «Guardar reserva» se deshabilita también mientras carga | 14 (incluida `mientras la lista carga, Guardar reserva no envía nada…`, y todas las de la edición, porque el estado es `inactivo`) |
+| F7 · la mesa vigente es siempre el texto guardado | 1: `la mesa borrada no vuelve al volver al turno anterior` |
+| V1 · Mesa del alta vuelve a exigir un entero positivo | 3: Mesa `abc`, `-1` y `0` |
+| V2 · `turnoValido` ignora la hora | 9 |
+| V3 · `turnoValido` ignora la fecha | 3 |
+| V4 · hoy con la hora igual a la actual pasa a valer (`<` en lugar de `<=`) | 4 |
+| A1 · el pedido usa otro nombre de parámetro para la hora | 1 |
+| A2 · el pedido va a otra ruta | 1 |
+| P1 · la edición muestra el selector | 28 |
+| P2 · el botón no usa `guardarDeshabilitado` | 1 |
+| **P3 · el selector recibe el texto guardado y no la mesa vigente** | **0: sobrevive, equivalente.** Cuando el texto guardado difiere de la mesa vigente (cargando, error o sin turno válido) el `<select>` no tiene ninguna opción con ese valor, así que muestra lo mismo; con la lista lista, el ajuste de estado durante el render borra la elección antes de que se pinte. No hay una conducta observable que una prueba pueda distinguir, así que no se agregó ninguna |
+
+Cubren las dos mutaciones que pide la tarea 10.36 para el frontend: «quitar la bandera `vigente`» (H1) y «quitar la comparación con la clave del turno» (H2) fallan exactamente en las pruebas que nombra la tarea. En 10.36 solo queda repetirlas con el árbol limpio después del commit 13.
+
+### Verificación final (ejecutada sola, sin otras corridas en paralelo)
+
+| Comando (desde `frontend/`) | Resultado observado |
+| --- | --- |
+| `npx vitest run src/modules/reservas` | Salida 0: **151 pasan** en 9 archivos (96 al empezar) |
+| `npm run format` | Salida 0. Solo reescribió archivos de `reservas/` (los 5 que Prettier marcó antes: `ReservaFormulario.tsx`, `validarReserva.ts` y tres de prueba); `prettier --check .` marcaba solo esos antes de correrlo |
+| `npm run lint` | Salida 0 (`eslint . --max-warnings=0`, sin hallazgos) |
+| `npm run format:check` | Salida 0: «All matched files use Prettier code style!» |
+| `npm run typecheck` | Salida 0 (`tsc --noEmit`) |
+| `npm run test:coverage` | Salida 0: **739 pruebas pasan en 65 archivos**. Cobertura: sentencias 75,09 % (386/514), ramas 71,73 %, funciones 71,71 %, líneas 76,82 % (umbral 60 %) |
+| `npm run build` | Salida 0 (`tsc --noEmit && vite build`, «✓ built») |
+| `V-TZ`: `TZ=America/Argentina/Buenos_Aires npx vitest run src/modules/reservas/components/useMesasDisponibles.test.ts src/modules/reservas/components/validarReserva.test.ts src/modules/reservas/components/ReservaFormulario.test.tsx src/modules/reservas/pages/ReservasPage.test.tsx` | Salida 0: 104 pasan en 4 archivos |
+| `V-TZ`: el mismo comando con `TZ=UTC` | Salida 0: 104 pasan en 4 archivos |
+
+**Diferencia de conteo:** 739 − 684 = **+55**, y los archivos pasan de 63 a 65 (`useMesasDisponibles.test.ts` y `SelectorMesa.test.tsx`). Se reparte así: `api.test.ts` +1, `validarReserva.test.ts` +13 (Mesa del alta: 1 + 4 casos; `turnoValido`: 5 + 3; la de «Cliente 0 y Mesa -1» pasó a «Cliente 0», sin cambio de cantidad), `useMesasDisponibles.test.ts` +10, `SelectorMesa.test.tsx` +13 y `ReservaFormulario.test.tsx` +18 (4 de «no pide la lista», 1 de «pide la lista», lista vacía, carga, mesa elegida con cambio de hora y Guardar, error de la consulta, 2 de cambio de hora, «la mesa borrada no vuelve», mesa sin elegir, 2 de `mesa_id` con las mesas 5 y 12, 409 de la mesa 6, y 2 de la edición). `ReservasPage.test.tsx` no suma pruebas: se adaptaron tres.
+
+**Cobertura:** 75,09 % contra 75,09 % de la línea base. No cambia porque `vite.config.ts` mide solo `src/App.tsx` y `src/shared/**`: el código de `reservas/` no entra en el porcentaje (RNF-MAN-04 se cumple por las pruebas, no por esa cifra). Los umbrales no se tocaron.
+
+### Work Unit Evidence
+
+| Evidence | Valor |
+| --- | --- |
+| Comando enfocado y resultado | `npx vitest run src/modules/reservas` (desde `frontend/`): 151 pasan en 9 archivos, 0 fallos |
+| Runtime harness | N/A para el navegador: el apply no levanta servidores (el humo manual con `npm run dev` es la tarea 10.40, de la persona). El camino de punta a punta dentro de Vitest es `ReservasPage.test.tsx` (página → panel → hook → `api.ts` simulado): abre «Nueva reserva», escribe Fecha y Hora, pide `listarMesasDisponibles('2026-11-03', '21:30')`, elige «Salón · Mesa 5 (4 personas)», guarda con `crearReserva({ mesa_id: 5, … })`, cierra el panel y vuelve a pedir la tabla. `V-FRONT` y `V-TZ` en verde |
+| Rollback boundary | Revertir el commit 13 (`types.ts`, `api.ts`, `validarReserva.ts`, `useMesasDisponibles.ts`, `SelectorMesa.tsx`, `useFormularioReserva.ts`, `ReservaFormulario.tsx` y las pruebas `api.test.ts`, `validarReserva.test.ts`, `useMesasDisponibles.test.ts`, `SelectorMesa.test.tsx`, `ReservaFormulario.test.tsx` y `ReservasPage.test.tsx`). Vuelve el campo numérico de Mesa; la ruta del backend queda sin uso |
+
+### Archivos tocados
+
+| Archivo | Cambio |
+| --- | --- |
+| `frontend/src/modules/reservas/types.ts` | `SectorResumenMesa` y `MesaDisponible`, propios de `reservas` |
+| `frontend/src/modules/reservas/api.ts` | `listarMesasDisponibles(fecha, hora)` con `URLSearchParams` |
+| `frontend/src/modules/reservas/components/validarReserva.ts` | `turnoValido`; `errorDeMesa` (Mesa del alta solo obligatoria); desaparece «La mesa debe ser un entero positivo.» |
+| `frontend/src/modules/reservas/components/useMesasDisponibles.ts` | Nuevo: hook con estados `inactivo`, `cargando`, `listo` y `error` (Decisión 18) |
+| `frontend/src/modules/reservas/components/SelectorMesa.tsx` | Nuevo: campo Mesa del alta sobre `FormField` y `Select` (Decisión 19) |
+| `frontend/src/modules/reservas/components/useFormularioReserva.ts` | `useMesasDelTurno`, `mesaVigente`, borrado de la elección, `estadoMesas`, `mesaVigente` y `guardarDeshabilitado` |
+| `frontend/src/modules/reservas/components/ReservaFormulario.tsx` | `CampoMesa`: `SelectorMesa` en el alta, campo de solo lectura en la edición; el botón usa `guardarDeshabilitado` |
+| `frontend/src/modules/reservas/api.test.ts` | Prueba de `listarMesasDisponibles` y `describe` aparte |
+| `frontend/src/modules/reservas/components/validarReserva.test.ts` | Pruebas de `turnoValido` y de Mesa del alta; «Cliente 0 y Mesa -1» pasa a «Cliente 0» |
+| `frontend/src/modules/reservas/components/useMesasDisponibles.test.ts` | Nuevo: 10 pruebas del hook |
+| `frontend/src/modules/reservas/components/SelectorMesa.test.tsx` | Nuevo: 13 pruebas del selector |
+| `frontend/src/modules/reservas/components/ReservaFormulario.test.tsx` | Reescrita con `completar` asíncrono y las pruebas nuevas del selector |
+| `frontend/src/modules/reservas/pages/ReservasPage.test.tsx` | `beforeEach` simula la lista; el alta elige la mesa en el selector; dos pruebas adaptadas |
+| `openspec/changes/HU-M5-01-02-03/tasks.md` | 10.21 a 10.33 marcadas `[x]` (10.34 sigue abierta) |
+
+No se tocó `frontend/src/shared/`, `App.tsx`, `index.ts` de `components/`, otro módulo, el backend, la configuración de ESLint, Vite o `package.json`, ni las dependencias. El módulo no importa nada de `modules/salon` ni de `modules/atencion`.
+
+### Desvíos y decisiones
+
+1. **Ruta decodificada en la prueba de `api.ts`.** Ver 10.21: `URLSearchParams` envía `hora=21%3A30`; es el mismo valor que `21:30` para el servidor. La tarea y la spec escriben el pedido con `:` literal; la prueba compara el pedido decodificado.
+2. **El error del campo lo resuelve `SelectorMesa`.** La tarea 10.31 deja a `ReservaFormulario` pasar «`errores.mesa` o, si no lo hay, el mensaje del estado `error`»; la 10.27 pide que el selector muestre el mensaje del estado `error`. Se implementó en el selector (`error ?? mensaje`), y el formulario solo pasa `errores.mesa`. La conducta visible es la misma y el componente se prueba solo.
+3. **`guardarDeshabilitado = enviando || listaVacia(estado)`, sin `modo === 'alta' &&`.** La condición es redundante: fuera del alta `habilitado` es `false`, el estado es `inactivo` y nunca `listo`. Se dejó afuera para no tener una rama inalcanzable (la mutación F6 comprueba que, si se deshabilitara con otros estados, la edición se rompe).
+4. **El hook del formulario expone también `mesaVigente`** (el texto del `id` o `''`), además de `estadoMesas` y `guardarDeshabilitado`, porque el selector muestra la mesa vigente (Decisión 19). Ver la mutación P3.
+5. **Hook privado `useMesasDelTurno` en `useFormularioReserva.ts`.** `useFormularioReserva` quedaba en ≈ 46 líneas efectivas (dentro del límite de 50); se extrajo igual el turno, la lista y el borrado de la elección para que el hook principal siga siendo legible. Sin cambio de conducta.
+6. **Pruebas y comportamientos no listados en las tareas.** `useMesasDisponibles`: error sin detalle («No se pudieron cargar las mesas disponibles.», `Supuesto:` el texto no está en la spec) y respuesta exitosa con `datos: null` como lista vacía (`RespuestaApi` lo permite; la lista vacía deshabilita «Guardar reserva», que es el lado seguro). `SelectorMesa`: rótulo «Mesa» obligatorio, mesa elegida según el valor recibido, sin error no hay aviso y precedencia del error local. Formulario: `la mesa borrada no vuelve al volver al turno anterior` (distingue borrar la elección de solo ocultarla; mata F1 y F7), `elegir la mesa 5 y 12 envía su id` (el 12 tiene número 1: demuestra que se envía el `id` y no el número) y `con una mesa elegida, al cambiar la hora y guardar mientras carga…` (mata F2). La edición se comprueba con una fila de `mesa_id` 9 para no depender del 5.
+7. **Adaptación extra en `ReservasPage.test.tsx` (no listada en 10.30).** «`Nueva reserva` después de editar abre el panel vacío» exigía los cinco campos habilitados; el selector de Mesa queda deshabilitado hasta tener Fecha y Hora válidas (spec, «El selector espera una fecha y una hora válidas»). Se sacó Mesa del bucle y se comprueba aparte que es un `SELECT` deshabilitado, sin opciones y que no se pidió la lista. Las aserciones de Cliente, Fecha, Hora y Cantidad no se debilitaron.
+8. **Mesa y el aviso de error de la consulta.** Por diseño (Decisión 19) el error del campo es `errores.mesa` y, solo si no lo hay, el mensaje de la consulta. Consecuencia a decidir: si la consulta falló (por ejemplo, el 422 por la diferencia de relojes de la Decisión 20) y la persona pulsa «Guardar reserva», `errores.mesa` («La mesa es obligatoria.») reemplaza al mensaje de la API y se queda hasta el próximo envío. No se cambió porque es lo que dice el diseño; se deja como pregunta abierta para el orquestador.
+9. **Sin `aria-invalid` ni `aria-describedby` en el selector.** `FormField` no los conecta y los otros campos del panel (`CampoReserva`) tampoco los usan; se mantuvo la misma convención.
+10. **Herramientas:** `bat`, `fd` y `sd` no están instalados; se usaron `Read`, `Edit`, `rg` y scripts de Python. `npm run format` reescribió solo los 5 archivos de `reservas/` que Prettier marcaba (se comprobó antes con `prettier --check .`).
+
+### Tamaño de la unidad (honestidad sobre el presupuesto)
+
+Mediciones con `difflib` contra la copia de `reservas/` hecha al empezar (sin git): `api.ts` +16 −1, `types.ts` +14, `validarReserva.ts` +19 −6, `useMesasDisponibles.ts` +56, `SelectorMesa.tsx` +66, `useFormularioReserva.ts` +53 −3, `ReservaFormulario.tsx` +24 −8 (producción: **248 agregadas y 18 borradas, ≈ 266**); `api.test.ts` +24 −2, `validarReserva.test.ts` +36 −4, `useMesasDisponibles.test.ts` +186, `SelectorMesa.test.tsx` +138, `ReservaFormulario.test.tsx` +272 −47 y `ReservasPage.test.tsx` +29 −5 (pruebas: **685 agregadas y 58 borradas, ≈ 743**). Total: **933 líneas agregadas y 76 borradas (1009)**. Es más que el pronóstico de la unidad (390 a 630; código 140 a 220, pruebas 250 a 410) y que la heurística de ≈ 400. Las causas: el hook (10 pruebas con promesas controladas a mano y un ayudante), el selector (13 pruebas, una por estado y por regla de texto), el formulario (`completar` pasó a asíncrono y se reescribió el archivo con 18 pruebas nuevas, y Prettier expande cada `it.each` largo) y la prueba que agregó la mutación F2. No se recortó, no se minificó ni se partió nada para entrar en el límite; la unidad es una sola conducta entregable y ya cuenta con `size:exception` (P.8).
+
+### Pendiente
+
+- 10.34: commit 13 (`feat: elige la mesa del alta de reservas entre las mesas disponibles (HU-M5-01)`), a cargo del orquestador, con los 13 archivos de `frontend/src/modules/reservas/` de «Archivos tocados».
+- 10.35 a 10.42: cierre del delta (CI completa de ambos lados, mutaciones con el árbol limpio —en 10.36 las del frontend ya tienen evidencia aquí—, aislamiento, `verify`, humo manual de la persona y medición de líneas).
+- Decisión abierta (desvío 8): qué debe verse junto a Mesa cuando falló la consulta de la lista y se pulsa «Guardar reserva».

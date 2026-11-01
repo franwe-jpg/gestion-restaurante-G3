@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { errorDelServidor, validarReserva } from './validarReserva';
+import { errorDelServidor, turnoValido, validarReserva } from './validarReserva';
 import type { DatosFormularioReserva } from './validarReserva';
 
 const HOY = '2026-11-02';
@@ -47,15 +47,47 @@ describe('validarReserva: enteros positivos', () => {
     );
   });
 
-  it('rechaza Cliente 0 y Mesa -1', () => {
-    expect(validar({ cliente: '0', mesa: '-1' })).toEqual({
+  it('rechaza Cliente 0', () => {
+    expect(validar({ cliente: '0' })).toEqual({
       cliente: 'El cliente debe ser un entero positivo.',
-      mesa: 'La mesa debe ser un entero positivo.',
     });
   });
 
   it('acepta una persona (límite inferior)', () => {
     expect(validar({ cantidad: '1' })).toEqual({});
+  });
+});
+
+describe('validarReserva: Mesa del alta', () => {
+  it('pide la mesa cuando está vacía', () => {
+    expect(validar({ mesa: '' })).toEqual({ mesa: 'La mesa es obligatoria.' });
+  });
+
+  it.each(['abc', '-1', '0', '5'])(
+    'solo exige que no esté vacía: «%s» no produce error de Mesa (sale de una opción del selector)',
+    (mesa) => {
+      expect(validar({ mesa })).toEqual({});
+    },
+  );
+});
+
+describe('turnoValido', () => {
+  it.each([
+    ['la fecha está vacía', '', '21:30'],
+    ['la hora está vacía', '2026-11-03', ''],
+    ['la fecha es anterior a hoy', '2026-11-01', '21:30'],
+    ['hoy y la hora ya pasó', HOY, '11:30'],
+    ['hoy y la hora es igual a la actual (límite)', HOY, AHORA],
+  ])('es false si %s', (_caso, fecha, hora) => {
+    expect(turnoValido(fecha, hora, HOY, AHORA)).toBe(false);
+  });
+
+  it.each([
+    ['hoy y la hora es posterior a la actual (límite)', HOY, '12:01'],
+    ['otro día con una hora anterior a la actual', '2026-11-03', '08:00'],
+    ['otro día con una hora posterior', '2026-11-03', '21:30'],
+  ])('es true si %s', (_caso, fecha, hora) => {
+    expect(turnoValido(fecha, hora, HOY, AHORA)).toBe(true);
   });
 });
 

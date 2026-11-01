@@ -1,6 +1,12 @@
 import { clienteHttp } from '../../shared/api/client';
 import type { Pagina, RespuestaApi } from '../../shared/types';
-import type { FiltroEstadoReserva, Reserva, ReservaCrear, ReservaModificar } from './types';
+import type {
+  FiltroEstadoReserva,
+  MesaDisponible,
+  Reserva,
+  ReservaCrear,
+  ReservaModificar,
+} from './types';
 
 /** Reservas de un día. `'TODAS'` no envía `estado`: la API trae los cuatro estados. */
 export function listarReservas(
@@ -14,6 +20,15 @@ export function listarReservas(
   consulta.set('limit', String(limit));
   consulta.set('offset', String(offset));
   return clienteHttp.get<Pagina<Reserva>>(`/reservas?${consulta.toString()}`);
+}
+
+/** Mesas libres para una fecha `YYYY-MM-DD` y una hora `HH:MM`: una lista simple, sin paginar. */
+export function listarMesasDisponibles(
+  fecha: string,
+  hora: string,
+): Promise<RespuestaApi<MesaDisponible[]>> {
+  const consulta = new URLSearchParams({ fecha, hora });
+  return clienteHttp.get<MesaDisponible[]>(`/reservas/mesas-disponibles?${consulta.toString()}`);
 }
 
 export function crearReserva(datos: ReservaCrear): Promise<RespuestaApi<Reserva>> {

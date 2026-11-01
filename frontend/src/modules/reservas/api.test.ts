@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { clienteHttp } from '../../shared/api/client';
 
-import { crearReserva, listarReservas, modificarReserva } from './api';
-import type { ReservaCrear, ReservaModificar } from './types';
+import { crearReserva, listarMesasDisponibles, listarReservas, modificarReserva } from './api';
+import type { MesaDisponible, ReservaCrear, ReservaModificar } from './types';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -55,6 +55,28 @@ describe('api de reservas', () => {
       fecha: '2026-11-03',
       hora: '22:00',
       cantidad_personas: 6,
+    });
+    expect(resultado).toBe(respuesta);
+  });
+});
+
+describe('api de reservas: mesas disponibles', () => {
+  it('pide las mesas disponibles con GET /reservas/mesas-disponibles y devuelve la respuesta', async () => {
+    const mesas: MesaDisponible[] = [
+      { id: 5, numero: 5, capacidad: 4, sector: { id: 1, nombre: 'Salón' } },
+    ];
+    const respuesta = { datos: mesas, exito: true };
+    const get = vi.spyOn(clienteHttp, 'get').mockResolvedValue(respuesta);
+
+    const resultado = await listarMesasDisponibles('2026-11-02', '21:30');
+
+    expect(get).toHaveBeenCalledTimes(1);
+    // `URLSearchParams` escribe «:» como «%3A»: se compara el pedido ya decodificado.
+    const pedido = new URL(String(get.mock.calls[0]?.[0]), 'http://localhost');
+    expect(pedido.pathname).toBe('/reservas/mesas-disponibles');
+    expect(Object.fromEntries(pedido.searchParams)).toEqual({
+      fecha: '2026-11-02',
+      hora: '21:30',
     });
     expect(resultado).toBe(respuesta);
   });

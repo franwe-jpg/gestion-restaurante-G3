@@ -3,8 +3,8 @@ import { MemoryRouter, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ToastContext } from '../../../shared/components/ui/toast-context';
-import { crearReserva, listarReservas, modificarReserva } from '../api';
-import type { Reserva } from '../types';
+import { crearReserva, listarMesasDisponibles, listarReservas, modificarReserva } from '../api';
+import type { MesaDisponible, Reserva } from '../types';
 
 import { ReservasPage } from './ReservasPage';
 
@@ -28,6 +28,14 @@ const OTRA: Reserva = {
   cliente_id: 9,
   mesa_id: 3,
   cantidad_personas: 2,
+};
+
+/** Mesa que ofrece la API simulada en el selector del panel de alta. */
+const MESA_5: MesaDisponible = {
+  id: 5,
+  numero: 5,
+  capacidad: 4,
+  sector: { id: 1, nombre: 'Salón' },
 };
 
 function pagina(items: Reserva[], total = items.length, offset = 0) {
@@ -91,6 +99,7 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date(2026, 10, 2, 12, 0));
   vi.mocked(listarReservas).mockResolvedValue(pagina([RESERVA]));
+  vi.mocked(listarMesasDisponibles).mockResolvedValue({ datos: [MESA_5], exito: true });
 });
 
 afterEach(() => {
@@ -212,17 +221,26 @@ describe('ReservasPage: panel de alta', () => {
     abrir();
     await screen.findByText('Cliente n.º 7');
     await pulsar('Nueva reserva');
-    const campos = { Cliente: '7', Fecha: '2026-11-03', Hora: '21:30', Cantidad: '4', Mesa: '5' };
+    const campos = { Cliente: '7', Fecha: '2026-11-03', Hora: '21:30', Cantidad: '4' };
     for (const [etiqueta, valor] of Object.entries(campos)) {
       fireEvent.change(screen.getByLabelText(new RegExp(etiqueta)), { target: { value: valor } });
     }
+    await screen.findByRole('option', { name: 'Salón · Mesa 5 (4 personas)' });
+    fireEvent.change(screen.getByLabelText(/Mesa/), { target: { value: '5' } });
 
     await pulsar('Guardar reserva');
 
     await waitFor(() =>
       expect(screen.queryByRole('heading', { name: 'Nueva reserva' })).toBeNull(),
     );
-    expect(crearReserva).toHaveBeenCalledTimes(1);
+    expect(listarMesasDisponibles).toHaveBeenCalledExactlyOnceWith('2026-11-03', '21:30');
+    expect(crearReserva).toHaveBeenCalledExactlyOnceWith({
+      mesa_id: 5,
+      cliente_id: 7,
+      fecha: '2026-11-03',
+      hora: '21:30',
+      cantidad_personas: 4,
+    });
     expect(listarReservas).toHaveBeenCalledTimes(2);
     await asentar();
   });
@@ -250,6 +268,7 @@ describe('ReservasPage: abrir el panel de edición', () => {
     expect(screen.getByLabelText(/Mesa/)).toBeDisabled();
     expect(screen.getByTestId('ruta')).toHaveTextContent('/reservas');
     expect(listarReservas).toHaveBeenCalledTimes(1);
+    expect(listarMesasDisponibles).not.toHaveBeenCalled();
     expect(crearReserva).not.toHaveBeenCalled();
     expect(modificarReserva).not.toHaveBeenCalled();
   });
@@ -278,10 +297,15 @@ describe('ReservasPage: abrir el panel de edición', () => {
 
     expect(screen.getByRole('heading', { name: 'Nueva reserva' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Modificar reserva' })).toBeNull();
-    for (const etiqueta of [/Cliente/, /Fecha/, /Hora/, /Cantidad de personas/, /Mesa/]) {
+    for (const etiqueta of [/Cliente/, /Fecha/, /Hora/, /Cantidad de personas/]) {
       expect(screen.getByLabelText(etiqueta)).toHaveValue('');
       expect(screen.getByLabelText(etiqueta)).toBeEnabled();
     }
+    // El selector de Mesa espera una Fecha y una Hora válidas: deshabilitado y sin opciones.
+    expect(screen.getByLabelText(/Mesa/).tagName).toBe('SELECT');
+    expect(screen.getByLabelText(/Mesa/)).toBeDisabled();
+    expect(screen.queryAllByRole('option', { name: /Mesa/ })).toHaveLength(0);
+    expect(listarMesasDisponibles).not.toHaveBeenCalled();
   });
 });
 

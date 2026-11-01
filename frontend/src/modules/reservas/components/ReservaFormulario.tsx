@@ -10,6 +10,7 @@ import { Input } from '../../../shared/components/ui/input';
 import type { Reserva } from '../types';
 
 import { useFormularioReserva } from './useFormularioReserva';
+import { SelectorMesa } from './SelectorMesa';
 import type { DatosFormularioReserva } from './validarReserva';
 
 export interface ReservaFormularioProps {
@@ -25,7 +26,7 @@ interface CampoReservaProps {
   formulario: Formulario;
   campo: keyof DatosFormularioReserva;
   etiqueta: string;
-  /** Sin `tipo` el campo es numérico: cliente, mesa y cantidad (S13). */
+  /** Sin `tipo` el campo es numérico: cliente, cantidad y la mesa de solo lectura de la edición (S13). */
   tipo?: 'date' | 'time';
   deshabilitado?: boolean;
 }
@@ -43,6 +44,26 @@ function CampoReserva({ formulario, campo, etiqueta, tipo, deshabilitado }: Camp
         onChange={(evento) => formulario.cambiar(campo, evento.target.value)}
       />
     </FormField>
+  );
+}
+
+/**
+ * En el alta Mesa se elige entre las mesas disponibles para la fecha y la hora; en la edición no
+ * cambia: sigue siendo un campo de solo lectura con el `mesa_id` de la fila y no pide la lista.
+ */
+function CampoMesa({ formulario, edicion }: { formulario: Formulario; edicion: boolean }) {
+  if (edicion) {
+    return (
+      <CampoReserva formulario={formulario} campo="mesa" etiqueta="Mesa (número)" deshabilitado />
+    );
+  }
+  return (
+    <SelectorMesa
+      estado={formulario.estadoMesas}
+      valor={formulario.mesaVigente}
+      error={formulario.errores.mesa}
+      onCambiar={(mesa) => formulario.cambiar('mesa', mesa)}
+    />
   );
 }
 
@@ -91,17 +112,12 @@ export function ReservaFormulario({ reserva, onCerrar, onGuardado }: ReservaForm
             <CampoReserva formulario={formulario} campo="hora" etiqueta="Hora" tipo="time" />
           </div>
           <CampoReserva formulario={formulario} campo="cantidad" etiqueta="Cantidad de personas" />
-          <CampoReserva
-            formulario={formulario}
-            campo="mesa"
-            etiqueta="Mesa (número)"
-            deshabilitado={edicion}
-          />
+          <CampoMesa formulario={formulario} edicion={edicion} />
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={onCerrar}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={formulario.enviando}>
+            <Button type="submit" disabled={formulario.guardarDeshabilitado}>
               Guardar reserva
             </Button>
           </div>

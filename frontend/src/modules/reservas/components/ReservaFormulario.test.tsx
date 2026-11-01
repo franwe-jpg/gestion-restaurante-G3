@@ -1,9 +1,10 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ToastContext } from '../../../shared/components/ui/toast-context';
-import { crearReserva, modificarReserva } from '../api';
-import type { Reserva } from '../types';
+import type { RespuestaApi } from '../../../shared/types';
+import { crearReserva, listarMesasDisponibles, modificarReserva } from '../api';
+import type { MesaDisponible, Reserva } from '../types';
 
 import { ReservaFormulario } from './ReservaFormulario';
 
@@ -22,6 +23,20 @@ const CREADA: Reserva = {
 /** Fila `ACTIVA` que se abre en el panel de edición. */
 const EXISTENTE: Reserva = { ...CREADA, id: 12 };
 
+const SALON = { id: 1, nombre: 'Salón' };
+const MESA_5: MesaDisponible = { id: 5, numero: 5, capacidad: 4, sector: SALON };
+const MESA_6: MesaDisponible = { id: 6, numero: 6, capacidad: 4, sector: SALON };
+const MESA_12: MesaDisponible = {
+  id: 12,
+  numero: 1,
+  capacidad: 2,
+  sector: { id: 2, nombre: 'Terraza' },
+};
+
+function conMesas(mesas: MesaDisponible[]): RespuestaApi<MesaDisponible[]> {
+  return { datos: mesas, exito: true };
+}
+
 const mostrarToast = vi.fn();
 
 function abrir(reserva?: Reserva) {
@@ -35,7 +50,7 @@ function abrir(reserva?: Reserva) {
   return { onCerrar, onGuardado };
 }
 
-type Campos = Partial<Record<'cliente' | 'fecha' | 'hora' | 'cantidad' | 'mesa', string>>;
+type Campos = Partial<Record<'cliente' | 'fecha' | 'hora' | 'cantidad', string>>;
 
 const ETIQUETAS = {
   cliente: /Cliente/,
@@ -52,15 +67,27 @@ function escribir(valores: Campos) {
   }
 }
 
-function completar(campos: Campos = {}) {
-  escribir({
-    cliente: '7',
-    fecha: '2026-11-03',
-    hora: '21:30',
-    cantidad: '4',
-    mesa: '5',
-    ...campos,
-  });
+/** Espera a que la lista simulada llegue: la primera opción «Seleccione una mesa» ya está. */
+async function esperarLista() {
+  await screen.findByRole('option', { name: 'Seleccione una mesa' });
+}
+
+/** Elige la mesa con ese `id` en el selector, cuando la lista simulada ya la ofrece. */
+async function elegirMesa(id: string) {
+  const selector = screen.getByLabelText(ETIQUETAS.mesa);
+  await waitFor(() => expect(selector.querySelector(`option[value="${id}"]`)).not.toBeNull());
+  fireEvent.change(selector, { target: { value: id } });
+}
+
+/** Completa el alta; `mesa: ''` deja la mesa sin elegir (el selector puede no estar listo). */
+async function completar({ mesa = '5', ...campos }: Campos & { mesa?: string } = {}) {
+  escribir({ cliente: '7', fecha: '2026-11-03', hora: '21:30', cantidad: '4', ...campos });
+  if (mesa !== '') await elegirMesa(mesa);
+}
+
+/** Deja que terminen las respuestas simuladas pendientes antes de seguir. */
+async function asentar() {
+  await act(async () => undefined);
 }
 
 function guardar() {
@@ -71,6 +98,7 @@ beforeEach(() => {
   // Solo el reloj: los temporizadores reales siguen sirviendo a waitFor y findBy.
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date(2026, 10, 2, 12, 0));
+  vi.mocked(listarMesasDisponibles).mockResolvedValue(conMesas([MESA_5, MESA_12]));
 });
 
 afterEach(() => {
@@ -94,9 +122,9 @@ describe('ReservaFormulario: panel de alta', () => {
   it.each([
     ['Cancelar', 'Cancelar'],
     ['Cerrar formulario', 'Cerrar formulario'],
-  ])('«%s» cierra el panel sin enviar nada', (_nombre, boton) => {
+  ])('«%s» cierra el panel sin enviar nada', async (_nombre, boton) => {
     const { onCerrar, onGuardado } = abrir();
-    completar();
+    await completar();
 
     fireEvent.click(screen.getByRole('button', { name: boton }));
 
@@ -113,33 +141,49 @@ describe('ReservaFormulario: validación local', () => {
     guardar();
 
     expect(screen.getAllByText(/es obligatori[oa]\./)).toHaveLength(5);
+    expect(screen.getByText('La mesa es obligatoria.')).toBeVisible();
     expect(crearReserva).not.toHaveBeenCalled();
   });
 
-  it.each(['0', 'abc'])('con la cantidad %s advierte un entero positivo y no envía', (cantidad) => {
+  it.each(['0', 'abc'])(
+    'con la cantidad %s advierte un entero positivo y no envía',
+    async (cantidad) => {
+      abrir();
+      await completar({ cantidad });
+
+      guardar();
+
+      expect(screen.getByText(/cantidad de personas debe ser un entero positivo/)).toBeVisible();
+      expect(crearReserva).not.toHaveBeenCalled();
+    },
+  );
+
+  it('con Cliente 0 advierte un entero positivo y no envía', async () => {
     abrir();
-    completar({ cantidad });
-
-    guardar();
-
-    expect(screen.getByText(/cantidad de personas debe ser un entero positivo/)).toBeVisible();
-    expect(crearReserva).not.toHaveBeenCalled();
-  });
-
-  it('con Cliente 0 y Mesa -1 advierte un entero positivo en cada campo', () => {
-    abrir();
-    completar({ cliente: '0', mesa: '-1' });
+    await completar({ cliente: '0' });
 
     guardar();
 
     expect(screen.getByText('El cliente debe ser un entero positivo.')).toBeVisible();
-    expect(screen.getByText('La mesa debe ser un entero positivo.')).toBeVisible();
     expect(crearReserva).not.toHaveBeenCalled();
   });
 
-  it('con una fecha anterior a hoy advierte y no envía', () => {
+  it('con la mesa sin elegir no envía y marca Mesa como obligatoria', async () => {
     abrir();
-    completar({ fecha: '2026-11-01' });
+    await completar({ mesa: '' });
+    await esperarLista();
+
+    guardar();
+
+    expect(screen.getByText('La mesa es obligatoria.')).toBeVisible();
+    expect(crearReserva).not.toHaveBeenCalled();
+  });
+});
+
+describe('ReservaFormulario: fecha y hora', () => {
+  it('con una fecha anterior a hoy advierte y no envía', async () => {
+    abrir();
+    await completar({ fecha: '2026-11-01', mesa: '' });
 
     guardar();
 
@@ -147,9 +191,9 @@ describe('ReservaFormulario: validación local', () => {
     expect(crearReserva).not.toHaveBeenCalled();
   });
 
-  it.each(['11:30', '12:00'])('hoy con la hora %s advierte y no envía', (hora) => {
+  it.each(['11:30', '12:00'])('hoy con la hora %s advierte y no envía', async (hora) => {
     abrir();
-    completar({ fecha: '2026-11-02', hora });
+    await completar({ fecha: '2026-11-02', hora, mesa: '' });
 
     guardar();
 
@@ -157,10 +201,10 @@ describe('ReservaFormulario: validación local', () => {
     expect(crearReserva).not.toHaveBeenCalled();
   });
 
-  it('hoy con la hora 12:01 sí envía (límite)', () => {
+  it('hoy con la hora 12:01 sí envía (límite)', async () => {
     vi.mocked(crearReserva).mockResolvedValue({ datos: CREADA, exito: true });
     abrir();
-    completar({ fecha: '2026-11-02', hora: '12:01' });
+    await completar({ fecha: '2026-11-02', hora: '12:01' });
 
     guardar();
 
@@ -168,11 +212,143 @@ describe('ReservaFormulario: validación local', () => {
   });
 });
 
+describe('ReservaFormulario: selector de mesas', () => {
+  it.each([
+    ['recién abierto', {}],
+    ['con una fecha anterior a hoy', { fecha: '2026-11-01', hora: '21:30' }],
+    ['hoy con una hora pasada', { fecha: '2026-11-02', hora: '11:30' }],
+    ['con la hora vacía', { fecha: '2026-11-03' }],
+  ] as const)(
+    '%s no pide la lista y deja el selector deshabilitado y sin opciones',
+    async (_caso, campos) => {
+      abrir();
+      escribir(campos);
+      await asentar();
+
+      expect(screen.getByLabelText(ETIQUETAS.mesa)).toBeDisabled();
+      expect(screen.queryAllByRole('option')).toHaveLength(0);
+      expect(listarMesasDisponibles).not.toHaveBeenCalled();
+    },
+  );
+
+  it('con Fecha y Hora válidas pide la lista de ese turno y ofrece sus mesas', async () => {
+    abrir();
+
+    escribir({ fecha: '2026-11-02', hora: '21:30' });
+    await esperarLista();
+
+    expect(listarMesasDisponibles).toHaveBeenCalledExactlyOnceWith('2026-11-02', '21:30');
+    expect(screen.getByRole('option', { name: 'Salón · Mesa 5 (4 personas)' })).toHaveValue('5');
+    expect(screen.getByRole('option', { name: 'Terraza · Mesa 1 (2 personas)' })).toHaveValue('12');
+  });
+
+  it('con la lista vacía muestra el aviso y deshabilita Guardar reserva', async () => {
+    vi.mocked(listarMesasDisponibles).mockResolvedValue(conMesas([]));
+    abrir();
+
+    await completar({ mesa: '' });
+    await screen.findByRole('option', { name: 'No hay mesas disponibles para esa fecha y hora' });
+
+    expect(screen.getByLabelText(ETIQUETAS.mesa)).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Guardar reserva' })).toBeDisabled();
+    guardar();
+    expect(crearReserva).not.toHaveBeenCalled();
+  });
+});
+
+describe('ReservaFormulario: lista de mesas cargando o con error', () => {
+  it('mientras la lista carga, Guardar reserva no envía nada y marca Mesa como obligatoria', async () => {
+    vi.mocked(listarMesasDisponibles).mockReturnValue(
+      new Promise<RespuestaApi<MesaDisponible[]>>(() => undefined),
+    );
+    abrir();
+
+    await completar({ mesa: '' });
+
+    expect(screen.getByRole('option', { name: 'Cargando mesas…' })).toBeInTheDocument();
+    expect(screen.getByLabelText(ETIQUETAS.mesa)).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Guardar reserva' })).toBeEnabled();
+    guardar();
+    expect(screen.getByText('La mesa es obligatoria.')).toBeVisible();
+    expect(crearReserva).not.toHaveBeenCalled();
+  });
+
+  it('con una mesa elegida, al cambiar la hora y guardar mientras carga la lista nueva no envía la mesa anterior', async () => {
+    vi.mocked(listarMesasDisponibles)
+      .mockResolvedValueOnce(conMesas([MESA_5, MESA_12]))
+      .mockReturnValueOnce(new Promise<RespuestaApi<MesaDisponible[]>>(() => undefined));
+    abrir();
+    await completar();
+
+    escribir({ hora: '22:00' });
+    guardar();
+
+    expect(screen.getByRole('option', { name: 'Cargando mesas…' })).toBeInTheDocument();
+    expect(screen.getByText('La mesa es obligatoria.')).toBeVisible();
+    expect(crearReserva).not.toHaveBeenCalled();
+  });
+
+  it('si la consulta de la lista falla muestra el mensaje junto a Mesa', async () => {
+    const mensaje = 'La hora de la reserva debe ser posterior a la hora actual';
+    vi.mocked(listarMesasDisponibles).mockResolvedValue({
+      datos: null,
+      exito: false,
+      error: mensaje,
+    });
+    abrir();
+
+    await completar({ mesa: '' });
+
+    expect(await screen.findByText(mensaje)).toBeVisible();
+    expect(screen.getByLabelText(ETIQUETAS.mesa)).toBeDisabled();
+    expect(screen.queryAllByRole('option')).toHaveLength(0);
+  });
+});
+
+describe('ReservaFormulario: cambiar la hora con una mesa elegida', () => {
+  const CASOS: [string, MesaDisponible[], string][] = [
+    ['borra la mesa que ya no figura', [MESA_12], ''],
+    ['conserva la mesa que sigue disponible', [MESA_12, MESA_5], '5'],
+  ];
+
+  it.each(CASOS)('cambiar la hora %s', async (_caso, listaNueva, esperada) => {
+    vi.mocked(listarMesasDisponibles)
+      .mockResolvedValueOnce(conMesas([MESA_5, MESA_12]))
+      .mockResolvedValueOnce(conMesas(listaNueva));
+    abrir();
+    await completar();
+    expect(screen.getByLabelText(ETIQUETAS.mesa)).toHaveValue('5');
+
+    escribir({ hora: '22:00' });
+    await esperarLista();
+
+    expect(listarMesasDisponibles).toHaveBeenLastCalledWith('2026-11-03', '22:00');
+    expect(screen.getByLabelText(ETIQUETAS.mesa)).toHaveValue(esperada);
+  });
+
+  it('la mesa borrada no vuelve al volver al turno anterior', async () => {
+    vi.mocked(listarMesasDisponibles)
+      .mockResolvedValueOnce(conMesas([MESA_5, MESA_12]))
+      .mockResolvedValueOnce(conMesas([MESA_12]))
+      .mockResolvedValueOnce(conMesas([MESA_5, MESA_12]));
+    abrir();
+    await completar();
+    escribir({ hora: '22:00' });
+    await esperarLista();
+
+    escribir({ hora: '21:30' });
+    await esperarLista();
+
+    expect(listarMesasDisponibles).toHaveBeenCalledTimes(3);
+    expect(screen.getByLabelText(ETIQUETAS.mesa)).toHaveValue('');
+  });
+});
+
 describe('ReservaFormulario: envío', () => {
   it('envía los datos como números, avisa y notifica a quien lo abrió', async () => {
     vi.mocked(crearReserva).mockResolvedValue({ datos: CREADA, exito: true });
     const { onGuardado, onCerrar } = abrir();
-    completar();
+    await completar();
 
     guardar();
 
@@ -190,11 +366,24 @@ describe('ReservaFormulario: envío', () => {
     expect(onCerrar).not.toHaveBeenCalled();
   });
 
+  it.each(['5', '12'])('elegir la mesa %s y guardar envía su id como mesa_id', async (id) => {
+    vi.mocked(crearReserva).mockResolvedValue({ datos: CREADA, exito: true });
+    const { onGuardado } = abrir();
+    await completar({ mesa: id });
+
+    guardar();
+
+    await waitFor(() => expect(onGuardado).toHaveBeenCalledTimes(1));
+    expect(crearReserva).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ mesa_id: Number(id) }),
+    );
+  });
+
   it('mientras envía deshabilita «Guardar reserva» para no duplicar el alta', async () => {
     let resolver: (valor: { datos: Reserva; exito: true }) => void = () => undefined;
     vi.mocked(crearReserva).mockReturnValue(new Promise((resolve) => (resolver = resolve)));
     abrir();
-    completar();
+    await completar();
 
     guardar();
 
@@ -214,7 +403,7 @@ describe('ReservaFormulario: errores del servidor', () => {
   ])('muestra «%s» como error general y conserva los datos', async (detalle) => {
     vi.mocked(crearReserva).mockResolvedValue({ datos: null, exito: false, error: detalle });
     const { onGuardado } = abrir();
-    completar();
+    await completar();
 
     guardar();
 
@@ -225,10 +414,25 @@ describe('ReservaFormulario: errores del servidor', () => {
     expect(screen.getByRole('heading', { name: 'Nueva reserva' })).toBeInTheDocument();
   });
 
+  it('409 «La mesa 6 está fuera de servicio» al guardar se muestra como error general y conserva la mesa elegida', async () => {
+    const detalle = 'La mesa 6 está fuera de servicio';
+    vi.mocked(listarMesasDisponibles).mockResolvedValue(conMesas([MESA_5, MESA_6]));
+    vi.mocked(crearReserva).mockResolvedValue({ datos: null, exito: false, error: detalle });
+    const { onGuardado } = abrir();
+    await completar({ mesa: '6' });
+
+    guardar();
+
+    expect(await screen.findByText(detalle)).toBeInTheDocument();
+    expect(crearReserva).toHaveBeenCalledWith(expect.objectContaining({ mesa_id: 6 }));
+    expect(onGuardado).not.toHaveBeenCalled();
+    expect(screen.getByLabelText(ETIQUETAS.mesa)).toHaveValue('6');
+  });
+
   it('si la respuesta no trae detalle muestra un error general', async () => {
     vi.mocked(crearReserva).mockResolvedValue({ datos: null, exito: false });
     abrir();
-    completar();
+    await completar();
 
     guardar();
 
@@ -258,6 +462,27 @@ describe('ReservaFormulario: panel de edición', () => {
     for (const campo of ['fecha', 'hora', 'cantidad'] as const) {
       expect(screen.getByLabelText(ETIQUETAS[campo])).toBeEnabled();
     }
+  });
+
+  it('la edición no pide la lista de mesas, tampoco al cambiar la fecha o la hora', async () => {
+    abrir(EXISTENTE);
+    await asentar();
+
+    escribir({ fecha: '2026-11-04', hora: '22:00' });
+    await asentar();
+
+    expect(listarMesasDisponibles).not.toHaveBeenCalled();
+  });
+
+  it('la edición muestra Mesa de solo lectura con el mesa_id de la fila', () => {
+    abrir({ ...EXISTENTE, mesa_id: 9 });
+
+    const mesa = screen.getByLabelText(/Mesa \(número\)/);
+
+    expect(mesa.tagName).toBe('INPUT');
+    expect(mesa).toHaveValue('9');
+    expect(mesa).toBeDisabled();
+    expect(screen.queryAllByRole('option')).toHaveLength(0);
   });
 
   it.each(['Cancelar', 'Cerrar formulario'])('«%s» cierra el panel sin enviar el PUT', (boton) => {

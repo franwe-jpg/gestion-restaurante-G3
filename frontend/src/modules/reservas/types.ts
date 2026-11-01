@@ -14,3 +14,17 @@ export interface Reserva {
 
 export type ReservaCrear = Omit<Reserva, 'id' | 'estado'>;
 export type ReservaModificar = Pick<Reserva, 'fecha' | 'hora' | 'cantidad_personas'>;
+
+/** Propios de `reservas`: no se importan del módulo `salon` (AGENTS.md §9.4, S34). */
+export interface SectorResumenMesa {
+  id: number;
+  nombre: string;
+}
+
+/** Una mesa libre para una fecha y hora, tal como la devuelve `GET /reservas/mesas-disponibles`. */
+export interface MesaDisponible {
+  id: number;
+  numero: number;
+  capacidad: number;
+  sector: SectorResumenMesa;
+}

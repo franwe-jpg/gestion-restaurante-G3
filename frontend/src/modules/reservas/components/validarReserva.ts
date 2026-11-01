@@ -36,6 +36,11 @@ function errorDeHora(
   return esHoy && hora <= horaActual ? 'La hora debe ser posterior a la hora actual.' : undefined;
 }
 
+/** El valor sale de una opción del selector de mesas disponibles: solo se exige que haya una. */
+function errorDeMesa(mesa: string): string | undefined {
+  return mesa === '' ? 'La mesa es obligatoria.' : undefined;
+}
+
 function erroresDeClienteYMesa(datos: DatosFormularioReserva): ErroresReserva {
   return {
     cliente: errorDeEntero(
@@ -43,11 +48,7 @@ function erroresDeClienteYMesa(datos: DatosFormularioReserva): ErroresReserva {
       'El cliente es obligatorio.',
       'El cliente debe ser un entero positivo.',
     ),
-    mesa: errorDeEntero(
-      datos.mesa,
-      'La mesa es obligatoria.',
-      'La mesa debe ser un entero positivo.',
-    ),
+    mesa: errorDeMesa(datos.mesa),
   };
 }
 
@@ -68,9 +69,21 @@ function erroresDelTurno(
 }
 
 /**
+ * `true` si Fecha y Hora pasan las reglas de `validarReserva` (Fecha y Hora obligatorias, Fecha no
+ * anterior a hoy y, si es hoy, Hora posterior a la actual). Con un turno válido el alta puede pedir
+ * la lista de mesas disponibles (S34).
+ */
+export function turnoValido(fecha: string, hora: string, hoy: string, horaActual: string): boolean {
+  return (
+    errorDeFecha(fecha, hoy) === undefined &&
+    errorDeHora(hora, fecha, hoy, horaActual) === undefined
+  );
+}
+
+/**
  * Valida el formulario sin leer el reloj: `hoy` (`YYYY-MM-DD`) y `horaActual` (`HH:MM`) llegan
  * por parámetro. Si la fecha es hoy, la hora tiene que ser posterior a la actual (S3). Cliente y
- * Mesa solo se validan en el alta.
+ * Mesa solo se validan en el alta, y Mesa solo debe estar elegida.
  */
 export function validarReserva(
   datos: DatosFormularioReserva,
