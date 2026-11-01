@@ -82,13 +82,24 @@ def test_upgrade_crea_menu_ejecutivo_y_relacion_con_productos(
 ) -> None:
     url, config = _preparar_base(tmp_path, monkeypatch, "menus.db")
 
-    command.upgrade(config, "head")
+    command.upgrade(config, REVISION)
     tablas, columnas, indices, foraneas, checks = _inspeccionar(url)
+    get_settings.cache_clear()
+
+    motor = crear_motor(url)
+
+    with motor.connect() as conexion:
+        revision_actual = conexion.execute(
+            text("SELECT version_num FROM alembic_version")
+        ).scalar_one()
+
+    motor.dispose()
+
+    assert revision_actual == REVISION
+
     script = ScriptDirectory.from_config(config)
     cabezas = script.get_heads()
     historia = {revision.revision for revision in script.iterate_revisions(cabezas, "base")}
-    get_settings.cache_clear()
-
     assert len(cabezas) == 1
     assert REVISION in historia
     assert {"menus_ejecutivos", "menu_ejecutivo_productos"} <= tablas
@@ -116,7 +127,7 @@ def test_upgrade_rechaza_precio_fijo_no_positivo(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, precio: str
 ) -> None:
     url, config = _preparar_base(tmp_path, monkeypatch, f"precio-{precio}.db")
-    command.upgrade(config, "head")
+    command.upgrade(config, REVISION)
     _insertar_seccion(url)
 
     with pytest.raises(IntegrityError):
@@ -128,7 +139,7 @@ def test_downgrade_elimina_menu_y_conserva_catalogo(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     url, config = _preparar_base(tmp_path, monkeypatch, "downgrade.db")
-    command.upgrade(config, "head")
+    command.upgrade(config, REVISION)
 
     command.downgrade(config, REVISION_ANTERIOR)
     motor = crear_motor(url)

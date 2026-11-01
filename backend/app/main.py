@@ -11,6 +11,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import API_PREFIX, get_settings
 from app.modules.atencion.router import router as atencion_router
+from app.modules.atencion.service import ComandaAbiertaError, EntregasPendientesError
 from app.modules.menus.router import router as menus_router
 from app.modules.productos.router import router as productos_router
 from app.modules.salon.router import router as salon_router
@@ -47,6 +48,27 @@ def manejar_no_encontrado(_solicitud: Request, error: NoEncontradoError) -> JSON
 @app.exception_handler(ReglaDeNegocioError)
 def manejar_regla_de_negocio(_solicitud: Request, error: ReglaDeNegocioError) -> JSONResponse:
     return JSONResponse(status_code=409, content={"detalle": str(error)})
+
+
+@app.exception_handler(EntregasPendientesError)
+def manejar_entregas_pendientes(
+    _solicitud: Request, error: EntregasPendientesError
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=409,
+        content={
+            "detalle": str(error),
+            "comanda_id": error.comanda_id,
+            "pendientes": [detalle.model_dump() for detalle in error.pendientes],
+        },
+    )
+
+
+@app.exception_handler(ComandaAbiertaError)
+def manejar_comanda_abierta(_solicitud: Request, error: ComandaAbiertaError) -> JSONResponse:
+    return JSONResponse(
+        status_code=409, content={"detalle": str(error), "comanda_id": error.comanda_id}
+    )
 
 
 @app.exception_handler(DatosInvalidosError)

@@ -1,10 +1,20 @@
-"""atencion: entrada y salida de la API."""
+"""Esquemas de Cliente y metadatos de Comanda; las salidas usan S2-01."""
 
 import re
 
 from pydantic import BaseModel, field_validator
 
+from app.shared.contratos.comanda import DetalleComandaCrear
 from app.shared.paginacion import ParametrosPaginacion
+
+
+class DetallePendiente(DetalleComandaCrear):
+    id: int
+
+
+class PendientesComanda(BaseModel):
+    comanda_id: int
+    pendientes: list[DetallePendiente]
 
 
 class ClienteNuevo(BaseModel):
