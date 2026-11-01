@@ -8,6 +8,8 @@ vi.mock('../api', () => ({
   crearComanda: vi.fn(),
   cerrarComanda: vi.fn(),
   consultarPendientes: vi.fn(),
+  listarClientes: vi.fn(),
+  modificarCliente: vi.fn(),
 }));
 
 const COMANDA = {
@@ -21,6 +23,10 @@ const PAGINA = { items: [COMANDA], total: 1, limit: 50, offset: 0 };
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(api.listarComandas).mockResolvedValue({ exito: true, datos: PAGINA });
+  vi.mocked(api.listarClientes).mockResolvedValue({
+    exito: true,
+    datos: { items: [], total: 0, limit: 50, offset: 0 },
+  });
   vi.mocked(api.consultarPendientes).mockResolvedValue({
     exito: true,
     datos: { comanda_id: 3, pendientes: [] },

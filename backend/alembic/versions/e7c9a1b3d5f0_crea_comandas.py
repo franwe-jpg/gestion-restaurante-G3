@@ -1,7 +1,7 @@
 """Create M4 order and order-item tables.
 
 Revision ID: e7c9a1b3d5f0
-Revises: d6b7c8e9f0a1
+Revises: e7a9c1d3f5b7
 """
 
 from collections.abc import Sequence
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "e7c9a1b3d5f0"
-down_revision: str | None = "d6b7c8e9f0a1"
+down_revision: str | None = "e7a9c1d3f5b7"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

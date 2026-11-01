@@ -3,6 +3,7 @@ import { PageHeader } from '../../../shared/components/PageHeader';
 import { Button } from '../../../shared/components/ui/button';
 import { Dialog } from '../../../shared/components/ui/dialog';
 import { ComandasPanel } from '../components/ComandasPanel';
+import { PanelClientes } from '../components/PanelClientes';
 import { ComandaForm } from '../components/ComandaForm';
 import { CierreComandaDialog } from '../components/CierreComandaDialog';
 import { useComandas } from '../components/useComandas';
@@ -30,6 +31,7 @@ export function AtencionPage() {
         acciones={<Button onClick={() => setAlta(true)}>Nueva comanda</Button>}
       />
 
+      <PanelClientes />
       <ComandasPanel comandas={comandas} aviso={aviso} onCerrar={setCierreId} />
       {alta && (
         <Dialog open title="Nueva comanda" size="lg" onOpenChange={setAlta}>

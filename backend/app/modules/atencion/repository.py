@@ -1,9 +1,9 @@
-"""M4 persistence queries; transactions belong to the service."""
+"""Consultas de clientes y comandas; la transacción pertenece al servicio."""
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.modules.atencion.models import Comanda, DetalleComanda
+from app.modules.atencion.models import Cliente, Comanda, DetalleComanda
 from app.shared.contratos.comanda import ComandaCrear, DetalleComandaSalida, EstadoComanda
 from app.shared.paginacion import ParametrosPaginacion, aplicar, contar
 
@@ -54,3 +54,20 @@ def listar_comandas(
         consulta = consulta.where(Comanda.estado == estado)
     total = contar(db, consulta)
     return list(db.scalars(aplicar(consulta, parametros))), total
+
+
+def obtener_cliente(db: Session, cliente_id: int) -> Cliente | None:
+    return db.get(Cliente, cliente_id)
+
+
+def listar_clientes(
+    db: Session, parametros: ParametrosPaginacion, q: str | None
+) -> tuple[list[Cliente], int]:
+    consulta = select(Cliente)
+    if q:
+        consulta = consulta.where(
+            or_(Cliente.nombre.contains(q, autoescape=True), Cliente.telefono == q)
+        )
+    total = contar(db, consulta)
+    items = list(db.scalars(aplicar(consulta.order_by(Cliente.id), parametros)).all())
+    return items, total

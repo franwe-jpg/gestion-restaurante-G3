@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ToastProvider } from '../../../shared/components/ui/toast';
-import { crearSector } from '../api';
+import { crearSector, modificarSector } from '../api';
 import type { Sector } from '../types';
 
 import { SectorFormDialog } from './SectorFormDialog';
@@ -16,15 +16,22 @@ const CREADO: Sector = {
   estado: 'HABILITADO',
 };
 
-function abrir() {
-  const onCreado = vi.fn();
+const TERRAZA: Sector = {
+  id: 7,
+  nombre: 'Terraza',
+  descripcion: 'Al aire libre',
+  estado: 'HABILITADO',
+};
+
+function abrir(sector: Sector | null = null) {
+  const onGuardado = vi.fn();
   const onOpenChange = vi.fn();
   render(
     <ToastProvider>
-      <SectorFormDialog onCreado={onCreado} onOpenChange={onOpenChange} />
+      <SectorFormDialog sector={sector} onGuardado={onGuardado} onOpenChange={onOpenChange} />
     </ToastProvider>,
   );
-  return { onCreado, onOpenChange };
+  return { onGuardado, onOpenChange };
 }
 
 afterEach(() => {
@@ -63,12 +70,12 @@ describe('SectorFormDialog: campos y estado', () => {
 describe('SectorFormDialog: alta', () => {
   it('crea el sector y avisa a quien lo abrió (CA 1)', async () => {
     vi.mocked(crearSector).mockResolvedValue({ datos: CREADO, exito: true });
-    const { onCreado } = abrir();
+    const { onGuardado } = abrir();
     fireEvent.change(screen.getByLabelText(/Nombre/), { target: { value: '  Salón principal ' } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
 
-    await waitFor(() => expect(onCreado).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(onGuardado).toHaveBeenCalledTimes(1));
     expect(crearSector).toHaveBeenCalledWith({
       nombre: 'Salón principal',
       descripcion: null,
@@ -96,6 +103,52 @@ describe('SectorFormDialog: alta', () => {
   });
 });
 
+describe('SectorFormDialog: edición', () => {
+  it('muestra el título, los datos precargados y «Guardar cambios» (CA 1 de #34)', () => {
+    abrir(TERRAZA);
+
+    expect(screen.getByRole('heading', { name: 'Editar sector' })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Nombre/)).toHaveValue('Terraza');
+    expect(screen.getByLabelText(/Descripción/)).toHaveValue('Al aire libre');
+    expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeInTheDocument();
+  });
+
+  it('muestra el estado real del sector (M16)', () => {
+    abrir({ ...TERRAZA, estado: 'DESHABILITADO' });
+
+    expect(screen.getByText(/Estado: Deshabilitado/)).toBeInTheDocument();
+  });
+
+  it('envía la modificación por id y avisa al guardar (CA 1 de #34)', async () => {
+    vi.mocked(modificarSector).mockResolvedValue({
+      datos: { ...TERRAZA, nombre: 'Terraza norte' },
+      exito: true,
+    });
+    const { onGuardado } = abrir(TERRAZA);
+    fireEvent.change(screen.getByLabelText(/Nombre/), { target: { value: 'Terraza norte' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+    await waitFor(() => expect(onGuardado).toHaveBeenCalledTimes(1));
+    expect(modificarSector).toHaveBeenCalledWith(7, {
+      nombre: 'Terraza norte',
+      descripcion: 'Al aire libre',
+    });
+    expect(crearSector).not.toHaveBeenCalled();
+    expect(await screen.findByText('Sector modificado')).toBeInTheDocument();
+  });
+
+  it('al cancelar cierra sin enviar la modificación (CA 4 de #34)', () => {
+    const { onOpenChange } = abrir(TERRAZA);
+    fireEvent.change(screen.getByLabelText(/Nombre/), { target: { value: 'Terraza norte' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(modificarSector).not.toHaveBeenCalled();
+  });
+});
+
 describe('SectorFormDialog: cancelar y errores', () => {
   it('al cancelar cierra sin enviar ninguna solicitud (CA 4)', () => {
     const { onOpenChange } = abrir();
@@ -113,13 +166,13 @@ describe('SectorFormDialog: cancelar y errores', () => {
       exito: false,
       error: 'El sector ya existe',
     });
-    const { onCreado } = abrir();
+    const { onGuardado } = abrir();
     fireEvent.change(screen.getByLabelText(/Nombre/), { target: { value: 'Salón principal' } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
 
     expect(await screen.findByText('Ya existe un sector con ese nombre.')).toBeInTheDocument();
     expect(screen.getByLabelText(/Nombre/)).toHaveValue('Salón principal');
-    expect(onCreado).not.toHaveBeenCalled();
+    expect(onGuardado).not.toHaveBeenCalled();
   });
 });

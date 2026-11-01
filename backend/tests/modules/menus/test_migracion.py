@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 from alembic.config import Config
+from alembic.script import ScriptDirectory
 from sqlalchemy import inspect, text
 from sqlalchemy.exc import IntegrityError
 
@@ -13,6 +14,7 @@ from app.database import crear_motor
 
 ALEMBIC_INI = Path(__file__).resolve().parents[3] / "alembic.ini"
 REVISION = "d6b7c8e9f0a1"
+REVISION_ANTERIOR = "b2d4f6a8c0e1"
 INDICE_UNICO = "ux_menus_ejecutivos_nombre_normalizado"
 CHECK_PRECIO = "ck_menus_ejecutivos_precio_positivo"
 
@@ -95,6 +97,11 @@ def test_upgrade_crea_menu_ejecutivo_y_relacion_con_productos(
 
     assert revision_actual == REVISION
 
+    script = ScriptDirectory.from_config(config)
+    cabezas = script.get_heads()
+    historia = {revision.revision for revision in script.iterate_revisions(cabezas, "base")}
+    assert len(cabezas) == 1
+    assert REVISION in historia
     assert {"menus_ejecutivos", "menu_ejecutivo_productos"} <= tablas
     assert set(columnas) == {
         "id",
@@ -134,7 +141,7 @@ def test_downgrade_elimina_menu_y_conserva_catalogo(
     url, config = _preparar_base(tmp_path, monkeypatch, "downgrade.db")
     command.upgrade(config, REVISION)
 
-    command.downgrade(config, "-1")
+    command.downgrade(config, REVISION_ANTERIOR)
     motor = crear_motor(url)
     tablas = set(inspect(motor).get_table_names())
     motor.dispose()

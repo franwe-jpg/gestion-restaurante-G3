@@ -1,4 +1,4 @@
-"""M4: rutas de listado y cierre local; solo delegan al servicio."""
+"""Rutas de Cliente y Comanda; delegan al servicio de M4."""
 
 from typing import Annotated
 
@@ -7,11 +7,16 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.modules.atencion import service
-from app.modules.atencion.schemas import PendientesComanda
+from app.modules.atencion.schemas import (
+    ClienteModificar,
+    ClienteSalida,
+    FiltroClientes,
+    PendientesComanda,
+)
 from app.shared.contratos.comanda import ComandaCrear, ComandaResumen, ComandaSalida, EstadoComanda
 from app.shared.paginacion import LIMIT_MAXIMO, LIMIT_POR_DEFECTO, Pagina, ParametrosPaginacion
 
-router = APIRouter(prefix="/comandas", tags=["Atención al Público"])
+router = APIRouter(tags=["Atención al Público"])
 Sesion = Annotated[Session, Depends(get_db)]
 
 
@@ -23,7 +28,7 @@ def obtener_catalogo_port() -> service.CatalogoPort:
     raise HTTPException(503, "Alta pendiente de integración con el catálogo")
 
 
-@router.post("", status_code=201)
+@router.post("/comandas", status_code=201)
 def crear_comanda(
     datos: ComandaCrear,
     db: Sesion,
@@ -33,7 +38,7 @@ def crear_comanda(
     return service.crear_comanda(db, datos, mesas, catalogo)
 
 
-@router.get("")
+@router.get("/comandas")
 def listar_comandas(
     db: Sesion,
     mesa_id: Annotated[int | None, Query(gt=0)] = None,
@@ -46,11 +51,23 @@ def listar_comandas(
     )
 
 
-@router.post("/{comanda_id}/cerrar")
+@router.post("/comandas/{comanda_id}/cerrar")
 def cerrar_comanda(comanda_id: Annotated[int, Path(gt=0)], db: Sesion) -> ComandaSalida:
     return service.cerrar_comanda(db, comanda_id)
 
 
-@router.get("/{comanda_id}/pendientes")
+@router.get("/comandas/{comanda_id}/pendientes")
 def consultar_pendientes(comanda_id: Annotated[int, Path(gt=0)], db: Sesion) -> PendientesComanda:
     return service.consultar_pendientes(db, comanda_id)
+
+
+@router.put("/clientes/{cliente_id}")
+def modificar_cliente(cliente_id: int, datos: ClienteModificar, db: Sesion) -> ClienteSalida:
+    return service.modificar_cliente(db, cliente_id, datos)
+
+
+@router.get("/clientes")
+def listar_clientes(
+    db: Sesion, filtro: Annotated[FiltroClientes, Query()]
+) -> Pagina[ClienteSalida]:
+    return service.listar_clientes(db, filtro, filtro.q)

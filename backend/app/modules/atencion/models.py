@@ -1,4 +1,4 @@
-"""M4 order records and historical line-item values."""
+"""Entidades de clientes y comandas del módulo Atención al Público."""
 
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -77,3 +77,11 @@ class DetalleComanda(Base):
     descuento: Mapped[Decimal] = mapped_column(sa.Numeric(10, 2))
     promocion_id: Mapped[int | None] = mapped_column(nullable=True)
     comanda: Mapped[Comanda] = relationship(back_populates="detalles")
+
+
+class Cliente(Base):
+    __tablename__ = "clientes"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    nombre: Mapped[str] = mapped_column(sa.String)
+    telefono: Mapped[str] = mapped_column(sa.String)

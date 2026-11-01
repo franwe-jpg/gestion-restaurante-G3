@@ -7,6 +7,7 @@ import type {
   FiltroComandas,
   PendientesComanda,
 } from './types';
+import type { Cliente, ClienteModificar, PaginaCliente } from './types';
 
 export function listarComandas(
   filtro: FiltroComandas,
@@ -30,4 +31,23 @@ export function consultarPendientes(id: number): Promise<RespuestaApi<Pendientes
 
 export function cerrarComanda(id: number): Promise<RespuestaApi<Comanda>> {
   return clienteHttp.post<Comanda, Record<string, never>>(`/comandas/${id}/cerrar`, {});
+}
+
+export function listarClientes(
+  q = '',
+  limit = 50,
+  offset = 0,
+): Promise<RespuestaApi<PaginaCliente>> {
+  const parametros = new URLSearchParams();
+  if (q) parametros.set('q', q);
+  parametros.set('limit', String(limit));
+  parametros.set('offset', String(offset));
+  return clienteHttp.get<PaginaCliente>(`/clientes?${parametros}`);
+}
+
+export function modificarCliente(
+  id: number,
+  datos: ClienteModificar,
+): Promise<RespuestaApi<Cliente>> {
+  return clienteHttp.put<Cliente, ClienteModificar>(`/clientes/${id}`, datos);
 }
