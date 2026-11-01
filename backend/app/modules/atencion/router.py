@@ -2,11 +2,11 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query
+from fastapi import APIRouter, Depends, Path, Query
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.modules.atencion import service
+from app.modules.atencion import adaptadores, service
 from app.modules.atencion.schemas import (
     ClienteModificar,
     ClienteSalida,
@@ -21,11 +21,11 @@ Sesion = Annotated[Session, Depends(get_db)]
 
 
 def obtener_mesas_port() -> service.MesasPort:
-    raise HTTPException(503, "Alta pendiente de integración con el servicio de mesas")
+    return adaptadores.MesasDeSalon()
 
 
 def obtener_catalogo_port() -> service.CatalogoPort:
-    raise HTTPException(503, "Alta pendiente de integración con el catálogo")
+    return adaptadores.CatalogoDeCarta()
 
 
 @router.post("/comandas", status_code=201)
@@ -52,8 +52,12 @@ def listar_comandas(
 
 
 @router.post("/comandas/{comanda_id}/cerrar")
-def cerrar_comanda(comanda_id: Annotated[int, Path(gt=0)], db: Sesion) -> ComandaSalida:
-    return service.cerrar_comanda(db, comanda_id)
+def cerrar_comanda(
+    comanda_id: Annotated[int, Path(gt=0)],
+    db: Sesion,
+    mesas: Annotated[service.MesasPort, Depends(obtener_mesas_port)],
+) -> ComandaSalida:
+    return service.cerrar_comanda(db, comanda_id, mesas)
 
 
 @router.get("/comandas/{comanda_id}/pendientes")

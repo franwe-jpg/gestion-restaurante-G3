@@ -8,17 +8,43 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.modules.atencion import service
+from app.modules.atencion.adaptadores import MesasDeSalon
 from app.modules.atencion.models import Cliente, Comanda, DetalleComanda
 from app.modules.atencion.schemas import ClienteModificar
 from app.shared.contratos.comanda import ComandaSalida, EstadoComanda, EstadoEntrega
 from app.shared.excepciones import NoEncontradoError, ReglaDeNegocioError
 
 
+class MesasEspia:
+    """Registra las mesas liberadas; el cierre no debe validar ni ocupar mesas."""
+
+    def __init__(self) -> None:
+        self.liberadas: list[int] = []
+
+    def validar_disponibilidad(self, db: Session, mesa_id: int) -> None:
+        raise AssertionError("El cierre no valida disponibilidad")
+
+    def ocupar(self, db: Session, mesa_id: int) -> None:
+        raise AssertionError("El cierre no ocupa mesas")
+
+    def liberar(self, db: Session, mesa_id: int) -> None:
+        self.liberadas.append(mesa_id)
+
+
+@pytest.fixture
+def mesas() -> MesasEspia:
+    return MesasEspia()
+
+
+def _estado_mesa(db: Session, mesa_id: int = 1) -> str:
+    return db.execute(text("SELECT estado FROM mesas WHERE id=:id"), {"id": mesa_id}).scalar_one()
+
+
 def test_cerrar_comanda_entregada_persiste_solo_estado_y_devuelve_dto(
     db: Session,
     comanda: Comanda,
 ) -> None:
-    salida = service.cerrar_comanda(db, comanda.id)
+    salida = service.cerrar_comanda(db, comanda.id, MesasDeSalon())
 
     assert isinstance(salida, ComandaSalida)
     assert salida.id == comanda.id
@@ -37,16 +63,19 @@ def test_cerrar_comanda_entregada_persiste_solo_estado_y_devuelve_dto(
     assert detalle.promocion_id == 8
     db.expire_all()
     assert db.get(Comanda, comanda.id).estado == "CERRADA"
-    assert db.execute(text("SELECT estado FROM mesas WHERE id=1")).scalar_one() == "OCUPADA"
+    assert _estado_mesa(db) == "LIBRE"
     assert db.execute(text("SELECT precio FROM productos WHERE id=1")).scalar_one() == 99.90
 
 
-def test_cerrar_comanda_inexistente_no_cambia_otras(db: Session, comanda: Comanda) -> None:
+def test_cerrar_comanda_inexistente_no_cambia_otras(
+    db: Session, comanda: Comanda, mesas: MesasEspia
+) -> None:
     with pytest.raises(NoEncontradoError, match="no existe"):
-        service.cerrar_comanda(db, 999)
+        service.cerrar_comanda(db, 999, mesas)
 
     db.expire_all()
     assert db.get(Comanda, comanda.id).estado == "ABIERTA"
+    assert mesas.liberadas == []
 
 
 @pytest.mark.parametrize("estado", [EstadoComanda.CERRADA, EstadoComanda.ANULADA])
@@ -54,15 +83,17 @@ def test_cerrar_comanda_no_abierta_rechaza_sin_transicion(
     db: Session,
     comanda: Comanda,
     estado: EstadoComanda,
+    mesas: MesasEspia,
 ) -> None:
     comanda.estado = estado
     db.commit()
 
     with pytest.raises(ReglaDeNegocioError, match="ABIERTA"):
-        service.cerrar_comanda(db, comanda.id)
+        service.cerrar_comanda(db, comanda.id, mesas)
 
     db.expire_all()
     assert db.get(Comanda, comanda.id).estado == estado
+    assert mesas.liberadas == []
 
 
 @pytest.mark.parametrize("indice_pendiente", [0, 1])
@@ -70,6 +101,7 @@ def test_cerrar_comanda_con_pendiente_no_cierra_ni_entrega(
     db: Session,
     comanda: Comanda,
     indice_pendiente: int,
+    mesas: MesasEspia,
 ) -> None:
     comanda.detalles.append(
         DetalleComanda(
@@ -84,10 +116,11 @@ def test_cerrar_comanda_con_pendiente_no_cierra_ni_entrega(
     db.commit()
 
     with pytest.raises(ReglaDeNegocioError, match="pendientes"):
-        service.cerrar_comanda(db, comanda.id)
+        service.cerrar_comanda(db, comanda.id, mesas)
 
     db.expire_all()
     assert db.get(Comanda, comanda.id).estado == EstadoComanda.ABIERTA
+    assert mesas.liberadas == []
     assert len(comanda.detalles) == 2
     assert comanda.detalles[indice_pendiente].estado_entrega == EstadoEntrega.PENDIENTE
     assert comanda.detalles[1 - indice_pendiente].estado_entrega == EstadoEntrega.ENTREGADO
@@ -99,10 +132,11 @@ def test_cerrar_comanda_mapeo_invalido_revierte_transicion(db: Session, comanda:
     db.commit()
 
     with pytest.raises(ValidationError):
-        service.cerrar_comanda(db, comanda.id)
+        service.cerrar_comanda(db, comanda.id, MesasDeSalon())
 
     assert comanda.estado == EstadoComanda.ABIERTA
     assert not db.dirty
+    assert _estado_mesa(db) == "OCUPADA"
 
 
 def test_cerrar_comanda_fallo_commit_revierte_estado(
@@ -116,15 +150,16 @@ def test_cerrar_comanda_fallo_commit_revierte_estado(
     monkeypatch.setattr(db, "commit", fallar)
 
     with pytest.raises(RuntimeError, match="Fallo de escritura"):
-        service.cerrar_comanda(db, comanda.id)
+        service.cerrar_comanda(db, comanda.id, MesasDeSalon())
 
     assert comanda.estado == EstadoComanda.ABIERTA
     assert not db.dirty
     assert comanda.detalles[0].precio_unitario == Decimal("29.90")
+    assert _estado_mesa(db) == "OCUPADA"
 
 
 def test_cerrar_comanda_revalida_entregas_persistidas_no_cache(
-    db: Session, comanda: Comanda
+    db: Session, comanda: Comanda, mesas: MesasEspia
 ) -> None:
     detalle_id = comanda.detalles[0].id
     assert comanda.detalles[0].estado_entrega == EstadoEntrega.ENTREGADO
@@ -136,14 +171,17 @@ def test_cerrar_comanda_revalida_entregas_persistidas_no_cache(
         otra.commit()
 
     with pytest.raises(ReglaDeNegocioError, match="pendientes"):
-        service.cerrar_comanda(db, comanda.id)
+        service.cerrar_comanda(db, comanda.id, mesas)
 
     db.expire_all()
     assert db.get(Comanda, comanda.id).estado == EstadoComanda.ABIERTA
     assert comanda.detalles[0].estado_entrega == EstadoEntrega.PENDIENTE
+    assert mesas.liberadas == []
 
 
-def test_cerrar_comanda_revalida_estado_persistido_no_cache(db: Session, comanda: Comanda) -> None:
+def test_cerrar_comanda_revalida_estado_persistido_no_cache(
+    db: Session, comanda: Comanda, mesas: MesasEspia
+) -> None:
     with Session(db.get_bind()) as otra:
         otra.execute(
             text("UPDATE comandas SET estado=:estado WHERE id=:id"),
@@ -152,10 +190,31 @@ def test_cerrar_comanda_revalida_estado_persistido_no_cache(db: Session, comanda
         otra.commit()
 
     with pytest.raises(ReglaDeNegocioError, match="ABIERTA"):
-        service.cerrar_comanda(db, comanda.id)
+        service.cerrar_comanda(db, comanda.id, mesas)
 
     db.expire_all()
     assert db.get(Comanda, comanda.id).estado == EstadoComanda.ANULADA
+    assert mesas.liberadas == []
+
+
+def test_cerrar_comanda_libera_su_mesa_una_sola_vez(
+    db: Session, comanda: Comanda, mesas: MesasEspia
+) -> None:
+    service.cerrar_comanda(db, comanda.id, mesas)
+    with pytest.raises(ReglaDeNegocioError, match="ABIERTA"):
+        service.cerrar_comanda(db, comanda.id, mesas)
+
+    assert mesas.liberadas == [comanda.mesa_id]
+
+
+def test_cerrar_comanda_libera_la_mesa_en_la_misma_transaccion(
+    db: Session, comanda: Comanda
+) -> None:
+    service.cerrar_comanda(db, comanda.id, MesasDeSalon())
+
+    with Session(db.get_bind()) as otra:
+        assert otra.get(Comanda, comanda.id).estado == EstadoComanda.CERRADA
+        assert _estado_mesa(otra) == "LIBRE"
 
 
 def test_modificar_cliente_confirma_ambos_datos(db: Session) -> None:
