@@ -8,6 +8,7 @@ interface Props {
   id: number;
   onSalir: () => void;
   onCerrada: () => void;
+  onEntregas: () => void;
 }
 
 function useCierre(id: number, onCerrada: () => void) {
@@ -43,7 +44,7 @@ function useCierre(id: number, onCerrada: () => void) {
   return { datos, error, ocupado, confirmar };
 }
 
-export function CierreComandaDialog({ id, onSalir, onCerrada }: Props) {
+export function CierreComandaDialog({ id, onSalir, onCerrada, onEntregas }: Props) {
   const cierre = useCierre(id, onCerrada);
   const pendientes = cierre.datos?.pendientes ?? [];
   return (
@@ -71,10 +72,9 @@ export function CierreComandaDialog({ id, onSalir, onCerrada }: Props) {
                 </li>
               ))}
             </ul>
-            <p>
-              Gestión de entregas pendiente de integración (HU-M4-08). No se marcan entregas desde
-              esta pantalla.
-            </p>
+            <Button disabled={cierre.ocupado} onClick={onEntregas}>
+              Gestionar entregas
+            </Button>
           </>
         )}
         {cierre.datos && pendientes.length === 0 && (

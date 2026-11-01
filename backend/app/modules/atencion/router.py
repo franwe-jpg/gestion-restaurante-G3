@@ -10,6 +10,8 @@ from app.modules.atencion import adaptadores, service
 from app.modules.atencion.schemas import (
     ClienteModificar,
     ClienteSalida,
+    EntregaDetalle,
+    EntregasComanda,
     FiltroClientes,
     PendientesComanda,
 )
@@ -63,6 +65,21 @@ def cerrar_comanda(
 @router.get("/comandas/{comanda_id}/pendientes")
 def consultar_pendientes(comanda_id: Annotated[int, Path(gt=0)], db: Sesion) -> PendientesComanda:
     return service.consultar_pendientes(db, comanda_id)
+
+
+@router.get("/comandas/{comanda_id}/detalles")
+def consultar_entregas(comanda_id: Annotated[int, Path(gt=0)], db: Sesion) -> EntregasComanda:
+    return service.consultar_entregas(db, comanda_id)
+
+
+@router.put("/comandas/{comanda_id}/detalles/{detalle_id}/entrega")
+def registrar_entrega(
+    comanda_id: Annotated[int, Path(gt=0)],
+    detalle_id: Annotated[int, Path(gt=0)],
+    datos: EntregaDetalle,
+    db: Sesion,
+) -> EntregasComanda:
+    return service.registrar_entrega(db, comanda_id, detalle_id, datos)
 
 
 @router.put("/clientes/{cliente_id}")

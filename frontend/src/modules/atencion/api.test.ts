@@ -30,6 +30,20 @@ it('crea usando el cuerpo de entrada S2-01 sin importes ni fecha arbitrarios', a
   expect(post).toHaveBeenCalledWith('/comandas', datos);
 });
 
+it('consulta las entregas por GET /comandas/{id}/detalles', async () => {
+  const respuesta = { exito: false, datos: null, error: 'La comanda 9 no existe' };
+  const get = vi.spyOn(clienteHttp, 'get').mockResolvedValue(respuesta);
+  expect(await api.consultarEntregas(9)).toBe(respuesta);
+  expect(get).toHaveBeenCalledWith('/comandas/9/detalles');
+});
+
+it('registra la cantidad entregada absoluta por PUT .../entrega', async () => {
+  const respuesta = { exito: true, datos: { comanda_id: 3, estado: 'ABIERTA', detalles: [] } };
+  const put = vi.spyOn(clienteHttp, 'put').mockResolvedValue(respuesta);
+  expect(await api.registrarEntrega(3, 81, 4)).toBe(respuesta);
+  expect(put).toHaveBeenCalledWith('/comandas/3/detalles/81/entrega', { cantidad_entregada: 4 });
+});
+
 describe('API de clientes', () => {
   it('consulta la primera página sin filtro', async () => {
     const respuesta = { exito: true, datos: { items: [], total: 0, limit: 50, offset: 0 } };

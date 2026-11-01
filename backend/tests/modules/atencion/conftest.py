@@ -59,12 +59,34 @@ def comanda(db: Session) -> Comanda:
                 descuento=Decimal("3.25"),
                 promocion_id=8,
                 estado_entrega=EstadoEntrega.ENTREGADO,
+                cantidad_entregada=2,
             )
         ],
     )
     db.add(registro)
     db.commit()
     return registro
+
+
+@pytest.fixture
+def comanda_con_lineas(db: Session, comanda: Comanda) -> Comanda:
+    """Comanda ABIERTA con dos líneas PENDIENTE sin entregas: cantidad 3 y cantidad 10."""
+    abierta = Comanda(
+        mesa_id=2,
+        estado=EstadoComanda.ABIERTA,
+        detalles=[
+            DetalleComanda(
+                producto_id=1,
+                cantidad=cantidad,
+                precio_unitario=Decimal("29.90"),
+                descuento=Decimal("0.00"),
+            )
+            for cantidad in (3, 10)
+        ],
+    )
+    db.add(abierta)
+    db.commit()
+    return abierta
 
 
 @dataclass(frozen=True)

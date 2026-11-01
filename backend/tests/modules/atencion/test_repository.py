@@ -4,10 +4,11 @@ from decimal import Decimal
 
 import pytest
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.modules.atencion import repository
-from app.modules.atencion.models import Cliente, Comanda, DetalleComanda
+from app.modules.atencion.models import Cliente, Comanda, DetalleComanda, estado_segun_entrega
 from app.shared.paginacion import ParametrosPaginacion
 
 
@@ -121,3 +122,180 @@ def test_listar_clientes_vacio(db: Session) -> None:
 
     assert items == []
     assert total == 0
+
+
+# Entregas por cantidad (HU-M4-08)
+
+
+def _detalle_nuevo(db: Session, comanda: Comanda, **campos: int) -> DetalleComanda:
+    detalle = DetalleComanda(
+        comanda_id=comanda.id,
+        producto_id=1,
+        precio_unitario=Decimal("29.90"),
+        descuento=Decimal("0.00"),
+        **{"cantidad": 3, **campos},
+    )
+    db.add(detalle)
+    return detalle
+
+
+def test_detalle_comanda_cantidad_entregada_default_cero(db: Session, comanda: Comanda) -> None:
+    detalle = _detalle_nuevo(db, comanda)
+    db.commit()
+    db.expire_all()
+
+    assert db.get(DetalleComanda, detalle.id).cantidad_entregada == 0
+
+
+def test_detalle_comanda_cantidad_entregada_rechaza_mayor_que_cantidad(
+    db: Session, comanda: Comanda
+) -> None:
+    _detalle_nuevo(db, comanda, cantidad=3, cantidad_entregada=4)
+
+    with pytest.raises(IntegrityError):
+        db.flush()
+    db.rollback()
+
+
+@pytest.mark.parametrize(
+    ("cantidad", "entregada", "esperado"),
+    [
+        (3, 3, "ENTREGADO"),
+        (1, 1, "ENTREGADO"),
+        (3, 2, "PENDIENTE"),
+        (3, 0, "PENDIENTE"),
+        (3, 4, "PENDIENTE"),
+    ],
+)
+def test_estado_segun_entrega_es_entregado_solo_si_esta_completa(
+    cantidad: int, entregada: int, esperado: str
+) -> None:
+    assert estado_segun_entrega(cantidad, entregada) == esperado
+
+
+def _leer(db: Session, detalle: DetalleComanda) -> tuple[int, str]:
+    db.expire_all()
+    guardado = db.get(DetalleComanda, detalle.id)
+    return guardado.cantidad_entregada, guardado.estado_entrega
+
+
+def test_registrar_entrega_parcial_deja_pendiente(db: Session, comanda_con_lineas: Comanda) -> None:
+    detalle = comanda_con_lineas.detalles[1]
+
+    assert repository.registrar_entrega(db, comanda_con_lineas.id, detalle.id, 4) is True
+
+    assert _leer(db, detalle) == (4, "PENDIENTE")
+
+
+def test_registrar_entrega_completa_deja_entregado(
+    db: Session, comanda_con_lineas: Comanda
+) -> None:
+    detalle = comanda_con_lineas.detalles[0]
+
+    assert repository.registrar_entrega(db, comanda_con_lineas.id, detalle.id, 3) is True
+
+    assert _leer(db, detalle) == (3, "ENTREGADO")
+
+
+def test_registrar_entrega_baja_cantidad_vuelve_a_pendiente(
+    db: Session, comanda_con_lineas: Comanda
+) -> None:
+    detalle = comanda_con_lineas.detalles[0]
+    repository.registrar_entrega(db, comanda_con_lineas.id, detalle.id, 3)
+
+    assert repository.registrar_entrega(db, comanda_con_lineas.id, detalle.id, 2) is True
+    assert _leer(db, detalle) == (2, "PENDIENTE")
+    assert repository.registrar_entrega(db, comanda_con_lineas.id, detalle.id, 0) is True
+    assert _leer(db, detalle) == (0, "PENDIENTE")
+
+
+def test_registrar_entrega_mismo_valor_devuelve_true_idempotente(
+    db: Session, comanda_con_lineas: Comanda
+) -> None:
+    detalle = comanda_con_lineas.detalles[1]
+    repository.registrar_entrega(db, comanda_con_lineas.id, detalle.id, 4)
+
+    assert repository.registrar_entrega(db, comanda_con_lineas.id, detalle.id, 4) is True
+
+    assert _leer(db, detalle) == (4, "PENDIENTE")
+
+
+def test_registrar_entrega_mayor_que_cantidad_devuelve_false_sin_cambios(
+    db: Session, comanda_con_lineas: Comanda
+) -> None:
+    detalle = comanda_con_lineas.detalles[0]
+
+    assert repository.registrar_entrega(db, comanda_con_lineas.id, detalle.id, 4) is False
+
+    assert _leer(db, detalle) == (0, "PENDIENTE")
+
+
+@pytest.mark.parametrize("estado", ["CERRADA", "ANULADA"])
+def test_registrar_entrega_comanda_no_abierta_devuelve_false_sin_cambios(
+    db: Session, comanda_con_lineas: Comanda, estado: str
+) -> None:
+    detalle = comanda_con_lineas.detalles[0]
+    comanda_con_lineas.estado = estado
+    db.commit()
+
+    assert repository.registrar_entrega(db, comanda_con_lineas.id, detalle.id, 3) is False
+
+    assert _leer(db, detalle) == (0, "PENDIENTE")
+
+
+def test_registrar_entrega_detalle_de_otra_comanda_devuelve_false_sin_cambios(
+    db: Session, comanda: Comanda, comanda_con_lineas: Comanda
+) -> None:
+    ajeno = comanda.detalles[0]  # ENTREGADO 2 de 2 en la comanda de la mesa 1
+
+    assert repository.registrar_entrega(db, comanda_con_lineas.id, ajeno.id, 1) is False
+
+    assert _leer(db, ajeno) == (2, "ENTREGADO")
+
+
+def test_registrar_entrega_no_modifica_otros_detalles(
+    db: Session, comanda_con_lineas: Comanda
+) -> None:
+    primero, segundo = comanda_con_lineas.detalles
+
+    repository.registrar_entrega(db, comanda_con_lineas.id, primero.id, 3)
+
+    assert _leer(db, primero) == (3, "ENTREGADO")
+    assert _leer(db, segundo) == (0, "PENDIENTE")
+
+
+def test_obtener_comanda_ordena_los_detalles_por_id(db: Session) -> None:
+    _crear_mesa(db)
+    db.execute(
+        text(
+            "INSERT INTO secciones (id, nombre, nombre_normalizado, orden, estado) "
+            "VALUES (1, 'Carta', 'carta', 1, 'HABILITADO')"
+        )
+    )
+    db.execute(
+        text(
+            "INSERT INTO productos (id, nombre, nombre_normalizado, categoria, precio, "
+            "ingredientes, etiquetas, estado, seccion_id) "
+            "VALUES (1, 'Plato', 'plato', 'PLATO', 29.90, '[]', '[]', 'HABILITADO', 1)"
+        )
+    )
+    db.execute(
+        text(
+            "INSERT INTO comandas (id, mesa_id, estado, fecha_hora) "
+            "VALUES (1, 1, 'ABIERTA', '2026-10-31T14:15:00.000000+00:00')"
+        )
+    )
+    for identificador in (7, 2, 5):  # insertados fuera de orden
+        db.execute(
+            text(
+                "INSERT INTO detalles_comanda (id, comanda_id, producto_id, cantidad, "
+                "estado_entrega, precio_unitario, descuento) "
+                "VALUES (:id, 1, 1, 1, 'PENDIENTE', 10, 0)"
+            ),
+            {"id": identificador},
+        )
+    db.commit()
+
+    comanda = repository.obtener_comanda(db, 1)
+
+    assert [detalle.id for detalle in comanda.detalles] == [2, 5, 7]

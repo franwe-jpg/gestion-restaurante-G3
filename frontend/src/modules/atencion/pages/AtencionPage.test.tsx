@@ -8,6 +8,8 @@ vi.mock('../api', () => ({
   crearComanda: vi.fn(),
   cerrarComanda: vi.fn(),
   consultarPendientes: vi.fn(),
+  consultarEntregas: vi.fn(),
+  registrarEntrega: vi.fn(),
   listarClientes: vi.fn(),
   modificarCliente: vi.fn(),
 }));
@@ -154,13 +156,26 @@ it('informa integración no disponible sin simular una creación', async () => {
   expect(screen.queryByText('Comanda creada')).not.toBeInTheDocument();
 });
 
-it('consulta A02 antes de confirmar, informa detalles y no ofrece marcar entregas', async () => {
+const PENDIENTE_81 = { id: 81, producto_id: 12, menu_ejecutivo_id: null, cantidad: 2 };
+
+function entregas(entregada: number, estado: 'ABIERTA' | 'CERRADA' = 'ABIERTA') {
+  return {
+    comanda_id: 3,
+    estado,
+    detalles: [
+      {
+        ...PENDIENTE_81,
+        cantidad_entregada: entregada,
+        estado_entrega: entregada === 2 ? ('ENTREGADO' as const) : ('PENDIENTE' as const),
+      },
+    ],
+  };
+}
+
+it('consulta A02 antes de confirmar, informa detalles y ofrece gestionar entregas', async () => {
   vi.mocked(api.consultarPendientes).mockResolvedValue({
     exito: true,
-    datos: {
-      comanda_id: 3,
-      pendientes: [{ id: 81, producto_id: 12, menu_ejecutivo_id: null, cantidad: 2 }],
-    },
+    datos: { comanda_id: 3, pendientes: [PENDIENTE_81] },
   });
   render(<AtencionPage />);
   fireEvent.click(await screen.findByRole('button', { name: 'Cerrar comanda #3' }));
@@ -169,10 +184,67 @@ it('consulta A02 antes de confirmar, informa detalles y no ofrece marcar entrega
   expect(
     within(dialogo).queryByRole('button', { name: 'Confirmar cierre' }),
   ).not.toBeInTheDocument();
-  expect(
-    within(dialogo).getByText(/Gestión de entregas pendiente de integración/),
-  ).toBeInTheDocument();
+  expect(within(dialogo).getByRole('button', { name: 'Gestionar entregas' })).toBeInTheDocument();
+  expect(within(dialogo).queryByText(/pendiente de integración/)).not.toBeInTheDocument();
   expect(api.cerrarComanda).not.toHaveBeenCalled();
+});
+
+it('abre las entregas desde la fila de una comanda en cualquier estado', async () => {
+  vi.mocked(api.listarComandas).mockResolvedValue({
+    exito: true,
+    datos: { ...PAGINA, items: [{ ...COMANDA, estado: 'CERRADA' }] },
+  });
+  vi.mocked(api.consultarEntregas).mockResolvedValue({
+    exito: true,
+    datos: entregas(2, 'CERRADA'),
+  });
+  render(<AtencionPage />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Entregas de la comanda #3' }));
+  const dialogo = await screen.findByRole('dialog');
+  expect(api.consultarEntregas).toHaveBeenCalledWith(3);
+  expect(await within(dialogo).findByText('2 de 2')).toBeInTheDocument();
+  fireEvent.click(within(dialogo).getByRole('button', { name: 'Volver' }));
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+});
+
+it('intercambia el cierre y las entregas sin anidar modales y recarga los pendientes', async () => {
+  vi.mocked(api.consultarPendientes)
+    .mockResolvedValueOnce({ exito: true, datos: { comanda_id: 3, pendientes: [PENDIENTE_81] } })
+    .mockResolvedValueOnce({ exito: true, datos: { comanda_id: 3, pendientes: [] } });
+  vi.mocked(api.consultarEntregas).mockResolvedValue({ exito: true, datos: entregas(0) });
+  render(<AtencionPage />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Cerrar comanda #3' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Gestionar entregas' }));
+  expect(await screen.findByText('Entregas de la comanda #3')).toBeInTheDocument();
+  expect(screen.getAllByRole('dialog')).toHaveLength(1);
+  expect(screen.queryByText('Cerrar comanda #3')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Volver' }));
+  expect(await screen.findByText('Cerrar comanda #3')).toBeInTheDocument();
+  expect(screen.getAllByRole('dialog')).toHaveLength(1);
+  expect(await screen.findByRole('button', { name: 'Confirmar cierre' })).toBeInTheDocument();
+  expect(api.consultarPendientes).toHaveBeenCalledTimes(2);
+});
+
+it('cierra la comanda tras entregar todo desde el modal de entregas', async () => {
+  vi.mocked(api.consultarPendientes)
+    .mockResolvedValueOnce({ exito: true, datos: { comanda_id: 3, pendientes: [PENDIENTE_81] } })
+    .mockResolvedValueOnce({ exito: true, datos: { comanda_id: 3, pendientes: [] } });
+  vi.mocked(api.consultarEntregas).mockResolvedValue({ exito: true, datos: entregas(0) });
+  vi.mocked(api.registrarEntrega).mockResolvedValue({ exito: true, datos: entregas(2) });
+  vi.mocked(api.cerrarComanda).mockResolvedValue({
+    exito: true,
+    datos: { ...COMANDA, estado: 'CERRADA', detalles: [] },
+  });
+  render(<AtencionPage />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Cerrar comanda #3' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Gestionar entregas' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Entregar todo de Producto #12' }));
+  expect(await screen.findByText('No falta servir nada')).toBeInTheDocument();
+  expect(api.registrarEntrega).toHaveBeenCalledWith(3, 81, 2);
+  fireEvent.click(screen.getByRole('button', { name: 'Volver' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Confirmar cierre' }));
+  await waitFor(() => expect(api.cerrarComanda).toHaveBeenCalledWith(3));
+  expect(await screen.findByText('Comanda cerrada')).toBeInTheDocument();
 });
 
 it('solo cierra tras confirmar y actualiza el listado', async () => {

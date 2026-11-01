@@ -96,3 +96,63 @@ def test_cliente_modificar_y_salida_preservan_datos_y_duplicados() -> None:
         "nombre": "María José",
         "telefono": "+54 123-456",
     }
+
+
+# Entregas por cantidad (HU-M4-08)
+
+
+@pytest.mark.parametrize("valor", [0, 1, 250])
+def test_entrega_detalle_acepta_entero_valido(valor: int) -> None:
+    assert schemas.EntregaDetalle(cantidad_entregada=valor).cantidad_entregada == valor
+
+
+@pytest.mark.parametrize("valor", ["2", "dos", 2.5, 2.0, True, None])
+def test_entrega_detalle_rechaza_texto_decimal_booleano_y_nulo(valor: object) -> None:
+    with pytest.raises(ValidationError) as error:
+        schemas.EntregaDetalle(cantidad_entregada=valor)
+
+    assert error.value.errors()[0]["loc"] == ("cantidad_entregada",)
+
+
+def test_entrega_detalle_rechaza_negativo() -> None:
+    with pytest.raises(ValidationError) as error:
+        schemas.EntregaDetalle(cantidad_entregada=-1)
+
+    assert error.value.errors()[0]["type"] == "greater_than_equal"
+
+
+@pytest.mark.parametrize("datos", [{}, {"cantidad_entregada": 1, "otro": 2}])
+def test_entrega_detalle_rechaza_campos_extra_y_ausente(datos: dict) -> None:
+    with pytest.raises(ValidationError):
+        schemas.EntregaDetalle(**datos)
+
+
+def test_entregas_comanda_serializa_detalles_y_estado() -> None:
+    salida = schemas.EntregasComanda(
+        comanda_id=4,
+        estado="ABIERTA",
+        detalles=[
+            schemas.DetalleEntrega(
+                id=9,
+                producto_id=1,
+                cantidad=5,
+                cantidad_entregada=2,
+                estado_entrega="PENDIENTE",
+            )
+        ],
+    )
+
+    assert salida.model_dump(mode="json") == {
+        "comanda_id": 4,
+        "estado": "ABIERTA",
+        "detalles": [
+            {
+                "id": 9,
+                "producto_id": 1,
+                "menu_ejecutivo_id": None,
+                "cantidad": 5,
+                "cantidad_entregada": 2,
+                "estado_entrega": "PENDIENTE",
+            }
+        ],
+    }

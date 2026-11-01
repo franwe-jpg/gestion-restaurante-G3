@@ -6,13 +6,16 @@ import { ComandasPanel } from '../components/ComandasPanel';
 import { PanelClientes } from '../components/PanelClientes';
 import { ComandaForm } from '../components/ComandaForm';
 import { CierreComandaDialog } from '../components/CierreComandaDialog';
+import { EntregasComandaDialog } from '../components/EntregasComandaDialog';
 import { useComandas } from '../components/useComandas';
+import { useEntregasModal } from '../components/useEntregasModal';
 
 export function AtencionPage() {
   const comandas = useComandas();
   const [alta, setAlta] = useState(false);
   const [cierreId, setCierreId] = useState<number | null>(null);
   const [aviso, setAviso] = useState('');
+  const { entregas, irAEntregas, salirDeEntregas } = useEntregasModal(setCierreId);
   function creada() {
     setAlta(false);
     setAviso('Comanda creada');
@@ -32,15 +35,26 @@ export function AtencionPage() {
       />
 
       <PanelClientes />
-      <ComandasPanel comandas={comandas} aviso={aviso} onCerrar={setCierreId} />
+      <ComandasPanel
+        comandas={comandas}
+        aviso={aviso}
+        onCerrar={setCierreId}
+        onEntregas={(id) => irAEntregas(id, false)}
+      />
       {alta && (
         <Dialog open title="Nueva comanda" size="lg" onOpenChange={setAlta}>
           <ComandaForm onCreada={creada} />
         </Dialog>
       )}
       {cierreId !== null && (
-        <CierreComandaDialog id={cierreId} onSalir={() => setCierreId(null)} onCerrada={cerrada} />
+        <CierreComandaDialog
+          id={cierreId}
+          onSalir={() => setCierreId(null)}
+          onCerrada={cerrada}
+          onEntregas={() => irAEntregas(cierreId, true)}
+        />
       )}
+      {entregas && <EntregasComandaDialog id={entregas.id} onSalir={salirDeEntregas} />}
     </div>
   );
 }

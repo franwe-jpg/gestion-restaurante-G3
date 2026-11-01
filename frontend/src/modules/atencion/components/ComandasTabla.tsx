@@ -18,10 +18,18 @@ interface Props {
   hayFiltros: boolean;
   ocupado: boolean;
   onCerrar: (id: number) => void;
+  onEntregas: (id: number) => void;
   onPagina: (offset: number) => void;
 }
 
-export function ComandasTabla({ pagina, hayFiltros, ocupado, onCerrar, onPagina }: Props) {
+export function ComandasTabla({
+  pagina,
+  hayFiltros,
+  ocupado,
+  onCerrar,
+  onEntregas,
+  onPagina,
+}: Props) {
   return (
     <section aria-label="Listado de comandas" className="space-y-4">
       {pagina.items.length === 0 ? (
@@ -44,29 +52,44 @@ export function ComandasTabla({ pagina, hayFiltros, ocupado, onCerrar, onPagina 
                 comanda={comanda}
                 ocupado={ocupado}
                 onCerrar={onCerrar}
+                onEntregas={onEntregas}
               />
             ))}
           </TableBody>
         </Table>
       )}
-      <nav aria-label="Paginación de comandas" className="flex items-center gap-3">
-        <Button
-          variant="outline"
-          disabled={ocupado || pagina.offset === 0}
-          onClick={() => onPagina(Math.max(0, pagina.offset - pagina.limit))}
-        >
-          Anterior
-        </Button>
-        <span>{pagina.total} comandas</span>
-        <Button
-          variant="outline"
-          disabled={ocupado || pagina.offset + pagina.limit >= pagina.total}
-          onClick={() => onPagina(pagina.offset + pagina.limit)}
-        >
-          Siguiente
-        </Button>
-      </nav>
+      <PaginacionComandas pagina={pagina} ocupado={ocupado} onPagina={onPagina} />
     </section>
+  );
+}
+
+function PaginacionComandas({
+  pagina,
+  ocupado,
+  onPagina,
+}: {
+  pagina: Pagina<ComandaResumen>;
+  ocupado: boolean;
+  onPagina: (offset: number) => void;
+}) {
+  return (
+    <nav aria-label="Paginación de comandas" className="flex items-center gap-3">
+      <Button
+        variant="outline"
+        disabled={ocupado || pagina.offset === 0}
+        onClick={() => onPagina(Math.max(0, pagina.offset - pagina.limit))}
+      >
+        Anterior
+      </Button>
+      <span>{pagina.total} comandas</span>
+      <Button
+        variant="outline"
+        disabled={ocupado || pagina.offset + pagina.limit >= pagina.total}
+        onClick={() => onPagina(pagina.offset + pagina.limit)}
+      >
+        Siguiente
+      </Button>
+    </nav>
   );
 }
 
@@ -101,10 +124,12 @@ function ComandaFila({
   comanda,
   ocupado,
   onCerrar,
+  onEntregas,
 }: {
   comanda: ComandaResumen;
   ocupado: boolean;
   onCerrar: (id: number) => void;
+  onEntregas: (id: number) => void;
 }) {
   return (
     <TableRow>
@@ -112,7 +137,14 @@ function ComandaFila({
       <TableCell>{comanda.mesa_id}</TableCell>
       <TableCell>{comanda.estado}</TableCell>
       <TableCell>{new Date(comanda.fecha_hora).toLocaleString()}</TableCell>
-      <TableCell>
+      <TableCell className="space-x-2">
+        <Button
+          variant="outline"
+          aria-label={`Entregas de la comanda #${comanda.id}`}
+          onClick={() => onEntregas(comanda.id)}
+        >
+          Entregas
+        </Button>
         <Button
           variant="outline"
           disabled={ocupado || comanda.estado !== 'ABIERTA'}
