@@ -28,7 +28,7 @@ for accion in (lambda: fake.crear_comanda(ComandaCrear(mesa_id=7, detalles=[{"pr
         bloqueos.append(str(error))
 assert len(bloqueos) == 2
 cerrada = fake.cerrar_comanda(1)
-assert (cerrada.estado, fake.consultar_comanda(2).estado) == ("CERRADA", "ABIERTA")
+assert (cerrada.estado, fake.consultar_comanda(2).estado, fake.mesas[8]) == ("CERRADA", "ABIERTA", "LIBRE")
 print("crear/consultar/listar/cerrar: OK; duplicada/pendientes bloqueados: OK")'
 ```
 
@@ -41,8 +41,10 @@ print("crear/consultar/listar/cerrar: OK; duplicada/pendientes bloqueados: OK")'
 | `ComandaFake.crear_comanda(datos)` | Captura valores de un catálogo sintético; bloquea otra ABIERTA en la misma mesa sin inserción. Si la mesa estaba LIBRE, pasa a OCUPADA simulada. |
 | `ComandaFake.consultar_comanda(id)` | Devuelve una copia profunda de la comanda y sus valores históricos; después de conflicto se puede listar por `mesa_id` y consultar la existente por ID. |
 | `ComandaFake.listar_comandas(parametros, mesa_id, estado)` | `Pagina[ComandaResumen]`: `items`, `total`, `limit`, `offset`; 50/0 por defecto, límites 1–100, filtros sin estado implícito, fecha descendente. **Supuesto:** desempate ID descendente, pendiente de validar. |
-| `ComandaFake.cerrar_comanda(id)` | Solo ABIERTA con todos los detalles ENTREGADO: pasa a CERRADA y queda consultable por M6, sin factura/pago ni liberar la mesa. Un pendiente bloquea sin entregar ni cerrar. Segundo cierre no ejecuta transición. |
+| `ComandaFake.cerrar_comanda(id)` | Solo ABIERTA con todos los detalles ENTREGADO: pasa a CERRADA, queda consultable por M6 sin factura ni pago, y la mesa simulada pasa de OCUPADA a LIBRE. Un pendiente bloquea sin entregar, cerrar ni liberar la mesa. Segundo cierre no ejecuta transición ni cambia la mesa. |
 | `ComandaFake.crear_desde_reserva(id, detalles)` | Solo simulación: reserva ACTIVA del día, pedido con producto, mesa heredada; crea ABIERTA vinculada y marca ATENDIDA. No crea marcador vacío al reservar ni toca el módulo Reservas. |
+
+**Decisión del 01/11/2026:** cerrar la comanda libera la mesa (OCUPADA → LIBRE) en la misma transacción; el pago (M6) no cambia el estado de la mesa ni el de la comanda. Se mantiene así la regla «mesa OCUPADA ⇔ comanda ABIERTA» de HU-M3-07 y R11. En consecuencia, HU-M4-10 (reabrir una comanda) debe exigir que la mesa esté LIBRE.
 
 **Errores del doble:** `NoEncontradoError` para identidad inexistente, `ReglaDeNegocioError` para conflictos y `DatosInvalidosError`/validación Pydantic para entrada inválida. Son excepciones internas; no hay respuesta HTTP ni `{"detalle": ...}` observable en este fake. A01 (bloqueo de alta duplicada) y A02 (bloqueo ante pendientes) son **Supuesto: decisiones locales para el doble**, más estrictas que el aviso solicitado originalmente en #52 CA02 y #58 CA03. Ante pendientes: revisar las entregas y, cuando exista la pantalla/operación correspondiente, marcarlas antes de reintentar. El destino de navegación NO está definido y no se implementó.
 

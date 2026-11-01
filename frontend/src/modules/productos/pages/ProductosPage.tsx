@@ -31,7 +31,11 @@ export function ProductosPage() {
         valor={pestania}
         onCambiar={setPestania}
         items={[
-          { id: 'productos', etiqueta: 'Productos', contenido: <ProductosTab /> },
+          {
+            id: 'productos',
+            etiqueta: 'Productos',
+            contenido: <ProductosTab onIrASecciones={() => setPestania('secciones')} />,
+          },
           { id: 'secciones', etiqueta: 'Secciones', contenido: <SeccionesTab /> },
         ]}
       />

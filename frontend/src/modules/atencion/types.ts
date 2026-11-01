@@ -1,11 +1,58 @@
-export type EstadoComanda = 'abierta' | 'en_cocina' | 'servida' | 'cerrada';
-
-export interface Comanda {
-  id: string;
-  mesaId: string;
-  mozoId: string;
+/** Wire representations of the shared S2-01 DTOs. Money remains a decimal string. */
+export type EstadoComanda = 'ABIERTA' | 'CERRADA' | 'ANULADA';
+export interface ComandaResumen {
+  id: number;
+  mesa_id: number;
   estado: EstadoComanda;
-  itemsCount: number;
+  fecha_hora: string;
+}
+export interface DetalleComandaCrear {
+  producto_id: number | null;
+  menu_ejecutivo_id: number | null;
+  cantidad: number;
+}
+export interface ComandaCrear {
+  mesa_id: number;
+  detalles: DetalleComandaCrear[];
+  observaciones: string | null;
+}
+export interface DetalleComandaSalida extends DetalleComandaCrear {
+  precio_unitario: string;
+  descuento: string;
+  promocion_id: number | null;
+  estado_entrega: 'PENDIENTE' | 'ENTREGADO';
+}
+export interface Comanda extends ComandaResumen {
+  reserva_id?: number | null;
+  observaciones?: string | null;
+  detalles: DetalleComandaSalida[];
+}
+export interface FiltroComandas {
+  mesa_id?: number;
+  estado?: EstadoComanda;
+  limit: number;
+  offset: number;
+}
+/** M4 A02 operation metadata; does not alter the shared detail output. */
+export interface DetallePendiente extends DetalleComandaCrear {
+  id: number;
+}
+export interface PendientesComanda {
+  comanda_id: number;
+  pendientes: DetallePendiente[];
+}
+/** HU-M4-08: entrega por cantidad de cada línea; el estado lo deriva el servidor. */
+export interface DetalleEntrega extends DetallePendiente {
+  cantidad_entregada: number;
+  estado_entrega: 'PENDIENTE' | 'ENTREGADO';
+}
+export interface EntregasComanda {
+  comanda_id: number;
+  estado: EstadoComanda;
+  detalles: DetalleEntrega[];
+}
+export interface EntregaDetalle {
+  cantidad_entregada: number;
 }
 
 export interface Cliente {
