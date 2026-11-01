@@ -397,3 +397,110 @@ No se tocó `exploration.md` (registro histórico), ni `frontend/` (no tenía ni
 
 - Código y pruebas de `reservas/`: solo comentarios y docstrings que dicen que la cantidad **no** se valida contra la capacidad (`puente.py:6`, `test_router.py`, `test_puente.py`, `test_service.py`).
 - Artefactos del cambio: el requisito y los escenarios nuevos de la spec, el supuesto S5 (propuesta y spec), el contrato del puente y S20, y el nombre del requisito en la trazabilidad; en `design.md`, la Decisión 2 y una fila de la tabla de diferencias con la maqueta (la maqueta muestra la mesa con sector y capacidad: es una descripción de la maqueta, no una regla); en `proposal.md`, el título de sección «Capacidades» (término de SDD, no la capacidad de la mesa). Los textos históricos de este archivo, de `verify-report.md` (cuerpo) y de `exploration.md` describen lo que se hizo y verificó antes del issue #61, y se conservan como registro.
+
+## Fase 10 · Unidad A (puente real de Mesa)
+
+- **Alcance:** tareas 10.1 a 10.7 de la Unidad A (commit 11, Decisiones 14 y 17 del diseño). La tarea 10.8 (el commit) queda para el orquestador, que es el dueño de git: este lote no usó git para escribir nada.
+- **Modo:** Strict TDD (`strict_tdd: true` en `openspec/config.yaml`). Comandos en Docker (`g3-backend-test`, sin red, `backend/` montado en `/app`).
+- **Línea base:** `pytest` 1184 pruebas pasando, cobertura 99,44 %, un solo head `d6f8a0c2e4b6` y `lint-imports` con 10 contratos cumplidos (informada por el orquestador). El módulo `reservas` tenía 191 pruebas al empezar (comprobado con `pytest --no-cov -q -p no:cacheprovider tests/modules/reservas`: «191 passed»).
+- **Estado:** 7 de 7 tareas del lote completas (10.1 a 10.7). Quedan 10.8 (commit) y las unidades B y C.
+
+### Tareas completadas
+
+| Tarea | Estado | Resultado observado |
+| --- | --- | --- |
+| 10.1 Soporte de pruebas y Rojo | Hecha | `conftest.py` reescrito (`DoblePuente`, `puente_doble` autouse, `puente_sin_mesa`, `puente_sin_cliente`, `puente_real`, `mesas_en_m3`). Rojo observado: toda la suite de `reservas` falla al cargar el `conftest.py` |
+| 10.2 Verde (contrato) | Hecha | `puente.py` con `SectorDeMesa`, `MesaReservable` completo y `listar_mesas` y `obtener_mesa` con `NotImplementedError`. La suite vuelve a ejecutarse con el doble |
+| 10.3 Rojo (`test_puente.py`) | Hecha | Casi reescritura: 14 casos, 8 rojos por `NotImplementedError` y 6 de guarda |
+| 10.4 Rojo (pruebas existentes) | Hecha | `test_service.py` y `test_router.py` adaptados según la tabla del diseño; 2 pruebas nuevas del `router` con `puente_real` |
+| 10.5 Verde (cuerpo real) | Hecha | `puente.py` lee todas las páginas de `salon.service.listar_mesas`; 202 pruebas de `reservas` pasan |
+| 10.6 Refactor | Hecha | Revisión de `puente.py` y `conftest.py`; `ruff format` ajustó 3 firmas de `test_puente.py` |
+| 10.7 Verificación | Hecha | Comando enfocado y `V-BACK` completo en verde (ver «Verificación final») |
+| 10.8 Commit 11 | **Pendiente (orquestador)** | No es parte de este lote |
+
+### TDD Cycle Evidence
+
+| Tarea | RED | GREEN | REFACTOR |
+| --- | --- | --- | --- |
+| 10.1 a 10.2 | `conftest.py` nuevo: `ImportError: cannot import name 'SectorDeMesa' from 'app.modules.reservas.puente'` (toda la suite no carga) | Contrato en `puente.py`: la suite carga; 4 fallos, 187 pasan | n/a |
+| 10.3 | `test_puente.py` nuevo: 8 fallos, 6 pasan | (con 10.5) | n/a |
+| 10.4 | pruebas existentes adaptadas y 2 nuevas del `router`: 10 fallos (8 del puente y 2 del `router`), 192 pasan | (con 10.5) | n/a |
+| 10.5 | (los 10 fallos de arriba) | cuerpo real de `puente.py`: **202 pasan**, 0 fallos | n/a |
+| 10.6 | n/a | 202 pasan antes y después | `ruff format` en `test_puente.py` (3 firmas en una línea); revisión de nombres, docstrings y complejidad |
+
+### Evidencia RED y GREEN por paso
+
+Comando enfocado de todos los pasos: `docker run --rm --network none --user "$(id -u):$(id -g)" -e HOME=/tmp -v …/backend:/app -w /app g3-backend-test pytest --no-cov -q -p no:cacheprovider tests/modules/reservas`.
+
+- **10.1 (Rojo, por importación):** `ImportError while loading conftest '/app/tests/modules/reservas/conftest.py'` → `ImportError: cannot import name 'SectorDeMesa' from 'app.modules.reservas.puente'`. Es el motivo correcto: el contrato nuevo del puente todavía no existe.
+- **10.2 (contrato):** `4 failed, 187 passed`. Fallan `test_obtener_mesa_stub_devuelve_la_mesa_con_su_id` (el doble devuelve la mesa completa, no `MesaReservable(id=5)`), `test_crear_reserva_conflicto_no_depende_del_puente` y `test_crear_reserva_orden_de_validacion` (`TypeError: MesaReservable.__init__() missing 4 required positional arguments`), **y además** `test_crear_reserva_acepta_cualquier_id_positivo_con_el_stub` (la mesa 123 ya no existe para el doble: 404). Las tareas listaban solo las tres primeras; la cuarta es la que 10.4 divide, así que no es un hallazgo nuevo.
+- **10.3 (Rojo):** `8 failed, 6 passed` en `test_puente.py`. Los 6 fallos de lectura real son `NotImplementedError` (`test_listar_mesas_lee_todas_las_paginas_de_m3`, `test_obtener_mesa_encuentra_la_mesa_de_la_segunda_pagina`, `test_obtener_mesa_inexistente_devuelve_none`, `test_listar_mesas_incluye_fuera_de_servicio_con_su_estado`, `test_obtener_mesa_y_listar_mesas_coinciden` y `test_listar_mesas_termina_si_m3_devuelve_una_pagina_vacia_antes_del_total`). Las dos de propagación fallan por el `match`: `NotImplementedError` es subclase de `RuntimeError`, así que el tipo coincide pero el mensaje no («Regex pattern did not match. Expected 'falla simulada de M3', actual ''»); sin `match` habrían pasado por error.
+  - **Pruebas de guarda (ya pasan en el Rojo, como anticipa la tarea):** `test_solo_el_puente_importa_salon` (hoy nadie importa `salon`), `test_doble_puente_informa_el_mismo_estado_en_obtener_mesa_y_listar_mesas` (el doble ya es coherente) y las 4 del stub de cliente (el stub ya existía). Se vuelven exigentes con 10.5; la mutación de abajo comprueba que la de arquitectura falla de verdad.
+- **10.4 (Rojo):** `10 failed, 192 passed`. Los 8 de `test_puente.py` y las 2 nuevas del `router` (`test_puente_real_alta_en_una_mesa_de_m3_devuelve_201` y `test_puente_real_mesa_inexistente_devuelve_404`), todas por `NotImplementedError`. **Guardas (ya pasan con el doble):** `test_crear_reserva_rechaza_mesa_que_m3_no_conoce` (mesa 123: 404), `test_crear_reserva_acepta_cualquier_cliente_positivo_con_el_stub` (mesa 5 y cliente 456: 201), `test_crear_reserva_conflicto_no_depende_del_puente`, `test_crear_reserva_orden_de_validacion` (sin el paso «fuera de servicio», que llega en 10.9) y `test_modificar_reserva_no_consulta_mesa_ni_cliente` (S27: la modificación ya no consulta al puente).
+- **10.5 (Verde):** `202 passed, 1 warning` (la advertencia de `httpx` en `starlette.testclient` ya existía).
+
+### Comprobación de mutaciones del puente (para que las pruebas no sean decorativas)
+
+Se alteró solo `puente.py`, se corrió `test_puente.py` en Docker y se restauró el archivo original (comparado con `diff`: idéntico).
+
+| Mutación | Resultado |
+| --- | --- |
+| Quitar el corte por página vacía (`if offset >= pagina.total`) | Falla `test_listar_mesas_termina_si_m3_devuelve_una_pagina_vacia_antes_del_total` (por «el ciclo no termina», sin colgarse) |
+| Leer solo la primera página (`if True`) | Fallan 5: las dos de 120 mesas, las dos de propagación y la de página vacía |
+| Capturar el error de M3 y devolver lo leído (`try/except RuntimeError`) | Fallan las dos de propagación |
+| `puente.py` importa `app.modules.salon.schemas` | Falla `test_solo_el_puente_importa_salon` |
+| `puente.py` importa `app.modules.atencion.service` | Falla `test_solo_el_puente_importa_salon` |
+
+La validación de `test_solo_el_puente_importa_salon` sobre un archivo que no es `puente.py` (otra mutación que 10.36 planifica) no se hizo aquí: exigiría editar `service.py` u otro archivo fuera de las superficies permitidas de este lote.
+
+### Verificación final (ejecutada sola, sin otras corridas de Docker en paralelo)
+
+| Comando | Resultado observado |
+| --- | --- |
+| `pytest --no-cov -q -p no:cacheprovider tests/modules/reservas` | **202 pasan**, 1 advertencia (191 al empezar) |
+| `sh -c 'ruff check . && ruff format --check . && lint-imports && alembic heads && pytest -q -p no:cacheprovider'` (desde `backend/`) | Salida 0. `ruff check`: «All checks passed!». `ruff format --check`: «108 files already formatted». `lint-imports`: «Contracts: 10 kept, 0 broken.». `alembic heads`: `d6f8a0c2e4b6 (head)`, un solo head. `pytest`: **1195 pasan**, 1 advertencia, 2 min 26 s; cobertura 99,39 % (umbral 70 %), `puente.py` 100 % (45 sentencias) y `service.py` 100 % |
+
+**Diferencia de conteo:** 1195 − 1184 = +11, igual que en `reservas` (202 − 191). `test_puente.py` pasa de 6 casos a 14 (+8: se quitan los 3 casos del stub de mesa y se agregan 11, entre ellos el cliente 456), `test_service.py` suma 1 (la mesa 123 y el cliente 456 pasan de una prueba a dos) y `test_router.py` suma 2: 8 + 1 + 2 = +11.
+
+**Cobertura:** 99,39 % contra 99,44 % de la línea base. Las 11 sentencias sin cubrir están todas fuera de `reservas` y de los archivos que se tocaron: `app/database.py` 44 y 55-56, `app/modules/menus/service.py` 200-203, `app/modules/productos/service.py` 363 y `app/modules/salon/service.py` 132-134. La línea base no listaba esas líneas, así que no puedo afirmar cuál era la diferencia; la sospecha es `database.py:44` (la advertencia de «transacción lenta» depende del tiempo de la máquina). No se verificó contra una corrida de la línea base, porque este lote no usa git para volver atrás.
+
+### Work Unit Evidence
+
+| Evidence | Valor |
+| --- | --- |
+| Comando enfocado y resultado | `pytest --no-cov -q -p no:cacheprovider tests/modules/reservas` (Docker): 202 pasan, 0 fallos |
+| Runtime harness | Las pruebas del `router` con `TestClient`, el `puente_real` y una base SQLite migrada con mesas creadas con los modelos de M3 recorren el camino real `POST /reservas` → `service` → `puente` → `salon.service.listar_mesas` → base. `V-BACK` completo en verde |
+| Rollback boundary | Revertir el commit 11 (`puente.py`, `conftest.py`, `test_puente.py`, `test_service.py` y `test_router.py`); vuelven el stub de mesa y las pruebas anteriores. Sin `alembic downgrade` y sin cambios en M3 |
+
+### Archivos tocados
+
+| Archivo | Cambio |
+| --- | --- |
+| `backend/app/modules/reservas/puente.py` | `SectorDeMesa`, `MesaReservable` completo, `listar_mesas` y `obtener_mesa` reales sobre `_leer_todas` (todas las páginas de `salon.service.listar_mesas`, sin `try`), `_a_mesa_reservable` y dos `Protocol` privados; `existe_cliente` sigue siendo el stub; docstring nuevo |
+| `backend/tests/modules/reservas/conftest.py` | `DoblePuente`, `puente_doble` (autouse), `puente_sin_mesa`, `puente_sin_cliente`, `puente_real`, `mesas_en_m3` y constantes `*_REAL`; docstring actualizado; ya no importa el puente de forma diferida |
+| `backend/tests/modules/reservas/test_puente.py` | Reescrito: puente real (120 mesas, estado, coincidencia, propagación del error de M3, página vacía), doble, stub de cliente y prueba de arquitectura con `ast` |
+| `backend/tests/modules/reservas/test_service.py` | División de la prueba de la mesa 123 y el cliente 456; `..._no_depende_del_puente` y `..._orden_de_validacion` sobre el doble; refuerzo de `test_modificar_reserva_no_consulta_mesa_ni_cliente` |
+| `backend/tests/modules/reservas/test_router.py` | `test_puente_real_alta_en_una_mesa_de_m3_devuelve_201` y `test_puente_real_mesa_inexistente_devuelve_404` |
+| `openspec/changes/HU-M5-01-02-03/tasks.md` | 10.1 a 10.7 marcadas `[x]` (10.8 sigue abierta) |
+
+No se tocó `service.py`, `router.py`, `schemas.py`, `repository.py`, otro módulo, `shared/`, `pyproject.toml`, migraciones ni el frontend.
+
+### Desvíos y decisiones
+
+1. **Cuarto fallo en 10.2.** Ver arriba: la prueba de la mesa 123 también falla en cuanto el doble reemplaza al stub. Es la que 10.4 divide; no cambia el plan.
+2. **Stub de cliente probado de verdad.** Las pruebas `test_existe_cliente_stub_*` piden `puente_real` (con el doble autouse probarían el doble, no el stub) y la de ids positivos suma el cliente 456 del escenario «El stub de cliente acepta identificadores positivos». La tarea decía solo «se conservan».
+3. **Prueba de página vacía más fuerte que la del diseño.** La envoltura deja pasar la primera página real (2 mesas) y declara `total` 5, de modo que «lo ya leído» no es una lista vacía; además la envoltura falla si se la llama más de 3 veces, para que quitar el corte dé un fallo claro y no un cuelgue (comprobado con la mutación).
+4. **`mesas_en_m3` hace un `flush` extra.** El sector necesita su `id` antes de crear las mesas y la sesión de prueba tiene `autoflush=False`; el resto cumple «un `add_all` y un `commit`». Devuelve la lista de `Mesa` y recibe el estado de todas; para mezclar estados las pruebas asignan sobre el modelo (como pide la tarea para `FUERA_DE_SERVICIO`).
+5. **Dos `Protocol` privados en `puente.py`** (`_MesaDeM3` y `_SectorDeM3`) para tipar el parámetro `item` de `_a_mesa_reservable`. El diseño lo muestra sin tipo, pero `ANN` (Ruff) lo exige en `app/`. Alternativas descartadas: `Any` (`ANN401`) y `salon_service.MesaSalida` (dependería de que M3 reexporte un nombre que no es de su contrato). Los `Protocol` dicen exactamente qué lee el puente de M3 y no importan nada de `salon`.
+6. **La prueba de arquitectura resuelve importaciones relativas** (`from ..salon import service`) con `importlib.util.resolve_name` y recorre los archivos con `rglob`; así no hay una puerta trasera por la que un archivo de `reservas` importe `salon` sin que la prueba lo vea. No se agregó la exigencia positiva «`puente.py` importa el `service` de `salon`» porque la tarea la describe como guarda que pasa en el Rojo; esa exigencia ya la cubren las pruebas del puente real.
+7. **`test_modificar_reserva_no_consulta_mesa_ni_cliente`** dejó de usar `puente_sin_mesa` y `puente_sin_cliente`: ahora las tres operaciones del puente fallan con `AssertionError` si se las llama (S27), que es el refuerzo que pide la tarea.
+8. **Nombres y comentarios sin tildes en el código** (salvo el literal «Salón»), como el resto de `reservas/`.
+
+### Tamaño de la unidad (honestidad sobre el presupuesto)
+
+Mediciones de solo lectura sobre el árbol de trabajo (`git diff --numstat`, antes del commit): `puente.py` +75 −7, `conftest.py` +95 −10, `test_puente.py` +177 −12, `test_service.py` +31 −13 y `test_router.py` +25 −0. Total backend: **403 inserciones y 42 eliminaciones (≈ 445 líneas escritas)**, por encima de la estimación de 240 a 380 de la unidad y de la heurística orientativa de ≈ 400. Por archivo, `test_puente.py` (≈ 189 contra 90 a 140) y `conftest.py` (≈ 105 contra 50 a 80) superan el rango; el puente (≈ 82 contra 50 a 70) también, por los dos `Protocol` y los docstrings. No se recortó nada para entrar en el límite (la unidad ya cuenta con `size:exception`).
+
+### Pendiente
+
+- 10.8: commit 11 (`feat: lee las mesas de M3 en el puente de reservas (HU-M5-01)`), a cargo del orquestador.
+- Unidades B (commit 12) y C (commit 13), y el cierre (14).

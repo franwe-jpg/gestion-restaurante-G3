@@ -160,11 +160,19 @@ def test_crear_reserva_mesa_y_cliente_inexistentes_informa_la_mesa(
         service.crear_reserva(db, _datos(mesa_id=99, cliente_id=98))
 
 
-# S20
-def test_crear_reserva_acepta_cualquier_id_positivo_con_el_stub(db: Session) -> None:
-    salida = service.crear_reserva(db, _datos(mesa_id=123, cliente_id=456))
+# S20 (issue #61): una mesa que M3 no conoce no se acepta aunque su id sea positivo
+def test_crear_reserva_rechaza_mesa_que_m3_no_conoce(db: Session) -> None:
+    with pytest.raises(NoEncontradoError, match="La mesa 123 no existe"):
+        service.crear_reserva(db, _datos(mesa_id=123))
 
-    assert salida.mesa_id == 123
+    assert _reservas(db) == []
+
+
+# S6 y S20: el lado Cliente sigue siendo un stub, todo cliente positivo existe
+def test_crear_reserva_acepta_cualquier_cliente_positivo_con_el_stub(db: Session) -> None:
+    salida = service.crear_reserva(db, _datos(mesa_id=5, cliente_id=456))
+
+    assert salida.mesa_id == 5
     assert salida.cliente_id == 456
 
 
@@ -249,31 +257,36 @@ def test_crear_reserva_permite_mismo_cliente_en_mesas_distintas(
 
 
 # El conflicto se resuelve con la tabla reservas, aunque el puente acepte todo
-def test_crear_reserva_conflicto_no_depende_del_puente(db: Session, fabrica_reserva) -> None:
+def test_crear_reserva_conflicto_no_depende_del_puente(
+    db: Session, fabrica_reserva, puente_doble
+) -> None:
     _ocupar_turno(fabrica_reserva)
 
-    assert puente.obtener_mesa(db, 5) == puente.MesaReservable(id=5)
+    assert puente.obtener_mesa(db, 5) == puente_doble.mesas[5]
     with pytest.raises(ReglaDeNegocioError, match="ya tiene una reserva activa"):
         service.crear_reserva(db, _datos())
 
 
 # S17: orden de validacion. Cada paso corrige el error anterior y deja el siguiente.
 def test_crear_reserva_orden_de_validacion(
-    db: Session, fabrica_reserva, monkeypatch: pytest.MonkeyPatch
+    db: Session,
+    fabrica_reserva,
+    puente_doble,
+    puente_sin_mesa,
+    puente_sin_cliente,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _ocupar_turno(fabrica_reserva)
-    monkeypatch.setattr(puente, "obtener_mesa", lambda _db, _mesa_id: None)
-    monkeypatch.setattr(puente, "existe_cliente", lambda _db, _cliente_id: False)
     ayer = date(2026, 11, 1)
 
     with pytest.raises(NoEncontradoError, match="La mesa 5 no existe"):
         service.crear_reserva(db, _datos(fecha=ayer))
 
-    monkeypatch.setattr(puente, "obtener_mesa", lambda _db, mesa_id: puente.MesaReservable(mesa_id))
+    puente_doble.poner(5)
     with pytest.raises(NoEncontradoError, match="El cliente 7 no existe"):
         service.crear_reserva(db, _datos(fecha=ayer))
 
-    monkeypatch.setattr(puente, "existe_cliente", lambda _db, _cliente_id: True)
+    monkeypatch.setattr(puente, "existe_cliente", puente_doble.existe_cliente)
     with pytest.raises(DatosInvalidosError, match="La fecha de la reserva"):
         service.crear_reserva(db, _datos(fecha=ayer))
 
@@ -626,10 +639,15 @@ def test_modificar_reserva_acepta_una_cantidad_muy_grande_de_personas(
     assert _guardada(db, reserva.id) == salida
 
 
-# S27: la modificacion no consulta si la mesa o el cliente existen
+# S27: la modificacion no consulta al puente: ninguna de sus tres operaciones se llama
 def test_modificar_reserva_no_consulta_mesa_ni_cliente(
-    db: Session, fabrica_reserva, puente_sin_mesa, puente_sin_cliente
+    db: Session, fabrica_reserva, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    def falla(*_args, **_kwargs):
+        raise AssertionError("la modificacion no debe consultar al puente")
+
+    for operacion in ("obtener_mesa", "listar_mesas", "existe_cliente"):
+        monkeypatch.setattr(puente, operacion, falla)
     reserva = _ocupar_turno(fabrica_reserva)
 
     assert _modificar(db, reserva.id, cantidad_personas=6).cantidad_personas == 6

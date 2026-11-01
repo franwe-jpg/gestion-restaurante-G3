@@ -107,6 +107,31 @@ def test_post_reservas_cliente_inexistente_devuelve_404(
     assert _cantidad_reservas(db) == 0
 
 
+# S33 (issue #61): con el puente real, la mesa sale de M3
+def test_puente_real_alta_en_una_mesa_de_m3_devuelve_201(
+    cliente: TestClient, db: Session, puente_real, mesas_en_m3
+) -> None:
+    mesa = mesas_en_m3(1)[0]
+
+    respuesta = cliente.post(RUTA, json=CUERPO | {"mesa_id": mesa.id})
+
+    assert respuesta.status_code == 201
+    assert respuesta.json()["mesa_id"] == mesa.id
+    assert _cantidad_reservas(db) == 1
+
+
+def test_puente_real_mesa_inexistente_devuelve_404(
+    cliente: TestClient, db: Session, puente_real, mesas_en_m3
+) -> None:
+    mesas_en_m3(1)
+
+    respuesta = cliente.post(RUTA, json=CUERPO | {"mesa_id": 999})
+
+    assert respuesta.status_code == 404
+    assert respuesta.json() == {"detalle": "La mesa 999 no existe"}
+    assert _cantidad_reservas(db) == 0
+
+
 # CA 3, CA 7 y formatos: el detalle nombra el campo y no se crea nada
 @pytest.mark.parametrize(
     "cuerpo, campo",
