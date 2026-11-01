@@ -68,16 +68,19 @@ El `service` lo usa siempre a través del módulo (`from app.modules.reservas im
 **Elección:** `service.py` define una función pública de módulo:
 
 ```python
+ZONA_DEL_RESTAURANTE = timezone(timedelta(hours=-3), "ART")
+
+
 def ahora() -> datetime:
-    """Fecha y hora local del servidor. Las pruebas la reemplazan con monkeypatch."""
-    return datetime.now()
+    """Fecha y hora del restaurante (UTC-3 fija), sin zona. Las pruebas la reemplazan con monkeypatch."""
+    return datetime.now(ZONA_DEL_RESTAURANTE).replace(tzinfo=None)
 ```
 
 Las reglas de S3 usan `ahora().date()` y `ahora().time()`. Las pruebas del `service` y del `router` la reemplazan con `monkeypatch.setattr(service, "ahora", lambda: datetime(2026, 11, 2, 12, 0))`.
 
 **Alternativas descartadas:** `freezegun` o `time-machine` (dependencia nueva; AGENTS.md §9.7 pide acordarla con el equipo); validar la fecha en el `schema` con `date.today()` (no se puede fijar el reloj sin parchear la biblioteca estándar, y la regla de «hoy con hora futura» necesita la fecha y la hora juntas).
 
-**Justificación:** el pedido mencionaba un `hoy()`; se usa `ahora()` porque S3 necesita también la hora («si la fecha es hoy, la hora debe ser posterior a la actual»). Una sola función evita que fecha y hora salgan de dos lecturas distintas del reloj. `Supuesto:` el servidor corre en la zona horaria del restaurante (la hora es local y sin zona, igual que el resto del sistema). En la CI (UTC) ninguna prueba depende del reloj real, porque todas parchean `ahora()`. Actualización (delta del issue #61): `compose.yaml` no fija `TZ`, así que en Docker el backend corre en UTC y este supuesto no se cumple; la consulta de mesas disponibles lo hace visible. Ver Decisión 20.
+**Justificación:** el pedido mencionaba un `hoy()`; se usa `ahora()` porque S3 necesita también la hora («si la fecha es hoy, la hora debe ser posterior a la actual»). Una sola función evita que fecha y hora salgan de dos lecturas distintas del reloj. Actualización (2026-11-01, S28): la fecha y la hora son las de la zona del restaurante, UTC-3 fija, calculadas desde el reloj UTC con `datetime.now(ZONA_DEL_RESTAURANTE)`, así que no dependen de `TZ` del proceso ni del contenedor; el resultado sigue siendo un `datetime` sin zona. Se usa un desplazamiento fijo y no `zoneinfo` porque Argentina no tiene horario de verano desde 2009 y así no hace falta la base de zonas horarias del sistema (que falta en muchas instalaciones de Windows) ni la dependencia `tzdata` (AGENTS.md §9.7). Ver Decisión 20.
 
 ### Decisión 4: horario de atención sin restricción (no se crea constante ni configuración)
 
@@ -334,13 +337,13 @@ export function useMesasDisponibles(
 
 **Justificación:** AGENTS.md §5 (buscar el componente en `shared/` antes de crearlo), D-15 (todo dentro de `frontend/src/modules/reservas/`), D-16 y S13, S34 y S35. Validar con la mesa vigente, y no con el texto guardado, impide enviar una mesa que la lista actual no ofrece.
 
-### Decisión 20: diferencia entre el reloj del servidor y el del navegador (riesgo documentado, sin cambio de código)
+### Decisión 20: «hoy» y la hora actual en la zona del restaurante, no en la del contenedor (S28)
 
-**Elección:** no se cambia `ahora()` ni la configuración. El panel valida con la hora local del navegador (`fechas.ts`) y la API con la del servidor (S28). Si difieren, la consulta de mesas disponibles responde 422 y el selector muestra ese mensaje junto al campo Mesa (escenario «Falla la consulta de la lista»). La corrección sugerida al equipo es fijar `TZ` (por ejemplo `America/Argentina/Buenos_Aires`) en el servicio `backend` de `compose.yaml`, comprobando que la imagen tenga la base de zonas horarias. **No forma parte de este cambio**: `compose.yaml` es compartido y se coordina con el equipo.
+**Elección (actualizada el 2026-11-01):** `ahora()` calcula la fecha y la hora con `datetime.now(ZONA_DEL_RESTAURANTE)` y descarta la zona, con `ZONA_DEL_RESTAURANTE = timezone(timedelta(hours=-3), "ART")` como constante de `reservas/service.py`. Así «hoy» y la hora actual son los del restaurante aunque el contenedor corra en UTC (S28). El panel sigue validando con la hora local del navegador (`fechas.ts`): coinciden mientras el navegador esté en la zona del restaurante y, si no, la consulta de mesas disponibles responde 422 y el selector muestra ese mensaje junto al campo Mesa (escenario «Falla la consulta de la lista»). Se pide al equipo `TZ=America/Argentina/Buenos_Aires` en `compose.yaml` como mejora complementaria (registros y otros módulos); **no es necesario** para esta corrección.
 
-**Alternativas descartadas:** leer una zona horaria configurable en `ahora()` (D-12): agrega una variable de entorno nueva que hay que acordar con el equipo y documentar en `.env.example`; enviar la hora del navegador a la API (el servidor dejaría de ser la fuente de «hoy», en contra de S28).
+**Alternativas descartadas:** `zoneinfo.ZoneInfo("America/Argentina/Buenos_Aires")` (necesita la base de zonas horarias del sistema o la dependencia `tzdata`, que hay que acordar con el equipo, AGENTS.md §9.7); leer la zona de la configuración (D-12: variable de entorno nueva, `.env.example` y acuerdo del equipo); enviar la hora del navegador a la API (el servidor dejaría de ser la fuente de «hoy»); depender solo de `TZ` en `compose.yaml` (archivo compartido, y no cubre a quien corre el backend fuera de Docker).
 
-**Justificación:** `compose.yaml` no define `TZ`, así que en Docker `datetime.now()` devuelve la hora UTC. Con el restaurante en UTC-3 el efecto no se limita a la franja de 21:00 a 24:00 (cuando el servidor ya está en el día siguiente y rechaza «hoy» con «La fecha de la reserva no puede ser anterior a hoy»): durante todo el día, para una reserva de hoy, el servidor exige una hora posterior a la hora local más 3 horas, así que rechaza con 422 las reservas para las próximas 3 horas. El delta no lo crea (el alta ya se comportaba así), pero el selector lo hace más visible. Se anota en el PR y en «Riesgos del delta y reversión».
+**Justificación:** el problema se comprobó el 2026-10-31: `compose.yaml` no define `TZ`, `datetime.now()` devolvía la hora UTC y, para una reserva de hoy, el servidor exigía una hora posterior a la hora local más 3 horas durante todo el día; además, entre las 21:00 y las 24:00 locales rechazaba «hoy» con «La fecha de la reserva no puede ser anterior a hoy». Argentina no usa horario de verano desde 2009, así que un desplazamiento fijo de -3 horas es exacto. Limitación: si el restaurante cambiara de zona, hay que cambiar la constante.
 
 ## Flujo de datos
 
@@ -768,7 +771,7 @@ Orden sugerido para el delta (Strict TDD, cada paso con su prueba en RED primero
 
 | Riesgo | Efecto | Mitigación |
 | --- | --- | --- |
-| Reloj del servidor en UTC (Docker sin `TZ`) frente al navegador en UTC-3 | Entre las 21:00 y las 24:00 locales el servidor ya está en el día siguiente y rechaza «hoy»; durante todo el día rechaza las reservas de hoy para las próximas 3 horas (Decisión 20) | El selector muestra el 422 de la API junto a Mesa; se propone al equipo fijar `TZ` en `compose.yaml` en un cambio aparte y coordinado (no es parte de este cambio) |
+| Reloj del servidor en UTC (Docker sin `TZ`) frente al restaurante en UTC-3 (resuelto en la Fase 11, Decisión 20) | Antes de la corrección, entre las 21:00 y las 24:00 locales el servidor rechazaba «hoy» y, durante todo el día, las reservas de hoy para las próximas 3 horas | `ahora()` calcula la hora con una zona fija UTC-3, sin depender de `TZ`; se pide al equipo `TZ` en `compose.yaml` solo como mejora complementaria. Si el navegador está en otra zona, el selector muestra el 422 de la API junto a Mesa |
 | La tabla sigue mostrando «Mesa n.º {id interno}» (S23) | El `id` puede no coincidir con el `numero` que la persona eligió en el selector | Limitación aprobada para un cambio posterior; el PR la anota en «Diferencias con la maqueta» y como seguimiento («mostrar sector y número de la mesa en el listado») |
 | M3 cambia el contrato de `listar_mesas` (nombre, parámetros, orden o campos de `MesaSalida`) | El puente deja de funcionar | Las pruebas del puente real usan el `service` verdadero de M3 y fallan en la CI ante ese cambio; se avisa a Giuliano en el PR que `reservas` consume `listar_mesas` |
 | Lectura de todas las páginas en cada alta y consulta | Costo lineal en la cantidad de mesas | Aceptable para decenas de mesas (S33); seguimiento: pedir a M3 un `obtener_mesa` o un filtro por estado |
@@ -780,7 +783,7 @@ Orden sugerido para el delta (Strict TDD, cada paso con su prueba en RED primero
 ## Preguntas abiertas
 
 - [ ] El equipo valida S1 a S14, en especial `ACTIVA` frente a `PENDIENTE` (S1) y la falta de horario de atención (S2). Ninguna bloquea el diseño: cada una cambia en un solo lugar (enum o una función del `service`).
-- [ ] `Supuesto:` el servidor corre en la hora local del restaurante (Decisión 3). En Docker no se cumple (Decisión 20): fijar `TZ` en `compose.yaml` se coordina con el equipo en un cambio aparte.
+- [x] `Supuesto:` el servidor corre en la hora local del restaurante (Decisión 3). En Docker no se cumplía; se resolvió el 2026-11-01 con una zona fija UTC-3 en `ahora()` (Decisión 20, Fase 11). Falta solo pedir al equipo `TZ` en `compose.yaml` como mejora complementaria.
 - [ ] Mensajes exactos de 404, 409 y 422: los fija la spec.
 - [ ] `Supuesto:` texto de la opción vacía del selector cuando hay mesas, «Seleccione una mesa» (la spec no lo fija). No bloquea.
 - [ ] Seguimiento con M3 (no bloquea): ofrecer `obtener_mesa` por `id` o un filtro por estado en `salon.service`, para que el puente no lea todas las páginas.

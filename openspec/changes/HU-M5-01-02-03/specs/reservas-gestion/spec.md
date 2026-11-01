@@ -14,7 +14,7 @@ Fuera de alcance: cancelación anticipada (HU-M5-04) y por ausencia (HU-M5-05), 
 
 Criterios de aceptación (CA): salvo el texto de la mesa del issue #61, no se leyeron los issues. Los CA se numeran en esta spec a partir de la propuesta (consigna, diagrama de clases, S1-07, S2-02 y maqueta) y se citan como «HU-M5-0x CA n». Lo que dice el issue #61 sobre la mesa se cita como «issue #61». Hay que confirmar los CA contra cada issue antes del PR.
 
-Convención de los escenarios: salvo que se indique otra cosa, «hoy» es `2026-10-28` y la hora actual del servidor son las `14:30`. El cliente 7 existe, porque el stub de cliente da por válido todo id positivo (S20). Las mesas salen de un doble de prueba del puente (S20) que ofrece solo dos: las mesas 5 y 6, ambas del sector «Salón», con `numero` igual a su `id`, capacidad 4 y estado `LIBRE`. Una mesa que el doble no ofrece (por ejemplo la 99 o la 123) no existe. Los escenarios que dicen «un puente que informa…», o que nombran otras mesas, otro estado, otro sector u otra capacidad, cambian lo que el doble ofrece. Los escenarios que dicen «el puente real» usan el puente de verdad sobre una base de prueba con mesas creadas en M3 (S33). «La lista» de un escenario es la respuesta de `GET /reservas/mesas-disponibles`.
+Convención de los escenarios: salvo que se indique otra cosa, «hoy» es `2026-10-28` y la hora actual de la zona del restaurante (S28) son las `14:30`. El cliente 7 existe, porque el stub de cliente da por válido todo id positivo (S20). Las mesas salen de un doble de prueba del puente (S20) que ofrece solo dos: las mesas 5 y 6, ambas del sector «Salón», con `numero` igual a su `id`, capacidad 4 y estado `LIBRE`. Una mesa que el doble no ofrece (por ejemplo la 99 o la 123) no existe. Los escenarios que dicen «un puente que informa…», o que nombran otras mesas, otro estado, otro sector u otra capacidad, cambian lo que el doble ofrece. Los escenarios que dicen «el puente real» usan el puente de verdad sobre una base de prueba con mesas creadas en M3 (S33). «La lista» de un escenario es la respuesta de `GET /reservas/mesas-disponibles`.
 
 ## Contrato de la API
 
@@ -251,7 +251,7 @@ La `fecha` DEBE ser hoy o posterior (diagrama `{>= hoy}`). Una fecha anterior a 
 
 ### Requisito: Hora válida y no pasada (HU-M5-01 CA 6)
 
-La `hora` DEBE tener formato `HH:MM` (S16). Ninguna fuente define el horario de atención, por lo que el sistema NO DEBE restringir la hora a un horario (S2): cualquier hora del día es válida. Si la `fecha` es hoy, la `hora` DEBE ser posterior a la hora actual del servidor; si es igual o anterior, DEBE responder 422 «La hora de la reserva debe ser posterior a la hora actual» sin guardar (S3). La hora se compara en minutos.
+La `hora` DEBE tener formato `HH:MM` (S16). Ninguna fuente define el horario de atención, por lo que el sistema NO DEBE restringir la hora a un horario (S2): cualquier hora del día es válida. Si la `fecha` es hoy, la `hora` DEBE ser posterior a la hora actual de la zona del restaurante (S28); si es igual o anterior, DEBE responder 422 «La hora de la reserva debe ser posterior a la hora actual» sin guardar (S3). La hora se compara en minutos.
 
 #### Escenario: Hora ya pasada hoy
 
@@ -276,6 +276,40 @@ La `hora` DEBE tener formato `HH:MM` (S16). Ninguna fuente define el horario de 
 - DADO una `fecha` futura
 - CUANDO se crea una reserva con `hora` `04:15`
 - ENTONCES responde 201 (S2: no hay horario de atención definido; S1-07 la daba por inválida y el equipo tiene que validarlo)
+
+### Requisito: «Hoy» y la hora actual se calculan en la zona del restaurante (S28)
+
+La fecha de «hoy» y la hora actual que usan «Fecha no pasada» y «Hora válida y no pasada», tanto en el alta como en la consulta de mesas disponibles, DEBEN ser las de la zona del restaurante: UTC-3 fija. DEBEN calcularse a partir del reloj UTC del servidor y NO DEBEN depender de la zona horaria del proceso ni del contenedor (`TZ`). La función `ahora()` DEBE devolver un `datetime` sin zona con esa fecha y esa hora.
+
+#### Escenario: El servidor ya está en el día siguiente en UTC
+
+- DADO el reloj UTC del servidor en `2026-11-02 02:30` (en la zona del restaurante son las `2026-11-01 23:30`) y la zona del proceso en UTC
+- CUANDO se crea una reserva para `2026-11-01` a las `23:45`
+- ENTONCES responde 201: «hoy» es el `2026-11-01` y la hora es posterior a la actual
+
+#### Escenario: La hora ya pasó en la zona del restaurante
+
+- DADO el mismo reloj (`2026-11-01 23:30` en la zona del restaurante)
+- CUANDO se crea una reserva para `2026-11-01` a las `23:00`
+- ENTONCES responde 422 con «La hora de la reserva debe ser posterior a la hora actual» y no se crea nada
+
+#### Escenario: Ayer en la zona del restaurante
+
+- DADO el mismo reloj
+- CUANDO se crea una reserva para `2026-10-31`
+- ENTONCES responde 422 con «La fecha de la reserva no puede ser anterior a hoy» y no se crea nada
+
+#### Escenario: No depende de la zona del proceso
+
+- DADO el mismo instante UTC y la zona del proceso, primero en `UTC` y después en `America/Argentina/Buenos_Aires`
+- CUANDO se llama a `ahora()`
+- ENTONCES devuelve `2026-11-01 23:30`, sin zona, en los dos casos
+
+#### Escenario: La consulta de mesas disponibles usa el mismo «hoy»
+
+- DADO el mismo reloj y una mesa libre
+- CUANDO se hace `GET /reservas/mesas-disponibles?fecha=2026-11-01&hora=23:45`
+- ENTONCES responde 200 con esa mesa en la lista
 
 ### Requisito: Cantidad de personas positiva (HU-M5-01 CA 7)
 
@@ -1184,7 +1218,7 @@ La lista es una ayuda: la API vuelve a verificar la mesa al guardar (S35). El pa
 
 #### Escenario: Falla la consulta de la lista
 
-- DADO el panel con Fecha y Hora válidas para el navegador y una API que responde 422 con «La hora de la reserva debe ser posterior a la hora actual» al pedir las mesas disponibles (el reloj del servidor puede diferir del del navegador)
+- DADO el panel con Fecha y Hora válidas para el navegador y una API que responde 422 con «La hora de la reserva debe ser posterior a la hora actual» al pedir las mesas disponibles (el navegador puede estar en otra zona horaria que la del restaurante)
 - CUANDO termina la consulta
 - ENTONCES se muestra ese mensaje junto al campo Mesa y el selector no ofrece mesas
 
@@ -1296,7 +1330,7 @@ Los supuestos S1 a S14 son los de la propuesta, con la misma numeración. S15 en
 
 - Supuesto: S1. Estado inicial `ACTIVA`. Lo dicen el diagrama de clases, S2-02 y la maqueta. Contradicción de fuentes: S1-07 (CP-HU-M5-01) usa `PENDIENTE`. Se sigue el diagrama porque manda en nombres y valores; el equipo tiene que validarlo y corregir S1-07.
 - Supuesto: S2. Horario de atención: ninguna fuente lo define, así que no se restringe la hora de la reserva (vale cualquier hora del día). Si el equipo define un horario, se agrega como validación 422 en un cambio posterior.
-- Supuesto: S3. Fecha y hora pasadas: `fecha` tiene que ser hoy o posterior (diagrama `{>= hoy}`). Si `fecha` es hoy, `hora` tiene que ser posterior a la hora actual del servidor. Si no se cumple, responde 422. La hora se maneja en minutos (sin segundos).
+- Supuesto: S3. Fecha y hora pasadas: `fecha` tiene que ser hoy o posterior (diagrama `{>= hoy}`). Si `fecha` es hoy, `hora` tiene que ser posterior a la hora actual de la zona del restaurante (S28). Si no se cumple, responde 422. La hora se maneja en minutos (sin segundos).
 - Supuesto: S4. Mesa «disponible» para una fecha y hora: la mesa existe según el puente, su estado en M3 no es `FUERA_DE_SERVICIO` y no tiene otra reserva `ACTIVA` con la misma fecha y hora exactas. El estado `OCUPADA` no la excluye (S30). No se modela duración. Cambio respecto de la propuesta: la primera versión de S4 decía que no se modelaba el estado de la mesa; el issue #61 dice que una mesa fuera de servicio no es una mesa disponible y gana sobre esa versión (AGENTS.md, sección 2).
 - Supuesto: S5. Capacidad: resuelto por el issue #61 (HU-M5-01), que dice «Cantidad de personas (obligatoria): número entero mayor a cero. El sistema no la valida contra la capacidad de la mesa (se resuelve en forma presencial)». La cantidad de personas no se valida contra la capacidad de la mesa; se resuelve en forma presencial. S1-07 pedía `cantidadPersonas <= capacidad`, pero el issue manda sobre esa guía (AGENTS.md §2). La capacidad que devuelve `listar_mesas` del puente se usa solo para mostrarla en el selector de mesas; ninguna regla la compara con la cantidad de personas y no existe una respuesta 422 por capacidad excedida.
 - Supuesto: S6. Cliente: se identifica por `cliente_id` entero. El stub da por válido cualquier id positivo hasta que M4 exponga Cliente. S1-07 no menciona al cliente; el diagrama sí (Cliente 1 - Reserva).
@@ -1321,7 +1355,7 @@ Los supuestos S1 a S14 son los de la propuesta, con la misma numeración. S15 en
 - Supuesto: S25. Fecha y filtros de la pantalla, según la maqueta: la tabla muestra las reservas de un día, que arranca en hoy (fecha local del navegador), con los botones «Día anterior» y «Día siguiente», el campo «Día» y el botón «Hoy». El estado arranca en `ACTIVA` (S8) y el selector ofrece además «Todas». Cambiar de día vuelve a la página 1. El día se maneja como texto `YYYY-MM-DD` (S11).
 - Supuesto: S26. Los textos de los estados vacío y de error de la tabla son los de «Estados vacío y error del listado». El aviso de éxito del panel es un toast del sistema de avisos compartido, sin modificarlo.
 - Supuesto: S27. Al modificar, el `service` no revalida que la mesa o el cliente existan, porque no cambian, y tampoco consulta al puente.
-- Supuesto: S28. «Hoy» y «hora actual» son la fecha y la hora locales del servidor. Las pruebas fijan ese reloj para los escenarios con fecha de hoy.
+- Supuesto: S28. «Hoy» y «hora actual» son la fecha y la hora de la zona del restaurante: UTC-3 fija (Argentina no usa horario de verano desde 2009), calculadas a partir del reloj UTC del servidor. No dependen de `TZ` del proceso ni del contenedor. Reemplaza al supuesto anterior, «la hora local del servidor»: el 2026-10-31 se comprobó que Docker corre en UTC sin `TZ`, y eso rechazaba con 422 las reservas de las próximas 3 horas. La zona es una constante del módulo, sin variable de entorno ni dependencia nueva (se usa un desplazamiento fijo y no `zoneinfo`, que necesita la base de zonas del sistema). Las pruebas fijan el reloj para los escenarios con fecha de hoy.
 - Supuesto: S29. La lista de mesas disponibles es una lista simple, sin paginar (no es una `Pagina[T]`). Un selector tiene que mostrar todas las mesas posibles, y un restaurante tiene muchas menos mesas que el tope de una página (100). Por eso la respuesta no trae `total`, `limit` ni `offset`.
 - Supuesto: S30. El estado `OCUPADA` de una mesa no la excluye de la lista ni del alta. `OCUPADA` describe el momento presente (hay clientes sentados ahora) y no dice nada sobre el turno que se reserva para otra fecha u hora. Solo `FUERA_DE_SERVICIO` excluye. Si se reserva para hoy una mesa que ahora está ocupada, se acepta y el salón lo resuelve en el momento.
 - Supuesto: S31. Una mesa fuera de servicio en el alta responde 409 «La mesa {id} está fuera de servicio» y no 422. Se trata como un conflicto con una regla de negocio, igual que la doble reserva (D-25, D-26): los datos enviados están bien formados, pero el estado de la mesa impide la reserva. 422 queda para datos mal formados o fechas y horas pasadas. El issue #61 pide que no se cree la reserva y que se avise; no fija el código.
