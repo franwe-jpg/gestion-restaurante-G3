@@ -793,3 +793,34 @@ Mediciones con `difflib` contra la copia de `reservas/` hecha al empezar (sin gi
 - 10.34: commit 13 (`feat: elige la mesa del alta de reservas entre las mesas disponibles (HU-M5-01)`), a cargo del orquestador, con los 13 archivos de `frontend/src/modules/reservas/` de «Archivos tocados».
 - 10.35 a 10.42: cierre del delta (CI completa de ambos lados, mutaciones con el árbol limpio —en 10.36 las del frontend ya tienen evidencia aquí—, aislamiento, `verify`, humo manual de la persona y medición de líneas).
 - Decisión abierta (desvío 8): qué debe verse junto a Mesa cuando falló la consulta de la lista y se pulsa «Guardar reserva».
+
+## Fase 10 · Cierre del delta (mesas disponibles, issue #61)
+
+Cierre hecho por el orquestador (2026-11-01), con los comandos corridos por él y no solo los reportados por cada unidad.
+
+### Commits del delta
+
+| Commit | Contenido |
+| --- | --- |
+| `cfd594b`, `460568e` | Spec: mesas disponibles, 409 de la mesa fuera de servicio, puente real y selector; aclaraciones tras la revisión nativa |
+| `377e0b9` | Diseño y propuesta (Decisiones 13 a 20) |
+| `5c01d0e` | Tareas de la Fase 10 (base para medir el delta) |
+| `a1ad33f` | Unidad A: puente real que lee las mesas de M3 |
+| `9f691ff` | Unidad B: `GET /reservas/mesas-disponibles` y 409 de la mesa fuera de servicio |
+| `8d5d374` | Unidad C: selector de mesas del panel de alta |
+
+### Verificación del orquestador
+
+- Backend (Docker, sin red, a solas): `ruff check`, `ruff format --check`, `lint-imports` (10 contratos mantenidos, 0 rotos), `alembic heads` (un solo head, `d6f8a0c2e4b6`) y `pytest`: **1249 pruebas**, cobertura **99,40 %**.
+- Frontend: `lint`, `format:check`, `typecheck`, `test:coverage` (**739 pruebas** en 65 archivos; cobertura de la configuración vigente: sentencias 75,09 %, ramas 71,73 %) y `build`, todos con salida 0. `V-TZ`: 151 pruebas del módulo en `America/Argentina/Buenos_Aires` y en `UTC`.
+- Mutación del test de imports: un `import` de `app.modules.salon` en `service.py` hace fallar `test_solo_el_puente_importa_salon`; el archivo se restauró idéntico al original.
+- Aislamiento contra `origin/develop`: solo `reservas/`, la carpeta de `openspec/` de este cambio, la migración `d6f8a0c2e4b6` y el registro del `router` en `main.py`.
+- Tamaño real del delta (base `5c01d0e`): backend ≈ 1.094 líneas y frontend ≈ 979, por encima del pronóstico de 500 a 780 y 390 a 630. Acumulado contra `develop`: backend ≈ 3.196 y frontend ≈ 2.679 (informativo, `size:exception`).
+- Revisión nativa: las unidades A, B y C se aprobaron sin hallazgos bloqueantes. El candidato de toda la rama contra `main` supera el presupuesto del revisor y no genera revisión.
+
+### Decisiones y observaciones del cierre
+
+1. **Advertencia de la revisión de la Unidad C sobre `useMesasDisponibles` (promesa sin manejo de rechazo).** No se cambia el hook: `clienteHttp.get` envuelve todo el pedido en `try/catch` (`frontend/src/shared/api/client.ts`, líneas 31 y 48) y devuelve `{ exito: false, error }` ante cualquier falla, también la de red, así que `listarMesasDisponibles` no puede rechazar.
+2. **Mensaje de error del campo Mesa (pregunta abierta de la Unidad C).** Si la consulta de la lista falló y la persona pulsa «Guardar reserva», «La mesa es obligatoria.» reemplaza el mensaje de la API hasta el siguiente intento. Se acepta, como dice la Decisión 19: la mesa sigue siendo obligatoria y el mensaje de la consulta vuelve al reabrir o cambiar el turno.
+3. **Riesgo del reloj (Decisión 20).** El contenedor corre en UTC y el restaurante en UTC-3, así que la regla de la hora de hoy se desplaza tres horas en todo el día. Sin cambio de código en este delta; la persona decide entre una zona fija en `ahora()` y `TZ` en `compose.yaml`.
+4. **Pendientes fuera de este delta:** el humo manual en el navegador (10.40, de la persona); el alta de cliente nuevo y el nombre del cliente dependen de que M4 exponga `crear_cliente` y `obtener_cliente` en su `service`; el listado sigue mostrando «Mesa n.º» con el id interno (S23).

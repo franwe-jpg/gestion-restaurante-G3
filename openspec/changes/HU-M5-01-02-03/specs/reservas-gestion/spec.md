@@ -933,7 +933,7 @@ Una sola migración Alembic nueva, con `down_revision = e7a9c1d3f5b7`, DEBE crea
 
 ### Requisito: Aislamiento del módulo y sin regresión de M3 (AGENTS.md, sección 9.3)
 
-El cambio NO DEBE modificar el código de `salon/`, de `atencion/` ni de `shared/` (backend y frontend), ni los contratos de importación de `backend/pyproject.toml`. La única modificación fuera de M5 DEBE ser el ajuste mínimo de los dos `downgrade` relativos de `backend/tests/modules/salon/test_migracion.py`, que pasan a anclarse a la revisión de M3 en lugar de un desplazamiento atado al head, y se anota en el PR para avisar al responsable de M3.
+El cambio NO DEBE modificar el código de `salon/`, de `atencion/` ni de `shared/` (backend y frontend), ni los contratos de importación de `backend/pyproject.toml`. Fuera de M5, las únicas modificaciones DEBEN ser la migración nueva y el registro del `router` en `backend/app/main.py`. Tampoco DEBE modificar las pruebas de otros módulos: sus pruebas de migración ya usan revisiones fijas y no dependen del head, y la rama conserva la versión de `develop` de esos archivos.
 
 #### Escenario: Contratos de importación
 
@@ -952,7 +952,7 @@ El cambio NO DEBE modificar el código de `salon/`, de `atencion/` ni de `shared
 
 - DADO el conjunto de archivos modificados por el cambio
 - CUANDO se revisa
-- ENTONCES no hay cambios en `backend/app/modules/salon/`, `backend/app/modules/atencion/`, `frontend/src/modules/salon/`, `frontend/src/modules/atencion/`, `frontend/src/App.tsx` ni en `shared/`, salvo el ajuste de los tests de migración de M3
+- ENTONCES no hay cambios en `backend/app/modules/salon/`, `backend/app/modules/atencion/`, `frontend/src/modules/salon/`, `frontend/src/modules/atencion/`, `frontend/src/App.tsx` ni en `shared/`, ni en las pruebas de esos módulos
 
 ### Requisito: Listado de reservas en pantalla (HU-M5-03)
 
