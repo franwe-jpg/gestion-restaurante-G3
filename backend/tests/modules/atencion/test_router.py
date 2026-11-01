@@ -328,11 +328,13 @@ def test_cerrar_comanda_devuelve_salida_compartida_y_segundo_cierre_conflicto(
             "estado_entrega": "ENTREGADO",
         }
     ]
+    assert _estado_mesa(db, comanda.mesa_id) == "LIBRE"
     segunda = cliente.post(f"/api/v1/comandas/{comanda.id}/cerrar")
     assert segunda.status_code == 409
     assert set(segunda.json()) == {"detalle"}
     db.expire_all()
     assert db.get(Comanda, comanda.id).estado == EstadoComanda.CERRADA
+    assert _estado_mesa(db, comanda.mesa_id) == "LIBRE"
 
 
 def test_cerrar_comanda_inexistente_devuelve_404(cliente: TestClient, comanda: Comanda) -> None:
@@ -513,3 +515,85 @@ def test_crear_comanda_item_deshabilitado_devuelve_409_y_mesa_libre(
     assert "está deshabilitado" in respuesta.json()["detalle"]
     assert _estado_mesa(db, salon.mesa_id) == "LIBRE"
     assert cliente.get(RUTA_COMANDAS).json()["total"] == 0
+
+
+# Cierre de comanda con el adaptador real de salón: libera la mesa (HU-M4-09)
+
+
+def _abrir_comanda(cliente: TestClient, salon) -> int:
+    pedido = {
+        "mesa_id": salon.mesa_id,
+        "detalles": [{"producto_id": salon.plato_id, "cantidad": 1}],
+    }
+    respuesta = cliente.post(RUTA_COMANDAS, json=pedido)
+    assert respuesta.status_code == 201, respuesta.json()
+    return respuesta.json()["id"]
+
+
+def _entregar_todo(db: Session, comanda_id: int) -> None:
+    # Todavía no existe la operación de marcar entregas (HU-M4-07): se simula con SQL.
+    db.execute(
+        text("UPDATE detalles_comanda SET estado_entrega='ENTREGADO' WHERE comanda_id=:id"),
+        {"id": comanda_id},
+    )
+    db.commit()
+
+
+def test_cerrar_comanda_con_salon_real_libera_la_mesa(
+    cliente: TestClient, db: Session, salon
+) -> None:
+    comanda_id = _abrir_comanda(cliente, salon)
+    _entregar_todo(db, comanda_id)
+
+    respuesta = cliente.post(f"{RUTA_COMANDAS}/{comanda_id}/cerrar")
+
+    assert respuesta.status_code == 200, respuesta.json()
+    assert respuesta.json()["estado"] == "CERRADA"
+    assert _estado_mesa(db, salon.mesa_id) == "LIBRE"
+
+
+def test_cerrar_comanda_permite_nueva_comanda_en_la_mesa(
+    cliente: TestClient, db: Session, salon
+) -> None:
+    primera = _abrir_comanda(cliente, salon)
+    _entregar_todo(db, primera)
+    assert cliente.post(f"{RUTA_COMANDAS}/{primera}/cerrar").status_code == 200
+
+    pedido = {
+        "mesa_id": salon.mesa_id,
+        "detalles": [{"producto_id": salon.plato_id, "cantidad": 2}],
+    }
+    nueva = cliente.post(RUTA_COMANDAS, json=pedido)
+
+    assert nueva.status_code == 201, nueva.json()
+    assert nueva.json()["estado"] == "ABIERTA"
+    assert nueva.json()["id"] != primera
+    assert _estado_mesa(db, salon.mesa_id) == "OCUPADA"
+    assert cliente.get(f"{RUTA_COMANDAS}?mesa_id={salon.mesa_id}").json()["total"] == 2
+
+
+def test_cerrar_comanda_con_pendientes_deja_la_mesa_ocupada(
+    cliente: TestClient, db: Session, salon
+) -> None:
+    comanda_id = _abrir_comanda(cliente, salon)
+
+    respuesta = cliente.post(f"{RUTA_COMANDAS}/{comanda_id}/cerrar")
+
+    assert respuesta.status_code == 409
+    assert respuesta.json()["detalle"] == "La comanda tiene productos pendientes de entrega"
+    assert _estado_mesa(db, salon.mesa_id) == "OCUPADA"
+
+
+def test_cerrar_comanda_dos_veces_no_libera_la_mesa_de_otra_comanda(
+    cliente: TestClient, db: Session, salon
+) -> None:
+    primera = _abrir_comanda(cliente, salon)
+    _entregar_todo(db, primera)
+    assert cliente.post(f"{RUTA_COMANDAS}/{primera}/cerrar").status_code == 200
+    _abrir_comanda(cliente, salon)
+
+    repetida = cliente.post(f"{RUTA_COMANDAS}/{primera}/cerrar")
+
+    assert repetida.status_code == 409
+    assert repetida.json() == {"detalle": "Solo se puede cerrar una comanda ABIERTA"}
+    assert _estado_mesa(db, salon.mesa_id) == "OCUPADA"

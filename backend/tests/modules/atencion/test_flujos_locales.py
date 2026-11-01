@@ -40,12 +40,13 @@ def test_consultar_pendientes_entregados_es_vacio(cliente, comanda):
 def test_error_a02_es_regla_de_negocio_con_datos(db, comanda):
     import pytest
 
+    from app.modules.atencion.adaptadores import MesasDeSalon
     from app.shared.excepciones import ReglaDeNegocioError
 
     comanda.detalles[0].estado_entrega = EstadoEntrega.PENDIENTE
     db.commit()
     with pytest.raises(ReglaDeNegocioError) as error:
-        service.cerrar_comanda(db, comanda.id)
+        service.cerrar_comanda(db, comanda.id, MesasDeSalon())
     assert error.value.comanda_id == comanda.id
     assert error.value.pendientes[0].id == comanda.detalles[0].id
 

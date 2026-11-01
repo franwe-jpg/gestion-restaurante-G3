@@ -169,6 +169,16 @@ def ocupar_mesa(db: Session, mesa_id: int) -> None:
     mesa.estado = EstadoMesa.OCUPADA
 
 
+def liberar_mesa(db: Session, mesa_id: int) -> None:
+    """OCUPADA -> LIBRE sin commit al cerrar la comanda (HU-M4-09).
+
+    Si la mesa no está OCUPADA no la cambia ni falla: el cierre no depende de su estado.
+    """
+    mesa = _mesa_existente(db, mesa_id)
+    if mesa.estado == EstadoMesa.OCUPADA:
+        mesa.estado = EstadoMesa.LIBRE
+
+
 def listar_sectores(
     db: Session, parametros: ParametrosPaginacion, estado: Estado | None = None
 ) -> Pagina[SectorSalida]:

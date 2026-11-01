@@ -1,7 +1,7 @@
 """Adaptadores de los puertos de Comanda hacia salón, productos y menús (HU-M4-04).
 
 Solo usan el `service` de cada módulo (RNF-MAN-09) y nunca confirman: la transacción
-la cierra `service.crear_comanda`.
+la cierran `service.crear_comanda` y `service.cerrar_comanda` (HU-M4-09).
 """
 
 from decimal import Decimal
@@ -29,6 +29,9 @@ class MesasDeSalon:
 
     def ocupar(self, db: Session, mesa_id: int) -> None:
         salon_service.ocupar_mesa(db, mesa_id)
+
+    def liberar(self, db: Session, mesa_id: int) -> None:
+        salon_service.liberar_mesa(db, mesa_id)
 
 
 class CatalogoDeCarta:

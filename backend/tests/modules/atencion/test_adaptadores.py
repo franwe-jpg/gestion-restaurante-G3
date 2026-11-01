@@ -50,6 +50,21 @@ def test_ocupar_mesa_libre_queda_ocupada_sin_confirmar(db: Session, salon) -> No
         assert salon_service.obtener_mesa(otra, salon.mesa_id).estado == EstadoMesa.LIBRE
 
 
+def test_liberar_mesa_ocupada_queda_libre_sin_confirmar(db: Session, salon) -> None:
+    _poner_estado(db, salon.mesa_id, EstadoMesa.OCUPADA)
+
+    MesasDeSalon().liberar(db, salon.mesa_id)
+
+    assert salon_service.obtener_mesa(db, salon.mesa_id).estado == EstadoMesa.LIBRE
+    with Session(db.get_bind()) as otra:
+        assert salon_service.obtener_mesa(otra, salon.mesa_id).estado == EstadoMesa.OCUPADA
+
+
+def test_liberar_mesa_inexistente_lanza_no_encontrado(db: Session) -> None:
+    with pytest.raises(NoEncontradoError, match="La mesa 999 no existe"):
+        MesasDeSalon().liberar(db, 999)
+
+
 def test_cotizar_producto_usa_precio_actual_sin_promocion(db: Session, salon) -> None:
     cotizacion = CatalogoDeCarta().cotizar(
         db, DetalleComandaCrear(producto_id=salon.plato_id, cantidad=3)

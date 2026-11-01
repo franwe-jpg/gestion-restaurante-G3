@@ -248,7 +248,7 @@ def test_cierre_entregada_permite_consulta_para_facturacion(fake_entregada: Coma
     assert [c.id for c in fake_entregada.listar_comandas(estado="CERRADA").items] == [1]
     assert cerrada.detalles[0].estado_entrega == "ENTREGADO"
     assert cerrada.detalles[0].precio_unitario == Decimal("10.00")
-    assert fake_entregada.mesas[7] == "OCUPADA"  # Closing does not free a mesa.
+    assert fake_entregada.mesas[7] == "LIBRE"  # Closing frees the mesa (01/11/2026).
 
 
 def test_cierre_pendientes_bloquea_sin_entregar(fake: ComandaFake) -> None:
@@ -257,6 +257,7 @@ def test_cierre_pendientes_bloquea_sin_entregar(fake: ComandaFake) -> None:
         fake.cerrar_comanda(abierta.id)
     consultada = fake.consultar_comanda(abierta.id)
     assert (consultada.estado, consultada.detalles[0].estado_entrega) == ("ABIERTA", "PENDIENTE")
+    assert fake.mesas[7] == "OCUPADA"
 
 
 def test_cierre_segundo_intento_no_muta(fake_entregada: ComandaFake) -> None:
@@ -264,6 +265,7 @@ def test_cierre_segundo_intento_no_muta(fake_entregada: ComandaFake) -> None:
     with pytest.raises(ReglaDeNegocioError, match="abierta"):
         fake_entregada.cerrar_comanda(1)
     assert fake_entregada.consultar_comanda(1).model_dump() == primera
+    assert fake_entregada.mesas[7] == "LIBRE"
 
 
 def test_cierre_inexistente_informa_error(fake: ComandaFake) -> None:
@@ -453,6 +455,7 @@ def test_aislamiento_pedido_vaciado_antes_de_crear_no_muta(fake: ComandaFake) ->
 def test_alta_tras_cierre_conserva_historial(fake_entregada: ComandaFake) -> None:
     fake_entregada.cerrar_comanda(1)
     nueva = fake_entregada.crear_comanda(pedido(7))
+    assert fake_entregada.mesas[7] == "OCUPADA"
     assert (nueva.id, [c.id for c in fake_entregada.listar_comandas(mesa_id=7).items]) == (
         2,
         [2, 1],

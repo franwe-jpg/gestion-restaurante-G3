@@ -33,6 +33,10 @@ class MesasPort(Protocol):
 
     def ocupar(self, db: Session, mesa_id: int) -> None: ...
 
+    def liberar(self, db: Session, mesa_id: int) -> None:
+        """OCUPADA -> LIBRE when the comanda closes; no commit, the caller owns it."""
+        ...
+
 
 class CatalogoPort(Protocol):
     """M4-owned quote requirement, not an M1/M2 adapter; no commits allowed.
@@ -148,7 +152,8 @@ def listar_comandas(
     )
 
 
-def cerrar_comanda(db: Session, comanda_id: int) -> ComandaSalida:
+def cerrar_comanda(db: Session, comanda_id: int, mesas: MesasPort) -> ComandaSalida:
+    """ABIERTA -> CERRADA and frees its mesa in the same transaction (HU-M4-09)."""
     comanda = repository.obtener_comanda(db, comanda_id)
     if comanda is None:
         raise NoEncontradoError(f"La comanda {comanda_id} no existe")
@@ -159,6 +164,7 @@ def cerrar_comanda(db: Session, comanda_id: int) -> ComandaSalida:
         raise EntregasPendientesError(pendientes)
     try:
         comanda.estado = EstadoComanda.CERRADA
+        mesas.liberar(db, comanda.mesa_id)
         salida = ComandaSalida.model_validate(comanda, from_attributes=True)
         db.commit()
     except Exception:
