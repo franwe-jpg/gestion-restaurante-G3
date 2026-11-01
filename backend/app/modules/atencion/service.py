@@ -10,7 +10,10 @@ from app.modules.atencion import repository
 from app.modules.atencion.schemas import (
     ClienteModificar,
     ClienteSalida,
+    DetalleEntrega,
     DetallePendiente,
+    EntregaDetalle,
+    EntregasComanda,
     PendientesComanda,
 )
 from app.shared.contratos.comanda import (
@@ -78,6 +81,56 @@ def consultar_pendientes(db: Session, comanda_id: int) -> PendientesComanda:
             if detalle.estado_entrega == EstadoEntrega.PENDIENTE
         ],
     )
+
+
+def consultar_entregas(db: Session, comanda_id: int) -> EntregasComanda:
+    comanda = repository.obtener_comanda(db, comanda_id)
+    if comanda is None:
+        raise NoEncontradoError(f"La comanda {comanda_id} no existe")
+    return EntregasComanda(
+        comanda_id=comanda.id,
+        estado=EstadoComanda(comanda.estado),
+        detalles=[
+            DetalleEntrega.model_validate(detalle, from_attributes=True)
+            for detalle in comanda.detalles
+        ],
+    )
+
+
+def registrar_entrega(
+    db: Session, comanda_id: int, detalle_id: int, datos: EntregaDetalle
+) -> EntregasComanda:
+    """Fija la cantidad entregada de un detalle de una comanda ABIERTA (HU-M4-08)."""
+    try:
+        registrada = repository.registrar_entrega(
+            db, comanda_id, detalle_id, datos.cantidad_entregada
+        )
+        if registrada:
+            db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    if not registrada:
+        db.rollback()
+        _rechazar_entrega(db, comanda_id, detalle_id, datos.cantidad_entregada)
+    return consultar_entregas(db, comanda_id)
+
+
+def _rechazar_entrega(db: Session, comanda_id: int, detalle_id: int, cantidad: int) -> None:
+    """Explica con lecturas por qué el UPDATE condicional no afectó ninguna fila."""
+    comanda = repository.obtener_comanda(db, comanda_id)
+    if comanda is None:
+        raise NoEncontradoError(f"La comanda {comanda_id} no existe")
+    detalle = next((d for d in comanda.detalles if d.id == detalle_id), None)
+    if detalle is None:
+        raise NoEncontradoError(f"El detalle {detalle_id} no existe en la comanda {comanda_id}")
+    if comanda.estado != EstadoComanda.ABIERTA:
+        raise ReglaDeNegocioError("Solo se pueden registrar entregas de una comanda ABIERTA")
+    if cantidad > detalle.cantidad:
+        raise DatosInvalidosError(
+            f"La cantidad entregada no puede superar la cantidad pedida ({detalle.cantidad})"
+        )
+    raise ReglaDeNegocioError("El detalle cambió; vuelva a consultar las entregas")
 
 
 def crear_comanda(

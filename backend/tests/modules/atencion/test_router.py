@@ -597,3 +597,243 @@ def test_cerrar_comanda_dos_veces_no_libera_la_mesa_de_otra_comanda(
     assert repetida.status_code == 409
     assert repetida.json() == {"detalle": "Solo se puede cerrar una comanda ABIERTA"}
     assert _estado_mesa(db, salon.mesa_id) == "OCUPADA"
+
+
+# Entregas por cantidad (HU-M4-08)
+
+
+def _ruta_entrega(comanda: Comanda, indice: int = 0) -> str:
+    return f"/api/v1/comandas/{comanda.id}/detalles/{comanda.detalles[indice].id}/entrega"
+
+
+def _linea(respuesta, detalle) -> dict:
+    return next(d for d in respuesta.json()["detalles"] if d["id"] == detalle.id)
+
+
+def test_put_entrega_parcial_responde_200_con_forma(
+    cliente: TestClient, comanda_con_lineas: Comanda
+) -> None:
+    respuesta = cliente.put(_ruta_entrega(comanda_con_lineas, 1), json={"cantidad_entregada": 4})
+
+    assert respuesta.status_code == 200
+    segundo = comanda_con_lineas.detalles[1]
+    assert respuesta.json()["comanda_id"] == comanda_con_lineas.id
+    assert respuesta.json()["estado"] == "ABIERTA"
+    assert _linea(respuesta, segundo) == {
+        "id": segundo.id,
+        "producto_id": 1,
+        "menu_ejecutivo_id": None,
+        "cantidad": 10,
+        "cantidad_entregada": 4,
+        "estado_entrega": "PENDIENTE",
+    }
+    listado = cliente.get(f"/api/v1/comandas/{comanda_con_lineas.id}/detalles")
+    assert _linea(listado, segundo)["cantidad_entregada"] == 4
+
+
+def test_put_entrega_completa_responde_200_entregado(
+    cliente: TestClient, comanda_con_lineas: Comanda
+) -> None:
+    respuesta = cliente.put(_ruta_entrega(comanda_con_lineas), json={"cantidad_entregada": 3})
+
+    assert respuesta.status_code == 200
+    primero, segundo = comanda_con_lineas.detalles
+    assert _linea(respuesta, primero)["estado_entrega"] == "ENTREGADO"
+    assert _linea(respuesta, primero)["cantidad_entregada"] == 3
+    assert _linea(respuesta, segundo)["estado_entrega"] == "PENDIENTE"
+    assert _linea(respuesta, segundo)["cantidad_entregada"] == 0
+
+
+@pytest.mark.parametrize("valor", [2, 0])
+def test_put_entrega_desmarcar_y_fijar_cero_responde_200(
+    cliente: TestClient, comanda_con_lineas: Comanda, valor: int
+) -> None:
+    cliente.put(_ruta_entrega(comanda_con_lineas), json={"cantidad_entregada": 3})
+
+    respuesta = cliente.put(_ruta_entrega(comanda_con_lineas), json={"cantidad_entregada": valor})
+
+    assert respuesta.status_code == 200
+    linea = _linea(respuesta, comanda_con_lineas.detalles[0])
+    assert (linea["cantidad_entregada"], linea["estado_entrega"]) == (valor, "PENDIENTE")
+
+
+def test_put_entrega_repetida_responde_200_igual(
+    cliente: TestClient, comanda_con_lineas: Comanda
+) -> None:
+    primera = cliente.put(_ruta_entrega(comanda_con_lineas, 1), json={"cantidad_entregada": 4})
+    segunda = cliente.put(_ruta_entrega(comanda_con_lineas, 1), json={"cantidad_entregada": 4})
+
+    assert segunda.status_code == 200
+    assert segunda.json() == primera.json()
+
+
+def test_put_entrega_cantidad_mayor_responde_422_con_detalle(
+    cliente: TestClient, comanda_con_lineas: Comanda
+) -> None:
+    respuesta = cliente.put(_ruta_entrega(comanda_con_lineas), json={"cantidad_entregada": 4})
+
+    assert respuesta.status_code == 422
+    assert set(respuesta.json()) == {"detalle"}
+    assert "3" in respuesta.json()["detalle"]
+
+
+@pytest.mark.parametrize(
+    "cuerpo",
+    [
+        {"cantidad_entregada": -1},
+        {"cantidad_entregada": "2"},
+        {"cantidad_entregada": 2.5},
+        {"cantidad_entregada": None},
+        {},
+        {"cantidad_entregada": 1, "otro": 1},
+    ],
+    ids=["negativo", "texto", "decimal", "nulo", "vacio", "extra"],
+)
+def test_put_entrega_cuerpo_invalido_responde_422(
+    cliente: TestClient, comanda_con_lineas: Comanda, cuerpo: dict
+) -> None:
+    respuesta = cliente.put(_ruta_entrega(comanda_con_lineas), json=cuerpo)
+
+    assert respuesta.status_code == 422
+    assert set(respuesta.json()) == {"detalle"}
+    detalle = cliente.get(f"/api/v1/comandas/{comanda_con_lineas.id}/detalles")
+    assert _linea(detalle, comanda_con_lineas.detalles[0])["cantidad_entregada"] == 0
+
+
+@pytest.mark.parametrize(
+    ("comanda_id", "detalle_id"), [("0", "1"), ("1", "0"), ("abc", "1"), ("1", "abc")]
+)
+def test_put_entrega_id_cero_o_no_numerico_responde_422(
+    cliente: TestClient, comanda_id: str, detalle_id: str
+) -> None:
+    respuesta = cliente.put(
+        f"/api/v1/comandas/{comanda_id}/detalles/{detalle_id}/entrega",
+        json={"cantidad_entregada": 1},
+    )
+
+    assert respuesta.status_code == 422
+    assert set(respuesta.json()) == {"detalle"}
+
+
+def test_put_entrega_comanda_inexistente_responde_404(
+    cliente: TestClient, comanda_con_lineas: Comanda
+) -> None:
+    respuesta = cliente.put(
+        f"/api/v1/comandas/999/detalles/{comanda_con_lineas.detalles[0].id}/entrega",
+        json={"cantidad_entregada": 1},
+    )
+
+    assert respuesta.status_code == 404
+    assert respuesta.json() == {"detalle": "La comanda 999 no existe"}
+
+
+def test_put_entrega_detalle_de_otra_comanda_responde_404(
+    cliente: TestClient, comanda: Comanda, comanda_con_lineas: Comanda
+) -> None:
+    ajeno = comanda.detalles[0].id
+
+    respuesta = cliente.put(
+        f"/api/v1/comandas/{comanda_con_lineas.id}/detalles/{ajeno}/entrega",
+        json={"cantidad_entregada": 1},
+    )
+
+    assert respuesta.status_code == 404
+    assert set(respuesta.json()) == {"detalle"}
+
+
+@pytest.mark.parametrize("estado", [EstadoComanda.CERRADA, EstadoComanda.ANULADA])
+def test_put_entrega_comanda_cerrada_o_anulada_responde_409(
+    cliente: TestClient, db: Session, comanda_con_lineas: Comanda, estado: EstadoComanda
+) -> None:
+    comanda_con_lineas.estado = estado
+    db.commit()
+
+    respuesta = cliente.put(_ruta_entrega(comanda_con_lineas), json={"cantidad_entregada": 1})
+
+    assert respuesta.status_code == 409
+    assert set(respuesta.json()) == {"detalle"}
+
+
+def test_get_detalles_responde_200_con_cantidades_ordenadas(
+    cliente: TestClient, comanda_con_lineas: Comanda
+) -> None:
+    cliente.put(_ruta_entrega(comanda_con_lineas), json={"cantidad_entregada": 3})
+    cliente.put(_ruta_entrega(comanda_con_lineas, 1), json={"cantidad_entregada": 2})
+
+    respuesta = cliente.get(f"/api/v1/comandas/{comanda_con_lineas.id}/detalles")
+
+    assert respuesta.status_code == 200
+    assert [
+        (d["cantidad"], d["cantidad_entregada"], d["estado_entrega"])
+        for d in respuesta.json()["detalles"]
+    ] == [(3, 3, "ENTREGADO"), (10, 2, "PENDIENTE")]
+    ids = [d["id"] for d in respuesta.json()["detalles"]]
+    assert ids == sorted(ids)
+
+
+def test_get_detalles_todo_entregado_y_pendientes_vacio(
+    cliente: TestClient, comanda_con_lineas: Comanda
+) -> None:
+    cliente.put(_ruta_entrega(comanda_con_lineas), json={"cantidad_entregada": 3})
+    cliente.put(_ruta_entrega(comanda_con_lineas, 1), json={"cantidad_entregada": 10})
+
+    respuesta = cliente.get(f"/api/v1/comandas/{comanda_con_lineas.id}/detalles")
+    pendientes = cliente.get(f"/api/v1/comandas/{comanda_con_lineas.id}/pendientes")
+
+    assert [d["estado_entrega"] for d in respuesta.json()["detalles"]] == ["ENTREGADO"] * 2
+    assert pendientes.json()["pendientes"] == []
+
+
+def test_get_detalles_comanda_cerrada_responde_200(
+    cliente: TestClient, db: Session, comanda: Comanda
+) -> None:
+    comanda.estado = EstadoComanda.CERRADA
+    db.commit()
+
+    respuesta = cliente.get(f"/api/v1/comandas/{comanda.id}/detalles")
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["estado"] == "CERRADA"
+    assert len(respuesta.json()["detalles"]) == 1
+
+
+def test_get_detalles_inexistente_responde_404_e_id_invalido_422(cliente: TestClient) -> None:
+    inexistente = cliente.get("/api/v1/comandas/999/detalles")
+    invalido = cliente.get("/api/v1/comandas/0/detalles")
+
+    assert inexistente.status_code == 404
+    assert inexistente.json() == {"detalle": "La comanda 999 no existe"}
+    assert invalido.status_code == 422
+
+
+def test_ciclo_entregar_todo_y_cerrar_responde_200(cliente: TestClient, db: Session, salon) -> None:
+    comanda_id = _abrir_comanda(cliente, salon)
+    detalle = cliente.get(f"/api/v1/comandas/{comanda_id}/detalles").json()["detalles"][0]
+    assert cliente.post(f"/api/v1/comandas/{comanda_id}/cerrar").status_code == 409
+
+    entrega = cliente.put(
+        f"/api/v1/comandas/{comanda_id}/detalles/{detalle['id']}/entrega",
+        json={"cantidad_entregada": detalle["cantidad"]},
+    )
+    cierre = cliente.post(f"/api/v1/comandas/{comanda_id}/cerrar")
+
+    assert entrega.status_code == 200
+    assert cierre.status_code == 200
+    assert cierre.json()["estado"] == "CERRADA"
+    assert _estado_mesa(db, salon.mesa_id) == "LIBRE"
+
+
+def test_ciclo_desmarcar_una_unidad_y_cerrar_responde_409(
+    cliente: TestClient, db: Session, salon
+) -> None:
+    comanda_id = _abrir_comanda(cliente, salon)
+    detalle = cliente.get(f"/api/v1/comandas/{comanda_id}/detalles").json()["detalles"][0]
+    ruta = f"/api/v1/comandas/{comanda_id}/detalles/{detalle['id']}/entrega"
+    cliente.put(ruta, json={"cantidad_entregada": detalle["cantidad"]})
+    cliente.put(ruta, json={"cantidad_entregada": detalle["cantidad"] - 1})
+
+    cierre = cliente.post(f"/api/v1/comandas/{comanda_id}/cerrar")
+
+    assert cierre.status_code == 409
+    assert cierre.json()["pendientes"][0]["id"] == detalle["id"]
+    assert _estado_mesa(db, salon.mesa_id) == "OCUPADA"

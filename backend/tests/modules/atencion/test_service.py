@@ -5,14 +5,14 @@ from decimal import Decimal
 import pytest
 from pydantic import ValidationError
 from sqlalchemy import text
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 
-from app.modules.atencion import service
+from app.modules.atencion import repository, service
 from app.modules.atencion.adaptadores import MesasDeSalon
 from app.modules.atencion.models import Cliente, Comanda, DetalleComanda
-from app.modules.atencion.schemas import ClienteModificar
+from app.modules.atencion.schemas import ClienteModificar, EntregaDetalle
 from app.shared.contratos.comanda import ComandaSalida, EstadoComanda, EstadoEntrega
-from app.shared.excepciones import NoEncontradoError, ReglaDeNegocioError
+from app.shared.excepciones import DatosInvalidosError, NoEncontradoError, ReglaDeNegocioError
 
 
 class MesasEspia:
@@ -243,3 +243,301 @@ def test_modificar_cliente_inexistente_no_crea_otro(db: Session) -> None:
         service.modificar_cliente(db, 99, ClienteModificar(nombre="Ana", telefono="123"))
 
     assert db.get(Cliente, 99) is None
+
+
+# Entregas por cantidad (HU-M4-08). `comanda_con_lineas`: líneas de cantidad 3 y 10.
+
+
+def _entregar(db: Session, comanda: Comanda, indice: int, n: int) -> service.EntregasComanda:
+    detalle = comanda.detalles[indice]
+    return service.registrar_entrega(
+        db, comanda.id, detalle.id, EntregaDetalle(cantidad_entregada=n)
+    )
+
+
+def _linea(salida: service.EntregasComanda, detalle: DetalleComanda) -> tuple[int, str]:
+    encontrada = next(d for d in salida.detalles if d.id == detalle.id)
+    return encontrada.cantidad_entregada, encontrada.estado_entrega
+
+
+def _persistido(db: Session, detalle: DetalleComanda) -> tuple[int, str]:
+    fila = db.execute(
+        text("SELECT cantidad_entregada, estado_entrega FROM detalles_comanda WHERE id=:id"),
+        {"id": detalle.id},
+    ).one()
+    return tuple(fila)
+
+
+def test_registrar_entrega_parcial_actualiza_cantidad(
+    db: Session, comanda_con_lineas: Comanda
+) -> None:
+    salida = _entregar(db, comanda_con_lineas, 1, 4)
+
+    assert _linea(salida, comanda_con_lineas.detalles[1]) == (4, "PENDIENTE")
+    assert _persistido(db, comanda_con_lineas.detalles[1]) == (4, "PENDIENTE")
+
+
+def test_registrar_entrega_completa_marca_entregado_y_no_toca_otro_detalle(
+    db: Session, comanda_con_lineas: Comanda
+) -> None:
+    salida = _entregar(db, comanda_con_lineas, 0, 3)
+
+    primero, segundo = comanda_con_lineas.detalles
+    assert salida.comanda_id == comanda_con_lineas.id
+    assert salida.estado == EstadoComanda.ABIERTA
+    assert [d.id for d in salida.detalles] == [primero.id, segundo.id]
+    assert _linea(salida, primero) == (3, "ENTREGADO")
+    assert _linea(salida, segundo) == (0, "PENDIENTE")
+
+
+def test_registrar_entrega_completa_una_parcial(db: Session, comanda_con_lineas: Comanda) -> None:
+    _entregar(db, comanda_con_lineas, 1, 4)
+
+    salida = _entregar(db, comanda_con_lineas, 1, 10)
+
+    assert _linea(salida, comanda_con_lineas.detalles[1]) == (10, "ENTREGADO")
+
+
+def test_registrar_entrega_desmarca_bajando_una_unidad(
+    db: Session, comanda_con_lineas: Comanda
+) -> None:
+    _entregar(db, comanda_con_lineas, 0, 3)
+
+    salida = _entregar(db, comanda_con_lineas, 0, 2)
+
+    assert _linea(salida, comanda_con_lineas.detalles[0]) == (2, "PENDIENTE")
+
+
+def test_registrar_entrega_fija_cero(db: Session, comanda_con_lineas: Comanda) -> None:
+    _entregar(db, comanda_con_lineas, 0, 3)
+
+    salida = _entregar(db, comanda_con_lineas, 0, 0)
+
+    assert _linea(salida, comanda_con_lineas.detalles[0]) == (0, "PENDIENTE")
+    assert _persistido(db, comanda_con_lineas.detalles[0]) == (0, "PENDIENTE")
+
+
+def test_registrar_entrega_repetida_es_idempotente(
+    db: Session, comanda_con_lineas: Comanda
+) -> None:
+    primera = _entregar(db, comanda_con_lineas, 1, 4)
+    segunda = _entregar(db, comanda_con_lineas, 1, 4)
+
+    assert primera == segunda
+    assert _linea(segunda, comanda_con_lineas.detalles[1]) == (4, "PENDIENTE")
+
+
+def test_registrar_entrega_mayor_que_cantidad_lanza_datos_invalidos_sin_cambios(
+    db: Session, comanda_con_lineas: Comanda
+) -> None:
+    with pytest.raises(DatosInvalidosError):
+        _entregar(db, comanda_con_lineas, 0, 4)
+
+    assert _persistido(db, comanda_con_lineas.detalles[0]) == (0, "PENDIENTE")
+
+
+def test_registrar_entrega_comanda_inexistente_lanza_no_encontrado(
+    db: Session, comanda_con_lineas: Comanda
+) -> None:
+    with pytest.raises(NoEncontradoError, match="comanda 999"):
+        service.registrar_entrega(
+            db, 999, comanda_con_lineas.detalles[0].id, EntregaDetalle(cantidad_entregada=1)
+        )
+
+
+def test_registrar_entrega_detalle_inexistente_lanza_no_encontrado(
+    db: Session, comanda_con_lineas: Comanda
+) -> None:
+    with pytest.raises(NoEncontradoError, match="detalle 999"):
+        service.registrar_entrega(
+            db, comanda_con_lineas.id, 999, EntregaDetalle(cantidad_entregada=1)
+        )
+
+
+def test_registrar_entrega_detalle_de_otra_comanda_lanza_no_encontrado_y_no_cambia(
+    db: Session, comanda: Comanda, comanda_con_lineas: Comanda
+) -> None:
+    ajeno = comanda.detalles[0]
+
+    with pytest.raises(NoEncontradoError, match="detalle"):
+        service.registrar_entrega(
+            db, comanda_con_lineas.id, ajeno.id, EntregaDetalle(cantidad_entregada=1)
+        )
+
+    assert _persistido(db, ajeno) == (2, "ENTREGADO")
+
+
+@pytest.mark.parametrize("estado", [EstadoComanda.CERRADA, EstadoComanda.ANULADA])
+def test_registrar_entrega_comanda_no_abierta_lanza_conflicto(
+    db: Session, comanda_con_lineas: Comanda, estado: EstadoComanda
+) -> None:
+    comanda_con_lineas.estado = estado
+    db.commit()
+
+    with pytest.raises(ReglaDeNegocioError, match="ABIERTA"):
+        _entregar(db, comanda_con_lineas, 0, 3)
+
+    assert _persistido(db, comanda_con_lineas.detalles[0]) == (0, "PENDIENTE")
+
+
+def test_registrar_entrega_desmarcar_en_comanda_cerrada_lanza_conflicto(
+    db: Session, comanda: Comanda
+) -> None:
+    comanda.estado = EstadoComanda.CERRADA
+    db.commit()
+
+    with pytest.raises(ReglaDeNegocioError):
+        service.registrar_entrega(
+            db, comanda.id, comanda.detalles[0].id, EntregaDetalle(cantidad_entregada=0)
+        )
+
+    assert _persistido(db, comanda.detalles[0]) == (2, "ENTREGADO")
+
+
+def test_registrar_entrega_orden_de_diagnostico(db: Session, comanda_con_lineas: Comanda) -> None:
+    ajeno = comanda_con_lineas.detalles[0].id
+    datos = EntregaDetalle(cantidad_entregada=99)  # excede el tope en todos los casos
+    comanda_con_lineas.estado = EstadoComanda.CERRADA
+    db.commit()
+
+    with pytest.raises(NoEncontradoError, match="comanda"):  # comanda antes que detalle
+        service.registrar_entrega(db, 999, 999, datos)
+    with pytest.raises(NoEncontradoError, match="detalle"):  # detalle antes que estado
+        service.registrar_entrega(db, comanda_con_lineas.id, 999, datos)
+    with pytest.raises(ReglaDeNegocioError):  # estado antes que tope
+        service.registrar_entrega(db, comanda_con_lineas.id, ajeno, datos)
+    comanda_con_lineas.estado = EstadoComanda.ABIERTA
+    db.commit()
+    with pytest.raises(DatosInvalidosError):
+        service.registrar_entrega(db, comanda_con_lineas.id, ajeno, datos)
+
+
+def test_registrar_entrega_ultima_unidad_no_cierra_la_comanda(
+    db: Session, comanda_con_lineas: Comanda, mesas: MesasEspia
+) -> None:
+    _entregar(db, comanda_con_lineas, 0, 3)
+    salida = _entregar(db, comanda_con_lineas, 1, 10)
+
+    assert salida.estado == EstadoComanda.ABIERTA
+    assert db.get(Comanda, comanda_con_lineas.id).estado == "ABIERTA"
+    assert service.cerrar_comanda(db, comanda_con_lineas.id, mesas).estado == EstadoComanda.CERRADA
+
+
+def test_cerrar_comanda_tras_entregar_todo_funciona(
+    db: Session, comanda_con_lineas: Comanda, mesas: MesasEspia
+) -> None:
+    with pytest.raises(ReglaDeNegocioError):  # antes de entregar, el cierre se bloquea
+        service.cerrar_comanda(db, comanda_con_lineas.id, mesas)
+    _entregar(db, comanda_con_lineas, 0, 3)
+    _entregar(db, comanda_con_lineas, 1, 10)
+
+    cerrada = service.cerrar_comanda(db, comanda_con_lineas.id, mesas)
+
+    assert cerrada.estado == EstadoComanda.CERRADA
+    assert mesas.liberadas == [2]
+
+
+def test_cerrar_comanda_tras_desmarcar_una_unidad_lanza_conflicto(
+    db: Session, comanda_con_lineas: Comanda, mesas: MesasEspia
+) -> None:
+    _entregar(db, comanda_con_lineas, 0, 3)
+    _entregar(db, comanda_con_lineas, 1, 10)
+    _entregar(db, comanda_con_lineas, 1, 9)
+
+    with pytest.raises(service.EntregasPendientesError) as error:
+        service.cerrar_comanda(db, comanda_con_lineas.id, mesas)
+
+    assert [d.id for d in error.value.pendientes] == [comanda_con_lineas.detalles[1].id]
+    assert mesas.liberadas == []
+
+
+def test_registrar_entrega_comanda_cerrada_por_otra_sesion_lanza_conflicto_sin_cambios(
+    db: Session, comanda_con_lineas: Comanda
+) -> None:
+    with sessionmaker(bind=db.get_bind())() as otra:
+        otra.execute(
+            text("UPDATE comandas SET estado='CERRADA' WHERE id=:id"), {"id": comanda_con_lineas.id}
+        )
+        otra.commit()
+
+    with pytest.raises(ReglaDeNegocioError, match="ABIERTA"):
+        _entregar(db, comanda_con_lineas, 0, 3)
+
+    assert _persistido(db, comanda_con_lineas.detalles[0]) == (0, "PENDIENTE")
+
+
+def test_registrar_entrega_dos_escrituras_gana_la_ultima(
+    db: Session, comanda_con_lineas: Comanda
+) -> None:
+    detalle = comanda_con_lineas.detalles[1]
+    datos = {"id": detalle.id}
+    with sessionmaker(bind=db.get_bind())() as otra:
+        service.registrar_entrega(
+            otra, comanda_con_lineas.id, detalle.id, EntregaDetalle(cantidad_entregada=2)
+        )
+    salida = _entregar(db, comanda_con_lineas, 1, 2)  # el segundo mozo también envía 2
+
+    assert _linea(salida, detalle) == (2, "PENDIENTE")
+    assert (
+        db.execute(
+            text("SELECT cantidad_entregada FROM detalles_comanda WHERE id=:id"), datos
+        ).scalar_one()
+        == 2
+    )
+
+
+def test_registrar_entrega_sin_causa_visible_lanza_conflicto_detalle_cambio(
+    db: Session, comanda_con_lineas: Comanda, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(repository, "registrar_entrega", lambda *_args: False)
+
+    with pytest.raises(ReglaDeNegocioError, match="El detalle cambió; vuelva a consultar"):
+        _entregar(db, comanda_con_lineas, 0, 1)
+
+
+def test_consultar_entregas_devuelve_detalles_ordenados_con_cantidades(
+    db: Session, comanda_con_lineas: Comanda
+) -> None:
+    _entregar(db, comanda_con_lineas, 0, 3)
+    _entregar(db, comanda_con_lineas, 1, 4)
+
+    salida = service.consultar_entregas(db, comanda_con_lineas.id)
+
+    primero, segundo = comanda_con_lineas.detalles
+    assert [
+        (d.id, d.cantidad, d.cantidad_entregada, d.estado_entrega) for d in salida.detalles
+    ] == [
+        (primero.id, 3, 3, "ENTREGADO"),
+        (segundo.id, 10, 4, "PENDIENTE"),
+    ]
+    assert salida.detalles[0].producto_id == 1
+    assert salida.detalles[0].menu_ejecutivo_id is None
+
+
+def test_consultar_entregas_todo_entregado_sin_pendientes(
+    db: Session, comanda_con_lineas: Comanda
+) -> None:
+    _entregar(db, comanda_con_lineas, 0, 3)
+    _entregar(db, comanda_con_lineas, 1, 10)
+
+    salida = service.consultar_entregas(db, comanda_con_lineas.id)
+
+    assert [d.estado_entrega for d in salida.detalles] == ["ENTREGADO", "ENTREGADO"]
+    assert service.consultar_pendientes(db, comanda_con_lineas.id).pendientes == []
+
+
+def test_consultar_entregas_comanda_cerrada_devuelve_detalles(
+    db: Session, comanda: Comanda
+) -> None:
+    comanda.estado = EstadoComanda.CERRADA
+    db.commit()
+
+    salida = service.consultar_entregas(db, comanda.id)
+
+    assert salida.estado == EstadoComanda.CERRADA
+    assert [(d.cantidad, d.cantidad_entregada) for d in salida.detalles] == [(2, 2)]
+
+
+def test_consultar_entregas_comanda_inexistente_lanza_no_encontrado(db: Session) -> None:
+    with pytest.raises(NoEncontradoError, match="comanda 999"):
+        service.consultar_entregas(db, 999)

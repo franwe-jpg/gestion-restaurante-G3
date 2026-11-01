@@ -1,9 +1,14 @@
 """Consultas de clientes y comandas; la transacción pertenece al servicio."""
 
-from sqlalchemy import or_, select
+from sqlalchemy import exists, or_, select, update
 from sqlalchemy.orm import Session, selectinload
 
-from app.modules.atencion.models import Cliente, Comanda, DetalleComanda
+from app.modules.atencion.models import (
+    Cliente,
+    Comanda,
+    DetalleComanda,
+    estado_segun_entrega,
+)
 from app.shared.contratos.comanda import ComandaCrear, DetalleComandaSalida, EstadoComanda
 from app.shared.paginacion import ParametrosPaginacion, aplicar, contar
 
@@ -31,6 +36,33 @@ def obtener_comanda(db: Session, comanda_id: int) -> Comanda | None:
         .execution_options(populate_existing=True)
     )
     return db.scalar(consulta)
+
+
+def registrar_entrega(db: Session, comanda_id: int, detalle_id: int, cantidad: int) -> bool:
+    """Fija `cantidad_entregada` de un detalle de una comanda ABIERTA; sin commit.
+
+    El UPDATE condicional toma el bloqueo de escritura y valida en una sola sentencia que
+    el detalle pertenece a la comanda, que ésta está ABIERTA y que `cantidad` no supera lo
+    pedido. Devuelve False sin cambios si no afectó ninguna fila; si afectó una, deriva
+    `estado_entrega` con la regla única `estado_segun_entrega`.
+    """
+    abierta = exists().where(Comanda.id == comanda_id, Comanda.estado == EstadoComanda.ABIERTA)
+    resultado = db.execute(
+        update(DetalleComanda)
+        .where(
+            DetalleComanda.id == detalle_id,
+            DetalleComanda.comanda_id == comanda_id,
+            DetalleComanda.cantidad >= cantidad,
+            abierta,
+        )
+        .values(cantidad_entregada=cantidad)
+    )
+    if resultado.rowcount != 1:
+        return False
+    detalle = db.get(DetalleComanda, detalle_id, populate_existing=True)
+    detalle.estado_entrega = estado_segun_entrega(detalle.cantidad, detalle.cantidad_entregada)
+    db.flush()
+    return True
 
 
 def obtener_abierta_por_mesa(db: Session, mesa_id: int) -> Comanda | None:

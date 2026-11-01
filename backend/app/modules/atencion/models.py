@@ -50,7 +50,9 @@ class Comanda(Base):
     observaciones: Mapped[str | None] = mapped_column(sa.String(500), nullable=True)
     estado: Mapped[str] = mapped_column(sa.String(20), default="ABIERTA")
     fecha_hora: Mapped[datetime] = mapped_column(InstanteUTC(), default=lambda: datetime.now(UTC))
-    detalles: Mapped[list["DetalleComanda"]] = relationship(back_populates="comanda")
+    detalles: Mapped[list["DetalleComanda"]] = relationship(
+        back_populates="comanda", order_by="DetalleComanda.id"
+    )
 
 
 def estado_segun_entrega(cantidad: int, cantidad_entregada: int) -> EstadoEntrega:
