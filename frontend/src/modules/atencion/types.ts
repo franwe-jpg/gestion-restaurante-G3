@@ -41,6 +41,19 @@ export interface PendientesComanda {
   comanda_id: number;
   pendientes: DetallePendiente[];
 }
+/** HU-M4-08: entrega por cantidad de cada línea; el estado lo deriva el servidor. */
+export interface DetalleEntrega extends DetallePendiente {
+  cantidad_entregada: number;
+  estado_entrega: 'PENDIENTE' | 'ENTREGADO';
+}
+export interface EntregasComanda {
+  comanda_id: number;
+  estado: EstadoComanda;
+  detalles: DetalleEntrega[];
+}
+export interface EntregaDetalle {
+  cantidad_entregada: number;
+}
 
 export interface Cliente {
   id: number;

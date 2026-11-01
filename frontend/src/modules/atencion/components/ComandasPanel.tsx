@@ -9,10 +9,12 @@ export function ComandasPanel({
   comandas,
   aviso,
   onCerrar,
+  onEntregas,
 }: {
   comandas: ReturnType<typeof useComandas>;
   aviso: string;
   onCerrar: (id: number) => void;
+  onEntregas: (id: number) => void;
 }) {
   return (
     <Card>
@@ -30,6 +32,7 @@ export function ComandasPanel({
               hayFiltros={comandas.hayFiltros}
               ocupado={comandas.cargando}
               onCerrar={onCerrar}
+              onEntregas={onEntregas}
               onPagina={comandas.cambiarPagina}
             />
           )}

@@ -4,6 +4,8 @@ import type {
   Comanda,
   ComandaCrear,
   ComandaResumen,
+  EntregaDetalle,
+  EntregasComanda,
   FiltroComandas,
   PendientesComanda,
 } from './types';
@@ -27,6 +29,21 @@ export function crearComanda(datos: ComandaCrear): Promise<RespuestaApi<Comanda>
 
 export function consultarPendientes(id: number): Promise<RespuestaApi<PendientesComanda>> {
   return clienteHttp.get<PendientesComanda>(`/comandas/${id}/pendientes`);
+}
+
+export function consultarEntregas(id: number): Promise<RespuestaApi<EntregasComanda>> {
+  return clienteHttp.get<EntregasComanda>(`/comandas/${id}/detalles`);
+}
+
+export function registrarEntrega(
+  id: number,
+  detalleId: number,
+  cantidadEntregada: number,
+): Promise<RespuestaApi<EntregasComanda>> {
+  return clienteHttp.put<EntregasComanda, EntregaDetalle>(
+    `/comandas/${id}/detalles/${detalleId}/entrega`,
+    { cantidad_entregada: cantidadEntregada },
+  );
 }
 
 export function cerrarComanda(id: number): Promise<RespuestaApi<Comanda>> {
