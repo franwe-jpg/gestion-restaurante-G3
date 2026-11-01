@@ -1,7 +1,7 @@
 """crea medios_pago
 
 Revision ID: e7a9c1b3d5f7
-Revises: 0e9f2fe2e157
+Revises: e7c9a1b3d5f0
 Create Date: 2026-10-31 10:00:00.000000
 
 """
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = 'e7a9c1b3d5f7'
-down_revision: Union[str, Sequence[str], None] = '0e9f2fe2e157'
+down_revision: Union[str, Sequence[str], None] = 'e7c9a1b3d5f0'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
