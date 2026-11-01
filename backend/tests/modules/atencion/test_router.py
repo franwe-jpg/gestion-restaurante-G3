@@ -6,13 +6,18 @@ from datetime import timedelta
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.main import app as app_principal
 from app.modules.atencion.models import Cliente, Comanda
 from app.modules.atencion.router import router
+from app.modules.menus import service as menus_service
+from app.modules.productos import service as productos_service
+from app.modules.salon import service as salon_service
 from app.shared.contratos.comanda import ComandaSalida, EstadoComanda, EstadoEntrega
+from app.shared.models import Categoria
 
 RUTA = "/api/v1/clientes"
 
@@ -390,3 +395,121 @@ def test_listar_clientes_paginacion_invalida(cliente_m4: TestClient, params: dic
 
     assert respuesta.status_code == 422
     assert list(params)[0] in respuesta.json()["detalle"]
+
+
+# Alta de comanda con los adaptadores reales de salón y catálogo (HU-M4-04)
+
+RUTA_COMANDAS = "/api/v1/comandas"
+
+
+def _estado_mesa(db: Session, mesa_id: int) -> str:
+    db.expire_all()
+    return salon_service.obtener_mesa(db, mesa_id).estado
+
+
+def test_crear_comanda_con_mesa_y_catalogo_reales_ocupa_la_mesa(
+    cliente: TestClient, db: Session, salon
+) -> None:
+    pedido = {
+        "mesa_id": salon.mesa_id,
+        "detalles": [
+            {"producto_id": salon.plato_id, "cantidad": 2},
+            {"menu_ejecutivo_id": salon.menu_id, "cantidad": 1},
+        ],
+    }
+
+    respuesta = cliente.post(RUTA_COMANDAS, json=pedido)
+
+    assert respuesta.status_code == 201, respuesta.json()
+    creada = respuesta.json()
+    assert creada["mesa_id"] == salon.mesa_id
+    assert creada["estado"] == "ABIERTA"
+    assert [
+        (d["producto_id"], d["menu_ejecutivo_id"], d["cantidad"], d["precio_unitario"])
+        for d in creada["detalles"]
+    ] == [(salon.plato_id, None, 2, "1500.50"), (None, salon.menu_id, 1, "4200.00")]
+    assert {d["descuento"] for d in creada["detalles"]} == {"0.00"}
+    assert {d["promocion_id"] for d in creada["detalles"]} == {None}
+    assert {d["estado_entrega"] for d in creada["detalles"]} == {"PENDIENTE"}
+    assert _estado_mesa(db, salon.mesa_id) == "OCUPADA"
+
+
+def test_crear_comanda_mesa_inexistente_devuelve_404(cliente: TestClient, salon) -> None:
+    pedido = {"mesa_id": 999, "detalles": [{"producto_id": salon.plato_id, "cantidad": 1}]}
+
+    respuesta = cliente.post(RUTA_COMANDAS, json=pedido)
+
+    assert respuesta.status_code == 404
+    assert respuesta.json() == {"detalle": "La mesa 999 no existe"}
+
+
+def test_crear_comanda_mesa_con_comanda_abierta_devuelve_409(
+    cliente: TestClient, db: Session, salon
+) -> None:
+    pedido = {
+        "mesa_id": salon.mesa_id,
+        "detalles": [{"producto_id": salon.plato_id, "cantidad": 1}],
+    }
+    creada = cliente.post(RUTA_COMANDAS, json=pedido)
+
+    repetida = cliente.post(RUTA_COMANDAS, json=pedido)
+
+    assert creada.status_code == 201
+    assert repetida.status_code == 409
+    assert repetida.json()["comanda_id"] == creada.json()["id"]
+    assert cliente.get(f"{RUTA_COMANDAS}?mesa_id={salon.mesa_id}").json()["total"] == 1
+
+
+def test_crear_comanda_mesa_fuera_de_servicio_devuelve_409(
+    cliente: TestClient, db: Session, salon
+) -> None:
+    db.execute(
+        text("UPDATE mesas SET estado='FUERA_DE_SERVICIO' WHERE id=:id"), {"id": salon.mesa_id}
+    )
+    db.commit()
+    pedido = {
+        "mesa_id": salon.mesa_id,
+        "detalles": [{"producto_id": salon.plato_id, "cantidad": 1}],
+    }
+
+    respuesta = cliente.post(RUTA_COMANDAS, json=pedido)
+
+    assert respuesta.status_code == 409
+    assert respuesta.json() == {"detalle": "La mesa 10 no está libre"}
+
+
+@pytest.mark.parametrize(
+    "detalle,mensaje",
+    [
+        ({"producto_id": 999, "cantidad": 1}, "El producto 999 no existe"),
+        ({"menu_ejecutivo_id": 999, "cantidad": 1}, "El menú ejecutivo 999 no existe"),
+    ],
+)
+def test_crear_comanda_item_inexistente_devuelve_404_y_mesa_libre(
+    cliente: TestClient, db: Session, salon, detalle: dict, mensaje: str
+) -> None:
+    respuesta = cliente.post(RUTA_COMANDAS, json={"mesa_id": salon.mesa_id, "detalles": [detalle]})
+
+    assert respuesta.status_code == 404
+    assert respuesta.json() == {"detalle": mensaje}
+    assert _estado_mesa(db, salon.mesa_id) == "LIBRE"
+    assert cliente.get(RUTA_COMANDAS).json()["total"] == 0
+
+
+@pytest.mark.parametrize("item", ["producto", "menu"])
+def test_crear_comanda_item_deshabilitado_devuelve_409_y_mesa_libre(
+    cliente: TestClient, db: Session, salon, item: str
+) -> None:
+    if item == "producto":
+        productos_service.dar_de_baja_producto(db, Categoria.PLATO, salon.plato_id)
+        detalle = {"producto_id": salon.plato_id, "cantidad": 1}
+    else:
+        menus_service.dar_de_baja_menu_ejecutivo(db, salon.menu_id)
+        detalle = {"menu_ejecutivo_id": salon.menu_id, "cantidad": 1}
+
+    respuesta = cliente.post(RUTA_COMANDAS, json={"mesa_id": salon.mesa_id, "detalles": [detalle]})
+
+    assert respuesta.status_code == 409
+    assert "está deshabilitado" in respuesta.json()["detalle"]
+    assert _estado_mesa(db, salon.mesa_id) == "LIBRE"
+    assert cliente.get(RUTA_COMANDAS).json()["total"] == 0

@@ -31,14 +31,6 @@ def test_consultar_pendientes_antes_de_confirmar(cliente, db, comanda):
     assert cliente.get("/api/v1/comandas/999/pendientes").status_code == 404
 
 
-def test_alta_sin_adaptadores_no_fabrica_pedido(cliente, comanda):
-    respuesta = cliente.post(
-        "/api/v1/comandas", json={"mesa_id": 2, "detalles": [{"producto_id": 1, "cantidad": 1}]}
-    )
-    assert respuesta.status_code == 503
-    assert "integración" in respuesta.json()["detalle"]
-
-
 def test_consultar_pendientes_entregados_es_vacio(cliente, comanda):
     respuesta = cliente.get(f"/api/v1/comandas/{comanda.id}/pendientes")
     assert respuesta.status_code == 200
