@@ -1,6 +1,6 @@
 """Pruebas del servicio de reservas: alta (HU-M5-01), modificacion (HU-M5-02) y listado."""
 
-from datetime import date, datetime, time
+from datetime import UTC, date, datetime, time, timedelta
 
 import pytest
 from sqlalchemy import select
@@ -47,11 +47,13 @@ def _ocupar_turno(fabrica_reserva, **cambios) -> Reserva:
     return fabrica_reserva(**(turno | cambios))
 
 
-# Decision 3: el reloj real es local y sin zona horaria
-def test_ahora_devuelve_la_fecha_y_hora_locales_sin_zona() -> None:
-    antes = datetime.now()
+# Decision 3 y 20 (S28): el reloj real es el del restaurante (UTC-3) y no lleva zona horaria
+def test_ahora_devuelve_la_hora_del_restaurante_sin_zona(zona_del_proceso) -> None:
+    zona_del_proceso("UTC")  # como el contenedor de Docker: la hora del proceso no es la del local
+    utc_menos_3 = timedelta(hours=-3)
+    antes = datetime.now(UTC).replace(tzinfo=None) + utc_menos_3
     actual = ahora_real()
-    despues = datetime.now()
+    despues = datetime.now(UTC).replace(tzinfo=None) + utc_menos_3
 
     assert antes <= actual <= despues
     assert actual.tzinfo is None
@@ -1039,3 +1041,65 @@ def test_listar_mesas_disponibles_con_turno_pasado_no_consulta_al_puente(
 
     with pytest.raises(DatosInvalidosError, match="La fecha de la reserva"):
         _disponibles(db, fecha=date(2026, 11, 1))
+
+
+# --- S28: "hoy" y la hora actual en la zona del restaurante (UTC-3) ---
+# Reloj UTC del servidor: 2026-11-02 02:30 (en el restaurante, 2026-11-01 23:30). Las pruebas piden
+# `reloj_utc_fijo`: usan el `ahora()` verdadero, con el proceso en UTC como en Docker.
+
+ANOCHE = date(2026, 11, 1)
+HORA_DEL_RESTAURANTE = datetime(2026, 11, 1, 23, 30)
+
+
+@pytest.mark.parametrize(
+    ("zona", "hora_del_proceso"),
+    [
+        ("UTC", datetime(2026, 11, 2, 2, 30)),
+        ("America/Argentina/Buenos_Aires", datetime(2026, 11, 1, 23, 30)),
+    ],
+    ids=["utc", "buenos-aires"],
+)
+def test_ahora_no_depende_de_la_zona_del_proceso(
+    reloj_utc_fijo, zona_del_proceso, zona: str, hora_del_proceso: datetime
+) -> None:
+    zona_del_proceso(zona)
+
+    actual = ahora_real()
+
+    assert service.datetime.now() == hora_del_proceso  # el proceso quedo en la zona pedida
+    assert actual == HORA_DEL_RESTAURANTE
+    assert actual.tzinfo is None
+
+
+def test_crear_reserva_acepta_hoy_del_restaurante_aunque_el_servidor_ya_este_en_manana(
+    db: Session, reloj_utc_fijo
+) -> None:
+    salida = service.crear_reserva(db, _datos(fecha=ANOCHE, hora=time(23, 45)))
+
+    assert salida.fecha == ANOCHE
+    assert salida.hora == time(23, 45)
+    assert len(_reservas(db)) == 1
+
+
+def test_crear_reserva_rechaza_hora_pasada_en_la_zona_del_restaurante(
+    db: Session, reloj_utc_fijo
+) -> None:
+    with pytest.raises(DatosInvalidosError) as error:
+        service.crear_reserva(db, _datos(fecha=ANOCHE, hora=time(23, 0)))
+
+    assert str(error.value) == "La hora de la reserva debe ser posterior a la hora actual"
+    assert _reservas(db) == []
+
+
+def test_crear_reserva_rechaza_ayer_en_la_zona_del_restaurante(db: Session, reloj_utc_fijo) -> None:
+    with pytest.raises(DatosInvalidosError) as error:
+        service.crear_reserva(db, _datos(fecha=date(2026, 10, 31)))
+
+    assert str(error.value) == "La fecha de la reserva no puede ser anterior a hoy"
+    assert _reservas(db) == []
+
+
+def test_listar_mesas_disponibles_usa_el_hoy_de_la_zona_del_restaurante(
+    db: Session, reloj_utc_fijo
+) -> None:
+    assert _ids_disponibles(db, ANOCHE, time(23, 45)) == [5, 6]

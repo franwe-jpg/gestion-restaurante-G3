@@ -2,12 +2,14 @@
 
 Toda prueba arranca con el doble del puente (`puente_doble`, autouse), sin base de M3. Las pruebas
 del puente real piden `puente_real` y siembran M3 con `mesas_en_m3` (S20, S33); las que simulan una
-falla de M3 piden ademas `m3_falla_desde_la_segunda_pagina`.
+falla de M3 piden ademas `m3_falla_desde_la_segunda_pagina`. Las pruebas de la zona del
+restaurante (S28) piden `reloj_utc_fijo`, que usa el `ahora()` verdadero con un servidor en UTC.
 """
 
-from collections.abc import Callable
+import time as tiempo
+from collections.abc import Callable, Iterator
 from dataclasses import replace
-from datetime import date, datetime, time
+from datetime import UTC, date, datetime, time
 
 import pytest
 from sqlalchemy.orm import Session
@@ -23,6 +25,13 @@ from app.shared.models.enums import EstadoMesa
 
 # Lunes 2 de noviembre de 2026, mediodia: los escenarios de la spec se trasladan a este reloj.
 AHORA = datetime(2026, 11, 2, 12, 0)
+
+# S28: el reloj UTC del servidor ya marca el 2 de noviembre a las 02:30, pero en la zona del
+# restaurante (UTC-3) todavia es el 1 de noviembre a las 23:30.
+INSTANTE_UTC = datetime(2026, 11, 2, 2, 30, tzinfo=UTC)
+
+# `ahora` verdadera, guardada al importar el archivo, antes de que `reloj` la reemplace.
+AHORA_REAL = service.ahora
 
 # Funciones originales del puente, guardadas al importar el archivo, antes de que el doble las
 # reemplace.
@@ -75,9 +84,56 @@ class DoblePuente:
         return cliente_id > 0
 
 
+class DatetimeConRelojFijo(datetime):
+    """`datetime` cuyo `now` devuelve `INSTANTE_UTC`, sin leer el reloj del sistema.
+
+    Con `tz` devuelve el instante convertido a esa zona; sin `tz` devuelve lo que daria un
+    `datetime.now()` local, sin zona, con la zona del proceso.
+    """
+
+    @classmethod
+    def now(cls, tz=None):
+        if tz is None:
+            return INSTANTE_UTC.astimezone().replace(tzinfo=None)
+        return INSTANTE_UTC.astimezone(tz)
+
+
 @pytest.fixture(autouse=True)
 def reloj(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(service, "ahora", lambda: AHORA)
+
+
+@pytest.fixture
+def zona_del_proceso() -> Iterator[Callable[[str], None]]:
+    """Devuelve `fijar(nombre)`, que cambia la zona horaria del proceso (`TZ` y `tzset`).
+
+    Al terminar, el parche restaura `TZ` y se vuelve a llamar a `tzset`. `time.tzset` no existe en
+    Windows: ahi `fijar` salta la prueba.
+    """
+    with pytest.MonkeyPatch.context() as parche:
+
+        def fijar(nombre: str) -> None:
+            if not hasattr(tiempo, "tzset"):
+                pytest.skip("time.tzset no existe en este sistema")
+            parche.setenv("TZ", nombre)
+            tiempo.tzset()
+
+        yield fijar
+    if hasattr(tiempo, "tzset"):
+        tiempo.tzset()
+
+
+@pytest.fixture
+def reloj_utc_fijo(monkeypatch: pytest.MonkeyPatch, zona_del_proceso) -> None:
+    """Servidor en UTC con el reloj en `INSTANTE_UTC` (S28), usando el `ahora()` verdadero.
+
+    No parchea `ahora()`: sustituye `service.datetime` por `DatetimeConRelojFijo` y deja el
+    proceso en la zona UTC, como el contenedor de Docker. Asi la prueba falla de verdad si
+    `ahora()` vuelve a usar la hora del proceso, en un contenedor y en cualquier maquina.
+    """
+    monkeypatch.setattr(service, "ahora", AHORA_REAL)
+    monkeypatch.setattr(service, "datetime", DatetimeConRelojFijo)
+    zona_del_proceso("UTC")
 
 
 @pytest.fixture(autouse=True)

@@ -824,3 +824,104 @@ Cierre hecho por el orquestador (2026-11-01), con los comandos corridos por él 
 2. **Mensaje de error del campo Mesa (pregunta abierta de la Unidad C).** Si la consulta de la lista falló y la persona pulsa «Guardar reserva», «La mesa es obligatoria.» reemplaza el mensaje de la API hasta el siguiente intento. Se acepta, como dice la Decisión 19: la mesa sigue siendo obligatoria y el mensaje de la consulta vuelve al reabrir o cambiar el turno.
 3. **Riesgo del reloj (Decisión 20).** El contenedor corre en UTC y el restaurante en UTC-3, así que la regla de la hora de hoy se desplaza tres horas en todo el día. Sin cambio de código en este delta; la persona decide entre una zona fija en `ahora()` y `TZ` en `compose.yaml`.
 4. **Pendientes fuera de este delta:** el humo manual en el navegador (10.40, de la persona); el alta de cliente nuevo y el nombre del cliente dependen de que M4 exponga `crear_cliente` y `obtener_cliente` en su `service`; el listado sigue mostrando «Mesa n.º» con el id interno (S23).
+
+## Fase 11 · Zona horaria del restaurante
+
+- **Alcance:** tareas 11.1 a 11.3 (Decisiones 3 y 20, supuesto S28, requisito «“Hoy” y la hora actual se calculan en la zona del restaurante (S28)», 5 escenarios). La tarea 11.4 (commit 15) queda para el orquestador, que es el dueño de git: este lote no usó git para nada (las mediciones de tamaño se hicieron con `diff` contra copias del árbol de trabajo hechas al empezar).
+- **Modo:** Strict TDD (`strict_tdd: true` en `openspec/config.yaml`). Comandos en Docker (`g3-backend-test`, sin red, `backend/` montado en `/app`).
+- **Línea base:** `pytest` 1249 pruebas pasando, cobertura 99,40 %, un solo head `d6f8a0c2e4b6`, `lint-imports` con 10 contratos cumplidos; el módulo `reservas` tenía 256 pruebas («256 passed» al empezar).
+- **Estado:** 3 de 3 tareas del lote completas (11.1 a 11.3). Queda 11.4 (commit 15).
+
+### Tareas completadas
+
+| Tarea | Estado | Resultado observado |
+| --- | --- | --- |
+| 11.1 Rojo | Hecha | 10 casos nuevos (6 en `test_service.py`, de 5 funciones, una parametrizada en 2 casos, y 4 en `test_router.py`) y 1 prueba reescrita (`ahora()` real): `8 failed, 258 passed`; 8 fallan por el motivo correcto y 3 son guardas (ver abajo) |
+| 11.2 Verde | Hecha | `ZONA_DEL_RESTAURANTE` y `ahora()` en `service.py`: `266 passed` en `reservas` |
+| 11.3 Refactor y verificación | Hecha | `ruff` (un orden de bloque corregido), `ruff format`, `lint-imports`, `alembic heads` y `pytest` completo en verde: 1259 pasan; las 3 mutaciones fallan pruebas nuevas |
+| 11.4 Commit 15 | **Pendiente (orquestador)** | No es parte de este lote |
+
+### TDD Cycle Evidence
+
+| Tarea | RED | GREEN | REFACTOR |
+| --- | --- | --- | --- |
+| 11.1 a 11.2 | `8 failed, 258 passed` (8 fallas por el motivo correcto y 3 guardas que ya pasan) | `ZONA_DEL_RESTAURANTE` + `ahora()` con `datetime.now(ZONA_DEL_RESTAURANTE).replace(tzinfo=None)`: **266 pasan** | n/a |
+| 11.3 | n/a | 266 pasan antes y después; suite completa 1259 | `ruff check` marcó `I001` (una sola línea en blanco entre las importaciones y la constante); corregido. Revisión de `service.py`, `conftest.py` y las pruebas sin otros cambios |
+
+### Evidencia RED y GREEN por paso
+
+Comando enfocado de todos los pasos: `docker run --rm --network none --user "$(id -u):$(id -g)" -e HOME=/tmp -v …/backend:/app -w /app g3-backend-test pytest --no-cov -q -p no:cacheprovider tests/modules/reservas`.
+
+- **11.1 (Rojo):** `8 failed, 258 passed` (256 + 10 casos nuevos; la prueba de `ahora()` reescrita cuenta entre las existentes). Las 8 fallan por el motivo correcto, con el proceso en `UTC` y el reloj UTC del servidor en `2026-11-02 02:30`:
+  - `test_ahora_devuelve_la_hora_del_restaurante_sin_zona`: `assert 17:07 <= 14:07`; `ahora()` devuelve la hora del proceso (UTC), 3 horas por delante del restaurante.
+  - `test_ahora_no_depende_de_la_zona_del_proceso[utc]`: `assert datetime(2026, 11, 2, 2, 30) == datetime(2026, 11, 1, 23, 30)`.
+  - `test_crear_reserva_acepta_hoy_del_restaurante_aunque_el_servidor_ya_este_en_manana`: `DatosInvalidosError: La fecha de la reserva no puede ser anterior a hoy` (el servidor ya está en el día siguiente).
+  - `test_crear_reserva_rechaza_hora_pasada_en_la_zona_del_restaurante`: gana el error de fecha, no el de hora (`'La fecha de ...nterior a hoy' == 'La hora de l...a hora actual'`).
+  - `test_listar_mesas_disponibles_usa_el_hoy_de_la_zona_del_restaurante`: `DatosInvalidosError: La fecha de la reserva no puede ser anterior a hoy`.
+  - `test_post_reservas_acepta_hoy_del_restaurante_aunque_el_servidor_ya_este_en_manana`: `assert 422 == 201`.
+  - `test_post_reservas_hora_pasada_en_la_zona_del_restaurante_devuelve_422`: el `detalle` es el de fecha, no el de hora.
+  - `test_get_mesas_disponibles_usa_el_hoy_de_la_zona_del_restaurante`: `assert 422 == 200`.
+  - **Pruebas de guarda (ya pasan en el Rojo):** `test_crear_reserva_rechaza_ayer_en_la_zona_del_restaurante` y `test_post_reservas_ayer_en_la_zona_del_restaurante_devuelve_422` (con el código viejo el servidor en UTC también rechaza el `2026-10-31` por fecha) y `test_ahora_no_depende_de_la_zona_del_proceso[buenos-aires]` (con el proceso en `America/Argentina/Buenos_Aires`, el `datetime.now()` viejo coincide por casualidad con la hora del restaurante). La tarea anticipaba que fallaran por usar `datetime.now()` con la zona del proceso; las guardas protegen los escenarios «Ayer» y la mitad `Buenos_Aires` de «No depende de la zona del proceso», y lo que impide que `ahora()` vuelva a depender de la zona lo cubre `[utc]`.
+- **11.2 (Verde):** `266 passed, 1 warning` (la advertencia de `httpx` en `starlette.testclient` ya existía).
+- **Prueba de que el Rojo no depende de la máquina:** con el código viejo (`datetime.now()`) y el contenedor arrancado con `TZ=America/Argentina/Buenos_Aires`, el resultado es el mismo, `8 failed, 258 passed`, porque la fixture `reloj_utc_fijo` fija el proceso en UTC. Con el código nuevo y `TZ=America/Argentina/Buenos_Aires` en el contenedor, los 7 casos de `ahora()` y de los escenarios del `service` pasan.
+- **Restauración de la zona:** comprobado en Docker con `TZ=America/Argentina/Buenos_Aires` de origen: el desfase del proceso pasa de `-3 h` a `0` dentro del parche y vuelve a `-3 h` tras salir del parche y llamar a `time.tzset()`.
+
+### Comprobación de mutaciones (para que las pruebas no sean decorativas)
+
+Se alteró `service.py` por vez, se corrió `tests/modules/reservas` en Docker (266 pruebas con el código sano), se restauró el archivo copiándolo desde la copia de respaldo del árbol verde y se comparó con `diff` (idéntico en las 4 corridas). **Las 3 mutaciones fueron detectadas; ninguna sobrevivió.**
+
+| Mutación | Pruebas que fallan |
+| --- | --- |
+| M1 · `ahora()` vuelve a `datetime.now()` sin zona | 8: las 8 del Rojo (la misma corrida que 11.1) |
+| M2 · `timedelta(hours=3)` en lugar de `-3` | 9: las 8 del Rojo y `test_ahora_no_depende_de_la_zona_del_proceso[buenos-aires]` (`ahora()` devuelve `2026-11-02 05:30`) |
+| M3 · sin `.replace(tzinfo=None)` | 3: `test_ahora_devuelve_la_hora_del_restaurante_sin_zona` (compara un `datetime` sin zona con uno con zona: `TypeError`) y los dos casos de `test_ahora_no_depende_de_la_zona_del_proceso` (el resultado con zona no es igual al de la spec, que no la lleva); el resto de las pruebas no lo nota porque `.date()`, `.hour` y `.minute` funcionan igual con zona |
+
+### Verificación final (ejecutada sola, sin otras corridas de Docker en paralelo)
+
+| Comando | Resultado observado |
+| --- | --- |
+| `pytest --no-cov -q -p no:cacheprovider tests/modules/reservas` | **266 pasan**, 1 advertencia (256 al empezar) |
+| `sh -c 'ruff check . && ruff format --check . && lint-imports && alembic heads && pytest -q -p no:cacheprovider'` (desde `backend/`) | Salida 0. `ruff check`: «All checks passed!». `ruff format --check`: «108 files already formatted». `lint-imports`: «Contracts: 10 kept, 0 broken.». `alembic heads`: `d6f8a0c2e4b6 (head)`, un solo head (sin migración nueva). `pytest`: **1259 pasan**, 1 advertencia, 2 min 40 s; cobertura **99,46 %** (umbral 70 %), con `service.py` al 100 % (77 sentencias, 0 sin cubrir) |
+
+**Diferencia de conteo:** 1259 − 1249 = +10, igual que en `reservas` (266 − 256). Se reparte así: `test_service.py` +6 (la parametrizada `test_ahora_no_depende_de_la_zona_del_proceso` cuenta 2 casos, más 3 del alta y 1 de la lista) y `test_router.py` +4. La prueba de `ahora()` real se reescribió y no suma. **Cobertura:** 99,46 % contra 99,40 % de la línea base, porque `service.py` suma 3 líneas cubiertas (constante, importación y `ahora()`) y no agrega líneas sin cubrir; las 10 líneas sin cubrir del total siguen fuera de `reservas`.
+
+### Work Unit Evidence
+
+| Evidence | Valor |
+| --- | --- |
+| Comando enfocado y resultado | `pytest --no-cov -q -p no:cacheprovider tests/modules/reservas` (Docker): 266 pasan, 0 fallos |
+| Runtime harness | Las pruebas del `router` con `TestClient` recorren `POST /reservas` y `GET /reservas/mesas-disponibles` → `service` → `ahora()` verdadero (sin parchearlo) con `service.datetime` sustituido por una subclase de `datetime` cuyo `now(tz)` devuelve `2026-11-02 02:30` UTC convertido a `tz`, y con el proceso fijado en `UTC` (`TZ` + `time.tzset()`). No hay arnés de servidor real: la corrección no tiene frontera de ejecución fuera del reloj, que se simula |
+| Rollback boundary | Revertir el commit 15 (`service.py`, `conftest.py`, `test_service.py`, `test_router.py`, `tasks.md` y `apply-progress.md`); vuelve a valer la hora del proceso. Sin migración, sin cambios en `compose.yaml`, `shared/`, otros módulos ni frontend |
+
+### Archivos tocados
+
+| Archivo | Cambio |
+| --- | --- |
+| `backend/app/modules/reservas/service.py` | `ZONA_DEL_RESTAURANTE = timezone(timedelta(hours=-3), "ART")`; `ahora()` devuelve `datetime.now(ZONA_DEL_RESTAURANTE).replace(tzinfo=None)`; importa `timedelta` y `timezone` (+11 −3) |
+| `backend/tests/modules/reservas/conftest.py` | `INSTANTE_UTC`, `AHORA_REAL`, `DatetimeConRelojFijo` y las fixtures `zona_del_proceso` y `reloj_utc_fijo`; docstring (+59 −3) |
+| `backend/tests/modules/reservas/test_service.py` | Prueba de `ahora()` real reescrita y 5 pruebas nuevas (6 casos) de los escenarios de S28 (+69 −5) |
+| `backend/tests/modules/reservas/test_router.py` | 4 pruebas nuevas de S28: 201, 422 de hora, 422 de fecha y 200 de la lista (+52) |
+| `openspec/changes/HU-M5-01-02-03/tasks.md` | 11.1 a 11.3 marcadas `[x]` con su resultado (11.4 sigue abierta) |
+| `openspec/changes/HU-M5-01-02-03/apply-progress.md` | Esta sección |
+
+No se tocó `compose.yaml`, `shared/`, otro módulo, `pyproject.toml`, CI, migraciones, modelos ni el frontend.
+
+### Desvíos y decisiones
+
+1. **Se reescribió una prueba existente.** `test_ahora_devuelve_la_fecha_y_hora_locales_sin_zona` comparaba `ahora()` con `datetime.now()` local, el contrato que S28 reemplaza: con el código nuevo falla dentro del contenedor (3 horas de diferencia). Pasó a llamarse `test_ahora_devuelve_la_hora_del_restaurante_sin_zona`, fija el proceso en UTC y acota el resultado con el reloj UTC menos 3 horas (sin usar `ZONA_DEL_RESTAURANTE`, para no copiar la implementación). Es el único cambio a una prueba existente y mantiene la comprobación de que el resultado no lleva zona. La tarea 11.2 decía que las pruebas existentes no cambian; esta prueba es la excepción necesaria.
+2. **Pruebas de `router` incluidas.** La tarea 11.1 las admite «solo si hace falta»: los escenarios de la spec están escritos como respuestas HTTP (201, 422, 200), y las 4 pruebas recorren el `ahora()` verdadero a través de `TestClient`. Las del `service` cubren la lógica y las de `router` la integración; cuestan 52 líneas.
+3. **`time.tzset` no existe en Windows.** `zona_del_proceso` salta la prueba si falta (con `pytest.skip`), así que los 11 casos (10 funciones) que la piden, directa o por `reloj_utc_fijo`, se saltan en Windows nativo; la CI (`ubuntu-latest`) y Docker las corren. Es el costo de fijar la zona del proceso, que la tarea pide (`TZ` + `time.tzset()`). El código de producción no usa `tzset` ni `zoneinfo`.
+4. **Fixtures en `conftest.py`.** La tarea lo admitía («`conftest.py` solo si hace falta»): las dos suites comparten el reloj fijo y el control de la zona. `AHORA_REAL` sigue el patrón de `OBTENER_MESA_REAL` y las otras copias guardadas al importar. `reloj` (autouse) sigue reemplazando `ahora()` con un `datetime` sin zona, y `reloj_utc_fijo` lo deshace solo para las pruebas que lo piden.
+5. **`MonkeyPatch.context()` en lugar de la fixture `monkeypatch`** dentro de `zona_del_proceso`: con la fixture, `tzset()` del cierre correría antes de que el parche restaure `TZ` (el orden de cierre es inverso) y el proceso quedaría en la zona de la prueba. Con el contexto, `TZ` se restaura al salir del `with` y recién después se llama a `tzset()`.
+6. **`UTC` y no `timezone.utc`** en los archivos de prueba (`ruff` `UP017`); en `service.py` se usa `timezone(...)` con un desplazamiento fijo, que la regla no marca.
+7. **Nombres y comentarios sin tildes en el código**, como el resto de `reservas/` (salvo los literales de usuario).
+8. **Herramientas:** `bat`, `fd` y `sd` no están instalados en esta máquina; se usaron `Read` y scripts de Python para leer y editar.
+
+### Tamaño de la unidad (honestidad sobre el presupuesto)
+
+Mediciones con `diff` contra las copias hechas al empezar (sin git): `service.py` +11 −3, `conftest.py` +59 −3, `test_service.py` +69 −5 y `test_router.py` +52. Total: **191 líneas agregadas y 11 borradas (≈ 202 escritas)**, sin contar `tasks.md` y esta sección. Dentro de la heurística de ≈ 400 por tarea; no se recortó ni se partió nada.
+
+### Pendiente
+
+- 11.4: commit 15 (`fix: calcula hoy y la hora actual en la zona del restaurante (HU-M5-01)`), a cargo del orquestador, con `service.py`, `conftest.py`, `test_service.py`, `test_router.py`, `tasks.md` y `apply-progress.md`. El `conftest.py` tiene que entrar en el commit: `test_service.py` y `test_router.py` fallan sin sus fixtures nuevas (`reloj_utc_fijo` y `zona_del_proceso`).
+- La mejora complementaria (`TZ=America/Argentina/Buenos_Aires` en `compose.yaml`) sigue fuera de este cambio (ver «Pendiente fuera de este cambio», punto b).

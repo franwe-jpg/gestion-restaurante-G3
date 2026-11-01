@@ -701,3 +701,55 @@ def test_puente_real_falla_de_m3_en_la_segunda_pagina_devuelve_500_sin_guardar(
         assert respuesta.status_code == 500
         assert not respuesta.text.lstrip().startswith("[")
     assert _cantidad_reservas(db) == 0
+
+
+# --- S28: "hoy" y la hora actual en la zona del restaurante (UTC-3) ---
+# Reloj UTC del servidor: 2026-11-02 02:30 (en el restaurante, 2026-11-01 23:30), con el proceso en
+# UTC como en Docker. `reloj_utc_fijo` deja el `ahora()` verdadero; las pruebas lo piden.
+
+ANOCHE = {"fecha": "2026-11-01"}
+
+
+# Escenario "El servidor ya esta en el dia siguiente en UTC"
+def test_post_reservas_acepta_hoy_del_restaurante_aunque_el_servidor_ya_este_en_manana(
+    cliente: TestClient, reloj_utc_fijo
+) -> None:
+    respuesta = cliente.post(RUTA, json=CUERPO | ANOCHE | {"hora": "23:45"})
+
+    assert respuesta.status_code == 201
+    assert respuesta.json()["fecha"] == "2026-11-01"
+    assert respuesta.json()["hora"] == "23:45"
+
+
+# Escenario "La hora ya paso en la zona del restaurante"
+def test_post_reservas_hora_pasada_en_la_zona_del_restaurante_devuelve_422(
+    cliente: TestClient, db: Session, reloj_utc_fijo
+) -> None:
+    respuesta = cliente.post(RUTA, json=CUERPO | ANOCHE | {"hora": "23:00"})
+
+    assert respuesta.status_code == 422
+    assert respuesta.json() == {
+        "detalle": "La hora de la reserva debe ser posterior a la hora actual"
+    }
+    assert _cantidad_reservas(db) == 0
+
+
+# Escenario "Ayer en la zona del restaurante"
+def test_post_reservas_ayer_en_la_zona_del_restaurante_devuelve_422(
+    cliente: TestClient, db: Session, reloj_utc_fijo
+) -> None:
+    respuesta = cliente.post(RUTA, json=CUERPO | {"fecha": "2026-10-31"})
+
+    assert respuesta.status_code == 422
+    assert respuesta.json() == {"detalle": "La fecha de la reserva no puede ser anterior a hoy"}
+    assert _cantidad_reservas(db) == 0
+
+
+# Escenario "La consulta de mesas disponibles usa el mismo hoy"
+def test_get_mesas_disponibles_usa_el_hoy_de_la_zona_del_restaurante(
+    cliente: TestClient, reloj_utc_fijo
+) -> None:
+    respuesta = cliente.get(RUTA_MESAS, params=ANOCHE | {"hora": "23:45"})
+
+    assert respuesta.status_code == 200
+    assert _ids_de_mesas(respuesta) == [5, 6]

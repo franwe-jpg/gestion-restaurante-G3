@@ -1,6 +1,6 @@
 """reservas: reglas de negocio y transacciones."""
 
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta, timezone
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -18,10 +18,18 @@ from app.shared.excepciones import DatosInvalidosError, NoEncontradoError, Regla
 from app.shared.models.enums import EstadoMesa
 from app.shared.paginacion import Pagina
 
+# S28: el restaurante esta en UTC-3 todo el ano (Argentina no usa horario de verano desde 2009).
+# Es un desplazamiento fijo y no `zoneinfo`, para no depender de la base de zonas del sistema.
+ZONA_DEL_RESTAURANTE = timezone(timedelta(hours=-3), "ART")
+
 
 def ahora() -> datetime:
-    """Fecha y hora local del servidor. Las pruebas la reemplazan con monkeypatch."""
-    return datetime.now()
+    """Fecha y hora actuales del restaurante (UTC-3), sin zona. Las pruebas la reemplazan.
+
+    Se calcula desde el reloj UTC, asi que no depende de `TZ` del proceso ni del contenedor (S28).
+    El resultado no lleva zona: el resto del modulo compara fechas y horas sin zona.
+    """
+    return datetime.now(ZONA_DEL_RESTAURANTE).replace(tzinfo=None)
 
 
 def _validar_mesa(db: Session, mesa_id: int) -> None:
