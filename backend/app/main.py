@@ -10,6 +10,8 @@ from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import API_PREFIX, get_settings
+from app.modules.atencion.router import router as atencion_router
+from app.modules.atencion.service import ComandaAbiertaError, EntregasPendientesError
 from app.modules.menus.router import router as menus_router
 from app.modules.pagos.router import router as pagos_router
 from app.modules.productos.router import router as productos_router
@@ -25,6 +27,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(atencion_router, prefix=API_PREFIX)
 app.include_router(menus_router, prefix=API_PREFIX)
 app.include_router(pagos_router, prefix=API_PREFIX)
 app.include_router(productos_router, prefix=API_PREFIX)
@@ -47,6 +50,27 @@ def manejar_no_encontrado(_solicitud: Request, error: NoEncontradoError) -> JSON
 @app.exception_handler(ReglaDeNegocioError)
 def manejar_regla_de_negocio(_solicitud: Request, error: ReglaDeNegocioError) -> JSONResponse:
     return JSONResponse(status_code=409, content={"detalle": str(error)})
+
+
+@app.exception_handler(EntregasPendientesError)
+def manejar_entregas_pendientes(
+    _solicitud: Request, error: EntregasPendientesError
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=409,
+        content={
+            "detalle": str(error),
+            "comanda_id": error.comanda_id,
+            "pendientes": [detalle.model_dump() for detalle in error.pendientes],
+        },
+    )
+
+
+@app.exception_handler(ComandaAbiertaError)
+def manejar_comanda_abierta(_solicitud: Request, error: ComandaAbiertaError) -> JSONResponse:
+    return JSONResponse(
+        status_code=409, content={"detalle": str(error), "comanda_id": error.comanda_id}
+    )
 
 
 @app.exception_handler(DatosInvalidosError)
