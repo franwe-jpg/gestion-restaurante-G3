@@ -4,7 +4,6 @@ from pathlib import Path
 
 import pytest
 from alembic.config import Config
-from alembic.script import ScriptDirectory
 from sqlalchemy import inspect, text
 from sqlalchemy.exc import IntegrityError
 
@@ -81,13 +80,21 @@ def test_upgrade_crea_menu_ejecutivo_y_relacion_con_productos(
 ) -> None:
     url, config = _preparar_base(tmp_path, monkeypatch, "menus.db")
 
-    command.upgrade(config, "head")
+    command.upgrade(config, REVISION)
     tablas, columnas, indices, foraneas, checks = _inspeccionar(url)
-    cabezas = ScriptDirectory.from_config(config).get_heads()
     get_settings.cache_clear()
 
-    assert len(cabezas) == 1
-    assert cabezas[0] == REVISION
+    motor = crear_motor(url)
+
+    with motor.connect() as conexion:
+        revision_actual = conexion.execute(
+            text("SELECT version_num FROM alembic_version")
+        ).scalar_one()
+
+    motor.dispose()
+
+    assert revision_actual == REVISION
+
     assert {"menus_ejecutivos", "menu_ejecutivo_productos"} <= tablas
     assert set(columnas) == {
         "id",
@@ -113,7 +120,7 @@ def test_upgrade_rechaza_precio_fijo_no_positivo(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, precio: str
 ) -> None:
     url, config = _preparar_base(tmp_path, monkeypatch, f"precio-{precio}.db")
-    command.upgrade(config, "head")
+    command.upgrade(config, REVISION)
     _insertar_seccion(url)
 
     with pytest.raises(IntegrityError):
@@ -125,7 +132,7 @@ def test_downgrade_elimina_menu_y_conserva_catalogo(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     url, config = _preparar_base(tmp_path, monkeypatch, "downgrade.db")
-    command.upgrade(config, "head")
+    command.upgrade(config, REVISION)
 
     command.downgrade(config, "-1")
     motor = crear_motor(url)
