@@ -126,6 +126,9 @@ class ComandaFake:
             raise ReglaDeNegocioError("Hay productos pendientes: revise y marque las entregas")
         cerrada = actual.model_copy(update={"estado": EstadoComanda.CERRADA}, deep=True)
         self._comandas[comanda_id] = cerrada
+        # Closing frees the simulated mesa; payment (M6) changes neither (01/11/2026).
+        if self.mesas.get(actual.mesa_id) == "OCUPADA":
+            self.mesas[actual.mesa_id] = "LIBRE"
         return cerrada.model_copy(deep=True)
 
     def crear_desde_reserva(

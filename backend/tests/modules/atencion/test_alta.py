@@ -33,6 +33,12 @@ class MesasPrueba:
     def ocupar(self, db: Session, mesa_id: int) -> None:
         db.execute(text("UPDATE mesas SET estado='OCUPADA' WHERE id=:id"), {"id": mesa_id})
 
+    def liberar(self, db: Session, mesa_id: int) -> None:
+        db.execute(
+            text("UPDATE mesas SET estado='LIBRE' WHERE id=:id AND estado='OCUPADA'"),
+            {"id": mesa_id},
+        )
+
 
 class CatalogoPrueba:
     precio = Decimal("29.90")
@@ -252,8 +258,9 @@ def test_crear_comanda_historia_de_lineas_repetidas_no_recalcula_al_cerrar(db, p
         {"id": salida.id},
     )
     db.commit()
-    cerrada = service.cerrar_comanda(db, salida.id)
+    cerrada = service.cerrar_comanda(db, salida.id, MesasPrueba())
     assert cerrada.estado == EstadoComanda.CERRADA
+    assert db.execute(text("SELECT estado FROM mesas WHERE id=2")).scalar_one() == "LIBRE"
     assert cerrada.fecha_hora == salida.fecha_hora
     assert len(cerrada.detalles) == 2
     assert [linea.cantidad for linea in cerrada.detalles] == [3 if menu else 2, 1]

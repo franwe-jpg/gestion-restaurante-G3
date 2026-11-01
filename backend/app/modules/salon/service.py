@@ -148,6 +148,37 @@ def eliminar_mesa(db: Session, mesa_id: int) -> None:
     db.commit()
 
 
+def _mesa_existente(db: Session, mesa_id: int) -> Mesa:
+    mesa = repository.obtener_mesa(db, mesa_id)
+    if mesa is None:
+        raise NoEncontradoError(f"La mesa {mesa_id} no existe")
+    return mesa
+
+
+def obtener_mesa(db: Session, mesa_id: int) -> MesaSalida:
+    """Consulta una mesa con su sector y estado; no modifica datos (HU-M4-04)."""
+    mesa = _mesa_existente(db, mesa_id)
+    return _a_salida(mesa, repository.obtener_sector(db, mesa.sector_id))
+
+
+def ocupar_mesa(db: Session, mesa_id: int) -> None:
+    """LIBRE -> OCUPADA sin commit: quien llama cierra la transaccion (HU-M4-04)."""
+    mesa = _mesa_existente(db, mesa_id)
+    if mesa.estado != EstadoMesa.LIBRE:
+        raise ReglaDeNegocioError(f"La mesa {mesa.numero} no está libre")
+    mesa.estado = EstadoMesa.OCUPADA
+
+
+def liberar_mesa(db: Session, mesa_id: int) -> None:
+    """OCUPADA -> LIBRE sin commit al cerrar la comanda (HU-M4-09).
+
+    Si la mesa no está OCUPADA no la cambia ni falla: el cierre no depende de su estado.
+    """
+    mesa = _mesa_existente(db, mesa_id)
+    if mesa.estado == EstadoMesa.OCUPADA:
+        mesa.estado = EstadoMesa.LIBRE
+
+
 def listar_sectores(
     db: Session, parametros: ParametrosPaginacion, estado: Estado | None = None
 ) -> Pagina[SectorSalida]:
