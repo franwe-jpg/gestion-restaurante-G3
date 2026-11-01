@@ -8,6 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import TypeDecorator
 
 from app.database import Base
+from app.shared.contratos.comanda import EstadoEntrega
 
 
 class InstanteUTC(TypeDecorator[datetime]):
@@ -52,6 +53,17 @@ class Comanda(Base):
     detalles: Mapped[list["DetalleComanda"]] = relationship(back_populates="comanda")
 
 
+def estado_segun_entrega(cantidad: int, cantidad_entregada: int) -> EstadoEntrega:
+    """Única regla del estado de entrega: ENTREGADO si y solo si se entregó todo lo pedido.
+
+    Toda operación que cambie `cantidad` o `cantidad_entregada` de un detalle (entregas,
+    modificar una comanda) debe asignar `estado_entrega` con esta función.
+    """
+    if cantidad_entregada == cantidad:
+        return EstadoEntrega.ENTREGADO
+    return EstadoEntrega.PENDIENTE
+
+
 class DetalleComanda(Base):
     __tablename__ = "detalles_comanda"
     __table_args__ = (
@@ -60,6 +72,10 @@ class DetalleComanda(Base):
             "(producto_id IS NOT NULL AND menu_ejecutivo_id IS NULL) OR "
             "(producto_id IS NULL AND menu_ejecutivo_id IS NOT NULL)",
             name="ck_detalles_comanda_origen_exclusivo",
+        ),
+        sa.CheckConstraint(
+            "cantidad_entregada >= 0 AND cantidad_entregada <= cantidad",
+            name="ck_detalles_comanda_cantidad_entregada_rango",
         ),
     )
 
@@ -72,6 +88,7 @@ class DetalleComanda(Base):
         sa.ForeignKey("menus_ejecutivos.id", ondelete="RESTRICT"), nullable=True
     )
     cantidad: Mapped[int] = mapped_column()
+    cantidad_entregada: Mapped[int] = mapped_column(default=0, server_default="0")
     estado_entrega: Mapped[str] = mapped_column(sa.String(20), default="PENDIENTE")
     precio_unitario: Mapped[Decimal] = mapped_column(sa.Numeric(10, 2))
     descuento: Mapped[Decimal] = mapped_column(sa.Numeric(10, 2))

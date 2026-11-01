@@ -4,10 +4,11 @@ from decimal import Decimal
 
 import pytest
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.modules.atencion import repository
-from app.modules.atencion.models import Cliente, Comanda, DetalleComanda
+from app.modules.atencion.models import Cliente, Comanda, DetalleComanda, estado_segun_entrega
 from app.shared.paginacion import ParametrosPaginacion
 
 
@@ -121,3 +122,52 @@ def test_listar_clientes_vacio(db: Session) -> None:
 
     assert items == []
     assert total == 0
+
+
+# Entregas por cantidad (HU-M4-08)
+
+
+def _detalle_nuevo(db: Session, comanda: Comanda, **campos: int) -> DetalleComanda:
+    detalle = DetalleComanda(
+        comanda_id=comanda.id,
+        producto_id=1,
+        precio_unitario=Decimal("29.90"),
+        descuento=Decimal("0.00"),
+        **{"cantidad": 3, **campos},
+    )
+    db.add(detalle)
+    return detalle
+
+
+def test_detalle_comanda_cantidad_entregada_default_cero(db: Session, comanda: Comanda) -> None:
+    detalle = _detalle_nuevo(db, comanda)
+    db.commit()
+    db.expire_all()
+
+    assert db.get(DetalleComanda, detalle.id).cantidad_entregada == 0
+
+
+def test_detalle_comanda_cantidad_entregada_rechaza_mayor_que_cantidad(
+    db: Session, comanda: Comanda
+) -> None:
+    _detalle_nuevo(db, comanda, cantidad=3, cantidad_entregada=4)
+
+    with pytest.raises(IntegrityError):
+        db.flush()
+    db.rollback()
+
+
+@pytest.mark.parametrize(
+    ("cantidad", "entregada", "esperado"),
+    [
+        (3, 3, "ENTREGADO"),
+        (1, 1, "ENTREGADO"),
+        (3, 2, "PENDIENTE"),
+        (3, 0, "PENDIENTE"),
+        (3, 4, "PENDIENTE"),
+    ],
+)
+def test_estado_segun_entrega_es_entregado_solo_si_esta_completa(
+    cantidad: int, entregada: int, esperado: str
+) -> None:
+    assert estado_segun_entrega(cantidad, entregada) == esperado

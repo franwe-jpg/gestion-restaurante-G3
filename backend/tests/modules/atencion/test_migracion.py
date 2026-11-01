@@ -351,3 +351,176 @@ def test_downgrade_elimina_clientes_y_conserva_tablas_previas(
         assert "clientes" in inspect(motor).get_table_names()
     finally:
         motor.dispose()
+
+
+# Migración de la cantidad entregada (HU-M4-08)
+
+REVISION_ENTREGAS = "a8c0e2b4d6f8"
+REVISION_PREVIA_ENTREGAS = "e7a9c1b3d5f7"
+
+
+def _sembrar_detalles(url: str) -> None:
+    """Dos líneas ENTREGADO (cantidad 3 y 5) y una PENDIENTE (cantidad 4) en la revisión previa."""
+    motor = crear_motor(url)
+    try:
+        with motor.begin() as conexion:
+            for sentencia in (
+                "INSERT INTO sectores (id, nombre, nombre_normalizado, estado) "
+                "VALUES (1, 'Sala', 'sala', 'HABILITADO')",
+                "INSERT INTO mesas (id, numero, capacidad, sector_id, estado) "
+                "VALUES (1, 1, 4, 1, 'OCUPADA')",
+                "INSERT INTO secciones (id, nombre, nombre_normalizado, orden, estado) "
+                "VALUES (1, 'Carta', 'carta', 1, 'HABILITADO')",
+                "INSERT INTO productos (id, nombre, nombre_normalizado, categoria, precio, "
+                "ingredientes, etiquetas, estado, seccion_id) "
+                "VALUES (1, 'Plato', 'plato', 'PLATO', 10, '[]', '[]', 'HABILITADO', 1)",
+                "INSERT INTO comandas (id, mesa_id, estado, fecha_hora) "
+                "VALUES (1, 1, 'ABIERTA', '2026-10-31T14:15:00.000000+00:00')",
+                "INSERT INTO detalles_comanda (id, comanda_id, producto_id, cantidad, "
+                "estado_entrega, precio_unitario, descuento) VALUES "
+                "(1, 1, 1, 3, 'ENTREGADO', 10, 0), (2, 1, 1, 4, 'PENDIENTE', 10, 0), "
+                "(3, 1, 1, 5, 'ENTREGADO', 10, 0)",
+            ):
+                conexion.execute(text(sentencia))
+    finally:
+        motor.dispose()
+
+
+def _consultar(url: str, sql: str) -> list[tuple]:
+    motor = crear_motor(url)
+    try:
+        with motor.connect() as conexion:
+            return [tuple(fila) for fila in conexion.execute(text(sql))]
+    finally:
+        motor.dispose()
+
+
+def test_migracion_cantidad_entregada_una_sola_cabeza(base_temporal: tuple[str, Config]) -> None:
+    _, config = base_temporal
+    script = ScriptDirectory.from_config(config)
+
+    assert script.get_heads() == [REVISION_ENTREGAS]
+    assert script.get_revision(REVISION_ENTREGAS).down_revision == REVISION_PREVIA_ENTREGAS
+
+
+def test_migracion_cantidad_entregada_agrega_columna_con_default_cero(
+    base_temporal: tuple[str, Config],
+) -> None:
+    url, config = base_temporal
+    command.upgrade(config, REVISION_ENTREGAS)
+    motor = crear_motor(url)
+    try:
+        columnas = {c["name"]: c for c in inspect(motor).get_columns("detalles_comanda")}
+        assert columnas["cantidad_entregada"]["nullable"] is False
+        assert str(columnas["cantidad_entregada"]["default"]).strip("'()") == "0"
+    finally:
+        motor.dispose()
+    _sembrar_detalles(url)  # sin indicar la columna: aplica el valor por defecto
+
+    assert _consultar(url, "SELECT cantidad_entregada FROM detalles_comanda ORDER BY id") == [
+        (0,),
+        (0,),
+        (0,),
+    ]
+
+
+def test_migracion_cantidad_entregada_mueve_entregados_a_cantidad(
+    base_temporal: tuple[str, Config],
+) -> None:
+    url, config = base_temporal
+    command.upgrade(config, REVISION_PREVIA_ENTREGAS)
+    _sembrar_detalles(url)
+
+    command.upgrade(config, REVISION_ENTREGAS)
+
+    filas = _consultar(
+        url,
+        "SELECT id, cantidad, cantidad_entregada, estado_entrega FROM detalles_comanda ORDER BY id",
+    )
+    assert filas == [(1, 3, 3, "ENTREGADO"), (2, 4, 0, "PENDIENTE"), (3, 5, 5, "ENTREGADO")]
+    assert all(
+        (entregada == cantidad) == (estado == "ENTREGADO")
+        for _, cantidad, entregada, estado in filas
+    )
+
+
+SENTENCIAS_FUERA_DE_RANGO = {
+    "negativo": "UPDATE detalles_comanda SET cantidad_entregada = -1",
+    "mayor-que-cantidad": "UPDATE detalles_comanda SET cantidad_entregada = cantidad + 1",
+}
+
+
+@pytest.mark.parametrize(
+    "sentencia", SENTENCIAS_FUERA_DE_RANGO.values(), ids=list(SENTENCIAS_FUERA_DE_RANGO)
+)
+def test_migracion_cantidad_entregada_check_de_rango_rechaza_fuera_de_rango(
+    base_temporal: tuple[str, Config], sentencia: str
+) -> None:
+    url, config = base_temporal
+    command.upgrade(config, REVISION_PREVIA_ENTREGAS)
+    _sembrar_detalles(url)
+    command.upgrade(config, REVISION_ENTREGAS)
+
+    motor = crear_motor(url)
+    try:
+        with pytest.raises(IntegrityError), motor.begin() as conexion:
+            conexion.execute(text(sentencia))
+        with motor.begin() as conexion:  # los extremos válidos siguen permitidos
+            conexion.execute(text("UPDATE detalles_comanda SET cantidad_entregada = cantidad"))
+            conexion.execute(text("UPDATE detalles_comanda SET cantidad_entregada = 0"))
+    finally:
+        motor.dispose()
+
+
+def test_migracion_cantidad_entregada_conserva_checks_y_claves_foraneas_previos(
+    base_temporal: tuple[str, Config],
+) -> None:
+    url, config = base_temporal
+    command.upgrade(config, REVISION_ENTREGAS)
+    motor = crear_motor(url)
+    try:
+        inspector = inspect(motor)
+        checks = {c["name"] for c in inspector.get_check_constraints("detalles_comanda")}
+        foraneas = {
+            (tuple(c["constrained_columns"]), c["referred_table"], c["options"].get("ondelete"))
+            for c in inspector.get_foreign_keys("detalles_comanda")
+        }
+    finally:
+        motor.dispose()
+
+    assert checks >= {
+        "ck_detalles_comanda_cantidad_positiva",
+        "ck_detalles_comanda_origen_exclusivo",
+        "ck_detalles_comanda_cantidad_entregada_rango",
+    }
+    assert foraneas == {
+        (("comanda_id",), "comandas", "CASCADE"),
+        (("producto_id",), "productos", "RESTRICT"),
+        (("menu_ejecutivo_id",), "menus_ejecutivos", "RESTRICT"),
+    }
+
+
+def test_migracion_cantidad_entregada_downgrade_conserva_estado_entrega(
+    base_temporal: tuple[str, Config],
+) -> None:
+    url, config = base_temporal
+    command.upgrade(config, REVISION_PREVIA_ENTREGAS)
+    _sembrar_detalles(url)
+    command.upgrade(config, REVISION_ENTREGAS)
+
+    command.downgrade(config, REVISION_PREVIA_ENTREGAS)
+
+    motor = crear_motor(url)
+    try:
+        columnas = {c["name"] for c in inspect(motor).get_columns("detalles_comanda")}
+        checks = {c["name"] for c in inspect(motor).get_check_constraints("detalles_comanda")}
+    finally:
+        motor.dispose()
+    assert "cantidad_entregada" not in columnas
+    assert "ck_detalles_comanda_cantidad_entregada_rango" not in checks
+    assert "ck_detalles_comanda_cantidad_positiva" in checks
+    assert _consultar(url, "SELECT id, estado_entrega FROM detalles_comanda ORDER BY id") == [
+        (1, "ENTREGADO"),
+        (2, "PENDIENTE"),
+        (3, "ENTREGADO"),
+    ]
