@@ -5,7 +5,6 @@ import {
   CONFIGURACIONES_EDICION,
   ETIQUETAS_CATEGORIA,
   esCategoriaEdicion,
-  rutaDeEdicion,
 } from './categorias';
 
 describe('categorias', () => {
@@ -25,14 +24,6 @@ describe('categorias', () => {
     ['MENU_DEL_DIA', false],
   ] as const)('esCategoriaEdicion(%s) es %s', (categoria, esperado) => {
     expect(esCategoriaEdicion(categoria)).toBe(esperado);
-  });
-
-  it.each([
-    ['PLATO', '/productos/platos/7/editar'],
-    ['POSTRE', '/productos/postres/7/editar'],
-    ['BEBIDA', '/productos/bebidas/7/editar'],
-  ] as const)('rutaDeEdicion(%s, 7) es %s', (categoria, esperada) => {
-    expect(rutaDeEdicion(categoria, 7)).toBe(esperada);
   });
 
   it('el postre tiene sus textos de edición (S32)', () => {

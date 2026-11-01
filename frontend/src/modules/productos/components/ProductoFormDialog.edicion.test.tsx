@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ConfirmProvider } from '../../../shared/components/ui/confirm-dialog';
@@ -13,7 +13,7 @@ import {
 } from '../api';
 import type { ProductoSalida, SeccionListado } from '../types';
 
-import { ProductoEditarPage } from './ProductoEditarPage';
+import { ProductoFormDialog } from './ProductoFormDialog';
 
 vi.mock('../api');
 
@@ -41,6 +41,9 @@ const PLATO: ProductoSalida = {
 };
 
 const mostrarToast = vi.fn();
+const onGuardado = vi.fn();
+const onDadoDeBaja = vi.fn();
+const onOpenChange = vi.fn();
 
 function responder(plato: ProductoSalida = PLATO, items: SeccionListado[] = [PLATOS, ENTRADAS]) {
   vi.mocked(obtenerProducto).mockResolvedValue({ datos: plato, exito: true });
@@ -50,24 +53,27 @@ function responder(plato: ProductoSalida = PLATO, items: SeccionListado[] = [PLA
   });
 }
 
-const SEGMENTOS = { PLATO: 'platos', POSTRE: 'postres', BEBIDA: 'bebidas' } as const;
-
-async function abrir(id = '7', categoria: 'PLATO' | 'POSTRE' | 'BEBIDA' = 'PLATO') {
+async function abrir(id = 7, categoria: 'PLATO' | 'POSTRE' | 'BEBIDA' = 'PLATO') {
   render(
     <ToastContext.Provider value={{ mostrarToast }}>
       <ConfirmProvider>
-        <MemoryRouter initialEntries={[`/productos/${SEGMENTOS[categoria]}/${id}/editar`]}>
-          <Routes>
-            <Route
-              path={`/productos/${SEGMENTOS[categoria]}/:id/editar`}
-              element={<ProductoEditarPage categoria={categoria} />}
-            />
-            <Route path="/productos" element={<p>Listado de productos</p>} />
-          </Routes>
+        <MemoryRouter>
+          <ProductoFormDialog
+            categoria={categoria}
+            productoId={id}
+            onGuardado={onGuardado}
+            onDadoDeBaja={onDadoDeBaja}
+            onOpenChange={onOpenChange}
+          />
         </MemoryRouter>
       </ConfirmProvider>
     </ToastContext.Provider>,
   );
+}
+
+/** El diálogo de confirmación de la baja se abre sobre el del formulario. */
+function dialogoDeBaja(nombre: string) {
+  return screen.findByRole('dialog', { name: `¿Dar de baja «${nombre}»?` });
 }
 
 async function abrirCargado(plato: ProductoSalida = PLATO) {
@@ -94,7 +100,7 @@ afterEach(() => {
   vi.resetAllMocks();
 });
 
-describe('ProductoEditarPage: formulario cargado', () => {
+describe('ProductoFormDialog edición: formulario cargado', () => {
   it('muestra los datos actuales con «Editar plato» y «Guardar cambios»', async () => {
     await abrirCargado();
 
@@ -128,15 +134,43 @@ describe('ProductoEditarPage: formulario cargado', () => {
   });
 });
 
-describe('ProductoEditarPage: guardar', () => {
-  it('guarda con una sola solicitud PUT, avisa y vuelve a «Productos»', async () => {
+describe('ProductoFormDialog edición: diálogo', () => {
+  it('se abre como diálogo «Editar plato»', async () => {
+    await abrirCargado();
+
+    expect(screen.getByRole('dialog', { name: 'Editar plato' })).toBeInTheDocument();
+  });
+
+  it('mientras carga deshabilita «Guardar cambios» y deja cancelar', async () => {
+    vi.mocked(obtenerProducto).mockReturnValue(new Promise(() => undefined));
+    await abrir();
+
+    expect(await screen.findByText('Cargando plato...')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it('«Cancelar» cierra el diálogo sin enviar nada', async () => {
+    await abrirCargado();
+    fireEvent.change(screen.getByLabelText(/Nombre/), { target: { value: 'Otro' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(modificarProducto).not.toHaveBeenCalled();
+  });
+});
+
+describe('ProductoFormDialog edición: guardar', () => {
+  it('guarda con una sola solicitud PUT, avisa y pide cerrar el diálogo', async () => {
     await abrirCargado();
     vi.mocked(modificarProducto).mockResolvedValue({ datos: PLATO, exito: true });
     fireEvent.change(screen.getByLabelText(/Precio/), { target: { value: '13.000' } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
 
-    expect(await screen.findByText('Listado de productos')).toBeInTheDocument();
+    await waitFor(() => expect(onGuardado).toHaveBeenCalledTimes(1));
     expect(modificarProducto).toHaveBeenCalledTimes(1);
     expect(modificarProducto).toHaveBeenCalledWith(
       'PLATO',
@@ -168,7 +202,7 @@ describe('ProductoEditarPage: guardar', () => {
   });
 });
 
-describe('ProductoEditarPage: errores al guardar', () => {
+describe('ProductoFormDialog edición: errores al guardar', () => {
   it('con errores locales no envía y marca cada campo', async () => {
     await abrirCargado();
     fireEvent.change(screen.getByLabelText(/Precio/), { target: { value: 'abc' } });
@@ -194,11 +228,11 @@ describe('ProductoEditarPage: errores al guardar', () => {
 
     expect(await screen.findByText('El plato ya está registrado.')).toBeInTheDocument();
     expect(screen.getByLabelText(/Nombre/)).toHaveValue('Flan');
-    expect(screen.queryByText('Listado de productos')).not.toBeInTheDocument();
+    expect(onGuardado).not.toHaveBeenCalled();
   });
 });
 
-describe('ProductoEditarPage: estado y baja', () => {
+describe('ProductoFormDialog edición: estado y baja', () => {
   it('reactiva un plato deshabilitado desde el formulario', async () => {
     await abrirCargado({ ...PLATO, estado: 'DESHABILITADO' });
     vi.mocked(modificarProducto).mockResolvedValue({ datos: PLATO, exito: true });
@@ -218,7 +252,7 @@ describe('ProductoEditarPage: estado y baja', () => {
     );
   });
 
-  it('da de baja tras confirmar en el diálogo, avisa y vuelve', async () => {
+  it('da de baja tras confirmar, avisa y pide cerrar el diálogo', async () => {
     await abrirCargado();
     vi.mocked(darDeBajaProducto).mockResolvedValue({
       datos: { ...PLATO, estado: 'DESHABILITADO' },
@@ -226,7 +260,7 @@ describe('ProductoEditarPage: estado y baja', () => {
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'Dar de baja' }));
-    const dialogo = await screen.findByRole('dialog');
+    const dialogo = await dialogoDeBaja('Milanesa');
     expect(within(dialogo).getByText('¿Dar de baja «Milanesa»?')).toBeInTheDocument();
     expect(
       within(dialogo).getByText(
@@ -235,7 +269,7 @@ describe('ProductoEditarPage: estado y baja', () => {
     ).toBeInTheDocument();
     fireEvent.click(within(dialogo).getByRole('button', { name: 'Dar de baja' }));
 
-    expect(await screen.findByText('Listado de productos')).toBeInTheDocument();
+    await waitFor(() => expect(onDadoDeBaja).toHaveBeenCalledTimes(1));
     expect(darDeBajaProducto).toHaveBeenCalledWith('PLATO', 7);
     expect(mostrarToast).toHaveBeenCalledWith(
       expect.objectContaining({ titulo: 'Plato dado de baja' }),
@@ -246,23 +280,17 @@ describe('ProductoEditarPage: estado y baja', () => {
     await abrirCargado();
 
     fireEvent.click(screen.getByRole('button', { name: 'Dar de baja' }));
-    const dialogo = await screen.findByRole('dialog');
+    const dialogo = await dialogoDeBaja('Milanesa');
     fireEvent.click(within(dialogo).getByRole('button', { name: 'Cancelar' }));
 
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(() => expect(dialogo).not.toBeInTheDocument());
     expect(darDeBajaProducto).not.toHaveBeenCalled();
-    expect(screen.queryByText('Listado de productos')).not.toBeInTheDocument();
+    expect(onDadoDeBaja).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog', { name: 'Editar plato' })).toBeInTheDocument();
   });
 });
 
-describe('ProductoEditarPage: plato inexistente y secciones', () => {
-  it('un id inválido muestra «El plato no existe.» sin llamar a la API', async () => {
-    await abrir('abc');
-
-    expect(await screen.findByText('El plato no existe.')).toBeInTheDocument();
-    expect(obtenerProducto).not.toHaveBeenCalled();
-  });
-
+describe('ProductoFormDialog edición: plato inexistente y secciones', () => {
   it('un 404 muestra «El plato no existe.»', async () => {
     vi.mocked(obtenerProducto).mockResolvedValue({
       datos: null,
@@ -326,14 +354,14 @@ const POSTRE: ProductoSalida = {
 
 async function abrirPostre(postre: ProductoSalida = POSTRE) {
   responder(postre);
-  await abrir('9', 'POSTRE');
+  await abrir(9, 'POSTRE');
   await screen.findByDisplayValue(postre.nombre);
 }
 
-describe('ProductoEditarPage: postres', () => {
+describe('ProductoFormDialog edición: postres', () => {
   it('muestra «Cargando postre...» mientras carga', async () => {
     vi.mocked(obtenerProducto).mockReturnValue(new Promise(() => undefined));
-    await abrir('9', 'POSTRE');
+    await abrir(9, 'POSTRE');
 
     expect(await screen.findByText('Cargando postre...')).toBeInTheDocument();
   });
@@ -347,14 +375,14 @@ describe('ProductoEditarPage: postres', () => {
     expect(obtenerProducto).toHaveBeenCalledWith('POSTRE', 9);
   });
 
-  it('guarda con la categoría POSTRE, avisa y vuelve a «Productos»', async () => {
+  it('guarda con la categoría POSTRE, avisa y pide cerrar el diálogo', async () => {
     await abrirPostre();
     vi.mocked(modificarProducto).mockResolvedValue({ datos: POSTRE, exito: true });
     fireEvent.change(screen.getByLabelText(/Precio/), { target: { value: '13.000' } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
 
-    expect(await screen.findByText('Listado de productos')).toBeInTheDocument();
+    await waitFor(() => expect(onGuardado).toHaveBeenCalledTimes(1));
     expect(modificarProducto).toHaveBeenCalledWith(
       'POSTRE',
       9,
@@ -367,19 +395,19 @@ describe('ProductoEditarPage: postres', () => {
   });
 });
 
-describe('ProductoEditarPage: postres, errores y baja', () => {
+describe('ProductoFormDialog edición: postres, errores y baja', () => {
   it('un 404 muestra «El postre no existe.»', async () => {
     vi.mocked(obtenerProducto).mockResolvedValue({
       datos: null,
       exito: false,
       error: 'El producto 9 no existe',
     });
-    await abrir('9', 'POSTRE');
+    await abrir(9, 'POSTRE');
 
     expect(await screen.findByText('El postre no existe.')).toBeInTheDocument();
   });
 
-  it('da de baja tras confirmar, avisa y vuelve', async () => {
+  it('da de baja tras confirmar, avisa y pide cerrar el diálogo', async () => {
     await abrirPostre();
     vi.mocked(darDeBajaProducto).mockResolvedValue({
       datos: { ...POSTRE, estado: 'DESHABILITADO' },
@@ -387,11 +415,11 @@ describe('ProductoEditarPage: postres, errores y baja', () => {
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'Dar de baja' }));
-    const dialogo = await screen.findByRole('dialog');
+    const dialogo = await dialogoDeBaja('Flan');
     expect(within(dialogo).getByText(/El postre quedará deshabilitado/)).toBeInTheDocument();
     fireEvent.click(within(dialogo).getByRole('button', { name: 'Dar de baja' }));
 
-    expect(await screen.findByText('Listado de productos')).toBeInTheDocument();
+    await waitFor(() => expect(onDadoDeBaja).toHaveBeenCalledTimes(1));
     expect(darDeBajaProducto).toHaveBeenCalledWith('POSTRE', 9);
     expect(mostrarToast).toHaveBeenCalledWith(
       expect.objectContaining({ titulo: 'Postre dado de baja' }),
@@ -419,14 +447,14 @@ const BEBIDA: ProductoSalida = {
 
 async function abrirBebida(bebida: ProductoSalida = BEBIDA) {
   responder(bebida);
-  await abrir('11', 'BEBIDA');
+  await abrir(11, 'BEBIDA');
   await screen.findByDisplayValue(bebida.nombre);
 }
 
-describe('ProductoEditarPage: bebidas', () => {
+describe('ProductoFormDialog edición: bebidas', () => {
   it('muestra «Cargando bebida...» mientras carga', async () => {
     vi.mocked(obtenerProducto).mockReturnValue(new Promise(() => undefined));
-    await abrir('11', 'BEBIDA');
+    await abrir(11, 'BEBIDA');
 
     expect(await screen.findByText('Cargando bebida...')).toBeInTheDocument();
   });
@@ -442,14 +470,14 @@ describe('ProductoEditarPage: bebidas', () => {
     expect(obtenerProducto).toHaveBeenCalledWith('BEBIDA', 11);
   });
 
-  it('guarda con la categoría BEBIDA, avisa y vuelve a «Productos»', async () => {
+  it('guarda con la categoría BEBIDA, avisa y pide cerrar el diálogo', async () => {
     await abrirBebida();
     vi.mocked(modificarProducto).mockResolvedValue({ datos: BEBIDA, exito: true });
     fireEvent.change(screen.getByLabelText(/Precio/), { target: { value: '13.000' } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
 
-    expect(await screen.findByText('Listado de productos')).toBeInTheDocument();
+    await waitFor(() => expect(onGuardado).toHaveBeenCalledTimes(1));
     expect(modificarProducto).toHaveBeenCalledWith(
       'BEBIDA',
       11,
@@ -468,7 +496,7 @@ describe('ProductoEditarPage: bebidas', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
 
-    expect(await screen.findByText('Listado de productos')).toBeInTheDocument();
+    await waitFor(() => expect(onGuardado).toHaveBeenCalledTimes(1));
     expect(modificarProducto).toHaveBeenCalledWith(
       'BEBIDA',
       11,
@@ -478,19 +506,19 @@ describe('ProductoEditarPage: bebidas', () => {
   });
 });
 
-describe('ProductoEditarPage: bebidas, errores y baja', () => {
+describe('ProductoFormDialog edición: bebidas, errores y baja', () => {
   it('un 404 muestra «La bebida no existe.»', async () => {
     vi.mocked(obtenerProducto).mockResolvedValue({
       datos: null,
       exito: false,
       error: 'El producto 11 no existe',
     });
-    await abrir('11', 'BEBIDA');
+    await abrir(11, 'BEBIDA');
 
     expect(await screen.findByText('La bebida no existe.')).toBeInTheDocument();
   });
 
-  it('da de baja tras confirmar, avisa y vuelve', async () => {
+  it('da de baja tras confirmar, avisa y pide cerrar el diálogo', async () => {
     await abrirBebida();
     vi.mocked(darDeBajaProducto).mockResolvedValue({
       datos: { ...BEBIDA, estado: 'DESHABILITADO' },
@@ -498,11 +526,11 @@ describe('ProductoEditarPage: bebidas, errores y baja', () => {
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'Dar de baja' }));
-    const dialogo = await screen.findByRole('dialog');
+    const dialogo = await dialogoDeBaja('Limonada');
     expect(within(dialogo).getByText(/La bebida quedará deshabilitada/)).toBeInTheDocument();
     fireEvent.click(within(dialogo).getByRole('button', { name: 'Dar de baja' }));
 
-    expect(await screen.findByText('Listado de productos')).toBeInTheDocument();
+    await waitFor(() => expect(onDadoDeBaja).toHaveBeenCalledTimes(1));
     expect(darDeBajaProducto).toHaveBeenCalledWith('BEBIDA', 11);
     expect(mostrarToast).toHaveBeenCalledWith(
       expect.objectContaining({ titulo: 'Bebida dada de baja' }),

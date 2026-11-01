@@ -2,7 +2,12 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { listarProductos, listarProductosHabilitados, listarSecciones } from '../api';
+import {
+  listarProductos,
+  listarProductosHabilitados,
+  listarSecciones,
+  listarSeccionesHabilitadas,
+} from '../api';
 
 import { ProductosPage } from './ProductosPage';
 
@@ -13,8 +18,6 @@ function abrir(ruta = '/productos') {
     <MemoryRouter initialEntries={[ruta]}>
       <Routes>
         <Route path="/productos" element={<ProductosPage />} />
-        <Route path="/productos/platos/nuevo" element={<p>Formulario de plato</p>} />
-        <Route path="/productos/postres/nuevo" element={<p>Formulario de postre</p>} />
         <Route path="/productos/carta" element={<p>Pantalla de la carta</p>} />
       </Routes>
     </MemoryRouter>,
@@ -26,6 +29,7 @@ function pestaniasVacias() {
   vi.mocked(listarSecciones).mockResolvedValue(vacia);
   vi.mocked(listarProductos).mockResolvedValue(vacia);
   vi.mocked(listarProductosHabilitados).mockResolvedValue(vacia);
+  vi.mocked(listarSeccionesHabilitadas).mockResolvedValue(vacia);
 }
 
 afterEach(() => {
@@ -57,19 +61,20 @@ describe('ProductosPage', () => {
     expect(listarSecciones).toHaveBeenCalledTimes(1);
   });
 
-  it.each([
-    ['Nuevo plato', 'Formulario de plato'],
-    ['Nuevo postre', 'Formulario de postre'],
-  ])(
-    'ofrece «%s» en la pestaña Productos y lleva al formulario (CA 1)',
-    async (boton, formulario) => {
+  it.each(['Nuevo plato', 'Nuevo postre'])(
+    'ofrece «%s» en la pestaña Productos y abre el formulario en un diálogo (CA 1)',
+    async (boton) => {
       pestaniasVacias();
       abrir();
       await screen.findByText('No hay productos habilitados');
 
       fireEvent.click(screen.getByRole('button', { name: boton }));
 
-      expect(screen.getByText(formulario)).toBeInTheDocument();
+      expect(await screen.findByRole('dialog', { name: boton })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'Productos' })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      );
     },
   );
 
@@ -101,5 +106,20 @@ describe('ProductosPage, entrada a la carta', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Ver carta' }));
 
     expect(screen.getByText('Pantalla de la carta')).toBeInTheDocument();
+  });
+});
+
+describe('ProductosPage, alta sin secciones', () => {
+  it('«Ir a Secciones» del diálogo cierra el formulario y abre la pestaña Secciones (CA 8)', async () => {
+    pestaniasVacias();
+    abrir();
+    await screen.findByText('No hay productos habilitados');
+    fireEvent.click(screen.getByRole('button', { name: 'Nuevo plato' }));
+
+    fireEvent.click(await screen.findByRole('link', { name: 'Ir a Secciones' }));
+
+    expect(screen.getByRole('tab', { name: 'Secciones' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Nueva sección' })).toBeInTheDocument();
   });
 });
