@@ -14,7 +14,7 @@ from app.database import crear_motor
 
 ALEMBIC_INI = Path(__file__).resolve().parents[3] / "alembic.ini"
 REVISION_RESERVAS = "d6f8a0c2e4b6"
-REVISION_CLIENTES = "e7a9c1d3f5b7"
+REVISION_ANTERIOR = "a8c0e2b4d6f8"  # head de develop sobre el que cuelga la migración
 COLUMNAS = {"id", "mesa_id", "cliente_id", "fecha", "hora", "cantidad_personas", "estado"}
 CHECK_CANTIDAD = "ck_reservas_cantidad_personas_positiva"
 UNICO_ACTIVA = "ux_reservas_mesa_fecha_hora_activa"
@@ -152,14 +152,14 @@ def test_upgrade_permite_turno_repetido_si_una_no_esta_activa(
     assert total == 3
 
 
-def test_downgrade_a_clientes_elimina_reservas_y_conserva_mesas(
+def test_downgrade_a_la_revision_anterior_elimina_reservas_y_conserva_mesas(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     url, config = _preparar_base(tmp_path, monkeypatch, "baja.db")
     command.upgrade(config, "head")
     tablas_antes, _detalle = _inspeccionar(url)
 
-    command.downgrade(config, REVISION_CLIENTES)
+    command.downgrade(config, REVISION_ANTERIOR)
     tablas, _detalle = _inspeccionar(url)
     get_settings.cache_clear()
 
@@ -175,7 +175,7 @@ def test_downgrade_y_upgrade_de_nuevo_recrean_reservas(
 ) -> None:
     url, config = _preparar_base(tmp_path, monkeypatch, "ciclo.db")
     command.upgrade(config, "head")
-    command.downgrade(config, REVISION_CLIENTES)
+    command.downgrade(config, REVISION_ANTERIOR)
 
     command.upgrade(config, "head")
     tablas, detalle = _inspeccionar(url)

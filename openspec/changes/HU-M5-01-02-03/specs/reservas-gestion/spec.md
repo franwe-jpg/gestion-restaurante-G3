@@ -52,7 +52,7 @@ Orden de validación (S17):
 
 ## Datos
 
-Tabla `reservas`, creada por una sola migración nueva con `down_revision = e7a9c1d3f5b7`:
+Tabla `reservas`, creada por una sola migración nueva con `down_revision = a8c0e2b4d6f8`:
 
 | Columna | Tipo | Regla |
 | --- | --- | --- |
@@ -950,12 +950,12 @@ La tabla `reservas` DEBE imponer en la base `CHECK (cantidad_personas > 0)` y el
 
 ### Requisito: Migración reversible
 
-Una sola migración Alembic nueva, con `down_revision = e7a9c1d3f5b7`, DEBE crear la tabla `reservas` con sus restricciones y su `downgrade()` DEBE borrarla. Tras aplicarla, `alembic heads` DEBE mostrar un único head. Los `models` de `reservas` DEBEN estar registrados en `backend/alembic/env.py` (RNF-MAN-06).
+Una sola migración Alembic nueva, con `down_revision = a8c0e2b4d6f8`, DEBE crear la tabla `reservas` con sus restricciones y su `downgrade()` DEBE borrarla. Tras aplicarla, `alembic heads` DEBE mostrar un único head. Los `models` de `reservas` DEBEN estar registrados en `backend/alembic/env.py` (RNF-MAN-06).
 
 #### Escenario: Subir, bajar y subir otra vez
 
-- DADA una base en `e7a9c1d3f5b7`
-- CUANDO se ejecuta `upgrade head`, `downgrade e7a9c1d3f5b7` y `upgrade head`
+- DADA una base en `a8c0e2b4d6f8`
+- CUANDO se ejecuta `upgrade head`, `downgrade a8c0e2b4d6f8` y `upgrade head`
 - ENTONCES los tres pasos terminan sin error
 - Y tras `upgrade head` existe `reservas` con sus restricciones, y tras `downgrade` no existe
 
@@ -978,7 +978,7 @@ El cambio NO DEBE modificar el código de `salon/`, de `atencion/` ni de `shared
 
 #### Escenario: Pruebas de migración de M3
 
-- DADO la nueva revisión sobre `e7a9c1d3f5b7`
+- DADO la nueva revisión sobre `a8c0e2b4d6f8`
 - CUANDO se ejecuta `pytest backend/tests/modules/salon/test_migracion.py`
 - ENTONCES las pruebas pasan, porque no dependen del head actual
 
