@@ -6,12 +6,16 @@ import pytest
 from pydantic import ValidationError
 
 from app.modules.reservas.models import EstadoReserva
+from app.modules.reservas.puente import MesaReservable, SectorDeMesa
 from app.modules.reservas.schemas import (
+    ConsultaMesasDisponibles,
     FiltroReservas,
+    MesaDisponible,
     ReservaCrear,
     ReservaModificar,
     ReservaSalida,
 )
+from app.shared.models.enums import EstadoMesa
 
 CUERPO = {
     "mesa_id": 5,
@@ -251,3 +255,74 @@ def test_reserva_modificar_rechaza_mesa_cliente_estado_o_id(campo: str, valor: o
 )
 def test_reserva_modificar_hereda_reglas_de_cantidad_y_hora(campo: str, valor: object) -> None:
     assert _campos_con_error_al_modificar(CUERPO_MODIFICAR | {campo: valor}) == {campo}
+
+
+# Issue #61: GET /reservas/mesas-disponibles recibe fecha y hora en la consulta
+CONSULTA = {"fecha": "2026-11-02", "hora": "21:30"}
+
+
+def _campos_con_error_en_la_consulta(**cambios) -> set[str]:
+    with pytest.raises(ValidationError) as error:
+        ConsultaMesasDisponibles.model_validate(CONSULTA | cambios)
+    return {str(falla["loc"][0]) for falla in error.value.errors()}
+
+
+def test_consulta_mesas_disponibles_acepta_fecha_y_hora() -> None:
+    consulta = ConsultaMesasDisponibles.model_validate(CONSULTA)
+
+    assert consulta.fecha == date(2026, 11, 2)
+    assert consulta.hora == time(21, 30)
+
+
+# Escenarios "Falta la fecha" y "Falta la hora": los dos son obligatorios y ninguno admite null
+@pytest.mark.parametrize("campo", list(CONSULTA))
+def test_consulta_mesas_disponibles_exige_fecha_y_hora(campo: str) -> None:
+    faltante = {nombre: valor for nombre, valor in CONSULTA.items() if nombre != campo}
+
+    with pytest.raises(ValidationError) as error:
+        ConsultaMesasDisponibles.model_validate(faltante)
+
+    assert {str(falla["loc"][0]) for falla in error.value.errors()} == {campo}
+    assert _campos_con_error_en_la_consulta(**{campo: None}) == {campo}
+
+
+# S16: la hora de la consulta tiene la misma precision de minutos que la del alta
+def test_consulta_mesas_disponibles_rechaza_hora_con_segundos() -> None:
+    assert _campos_con_error_en_la_consulta(hora="21:30:45") == {"hora"}
+    consulta = ConsultaMesasDisponibles.model_validate(CONSULTA | {"hora": "21:30:00"})
+    assert consulta.hora == time(21, 30)
+
+
+@pytest.mark.parametrize(
+    ("campo", "valor"),
+    [
+        ("fecha", "02/11/2026"),
+        ("fecha", "2026-13-40"),
+        ("hora", "25:00"),
+        ("hora", "9pm"),
+    ],
+)
+def test_consulta_mesas_disponibles_rechaza_formatos_de_fecha_y_hora(
+    campo: str, valor: str
+) -> None:
+    assert _campos_con_error_en_la_consulta(**{campo: valor}) == {campo}
+
+
+# S29: la mesa disponible trae id, numero, capacidad y sector; el estado no sale
+def test_mesa_disponible_no_expone_el_estado() -> None:
+    mesa = MesaReservable(
+        id=14,
+        numero=1,
+        capacidad=6,
+        sector=SectorDeMesa(id=2, nombre="Terraza"),
+        estado=EstadoMesa.OCUPADA,
+    )
+
+    disponible = MesaDisponible.model_validate(mesa)
+
+    assert disponible.model_dump() == {
+        "id": 14,
+        "numero": 1,
+        "capacidad": 6,
+        "sector": {"id": 2, "nombre": "Terraza"},
+    }

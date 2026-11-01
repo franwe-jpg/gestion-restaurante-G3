@@ -7,7 +7,9 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.main import app
 from app.modules.reservas.models import EstadoReserva, Reserva
+from app.shared.models.enums import EstadoMesa
 
 RUTA = "/api/v1/reservas"
 # El reloj de las pruebas (conftest.py) marca el 2026-11-02 a las 12:00.
@@ -95,6 +97,46 @@ def test_post_reservas_mesa_inexistente_devuelve_404(
     assert respuesta.status_code == 404
     assert respuesta.json() == {"detalle": "La mesa 99 no existe"}
     assert _cantidad_reservas(db) == 0
+
+
+# S31 (issue #61): una mesa fuera de servicio es un 409 con el formato de siempre
+def test_post_reservas_mesa_fuera_de_servicio_devuelve_409_con_detalle(
+    cliente: TestClient, db: Session, puente_doble
+) -> None:
+    puente_doble.poner(6, estado=EstadoMesa.FUERA_DE_SERVICIO)
+
+    respuesta = cliente.post(RUTA, json=CUERPO | {"mesa_id": 6})
+
+    assert respuesta.status_code == 409
+    assert respuesta.json() == {"detalle": "La mesa 6 está fuera de servicio"}
+    assert _cantidad_reservas(db) == 0
+
+
+# S17: la forma se valida primero, aunque la mesa este fuera de servicio
+def test_post_reservas_mesa_fuera_de_servicio_con_forma_invalida_devuelve_422(
+    cliente: TestClient, db: Session, puente_doble
+) -> None:
+    puente_doble.poner(6, estado=EstadoMesa.FUERA_DE_SERVICIO)
+    cuerpo = {k: v for k, v in CUERPO.items() if k != "fecha"}
+
+    respuesta = cliente.post(RUTA, json=cuerpo | {"mesa_id": 6})
+
+    assert respuesta.status_code == 422
+    assert "fecha" in respuesta.json()["detalle"]
+    assert _cantidad_reservas(db) == 0
+
+
+# S30: una mesa ocupada ahora se puede reservar para otro turno
+def test_post_reservas_mesa_ocupada_devuelve_201(
+    cliente: TestClient, db: Session, puente_doble
+) -> None:
+    puente_doble.poner(5, estado=EstadoMesa.OCUPADA)
+
+    respuesta = cliente.post(RUTA, json=CUERPO | {"fecha": "2026-11-03"})
+
+    assert respuesta.status_code == 201
+    assert respuesta.json()["estado"] == "ACTIVA"
+    assert _cantidad_reservas(db) == 1
 
 
 def test_post_reservas_cliente_inexistente_devuelve_404(
@@ -490,3 +532,172 @@ def test_put_reserva_errores_tienen_solo_la_clave_detalle(
         assert list(cuerpo) == ["detalle"]
         assert isinstance(cuerpo["detalle"], str)
         assert cuerpo["detalle"]
+
+
+# --- Issue #61: GET /reservas/mesas-disponibles ---
+
+RUTA_MESAS = f"{RUTA}/mesas-disponibles"
+TURNO = {"fecha": "2026-11-02", "hora": "21:30"}
+MESA_5 = {"id": 5, "numero": 5, "capacidad": 4, "sector": {"id": 1, "nombre": "Salón"}}
+
+
+def _ids_de_mesas(respuesta) -> list[int]:
+    return [mesa["id"] for mesa in respuesta.json()]
+
+
+# Escenario "Una mesa libre figura en la lista": lista simple, sin paginar y sin estado (S29)
+def test_get_mesas_disponibles_devuelve_200_con_la_lista(cliente: TestClient) -> None:
+    respuesta = cliente.get(RUTA_MESAS, params=TURNO)
+
+    assert respuesta.status_code == 200
+    cuerpo = respuesta.json()
+    assert isinstance(cuerpo, list)
+    assert _ids_de_mesas(respuesta) == [5, 6]
+    assert cuerpo[0] == MESA_5
+    assert set(cuerpo[0]) == {"id", "numero", "capacidad", "sector"}
+    assert set(cuerpo[0]["sector"]) == {"id", "nombre"}
+
+
+# Escenario "La ruta no se confunde con la consulta por id": el orden de las rutas importa
+def test_get_mesas_disponibles_no_se_confunde_con_la_consulta_por_id(
+    cliente: TestClient,
+) -> None:
+    creada = cliente.post(RUTA, json=CUERPO).json()
+
+    mesas = cliente.get(RUTA_MESAS, params=TURNO)
+    no_numerico = cliente.get(f"{RUTA}/abc")
+    por_id = cliente.get(f"{RUTA}/{creada['id']}")
+
+    assert mesas.status_code == 200
+    assert _ids_de_mesas(mesas) == [6]
+    assert no_numerico.status_code == 422
+    assert por_id.status_code == 200
+    assert por_id.json() == creada
+
+
+@pytest.mark.parametrize(
+    ("campo", "params"),
+    [("fecha", {"hora": "21:30"}), ("hora", {"fecha": "2026-11-02"})],
+    ids=["sin-fecha", "sin-hora"],
+)
+def test_get_mesas_disponibles_sin_fecha_o_sin_hora_devuelve_422_nombrando_el_campo(
+    cliente: TestClient, campo: str, params: dict
+) -> None:
+    respuesta = cliente.get(RUTA_MESAS, params=params)
+
+    assert respuesta.status_code == 422
+    assert list(respuesta.json()) == ["detalle"]
+    assert f"{campo}: " in respuesta.json()["detalle"]
+
+
+@pytest.mark.parametrize(
+    ("campo", "valor"),
+    [
+        ("fecha", "02/11/2026"),
+        ("fecha", "2026-13-40"),
+        ("hora", "25:00"),
+        ("hora", "9pm"),
+        ("hora", "21:30:45"),
+    ],
+)
+def test_get_mesas_disponibles_formato_invalido_devuelve_422_nombrando_el_campo(
+    cliente: TestClient, campo: str, valor: str
+) -> None:
+    respuesta = cliente.get(RUTA_MESAS, params=TURNO | {campo: valor})
+
+    assert respuesta.status_code == 422
+    assert list(respuesta.json()) == ["detalle"]
+    assert f"{campo}: " in respuesta.json()["detalle"]
+
+
+# S32: las mismas reglas de "no pasado" del alta, con los mismos mensajes
+@pytest.mark.parametrize(
+    ("turno", "mensaje"),
+    [
+        (
+            {"fecha": "2026-11-01", "hora": "21:30"},
+            "La fecha de la reserva no puede ser anterior a hoy",
+        ),
+        (
+            {"fecha": "2026-11-02", "hora": "12:00"},
+            "La hora de la reserva debe ser posterior a la hora actual",
+        ),
+        (
+            {"fecha": "2026-11-02", "hora": "11:00"},
+            "La hora de la reserva debe ser posterior a la hora actual",
+        ),
+    ],
+    ids=["fecha-anterior-a-hoy", "hoy-a-la-hora-actual", "hoy-a-una-hora-anterior"],
+)
+def test_get_mesas_disponibles_turno_pasado_devuelve_422(
+    cliente: TestClient, turno: dict, mensaje: str
+) -> None:
+    respuesta = cliente.get(RUTA_MESAS, params=turno)
+
+    assert respuesta.status_code == 422
+    assert respuesta.json() == {"detalle": mensaje}
+
+
+# Que no haya mesas para reservar no es un error
+def test_get_mesas_disponibles_sin_mesas_devuelve_200_con_lista_vacia(
+    cliente: TestClient, puente_sin_mesa
+) -> None:
+    respuesta = cliente.get(RUTA_MESAS, params=TURNO)
+
+    assert respuesta.status_code == 200
+    assert respuesta.json() == []
+
+
+# S33: con el puente real, la lista sale de todas las paginas de M3
+def test_puente_real_mesas_disponibles_y_alta_con_120_mesas(
+    cliente: TestClient, db: Session, puente_real, mesas_en_m3
+) -> None:
+    ultima = mesas_en_m3(120)[-1]
+
+    lista = cliente.get(RUTA_MESAS, params=TURNO)
+    alta = cliente.post(RUTA, json=CUERPO | {"mesa_id": ultima.id})
+    lista_despues = cliente.get(RUTA_MESAS, params=TURNO)
+
+    assert lista.status_code == 200
+    assert len(lista.json()) == 120
+    assert lista.json()[-1]["id"] == ultima.id
+    assert alta.status_code == 201
+    assert alta.json()["mesa_id"] == ultima.id
+    assert len(lista_despues.json()) == 119  # reservar la mesa la saca de la lista (S35)
+    assert _cantidad_reservas(db) == 1
+
+
+# Issue #61: la mesa fuera de servicio no figura y el alta sobre ella responde 409
+def test_puente_real_fuera_de_servicio_no_figura_y_el_alta_responde_409(
+    cliente: TestClient, db: Session, puente_real, mesas_en_m3
+) -> None:
+    fuera, libre = mesas_en_m3(2)
+    fuera.estado = EstadoMesa.FUERA_DE_SERVICIO
+    db.commit()
+
+    lista = cliente.get(RUTA_MESAS, params=TURNO)
+    alta = cliente.post(RUTA, json=CUERPO | {"mesa_id": fuera.id})
+
+    assert lista.status_code == 200
+    assert _ids_de_mesas(lista) == [libre.id]
+    assert alta.status_code == 409
+    assert alta.json() == {"detalle": f"La mesa {fuera.id} está fuera de servicio"}
+    assert _cantidad_reservas(db) == 0
+
+
+# S33: si M3 falla en una pagina, falla todo: sin lista parcial y sin reserva guardada
+def test_puente_real_falla_de_m3_en_la_segunda_pagina_devuelve_500_sin_guardar(
+    cliente: TestClient, db: Session, puente_real, mesas_en_m3, m3_falla_desde_la_segunda_pagina
+) -> None:
+    mesas_en_m3(120)
+    # `cliente` ya instalo la sesion de prueba en dependency_overrides; este cliente la reutiliza
+    # y devuelve la respuesta 500 en lugar de relanzar la excepcion en la prueba.
+    sin_relanzar = TestClient(app, raise_server_exceptions=False)
+
+    lista = sin_relanzar.get(RUTA_MESAS, params=TURNO)
+    alta = sin_relanzar.post(RUTA, json=CUERPO | {"mesa_id": 5})
+
+    for respuesta in (lista, alta):
+        assert respuesta.status_code == 500
+        assert not respuesta.text.lstrip().startswith("[")
+    assert _cantidad_reservas(db) == 0

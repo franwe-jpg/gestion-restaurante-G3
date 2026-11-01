@@ -504,3 +504,133 @@ Mediciones de solo lectura sobre el árbol de trabajo (`git diff --numstat`, ant
 
 - 10.8: commit 11 (`feat: lee las mesas de M3 en el puente de reservas (HU-M5-01)`), a cargo del orquestador.
 - Unidades B (commit 12) y C (commit 13), y el cierre (14).
+
+## Fase 10 · Unidad B (mesas disponibles y mesa fuera de servicio)
+
+- **Alcance:** tareas 10.9 a 10.19 de la Unidad B (commit 12, Decisiones 13, 15 y 16 del diseño). La tarea 10.20 (el commit) queda para el orquestador, que es el dueño de git: este lote no usó git para nada (las mediciones de tamaño se hicieron con `diff` contra copias del árbol de trabajo hechas al empezar).
+- **Modo:** Strict TDD (`strict_tdd: true` en `openspec/config.yaml`). Comandos en Docker (`g3-backend-test`, sin red, `backend/` montado en `/app`).
+- **Línea base:** `pytest` 1195 pruebas pasando, cobertura 99,39 %, un solo head `d6f8a0c2e4b6`, `lint-imports` con 10 contratos cumplidos (informada por el orquestador y confirmada al empezar: el módulo `reservas` tenía 202 pruebas, «202 passed»).
+- **Estado:** 11 de 11 tareas del lote completas (10.9 a 10.19). Queda 10.20 (commit) y la unidad C.
+
+### Tareas completadas
+
+| Tarea | Estado | Resultado observado |
+| --- | --- | --- |
+| 10.9 Rojo (alta con mesa fuera de servicio) | Hecha | 8 pruebas (7 nuevas y la de orden de validación, modificada): 4 fallan por el motivo correcto y 4 son guardas (ver abajo) |
+| 10.10 Verde (`_validar_mesa`) | Hecha | `service.py` lee la mesa una vez y rechaza `FUERA_DE_SERVICIO` con 409; 209 pasan |
+| 10.11 Rojo (`test_schemas.py`) | Hecha | `ImportError: cannot import name 'ConsultaMesasDisponibles'` al cargar el archivo (clases ausentes) |
+| 10.12 Verde (`schemas.py`) | Hecha | `_hora_en_minutos`, `ConsultaMesasDisponibles`, `SectorResumenMesa` y `MesaDisponible`; `test_schemas.py` 70 pasan |
+| 10.13 y 10.14 Rojo (`listar_mesas_disponibles`) | Hecha | 22 pruebas nuevas del `service`: todas fallan con `AttributeError: module 'app.modules.reservas.service' has no attribute 'listar_mesas_disponibles'` |
+| 10.15 Verde (`repository` y `service`) | Hecha | `ids_de_mesas_con_reserva_activa` y `listar_mesas_disponibles`; 240 pasan en `reservas` |
+| 10.16 Rojo (`router`) | Hecha | 16 pruebas nuevas, las 16 fallan: `GET /reservas/mesas-disponibles` lo captura `GET /reservas/{reserva_id}` y responde 422 «reserva_id: Input should be a valid integer» |
+| 10.17 Verde (ruta) | Hecha | `GET /reservas/mesas-disponibles` entre `GET /reservas` y `GET /reservas/{reserva_id}`; 256 pasan |
+| 10.18 Refactor | Hecha | Revisión de `service.py`, `schemas.py`, `router.py` y `repository.py`; se quitó una constante sin uso de la prueba; 256 pasan antes y después; `ruff` sin hallazgos |
+| 10.19 Verificación | Hecha | Comando enfocado y `V-BACK` completo en verde (ver «Verificación final») |
+| 10.20 Commit 12 | **Pendiente (orquestador)** | No es parte de este lote |
+
+### TDD Cycle Evidence
+
+| Tarea | RED | GREEN | REFACTOR |
+| --- | --- | --- | --- |
+| 10.9 a 10.10 | `4 failed, 205 passed` (2 pruebas del 409, la de «antes que el cliente y la fecha» y la de orden de validación) | `_validar_mesa` con el 409: **209 pasan** | n/a |
+| 10.11 a 10.12 | `ImportError` al cargar `test_schemas.py` (clases ausentes) | `test_schemas.py`: **70 pasan** | n/a |
+| 10.13 a 10.15 | `22 failed, 70 passed` en `test_service.py` (`AttributeError`, función ausente) | `repository` + `service`: **240 pasan** en `reservas` | n/a |
+| 10.16 a 10.17 | `16 failed, 55 passed` en `test_router.py` (la ruta nueva responde 422 por `reserva_id`) | ruta declarada antes de `/{reserva_id}`: **256 pasan** en `reservas` | n/a |
+| 10.18 | n/a | 256 pasan antes y después | constante sin uso quitada de `test_service.py`; revisión de longitud y complejidad (`ruff`: `C901` y `PLR0915` activos, 0 hallazgos) |
+
+### Evidencia RED y GREEN por paso
+
+Comando enfocado de todos los pasos: `docker run --rm --network none --user "$(id -u):$(id -g)" -e HOME=/tmp -v …/backend:/app -w /app g3-backend-test pytest --no-cov -q -p no:cacheprovider tests/modules/reservas`.
+
+- **10.9 (Rojo):** `4 failed, 205 passed`. Fallan por el motivo correcto: `test_crear_reserva_rechaza_mesa_fuera_de_servicio` (`Failed: DID NOT RAISE ReglaDeNegocioError`), `test_post_reservas_mesa_fuera_de_servicio_devuelve_409_con_detalle` (`assert 201 == 409`), `test_crear_reserva_mesa_fuera_de_servicio_se_rechaza_antes_que_cliente_y_fecha` (gana el error del cliente: `NoEncontradoError: El cliente 98 no existe`) y `test_crear_reserva_orden_de_validacion` (el paso nuevo no existe: `NoEncontradoError: El cliente 7 no existe`).
+  - **Pruebas de guarda (ya pasan en el Rojo):** `test_crear_reserva_acepta_mesa_ocupada` y `test_post_reservas_mesa_ocupada_devuelve_201` (S30), `test_modificar_reserva_con_mesa_fuera_de_servicio_se_modifica` (S27: la modificación ya no consulta al puente desde la unidad A) y `test_post_reservas_mesa_fuera_de_servicio_con_forma_invalida_devuelve_422` (la forma se valida primero). La tarea anticipaba solo tres fallos («los dos de 409 y el de orden»): la prueba «antes que el cliente y la fecha» también falla en el Rojo, porque con la mesa sin controlar gana el 404 del cliente. Es un fallo genuino, no una guarda.
+- **10.10 (Verde):** `209 passed, 1 warning` (la advertencia de `httpx` en `starlette.testclient` ya existía).
+- **10.11 (Rojo):** `ImportError: cannot import name 'ConsultaMesasDisponibles' from 'app.modules.reservas.schemas'`, el archivo `test_schemas.py` no carga. Es el motivo correcto: las clases no existen.
+- **10.12 (Verde):** `70 passed` en `test_schemas.py`, con las pruebas de segundos de `ReservaCrear` y `ReservaModificar` en verde (regresión de mover el validador).
+- **10.13 y 10.14 (Rojo):** `22 failed, 70 passed` en `test_service.py`, todos `AttributeError: module 'app.modules.reservas.service' has no attribute 'listar_mesas_disponibles'`. No hay guardas en este paso.
+- **10.15 (Verde):** `240 passed, 1 warning` en `reservas` (202 + 7 de 10.9 + 9 de 10.11 + 22 de 10.13 y 10.14).
+- **10.16 (Rojo):** `16 failed, 55 passed` en `test_router.py`. La causa es la prevista: `GET /reservas/mesas-disponibles` lo captura `GET /reservas/{reserva_id}` y responde `422 «Datos invalidos. reserva_id: Input should be a valid integer, unable to parse string as an integer»`. Eso deja observado el problema del orden de rutas; las de 422 de forma fallan porque el `detalle` nombra `reserva_id` y no `fecha` ni `hora`. No hay guardas.
+- **10.17 (Verde):** `256 passed, 1 warning` en `reservas`.
+
+### Comprobación de mutaciones (para que las pruebas no sean decorativas)
+
+Se alteró un archivo de producción por vez, se corrió toda la carpeta `tests/modules/reservas` en Docker, se restauró el archivo copiándolo desde la copia de respaldo del árbol final y se comparó con `diff` (idéntico en las 18). **Las 18 mutaciones fueron detectadas; ninguna sobrevivió.** (La suite sana tiene 256 pruebas.)
+
+| Mutación | Pruebas que fallan |
+| --- | --- |
+| S1 · `listar_mesas_disponibles` sin el filtro de `FUERA_DE_SERVICIO` | 3: `..._excluye_la_mesa_fuera_de_servicio`, `..._sin_mesas_reservables_devuelve_lista_vacia[todas-fuera-de-servicio]` y `test_puente_real_fuera_de_servicio_no_figura_y_el_alta_responde_409` |
+| S2 · sin la exclusión de las mesas con reserva en el turno | 5: `..._excluye_la_mesa_con_reserva_activa_en_el_turno`, `..._con_todas_las_mesas_reservadas_...`, `..._una_reserva_nueva_saca_la_mesa_de_la_lista`, `test_get_mesas_disponibles_no_se_confunde_con_la_consulta_por_id` y `test_puente_real_mesas_disponibles_y_alta_con_120_mesas` |
+| S3 · excluye también las `OCUPADA` (`estado == LIBRE`) | 1: `..._incluye_la_mesa_ocupada` |
+| S4 · orden por `sector.id` en lugar de `sector.nombre` | 2: `..._ordena_por_sector_numero_e_id` y `..._distingue_el_mismo_numero_en_sectores_distintos` |
+| S5 · orden sin el desempate por `id` | 1: `..._desempata_por_id` |
+| S6 · sin `_validar_momento` en la lista | 7: 3 del `router` (`..._turno_pasado_devuelve_422`) y 4 del `service` (fecha pasada, hora igual y anterior, y «no consulta al puente») |
+| S7 · `_validar_momento` después de leer M3 | 1: `..._con_turno_pasado_no_consulta_al_puente` |
+| A1 · el alta sin el 409 de mesa fuera de servicio | 5: las 2 del 409 por `router`, la del `service`, «antes que el cliente y la fecha» y el orden de validación |
+| A2 · el alta rechaza también `OCUPADA` | 2: `test_crear_reserva_acepta_mesa_ocupada` y `test_post_reservas_mesa_ocupada_devuelve_201` |
+| A3 · el 409 se comprueba después del cliente | 2: «antes que el cliente y la fecha» y el orden de validación |
+| A4 · `modificar_reserva` consulta la mesa al puente | 2: `test_modificar_reserva_no_consulta_mesa_ni_cliente` y `test_modificar_reserva_con_mesa_fuera_de_servicio_se_modifica` |
+| R1 · el `repository` sin `estado == ACTIVA` | 3: `..._no_excluye_reservas_no_activas[ATENDIDA, CANCELADA_ANTICIPADA, CANCELADA_POR_AUSENCIA]` |
+| R2 · el `repository` sin el filtro de `hora` | 1: `..._no_excluye_reservas_de_otra_hora_u_otra_fecha` |
+| R3 · el `repository` sin el filtro de `fecha` | 1: la misma |
+| C1 · `MesaDisponible` expone `estado` | 3: `test_mesa_disponible_no_expone_el_estado`, la forma exacta del `service` y `test_get_mesas_disponibles_devuelve_200_con_la_lista` |
+| C2 · `ConsultaMesasDisponibles` sin la validación de minutos | 2: `..._rechaza_hora_con_segundos` (schema) y `test_get_mesas_disponibles_formato_invalido_devuelve_422_nombrando_el_campo[hora-21:30:45]` |
+| C3 · `fecha` opcional en `ConsultaMesasDisponibles` | 2: `..._exige_fecha_y_hora[fecha]` y `..._sin_fecha_o_sin_hora_...[sin-fecha]` |
+| T1 · la ruta declarada **después** de `GET /reservas/{reserva_id}` | **16**: todas las pruebas nuevas del `router` (422 por `reserva_id`), incluida `test_get_mesas_disponibles_no_se_confunde_con_la_consulta_por_id`. El orden de rutas está realmente cubierto |
+
+**Incidente de herramientas (sin efecto en el código):** la primera corrida de mutaciones llamaba a `rg` desde `sh`, donde no existe; el *pipe* roto dejó de leer la salida y `docker run` terminó mientras el contenedor seguía vivo, de modo que se acumularon 7 contenedores `g3-backend-test` en paralelo durante unos segundos. Se detuvieron todos los contenedores de esa imagen (el de `gestion-restaurante-g3-backend` y el del frontend, que no se llaman así, no se tocaron), se restauró `service.py` desde la copia de respaldo (había quedado con la mutación S7) y se comprobó con `diff` que los cuatro archivos de producción eran idénticos a la copia. Los resultados de arriba son de la corrida **repetida desde cero** con el filtro hecho en Python, de a un contenedor por vez. No hubo OOM.
+
+### Verificación final (ejecutada sola, sin otras corridas de Docker en paralelo)
+
+| Comando | Resultado observado |
+| --- | --- |
+| `pytest --no-cov -q -p no:cacheprovider tests/modules/reservas` | **256 pasan**, 1 advertencia (202 al empezar) |
+| `sh -c 'ruff check . && ruff format --check . && lint-imports && alembic heads && pytest -q -p no:cacheprovider'` (desde `backend/`) | Salida 0. `ruff check`: «All checks passed!». `ruff format --check`: «108 files already formatted». `lint-imports`: «Contracts: 10 kept, 0 broken.». `alembic heads`: `d6f8a0c2e4b6 (head)`, un solo head (sin migración nueva). `pytest`: **1249 pasan**, 1 advertencia, 2 min 33 s; cobertura 99,40 % (umbral 70 %), con `service.py`, `schemas.py`, `repository.py`, `router.py` y `puente.py` al 100 % |
+
+**Diferencia de conteo:** 1249 − 1195 = +54, igual que en `reservas` (256 − 202). Se reparte así: `test_service.py` +26 (4 de 10.9 y 22 de 10.13 y 10.14), `test_router.py` +19 (3 de 10.9 y 16 de 10.16) y `test_schemas.py` +9 (la prueba parametrizada de «exige fecha y hora» cuenta 2 casos y la de formatos 4: 1 + 2 + 1 + 4 + 1).
+
+**Cobertura:** 99,40 % contra 99,39 % de la unidad A (99,44 % en la unidad anterior). Las líneas sin cubrir siguen siendo las de siempre y están fuera de `reservas`: `app/database.py` 44 y 55-56, `app/modules/menus/service.py` 200-203, `app/modules/productos/service.py` 363 y `app/modules/salon/service.py` 132-134. Todos los archivos que toca esta unidad están al 100 %.
+
+### Work Unit Evidence
+
+| Evidence | Valor |
+| --- | --- |
+| Comando enfocado y resultado | `pytest --no-cov -q -p no:cacheprovider tests/modules/reservas` (Docker): 256 pasan, 0 fallos |
+| Runtime harness | Las pruebas del `router` con `TestClient`, el `puente_real` y una base SQLite migrada con 120 mesas creadas con los modelos de M3 recorren el camino real `GET /reservas/mesas-disponibles` → `service` → `repository` (reservas del turno) y `puente` → `salon.service.listar_mesas` (2 páginas) → base, y el `POST /reservas` sobre la mesa 120 y sobre una mesa `FUERA_DE_SERVICIO` (409). Con la envoltura que falla en la segunda página, `GET` y `POST` responden 500 con `TestClient(app, raise_server_exceptions=False)`, el cuerpo no es una lista y `reservas` queda vacía. `V-BACK` completo en verde |
+| Rollback boundary | Revertir el commit 12 (`schemas.py`, `repository.py`, `service.py`, `router.py`, `conftest.py`, `test_schemas.py`, `test_service.py`, `test_router.py` y `test_puente.py`), solo después de revertir el commit 13. El puente real de la unidad A sigue. Sin `alembic downgrade` y sin cambios en M3 |
+
+### Archivos tocados
+
+| Archivo | Cambio |
+| --- | --- |
+| `backend/app/modules/reservas/schemas.py` | `_hora_en_minutos(hora)` pasa a función de módulo (mismo mensaje) y la usan `_DatosDelTurno` y `ConsultaMesasDisponibles` con `field_validator("hora")(_hora_en_minutos)`; clases nuevas `ConsultaMesasDisponibles`, `SectorResumenMesa` y `MesaDisponible` (sin `estado`) |
+| `backend/app/modules/reservas/repository.py` | `ids_de_mesas_con_reserva_activa(db, fecha, hora) -> set[int]` (una consulta parametrizada sobre `fecha`, `hora` y `estado == ACTIVA`) |
+| `backend/app/modules/reservas/service.py` | `_validar_mesa` lee la mesa una vez y rechaza `FUERA_DE_SERVICIO` con 409; `listar_mesas_disponibles(db, fecha, hora)`; importa `EstadoMesa` y `MesaDisponible` |
+| `backend/app/modules/reservas/router.py` | `GET /reservas/mesas-disponibles` entre `GET /reservas` y `GET /reservas/{reserva_id}` |
+| `backend/tests/modules/reservas/conftest.py` | Fixture `m3_falla_desde_la_segunda_pagina` y constante `PAGINA_DE_M3` (movidas desde `test_puente.py` para compartirlas con `test_router.py`); docstring |
+| `backend/tests/modules/reservas/test_puente.py` | Usa la fixture compartida en las dos pruebas de propagación del error de M3 (sin cambio de aserciones) |
+| `backend/tests/modules/reservas/test_schemas.py` | 5 pruebas nuevas de `ConsultaMesasDisponibles` y `MesaDisponible` (9 casos) |
+| `backend/tests/modules/reservas/test_service.py` | 4 pruebas nuevas del alta y de la modificación, `test_crear_reserva_orden_de_validacion` con el paso «fuera de servicio» y 22 de `listar_mesas_disponibles` |
+| `backend/tests/modules/reservas/test_router.py` | 3 pruebas nuevas del 409/422/201 del alta y 16 de `GET /reservas/mesas-disponibles` (3 con `puente_real`) |
+| `openspec/changes/HU-M5-01-02-03/tasks.md` | 10.9 a 10.19 marcadas `[x]` (10.20 sigue abierta) |
+
+No se tocó `puente.py`, otro módulo, `shared/`, `main.py`, `pyproject.toml`, CI, `compose`, migraciones ni el frontend.
+
+### Desvíos y decisiones
+
+1. **Cuarto fallo en 10.9.** Ver arriba: «antes que el cliente y la fecha» falla en el Rojo (la tarea anticipaba tres fallos). No cambia el plan.
+2. **`conftest.py` y `test_puente.py` entran en el commit 12.** La tarea 10.20 no los lista. La prueba de 500 de la segunda página (10.16) reutiliza la envoltura de 10.3, que vivía como función privada de `test_puente.py`; para no duplicarla se movió a una fixture de `conftest.py` y las dos pruebas del puente la piden (las aserciones no cambian). El commit 12 debe incluir esos dos archivos; si no, `test_router.py` falla por la fixture ausente. La línea 10.20 de `tasks.md` no se editó (es del orquestador).
+3. **Ruta con anotación de retorno en lugar de `response_model=`.** La tarea 10.17 dice `response_model=list[MesaDisponible]`; el resto de `router.py` usa la anotación de retorno (`-> ReservaSalida`, `-> Pagina[...]`), que FastAPI toma como `response_model`. El comportamiento es el mismo y el archivo conserva un solo estilo.
+4. **`field_validator("hora")(_hora_en_minutos)` como atributo de clase.** Es el patrón de Pydantic para reutilizar una función de módulo como validador (el nombre `_hora_con_precision_de_minutos` empieza con guion bajo, pero Pydantic ignora los `PydanticDescriptorProxy` al buscar atributos privados). La función recibe solo el valor, así que no es un `classmethod`. La mutación C2 y las pruebas de segundos de los tres esquemas demuestran que el validador se aplica.
+5. **Pruebas no listadas en la tarea** (cada una chica): `test_consulta_mesas_disponibles_acepta_fecha_y_hora` (camino feliz del esquema, ≈ 6 líneas), `test_listar_mesas_disponibles_desempata_por_id` (el orden por `id` de la spec; sin ella la mutación S5 sobrevive) y la comprobación, en `test_puente_real_mesas_disponibles_y_alta_con_120_mesas`, de que tras el alta la lista baja a 119 (S35). En el orden por sector, el doble usa ids de sector invertidos (Salón 7, Terraza 3) para que ordenar por `sector.id` falle (mutación S4).
+6. **Dos pruebas cuentan más de un caso.** `test_consulta_mesas_disponibles_exige_fecha_y_hora` comprueba la falta y el `null` de cada campo en la misma función; `test_listar_mesas_disponibles_sin_mesas_reservables_devuelve_lista_vacia` recibe la preparación del doble como parámetro (`todas-fuera-de-servicio` y `el-puente-no-ofrece-mesas`).
+7. **Nombres y comentarios sin tildes en el código** (salvo los literales de usuario: «Salón», «está fuera de servicio»), como el resto de `reservas/`.
+8. **Herramientas:** `bat`, `fd` y `sd` no están instalados en esta máquina; se usaron `Read` y scripts de Python para leer y editar.
+
+### Tamaño de la unidad (honestidad sobre el presupuesto)
+
+Mediciones con `diff` contra las copias hechas al empezar (sin git): `schemas.py` +40 −7, `repository.py` +14, `service.py` +28 −1, `router.py` +10, `conftest.py` +19 −1, `test_schemas.py` +75, `test_service.py` +262 −1, `test_router.py` +211 y `test_puente.py` +2 −18. Total: **661 líneas agregadas y 28 borradas (≈ 689 escritas)**. La producción (≈ 100 con las borradas) queda dentro de la estimación de la unidad (68 a 107), y las pruebas (≈ 589) superan por mucho la de 195 a 290: la unidad pide 22 pruebas de `service` (varias parametrizadas) y 16 de `router`, y cada una lleva su encabezado de escenario. Por encima de la heurística orientativa de ≈ 400 y de la estimación de 260 a 400; no se recortó ni se partió nada para entrar en el límite (la unidad ya cuenta con `size:exception`).
+
+### Pendiente
+
+- 10.20: commit 12 (`feat: agrega las mesas disponibles y rechaza la mesa fuera de servicio en el alta (HU-M5-01)`), a cargo del orquestador, con `conftest.py` y `test_puente.py` incluidos (ver desvío 2).
+- Unidad C (commit 13) y el cierre (14).

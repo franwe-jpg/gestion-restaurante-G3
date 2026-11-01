@@ -8,6 +8,16 @@ from app.modules.reservas.models import EstadoReserva
 from app.shared.paginacion import ParametrosPaginacion
 
 
+def _hora_en_minutos(hora: time) -> time:
+    """S16: la hora tiene precision de minutos y sin zona horaria.
+
+    La comparten el alta, la modificacion y la consulta de mesas disponibles.
+    """
+    if hora.second or hora.microsecond or hora.tzinfo is not None:
+        raise ValueError("La hora debe tener el formato HH:MM, sin segundos ni zona horaria")
+    return hora
+
+
 class _DatosDelTurno(BaseModel):
     """Datos que comparten el alta y la modificacion: cuando y para cuantas personas."""
 
@@ -17,13 +27,7 @@ class _DatosDelTurno(BaseModel):
     hora: time
     cantidad_personas: StrictInt = Field(gt=0)  # rechaza "4", 2.5 y true
 
-    @field_validator("hora")
-    @classmethod
-    def _hora_en_minutos(cls, hora: time) -> time:
-        """S16: la hora tiene precision de minutos y sin zona horaria."""
-        if hora.second or hora.microsecond or hora.tzinfo is not None:
-            raise ValueError("La hora debe tener el formato HH:MM, sin segundos ni zona horaria")
-        return hora
+    _hora_con_precision_de_minutos = field_validator("hora")(_hora_en_minutos)
 
 
 class ReservaCrear(_DatosDelTurno):
@@ -56,3 +60,32 @@ class FiltroReservas(ParametrosPaginacion):
 
     fecha: date | None = None
     estado: EstadoReserva | None = None
+
+
+class ConsultaMesasDisponibles(BaseModel):
+    """Parametros de GET /reservas/mesas-disponibles: el turno que se quiere reservar."""
+
+    fecha: date
+    hora: time
+
+    _hora_con_precision_de_minutos = field_validator("hora")(_hora_en_minutos)
+
+
+class SectorResumenMesa(BaseModel):
+    """Sector de una mesa disponible; propio de reservas, sin importar el esquema de salon."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    nombre: str
+
+
+class MesaDisponible(BaseModel):
+    """Mesa que se puede reservar en un turno. No expone el estado de la mesa (S29)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    numero: int
+    capacidad: int
+    sector: SectorResumenMesa

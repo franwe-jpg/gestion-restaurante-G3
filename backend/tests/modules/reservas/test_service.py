@@ -10,12 +10,14 @@ from app.modules.reservas import puente, repository, service
 from app.modules.reservas.models import EstadoReserva, Reserva
 from app.modules.reservas.schemas import (
     FiltroReservas,
+    MesaDisponible,
     ReservaCrear,
     ReservaModificar,
     ReservaSalida,
 )
 from app.modules.reservas.service import ahora as ahora_real
 from app.shared.excepciones import DatosInvalidosError, NoEncontradoError, ReglaDeNegocioError
+from app.shared.models.enums import EstadoMesa
 from app.shared.paginacion import Pagina
 
 # El reloj de las pruebas (conftest.py) marca el 2026-11-02 a las 12:00.
@@ -168,6 +170,39 @@ def test_crear_reserva_rechaza_mesa_que_m3_no_conoce(db: Session) -> None:
     assert _reservas(db) == []
 
 
+# S31 (issue #61): una mesa fuera de servicio es un conflicto con una regla de negocio (409)
+def test_crear_reserva_rechaza_mesa_fuera_de_servicio(db: Session, puente_doble) -> None:
+    puente_doble.poner(6, estado=EstadoMesa.FUERA_DE_SERVICIO)
+
+    with pytest.raises(ReglaDeNegocioError) as error:
+        service.crear_reserva(db, _datos(mesa_id=6))
+
+    assert str(error.value) == "La mesa 6 está fuera de servicio"
+    assert _reservas(db) == []
+
+
+# S30: OCUPADA describe el momento presente, no el turno pedido: la mesa se puede reservar
+def test_crear_reserva_acepta_mesa_ocupada(db: Session, puente_doble) -> None:
+    puente_doble.poner(5, estado=EstadoMesa.OCUPADA)
+
+    salida = service.crear_reserva(db, _datos(fecha=MANANA))
+
+    assert salida.mesa_id == 5
+    assert salida.estado == EstadoReserva.ACTIVA
+
+
+# S17: la mesa fuera de servicio se rechaza antes que el cliente y que el momento
+def test_crear_reserva_mesa_fuera_de_servicio_se_rechaza_antes_que_cliente_y_fecha(
+    db: Session, puente_doble, puente_sin_cliente
+) -> None:
+    puente_doble.poner(6, estado=EstadoMesa.FUERA_DE_SERVICIO)
+
+    with pytest.raises(ReglaDeNegocioError, match="La mesa 6 está fuera de servicio"):
+        service.crear_reserva(db, _datos(mesa_id=6, cliente_id=98, fecha=date(2026, 11, 1)))
+
+    assert _reservas(db) == []
+
+
 # S6 y S20: el lado Cliente sigue siendo un stub, todo cliente positivo existe
 def test_crear_reserva_acepta_cualquier_cliente_positivo_con_el_stub(db: Session) -> None:
     salida = service.crear_reserva(db, _datos(mesa_id=5, cliente_id=456))
@@ -282,7 +317,11 @@ def test_crear_reserva_orden_de_validacion(
     with pytest.raises(NoEncontradoError, match="La mesa 5 no existe"):
         service.crear_reserva(db, _datos(fecha=ayer))
 
-    puente_doble.poner(5)
+    puente_doble.poner(5, estado=EstadoMesa.FUERA_DE_SERVICIO)
+    with pytest.raises(ReglaDeNegocioError, match="La mesa 5 está fuera de servicio"):
+        service.crear_reserva(db, _datos(fecha=ayer))
+
+    puente_doble.poner(5, estado=EstadoMesa.LIBRE)
     with pytest.raises(NoEncontradoError, match="El cliente 7 no existe"):
         service.crear_reserva(db, _datos(fecha=ayer))
 
@@ -653,6 +692,19 @@ def test_modificar_reserva_no_consulta_mesa_ni_cliente(
     assert _modificar(db, reserva.id, cantidad_personas=6).cantidad_personas == 6
 
 
+# S27: la modificacion no mira el estado de la mesa, aunque ahora este fuera de servicio
+def test_modificar_reserva_con_mesa_fuera_de_servicio_se_modifica(
+    db: Session, fabrica_reserva, puente_doble
+) -> None:
+    reserva = _ocupar_turno(fabrica_reserva)
+    puente_doble.poner(5, estado=EstadoMesa.FUERA_DE_SERVICIO)
+
+    salida = _modificar(db, reserva.id, fecha=MANANA)
+
+    assert salida.fecha == MANANA
+    assert _guardada(db, reserva.id) == salida
+
+
 # CA 4
 def test_modificar_reserva_no_choca_consigo_misma(db: Session, fabrica_reserva) -> None:
     reserva = _ocupar_turno(fabrica_reserva)
@@ -778,3 +830,212 @@ def test_modificar_reserva_orden_de_validacion(db: Session, fabrica_reserva) -> 
 
     with pytest.raises(ReglaDeNegocioError, match="ya tiene una reserva activa"):
         _modificar(db, b.id, hora=time(21, 30))
+
+
+# --- Issue #61: mesas disponibles para una fecha y hora (turno de las pruebas: HOY a las 21:30) ---
+
+SALON = puente.SectorDeMesa(7, "Salón")
+TERRAZA = puente.SectorDeMesa(3, "Terraza")  # id menor que el de Salón, nombre posterior
+
+
+def _disponibles(db: Session, fecha: date = HOY, hora: time = time(21, 30)) -> list[MesaDisponible]:
+    return service.listar_mesas_disponibles(db, fecha, hora)
+
+
+def _ids_disponibles(db: Session, fecha: date = HOY, hora: time = time(21, 30)) -> list[int]:
+    return [mesa.id for mesa in _disponibles(db, fecha, hora)]
+
+
+def test_listar_mesas_disponibles_incluye_las_mesas_libres_con_su_forma_exacta(
+    db: Session,
+) -> None:
+    disponibles = _disponibles(db)
+
+    assert [mesa.id for mesa in disponibles] == [5, 6]
+    assert disponibles[0].model_dump() == {
+        "id": 5,
+        "numero": 5,
+        "capacidad": 4,
+        "sector": {"id": 1, "nombre": "Salón"},
+    }
+
+
+# Issue #61: una mesa fuera de servicio no aparece entre las mesas disponibles
+def test_listar_mesas_disponibles_excluye_la_mesa_fuera_de_servicio(
+    db: Session, puente_doble
+) -> None:
+    puente_doble.poner(6, estado=EstadoMesa.FUERA_DE_SERVICIO)
+
+    assert _ids_disponibles(db) == [5]
+
+
+def test_listar_mesas_disponibles_excluye_la_mesa_con_reserva_activa_en_el_turno(
+    db: Session, fabrica_reserva
+) -> None:
+    _ocupar_turno(fabrica_reserva)
+
+    assert _ids_disponibles(db) == [6]
+
+
+# S4: no se modela duracion, solo cuenta la misma fecha y la misma hora
+def test_listar_mesas_disponibles_no_excluye_reservas_de_otra_hora_u_otra_fecha(
+    db: Session, fabrica_reserva
+) -> None:
+    _ocupar_turno(fabrica_reserva, hora=time(22, 0))
+    _ocupar_turno(fabrica_reserva, fecha=MANANA)
+
+    assert _ids_disponibles(db) == [5, 6]
+
+
+@pytest.mark.parametrize(
+    "estado",
+    [
+        EstadoReserva.ATENDIDA,
+        EstadoReserva.CANCELADA_ANTICIPADA,
+        EstadoReserva.CANCELADA_POR_AUSENCIA,
+    ],
+)
+def test_listar_mesas_disponibles_no_excluye_reservas_no_activas(
+    db: Session, fabrica_reserva, estado: EstadoReserva
+) -> None:
+    _ocupar_turno(fabrica_reserva, estado=estado)
+
+    assert _ids_disponibles(db) == [5, 6]
+
+
+# S30: OCUPADA describe el momento presente, no el turno pedido
+def test_listar_mesas_disponibles_incluye_la_mesa_ocupada(db: Session, puente_doble) -> None:
+    puente_doble.poner(5, estado=EstadoMesa.OCUPADA)
+
+    assert _ids_disponibles(db) == [5, 6]
+
+
+def test_listar_mesas_disponibles_con_todas_las_mesas_reservadas_devuelve_lista_vacia(
+    db: Session, fabrica_reserva
+) -> None:
+    _ocupar_turno(fabrica_reserva, mesa_id=5)
+    _ocupar_turno(fabrica_reserva, mesa_id=6)
+
+    assert _disponibles(db) == []
+
+
+def _todas_fuera_de_servicio(doble) -> None:
+    for mesa_id in (5, 6):
+        doble.poner(mesa_id, estado=EstadoMesa.FUERA_DE_SERVICIO)
+
+
+def _sin_mesas(doble) -> None:
+    doble.mesas.clear()
+
+
+# Que no haya mesas para reservar no es un error: es una lista vacia
+@pytest.mark.parametrize(
+    "dejar_sin_mesas",
+    [_todas_fuera_de_servicio, _sin_mesas],
+    ids=["todas-fuera-de-servicio", "el-puente-no-ofrece-mesas"],
+)
+def test_listar_mesas_disponibles_sin_mesas_reservables_devuelve_lista_vacia(
+    db: Session, puente_doble, dejar_sin_mesas
+) -> None:
+    dejar_sin_mesas(puente_doble)
+
+    assert _disponibles(db) == []
+
+
+# El orden no depende del que traiga el puente: sector (por nombre, no por id), numero e id
+def test_listar_mesas_disponibles_ordena_por_sector_numero_e_id(
+    db: Session, puente_doble, puente_sin_mesa
+) -> None:
+    puente_doble.poner(12, numero=1, sector=TERRAZA)
+    puente_doble.poner(15, numero=2, sector=SALON)
+    puente_doble.poner(14, numero=1, sector=SALON)
+
+    assert _ids_disponibles(db) == [14, 15, 12]
+
+
+def test_listar_mesas_disponibles_desempata_por_id(
+    db: Session, puente_doble, puente_sin_mesa
+) -> None:
+    puente_doble.poner(21, numero=1, sector=SALON)
+    puente_doble.poner(20, numero=1, sector=SALON)
+
+    assert _ids_disponibles(db) == [20, 21]
+
+
+def test_listar_mesas_disponibles_distingue_el_mismo_numero_en_sectores_distintos(
+    db: Session, puente_doble, puente_sin_mesa
+) -> None:
+    puente_doble.poner(14, numero=1, sector=SALON)
+    puente_doble.poner(12, numero=1, sector=TERRAZA)
+
+    disponibles = _disponibles(db)
+
+    assert [(mesa.id, mesa.numero, mesa.sector.nombre) for mesa in disponibles] == [
+        (14, 1, "Salón"),
+        (12, 1, "Terraza"),
+    ]
+
+
+# S35: la lista no bloquea nada, pero una reserva nueva si saca la mesa de la lista siguiente
+def test_listar_mesas_disponibles_una_reserva_nueva_saca_la_mesa_de_la_lista(db: Session) -> None:
+    assert _ids_disponibles(db) == [5, 6]
+
+    service.crear_reserva(db, _datos(mesa_id=5))
+
+    assert _ids_disponibles(db) == [6]
+
+
+def test_listar_mesas_disponibles_no_modifica_datos(db: Session, fabrica_reserva) -> None:
+    _ocupar_turno(fabrica_reserva)
+    _ocupar_turno(fabrica_reserva, mesa_id=6, estado=EstadoReserva.ATENDIDA)
+    antes = [(r.id, r.mesa_id, r.fecha, r.hora, r.estado) for r in _reservas(db)]
+
+    _disponibles(db)
+
+    assert not db.new
+    assert not db.dirty
+    despues = [(r.id, r.mesa_id, r.fecha, r.hora, r.estado) for r in _reservas(db)]
+    assert despues == antes
+
+
+# S32: el turno pedido cumple las reglas de "no pasado" del alta
+def test_listar_mesas_disponibles_rechaza_fecha_pasada(db: Session) -> None:
+    with pytest.raises(DatosInvalidosError) as error:
+        _disponibles(db, fecha=date(2026, 11, 1))
+
+    assert str(error.value) == "La fecha de la reserva no puede ser anterior a hoy"
+
+
+@pytest.mark.parametrize("hora", [time(12, 0), time(11, 0)], ids=["igual", "anterior"])
+def test_listar_mesas_disponibles_rechaza_hora_pasada_o_igual_de_hoy(
+    db: Session, hora: time
+) -> None:
+    with pytest.raises(DatosInvalidosError) as error:
+        _disponibles(db, fecha=HOY, hora=hora)
+
+    assert str(error.value) == "La hora de la reserva debe ser posterior a la hora actual"
+
+
+# La regla de la hora solo aplica si la fecha es hoy
+@pytest.mark.parametrize(
+    ("fecha", "hora"),
+    [(HOY, time(12, 1)), (MANANA, time(11, 0))],
+    ids=["hoy-un-minuto-despues", "manana-a-una-hora-menor"],
+)
+def test_listar_mesas_disponibles_acepta_turnos_validos_parecidos(
+    db: Session, fecha: date, hora: time
+) -> None:
+    assert _ids_disponibles(db, fecha, hora) == [5, 6]
+
+
+# Un turno pasado se rechaza antes de leer M3
+def test_listar_mesas_disponibles_con_turno_pasado_no_consulta_al_puente(
+    db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def falla(*_args, **_kwargs):
+        raise AssertionError("un turno pasado no debe leer las mesas de M3")
+
+    monkeypatch.setattr(puente, "listar_mesas", falla)
+
+    with pytest.raises(DatosInvalidosError, match="La fecha de la reserva"):
+        _disponibles(db, fecha=date(2026, 11, 1))

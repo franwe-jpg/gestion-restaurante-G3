@@ -37,6 +37,20 @@ def existe_reserva_activa(
     return db.scalar(consulta.limit(1)) is not None
 
 
+def ids_de_mesas_con_reserva_activa(db: Session, fecha: date, hora: time) -> set[int]:
+    """Ids de las mesas con una reserva ACTIVA en esa fecha y hora exactas (issue #61).
+
+    Es la misma definicion de turno ocupado que usa `existe_reserva_activa`. Una sola consulta
+    por `fecha` y `hora`, que resuelve el indice `ix_reservas_fecha_hora`.
+    """
+    consulta = select(Reserva.mesa_id).where(
+        Reserva.fecha == fecha,
+        Reserva.hora == hora,
+        Reserva.estado == EstadoReserva.ACTIVA,
+    )
+    return set(db.scalars(consulta))
+
+
 def listar_reservas(
     db: Session,
     parametros: ParametrosPaginacion,

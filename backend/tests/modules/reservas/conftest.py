@@ -1,7 +1,8 @@
 """Fixtures del modulo reservas: reloj fijo, fabrica de reservas, doble del puente y semilla de M3.
 
 Toda prueba arranca con el doble del puente (`puente_doble`, autouse), sin base de M3. Las pruebas
-del puente real piden `puente_real` y siembran M3 con `mesas_en_m3` (S20, S33).
+del puente real piden `puente_real` y siembran M3 con `mesas_en_m3` (S20, S33); las que simulan una
+falla de M3 piden ademas `m3_falla_desde_la_segunda_pagina`.
 """
 
 from collections.abc import Callable
@@ -16,6 +17,7 @@ from app.modules.reservas.models import EstadoReserva, Reserva
 from app.modules.reservas.puente import MesaReservable, SectorDeMesa
 
 # Los modelos de salon se importan solo en las pruebas: lint-imports controla `app`, no `tests`.
+from app.modules.salon import service as salon_service
 from app.modules.salon.models import Mesa, Sector
 from app.shared.models.enums import EstadoMesa
 
@@ -29,6 +31,9 @@ LISTAR_MESAS_REAL = puente.listar_mesas
 EXISTE_CLIENTE_REAL = puente.existe_cliente
 
 SECTOR_SALON = SectorDeMesa(1, "Salón")
+
+# Cuantas mesas devuelve M3 por pagina como maximo (app.shared.paginacion.LIMIT_MAXIMO).
+PAGINA_DE_M3 = 100
 
 FabricaReserva = Callable[..., Reserva]
 FabricaMesasM3 = Callable[..., list[Mesa]]
@@ -144,3 +149,16 @@ def mesas_en_m3(db: Session) -> FabricaMesasM3:
         return mesas
 
     return crear
+
+
+@pytest.fixture
+def m3_falla_desde_la_segunda_pagina(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Hace que `listar_mesas` de M3 lea la primera pagina y falle desde la segunda."""
+    original = salon_service.listar_mesas
+
+    def envoltura(db: Session, parametros):
+        if parametros.offset >= PAGINA_DE_M3:
+            raise RuntimeError("falla simulada de M3")
+        return original(db, parametros)
+
+    monkeypatch.setattr(salon_service, "listar_mesas", envoltura)

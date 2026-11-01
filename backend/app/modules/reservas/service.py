@@ -9,11 +9,13 @@ from app.modules.reservas import puente, repository
 from app.modules.reservas.models import EstadoReserva, Reserva
 from app.modules.reservas.schemas import (
     FiltroReservas,
+    MesaDisponible,
     ReservaCrear,
     ReservaModificar,
     ReservaSalida,
 )
 from app.shared.excepciones import DatosInvalidosError, NoEncontradoError, ReglaDeNegocioError
+from app.shared.models.enums import EstadoMesa
 from app.shared.paginacion import Pagina
 
 
@@ -23,8 +25,15 @@ def ahora() -> datetime:
 
 
 def _validar_mesa(db: Session, mesa_id: int) -> None:
-    if puente.obtener_mesa(db, mesa_id) is None:
+    """La mesa debe existir (404) y no estar fuera de servicio (409, S31).
+
+    Se lee una sola vez. OCUPADA no se rechaza: describe el momento presente, no el turno (S30).
+    """
+    mesa = puente.obtener_mesa(db, mesa_id)
+    if mesa is None:
         raise NoEncontradoError(f"La mesa {mesa_id} no existe")
+    if mesa.estado == EstadoMesa.FUERA_DE_SERVICIO:
+        raise ReglaDeNegocioError(f"La mesa {mesa_id} está fuera de servicio")
 
 
 def _validar_cliente(db: Session, cliente_id: int) -> None:
@@ -124,3 +133,21 @@ def listar_reservas(db: Session, filtro: FiltroReservas) -> Pagina[ReservaSalida
         limit=filtro.limit,
         offset=filtro.offset,
     )
+
+
+def listar_mesas_disponibles(db: Session, fecha: date, hora: time) -> list[MesaDisponible]:
+    """Mesas que se pueden reservar en ese turno, por sector, numero e id (issue #61).
+
+    El turno debe cumplir las reglas de "no pasado" del alta y se valida antes de leer M3 (S32).
+    Figura toda mesa que no esta FUERA_DE_SERVICIO y no tiene una reserva ACTIVA en ese turno;
+    OCUPADA figura porque describe el momento presente (S30). Solo lee: no confirma nada.
+    """
+    _validar_momento(fecha, hora)
+    ocupadas = repository.ids_de_mesas_con_reserva_activa(db, fecha, hora)
+    disponibles = [
+        mesa
+        for mesa in puente.listar_mesas(db)
+        if mesa.estado != EstadoMesa.FUERA_DE_SERVICIO and mesa.id not in ocupadas
+    ]
+    disponibles.sort(key=lambda mesa: (mesa.sector.nombre, mesa.numero, mesa.id))
+    return [MesaDisponible.model_validate(mesa) for mesa in disponibles]

@@ -11,23 +11,9 @@ from app.modules.reservas import puente
 from app.modules.salon import service as salon_service
 from app.shared.models.enums import EstadoMesa
 
-# Cuantas mesas devuelve M3 por pagina como maximo (app.shared.paginacion.LIMIT_MAXIMO).
-PAGINA_DE_M3 = 100
 RAIZ_RESERVAS = Path(puente.__file__).parent
 PAQUETE_RESERVAS = "app.modules.reservas"
 SERVICE_DE_SALON = "app.modules.salon.service"
-
-
-def _falla_desde_la_segunda_pagina(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Reemplaza `listar_mesas` de M3 por una que lee la primera pagina y falla en la segunda."""
-    original = salon_service.listar_mesas
-
-    def envoltura(db: Session, parametros):
-        if parametros.offset >= PAGINA_DE_M3:
-            raise RuntimeError("falla simulada de M3")
-        return original(db, parametros)
-
-    monkeypatch.setattr(salon_service, "listar_mesas", envoltura)
 
 
 # S33: el puente lee todas las paginas de M3, no solo la primera
@@ -89,20 +75,18 @@ def test_obtener_mesa_y_listar_mesas_coinciden(db: Session, puente_real, mesas_e
 
 # S33: si M3 falla en cualquier pagina, falla todo y no hay lista parcial
 def test_listar_mesas_propaga_el_error_de_m3_en_la_segunda_pagina(
-    db: Session, puente_real, mesas_en_m3, monkeypatch: pytest.MonkeyPatch
+    db: Session, puente_real, mesas_en_m3, m3_falla_desde_la_segunda_pagina
 ) -> None:
     mesas_en_m3(120)
-    _falla_desde_la_segunda_pagina(monkeypatch)
 
     with pytest.raises(RuntimeError, match="falla simulada de M3"):
         puente.listar_mesas(db)
 
 
 def test_obtener_mesa_propaga_el_error_de_m3_en_la_segunda_pagina(
-    db: Session, puente_real, mesas_en_m3, monkeypatch: pytest.MonkeyPatch
+    db: Session, puente_real, mesas_en_m3, m3_falla_desde_la_segunda_pagina
 ) -> None:
     mesas_en_m3(120)
-    _falla_desde_la_segunda_pagina(monkeypatch)
 
     # La mesa 5 esta en la primera pagina, pero el puente igual lee todas antes de responder.
     with pytest.raises(RuntimeError, match="falla simulada de M3"):
