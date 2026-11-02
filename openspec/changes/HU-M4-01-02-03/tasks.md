@@ -4,6 +4,8 @@ La implementación fue autorizada para los archivos de M4 indicados en el prefli
 
 ## Pronóstico de carga de revisión
 
+Pronóstico original del cambio, ya implementado e integrado en `develop`. El pronóstico vigente es el del delta, más abajo.
+
 | Campo | Estimación |
 | --- | --- |
 | Backend (modelo, migración, capas, pruebas) | ≈ 350-500 líneas modificadas |
@@ -12,9 +14,9 @@ La implementación fue autorizada para los archivos de M4 indicados en el prefli
 | Estrategia acordada | Un solo PR por grupo de HU de una entidad (`AGENTS.md` §4); el límite local 800/800 por lado es punto de control, no división de HU. |
 | Recomendación frente a presupuesto de sesión (400 líneas/PR) | Preparar unidades revisables dentro del PR; solicitar autorización de excepción de tamaño antes de implementar si el pronóstico sigue excediendo 400. No dividir la HU en varios PR sin una nueva decisión del equipo. |
 
-Decision needed before apply: Yes
+Decision needed before apply: Resuelta (un solo PR, `AGENTS.md` §4)
 Chained PRs recommended: No
-Chain strategy: pending
+Chain strategy: N/A
 400-line budget risk: High
 
 ### Unidades revisables para el PR único
@@ -24,17 +26,28 @@ Chain strategy: pending
 | 1 | Datos M4, validación y migración | `pytest tests/modules/atencion/test_schemas.py tests/modules/atencion/test_migracion.py` | Alembic sobre base temporal; upgrade y downgrade | Migración, modelo y esquemas M4 |
 | 2 | Edición, búsqueda y rutas M4 | `pytest tests/modules/atencion/` | `TestClient` sobre base SQLite temporal | Repositorio, servicio, router y registro de rutas |
 | 3 | Interfaz de lista y edición M4 | `npm test -- atencion` | Página `/atencion` con servidor de prueba de M4 | Página, componentes, tipos y API de M4 |
-| 4 | Costura con M5 (sujeta a acuerdo externo) | Pruebas de integración M4-M5 acordadas con el responsable de #61 | Guardar una primera reserva válida y otra que falle; comprobar asociación y ausencia de cliente huérfano | Solo interfaz pública de M4; cambios M5 bajo su responsable |
+| 4 | Costura con M5 (interfaz acordada; ver «Delta» en `design.md`) | Pruebas de integración M4-M5 acordadas con el responsable de #61 | Guardar una primera reserva válida y otra que falle; comprobar asociación y ausencia de cliente huérfano | Solo interfaz pública de M4; cambios M5 bajo su responsable |
+
+## Pronóstico de carga de revisión del delta (interfaz con M5)
+
+| Campo | Estimación |
+| --- | --- |
+| Backend (`repository.crear_cliente`, dos funciones de servicio, pruebas 1.5 y 2.6) | ≈ 120-180 líneas modificadas |
+| Frontend (M4) | 0 líneas |
+| Contra el límite de 800 por lado | Muy por debajo; el total del cambio sigue dentro de 800 en backend |
+
+Decision needed before apply: No
+Chained PRs recommended: No
 
 ## Fase 1: Acordar el límite con M5 y preparar persistencia M4
 
-- [ ] **1.1 Coordinación (bloqueante para #48):** acordar con el responsable de #61 la interfaz pública de `atencion.service` para preparar un cliente nuevo en la misma sesión de la reserva, quién confirma/revierte y cómo se selecciona uno existente. Revisar `backend/app/modules/reservas/` (read-only) y el esquema de la reserva; no editar M5. Registrar el acuerdo antes de dar por implementable #48 CA1-CA3.
+- [x] **1.1 Coordinación (RESUELTA):** la interfaz pública con M5 quedó acordada en `design.md`, sección «Delta: interfaz acordada con M5» (`registrar_cliente_para_reserva` y `existe_cliente`; M5 confirma o revierte; M4 solo hace `flush`). Con ese acuerdo, #48 CA1-CA3 es implementable.
 - [x] **1.2 RED:** escribir en `backend/tests/modules/atencion/test_migracion.py` una prueba que exija `clientes` con `id`, `nombre` y `telefono` no nulos, sin unicidad de nombre/teléfono, y que verifique upgrade/downgrade en base temporal; comprobar que falla.
 - [x] **1.3 GREEN:** crear `Cliente` en `backend/app/modules/atencion/models.py` y una revisión `backend/alembic/versions/<revision>_crea_clientes.py`; revisar cabeza Alembic, aplicar downgrade/upgrade aislado. `backend/alembic/env.py` (read-only) ya registra el módulo.
 - [x] **1.4 RED:** crear `backend/tests/modules/atencion/test_schemas.py` para nombre y teléfono obligatorios/no vacíos, nombre con dígitos o caracteres especiales inválido y duplicados permitidos (#48 CA2-CA3, #49 CA2 y CA4); comprobar fallo previo.
-- [ ] **1.5 GREEN:** definir `ClienteModificar`, `ClienteSalida` y entrada para el servicio de alta vinculada en `backend/app/modules/atencion/schemas.py`, con formato provisional confirmado del teléfono (dígitos, espacios, guiones, `+` solo al inicio), sin longitud inventada; comprobar las pruebas de 1.4.
+- [x] **1.5 RED → GREEN → refactor (`repository.crear_cliente`):** en `backend/tests/modules/atencion/test_repository.py`, escribir primero una prueba con sesión SQLite que llame a `crear_cliente(db, nombre, telefono)` y compruebe que devuelve un `Cliente` con `id` asignado (por `flush`), visible en la misma sesión, y que tras `db.rollback()` ya no existe; comprobar que falla (la función no existe). Luego implementar en `backend/app/modules/atencion/repository.py` `crear_cliente` con `db.add` + `db.flush()`, sin `commit`, y revisar que siga el estilo de `crear_comanda`. Refactor solo si no rompe las pruebas.
 
-**Distinción de 1.4 y 1.5:** el RED de 1.4 cubre todos los casos expresos: omisión/vacío de ambos campos, nombre con dígitos/caracteres especiales y duplicados en `ClienteNuevo` (14 fallos previos a su implementación); omisión/vacío y nombre inválido en `ClienteModificar` (13 fallos por ausencia del esquema antes de implementarlo). Las pruebas vigentes de esquemas cubren esos casos. `ClienteNuevo`, `ClienteModificar` y `ClienteSalida` ya existen; 1.5 sigue pendiente únicamente porque la entrada pública del servicio de alta vinculada a M5 (forma del DTO y responsabilidad transaccional) requiere acuerdo con su responsable. No confundir el esquema local `ClienteNuevo` con ese contrato entre servicios.
+**Nota sobre 1.4:** el RED de 1.4 cubre los casos expresos de `ClienteNuevo` (14 fallos previos) y `ClienteModificar` (13 fallos previos); los tres esquemas (`ClienteNuevo`, `ClienteModificar`, `ClienteSalida`) ya existen y no cambian en el delta. La entrada pública hacia M5 usa tipos primitivos (ver «Delta» del diseño), no `ClienteNuevo`.
 
 ## Fase 2: Servicio y rutas de M4 (TDD por criterio)
 
@@ -43,8 +56,15 @@ Chain strategy: pending
 - [x] **2.3 GREEN:** implementar `backend/app/modules/atencion/repository.py`, `service.py` y `router.py` para modificar tras validar y confirmar una vez; añadir el router de M4 a `backend/app/main.py` (archivo compartido: coordinar antes). No habilitar alta HTTP independiente ni baja de clientes.
 - [x] **2.4 RED:** en `backend/tests/modules/atencion/test_repository.py` y `test_router.py`, probar `GET /api/v1/clientes` con datos de contacto y paginación (#50 CA1), nombre coincidente total o parcialmente (#50 CA2), teléfono compartido por más de un cliente (#50 CA3), búsqueda sin resultados (#50 CA4) y registro vacío (#50 CA5); comprobar fallo previo.
 - [x] **2.5 GREEN:** en `backend/app/modules/atencion/repository.py`, `service.py` y `router.py`, implementar filtro literal por nombre parcial o teléfono coincidente y `Pagina[ClienteSalida]` de `backend/app/shared/paginacion.py` (read-only), con total filtrado y `limit`/`offset` del contrato; ejecutar pruebas de 2.4.
-- [ ] **2.6 RED (dependiente de 1.1):** probar en `backend/tests/modules/atencion/test_service.py` que la interfaz pública de preparación de cliente para una reserva permite nombres repetidos, rechaza nombre/teléfono ausente y nombre inválido (#48 CA2-CA3), y no hace commit propio. Una prueba de coordinación en sesión compartida comprueba rollback del cliente cuando falla la reserva (#48 CA1, límite). Comprobar fallo previo; no afirmar que esto sustituye la prueba de integración real con M5.
-- [ ] **2.7 GREEN (dependiente de 1.1):** implementar únicamente en `backend/app/modules/atencion/service.py` y `repository.py` la interfaz M4 acordada para crear cliente dentro de la sesión de M5, sin commit propio ni ruta de alta aislada. Las reglas y los archivos de M5 siguen siendo de su responsable.
+- [x] **2.6 RED (requiere 1.5):** en `backend/tests/modules/atencion/test_service.py`, con una sesión SQLite compartida y sin `TestClient`, escribir las 6 pruebas del Delta y comprobar que fallan (las funciones no existen):
+  1. Datos válidos: `registrar_cliente_para_reserva` devuelve un `id`; el cliente es visible en la misma sesión y la transacción sigue abierta (sin commit propio).
+  2. `db.rollback()` posterior: el cliente no queda registrado (#48 CA1, límite).
+  3. Dos clientes con el mismo nombre: ambos se registran.
+  4. `nombre` o `telefono` vacío: `DatosInvalidosError` cuyo mensaje nombra el campo, sin cliente agregado (#48 CA2).
+  5. Nombre con dígitos o caracteres especiales: `DatosInvalidosError` que nombra `nombre` y no contiene «Value error, » (#48 CA3).
+  6. `existe_cliente`: `True` para un cliente existente, `False` para un `id` inexistente.
+  Estas pruebas no sustituyen la costura real con una reserva (4.1).
+- [x] **2.7 GREEN → refactor (requiere 2.6):** en `backend/app/modules/atencion/service.py` implementar `registrar_cliente_para_reserva(db, nombre, telefono) -> int`: valida con `ClienteNuevo`, traduce `pydantic.ValidationError` a `DatosInvalidosError` con el primer error como «campo: mensaje» y sin el prefijo «Value error, » de pydantic, llama a `repository.crear_cliente` y devuelve el `id`; sin `commit` ni `rollback`. Implementar `existe_cliente(db, cliente_id) -> bool` como `repository.obtener_cliente(db, cliente_id) is not None`. Sin ruta HTTP nueva, sin cambios en `ClienteSalida`, `GET`/`PUT`, modelos ni migraciones. Comprobar las 6 pruebas de 2.6, luego `ruff` y `lint-imports`.
 
 ## Fase 3: Interfaz M4 (TDD por criterio)
 
@@ -54,8 +74,8 @@ Chain strategy: pending
 
 ## Fase 4: Integración y criterios pendientes
 
-- [ ] **4.1 Costura M4-M5 (bloqueada hasta coordinación e implementación de #61):** acordar con M5 pruebas con reserva real para #48 CA1 (alta y asociación), #48 CA2 (dato obligatorio faltante sin cliente ni reserva), #48 CA3 (nombre inválido) y fallo de reserva sin cliente huérfano. Registrar evidencia solo después de ejecutarlas; `backend/app/modules/reservas/` (read-only) permanece a cargo de M5. No marcar #48 completo por pruebas con un stub.
+- [x] **4.1 Costura M4-M5 con reserva real (ejecuta M5):** _(hecha por la Fase 13 de `HU-M5-01-02-03`; evidencia en `apply-progress.md`)_ la realizan el cambio `HU-M5-01-02-03` y su responsable, en el mismo PR; M4 no edita `backend/app/modules/reservas/`. Las pruebas de integración con una reserva real cubren #48 CA1 (alta y asociación), CA2 (dato obligatorio faltante sin cliente ni reserva), CA3 (nombre inválido) y fallo de reserva sin cliente huérfano. Registrar la evidencia solo tras ejecutarlas. La issue #48 se cierra únicamente cuando esas pruebas de integración pasen; las pruebas con stub no bastan.
 - [x] **4.2 #49 CA3:** con el formato técnico provisional confirmado, añadir **primero** una prueba fallida concreta de teléfono inválido que preserva el registro y muestra aviso, y solo después aplicar la regla acordada. No inventar longitudes ni restricciones adicionales.
 - [ ] **4.3 Revisión documental:** dejar constancia de las diferencias pendientes de `SPRINT-0/G3 - Diagramas por modulo.drawio` (read-only), `SPRINT-0/G3 - Diagrama de clases unificado.drawio` (read-only) y `SPRINT-1/S1-07-casos-de-prueba.md` (read-only), y coordinar su actualización posterior sin editarlos en este cambio.
 - [ ] **4.4 Calidad:** desde `backend/`, ejecutar `ruff check . && ruff format --check . && lint-imports && pytest` (cobertura ≥ 70 %), más migración de prueba. Desde `frontend/`, ejecutar `npm run lint && npm run format:check && npm run typecheck && npm run test:coverage && npm run build` (cobertura ≥ 60 %). Mantener tareas no verificadas sin marcar como completadas.
-- [ ] **4.5 Preparación de implementación:** comprobar dependencias #61 y M3, acordar la excepción al presupuesto de 400 líneas del PR único si corresponde y regularizar rama `feature/HU-M4-01-02-03-clientes` antes de escribir código. No crear ni editar PR/issues/tarjetas sin confirmación explícita.
+- [ ] **4.5 Preparación de implementación:** comprobar dependencias #61 y M3 y trabajar en la rama `feature/HU-M4-01-HU-M5-01-cliente-en-reserva` (ya activa; un solo PR junto con `HU-M5-01-02-03`). No crear ni editar PR/issues/tarjetas sin confirmación explícita.
