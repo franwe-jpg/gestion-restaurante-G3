@@ -2,7 +2,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { clienteHttp } from '../../shared/api/client';
 
-import { crearReserva, listarMesasDisponibles, listarReservas, modificarReserva } from './api';
+import {
+  buscarClientes,
+  crearReserva,
+  listarMesasDisponibles,
+  listarReservas,
+  modificarReserva,
+} from './api';
 import type { MesaDisponible, ReservaCrear, ReservaModificar } from './types';
 
 afterEach(() => {
@@ -79,5 +85,59 @@ describe('api de reservas: mesas disponibles', () => {
       hora: '21:30',
     });
     expect(resultado).toBe(respuesta);
+  });
+});
+
+describe('api de reservas: cliente de la reserva', () => {
+  it('crea una reserva con cliente nuevo y envía cliente_nuevo sin cliente_id', async () => {
+    const datos: ReservaCrear = {
+      mesa_id: 5,
+      cliente_nuevo: { nombre: 'Luis Gómez', telefono: '280-4556677' },
+      fecha: '2026-11-02',
+      hora: '21:30',
+      cantidad_personas: 4,
+    };
+    const post = vi.spyOn(clienteHttp, 'post').mockResolvedValue({ datos: null, exito: true });
+
+    await crearReserva(datos);
+
+    const enviado = post.mock.calls[0]?.[1] as Record<string, unknown>;
+    expect(enviado).toHaveProperty('cliente_nuevo', datos.cliente_nuevo);
+    expect(enviado).not.toHaveProperty('cliente_id');
+  });
+
+  it('crea una reserva con cliente existente y envía cliente_id sin cliente_nuevo', async () => {
+    const datos: ReservaCrear = {
+      mesa_id: 5,
+      cliente_id: 7,
+      fecha: '2026-11-02',
+      hora: '21:30',
+      cantidad_personas: 4,
+    };
+    const post = vi.spyOn(clienteHttp, 'post').mockResolvedValue({ datos: null, exito: true });
+
+    await crearReserva(datos);
+
+    const enviado = post.mock.calls[0]?.[1] as Record<string, unknown>;
+    expect(enviado).toHaveProperty('cliente_id', 7);
+    expect(enviado).not.toHaveProperty('cliente_nuevo');
+  });
+
+  it('busca clientes con GET /clientes?q=&limit=10&offset=0 y devuelve la página', async () => {
+    const respuesta = { datos: { items: [], total: 0, limit: 10, offset: 0 }, exito: true };
+    const get = vi.spyOn(clienteHttp, 'get').mockResolvedValue(respuesta);
+
+    const resultado = await buscarClientes('Ana');
+
+    expect(get).toHaveBeenCalledWith('/clientes?q=Ana&limit=10&offset=0');
+    expect(resultado).toBe(respuesta);
+  });
+
+  it('codifica el texto de la búsqueda con espacios y &', async () => {
+    const get = vi.spyOn(clienteHttp, 'get').mockResolvedValue({ datos: null, exito: true });
+
+    await buscarClientes('Ana & Luis');
+
+    expect(get).toHaveBeenCalledWith('/clientes?q=Ana+%26+Luis&limit=10&offset=0');
   });
 });

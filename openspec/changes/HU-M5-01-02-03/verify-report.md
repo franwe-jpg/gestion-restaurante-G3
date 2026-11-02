@@ -538,3 +538,66 @@ Ninguno.
 ### 13. Próximo paso recomendado
 
 `sdd-archive` cuando la persona termine los humos manuales y las tareas de «Antes del PR». No hay trabajo de código pendiente que devuelva el cambio a `sdd-apply`. Este diagnóstico no bloquea el archivo.
+
+---
+
+## Verificación de la Fase 13 · Cliente registrado o nuevo (delta, issue #61, S39 a S43)
+
+**Veredicto: PASS WITH WARNINGS** (0 CRITICAL, 3 WARNING, 2 SUGGESTION). Modo: Strict TDD, openspec.
+
+### Comandos ejecutados (observados)
+
+| Lado | Comando | Resultado |
+|------|---------|-----------|
+| Backend | `ruff check .` · `ruff format --check .` · `lint-imports` · `pytest` | 0 errores; 120 archivos formateados; 10 contratos kept, 0 broken; 1625 passed, cobertura 99,26 % (umbral 70 %) |
+| Frontend | `npm run lint` · `format:check` · `typecheck` · `test:coverage` · `build` | todos en verde; cobertura 78,01 % líneas / 76,37 % sentencias (umbral 60 %); build OK |
+| Frontend enfocado | `npx vitest run src/modules/reservas` | 11 archivos, 227 passed |
+
+### Tareas
+
+Fase 13 completa salvo 13.14, 13.29 y 13.33 (commits 17, 18 y 19, pendientes por diseño) y 13.32 (humo manual, pendiente de la persona). Los ítems P.* de «Antes del PR» siguen abiertos (son de la persona).
+
+### Matriz de escenarios del delta (todos con prueba que pasa)
+
+| Escenario | Pruebas |
+|-----------|---------|
+| Alta con cliente existente | `test_crear_reserva_con_cliente_existente_no_registra_clientes`, `test_post_reservas_con_cliente_existente_no_registra_clientes` |
+| Alta con cliente nuevo | `test_crear_reserva_con_cliente_nuevo_lo_registra`, `test_post_reservas_con_cliente_nuevo_devuelve_201` |
+| El puente real deja el cliente en M4 | `test_puente_real_alta_con_cliente_nuevo_lo_registra_en_m4`, `test_registrar_cliente_real_devuelve_el_id_y_queda_en_m4` |
+| Mismo nombre, dos altas | `test_crear_reserva_dos_altas_con_cliente_nuevo_crean_dos_clientes` |
+| Los dos clientes / ninguno | `test_crear_reserva_rechaza_los_dos_clientes`, `..._ningun_cliente`, `..._se_valida_antes_que_la_mesa`, `test_post_reservas_sin_exactamente_un_cliente_devuelve_422`, `test_reserva_crear_*` |
+| Forma inválida del cliente | `test_post_reservas_cliente_nuevo_con_forma_invalida_devuelve_422`, `test_reserva_crear_toma_null_del_cliente_como_ausente` |
+| Nombre/teléfono faltante o inválido, acentos y prefijo | `test_crear_reserva_rechaza_datos_invalidos_del_cliente_nuevo`, `test_crear_reserva_acepta_cliente_nuevo_con_acentos_y_prefijo`, `test_post_reservas_cliente_nuevo_valida_el_contenido_con_m4`, `test_puente_real_nombre_invalido_devuelve_422_sin_cliente`, `test_puente_real_dato_obligatorio_faltante_...`, `test_registrar_cliente_para_reserva_*` (M4) |
+| Atomicidad (mesa inexistente, fuera de servicio, fecha/hora, turno ocupado, carrera del índice único, sin huérfano) | `test_crear_reserva_fallida_con_cliente_nuevo_no_registra_al_cliente`, `test_crear_reserva_mesa_inexistente_con_cliente_nuevo_invalido_informa_la_mesa`, `test_puente_real_reserva_fallida_no_deja_cliente_huerfano`, `test_puente_real_carrera_por_el_indice_unico_no_deja_cliente_nuevo`, `test_registrar_cliente_para_reserva_rollback_posterior_no_deja_cliente` |
+| Puente: existe/propaga rechazo/cliente 456 → 404 | `test_existe_cliente_real_*`, `test_registrar_cliente_real_propaga_el_rechazo_de_m4`, `test_puente_real_cliente_existente_que_m4_no_conoce_devuelve_404`, `test_crear_reserva_rechaza_cliente_positivo_que_m4_no_conoce` |
+| Aislamiento de importaciones | `test_solo_el_puente_importa_salon_y_atencion`, `lint-imports` |
+| Selector: buscar por nombre/teléfono, elegir, sin resultados, falla, respuesta vieja, debounce | `SelectorCliente.test.tsx`, `useBuscarClientes.test.ts`, `api.test.ts` (URL `/clientes?q=&limit=10&offset=0`, codificación) |
+| Cliente nuevo, pasar de uno a otro, sin cliente, datos inválidos | `ReservaFormDialog.test.tsx` (guardar con elegido/nuevo, alternar), `validarReserva.test.ts` (paridad con M4), `SelectorCliente.test.tsx` |
+| La API rechaza (422 telefono, 409) | `ReservaFormDialog.test.tsx` «errores de la API con un cliente nuevo», `validarReserva.test.ts` (422 cliente_id/cliente_nuevo) |
+| La edición no cambia el cliente | `ReservaFormDialog.test.tsx` (sin «Cliente nuevo» en edición, cliente de solo lectura) |
+| Cerrar el modal descarta la elección | `ReservasPage.test.tsx` |
+
+No hay escenarios sin prueba. El humo manual (13.32) no es requisito de la spec.
+
+### Arquitectura y calidad
+
+- Backend: `reservas` solo importa `atencion.service` (en `puente.py`); contrato `lint-imports` KEPT.
+- Frontend: nada importa de `modules/atencion` (solo comentarios que citan la ruta de M4); sin `any`; ESLint 0 advertencias; complejidad y largo de función dentro de los límites (ruff/ESLint en verde).
+- Diseño (Decisiones 25 a 31 con la Enmienda): «exactamente uno» es la primera comprobación del `service`; el schema acepta ninguno o los dos; coherente.
+
+### Hallazgos
+
+**CRITICAL (0)**
+
+**WARNING (3)**
+1. Tamaño: el diff sin confirmar es 1.214 inserciones en backend+frontend (frontend ≈ 1.096, sobre el límite de 800). Informativo; anotar `size:exception` en el PR (AGENTS.md §4).
+2. Humo manual 13.32 pendiente de la persona (no se levantaron servidores ni navegador).
+3. Commits 17, 18 y 19 pendientes (13.14, 13.29, 13.33): todo el delta sigue sin confirmar en la rama.
+
+**SUGGESTION (2)**
+1. `aClienteDeReserva` devuelve `cliente_id: 0` para `ninguno`. Es inalcanzable (la validación local lo frena) y queda cubierto por el 422 de la API; se podría tipar para que `ninguno` no compile o lanzar un error explícito.
+2. Cobertura del frontend (78 % líneas) tiene módulos compartidos bajos (`dropdown-menu`, `popover`); ajenos al delta.
+
+### Próximo paso
+
+`sdd-archive` tras el humo manual y los commits 17 a 19 (o commitear primero y archivar con la persona).

@@ -9,8 +9,9 @@ import { Input } from '../../../shared/components/ui/input';
 import type { Reserva } from '../types';
 
 import { useFormularioReserva } from './useFormularioReserva';
+import type { CampoReserva } from './useFormularioReserva';
+import { SelectorCliente } from './SelectorCliente';
 import { SelectorMesa } from './SelectorMesa';
-import type { DatosFormularioReserva } from './validarReserva';
 
 export interface ReservaFormDialogProps {
   /** Con `reserva` el modal modifica esa fila; sin ella da de alta una reserva nueva. */
@@ -25,9 +26,9 @@ type Formulario = ReturnType<typeof useFormularioReserva>;
 
 interface CampoReservaProps {
   formulario: Formulario;
-  campo: keyof DatosFormularioReserva;
+  campo: CampoReserva;
   etiqueta: string;
-  /** Sin `tipo` el campo es numérico: cliente, cantidad y la mesa de solo lectura de la edición (S13). */
+  /** Sin `tipo` el campo es numérico: cantidad y la mesa de solo lectura de la edición (S13). */
   tipo?: 'date' | 'time';
   deshabilitado?: boolean;
 }
@@ -45,6 +46,27 @@ function CampoReserva({ formulario, campo, etiqueta, tipo, deshabilitado }: Camp
         onChange={(evento) => formulario.cambiar(campo, evento.target.value)}
       />
     </FormField>
+  );
+}
+
+/**
+ * En el alta Cliente se busca entre los registrados o se carga uno nuevo; en la edición no cambia:
+ * es un campo de solo lectura con el `cliente_id` de la fila y no pide la búsqueda (S43).
+ */
+function CampoCliente({ formulario, reserva }: { formulario: Formulario; reserva?: Reserva }) {
+  if (reserva) {
+    return (
+      <FormField id="reserva-cliente" label="Cliente (número)" required>
+        <Input id="reserva-cliente" inputMode="numeric" value={reserva.cliente_id} disabled />
+      </FormField>
+    );
+  }
+  return (
+    <SelectorCliente
+      seleccion={formulario.datos.cliente}
+      errores={formulario.errores}
+      onCambiar={formulario.elegirCliente}
+    />
   );
 }
 
@@ -105,12 +127,7 @@ export function ReservaFormDialog({ reserva, onGuardado, onOpenChange }: Reserva
     >
       <form id={ID_FORMULARIO_RESERVA} noValidate onSubmit={alEnviar} className="space-y-4">
         {errores.general && <Alert variant="danger">{errores.general}</Alert>}
-        <CampoReserva
-          formulario={formulario}
-          campo="cliente"
-          etiqueta="Cliente (número)"
-          deshabilitado={edicion}
-        />
+        <CampoCliente formulario={formulario} reserva={reserva} />
         <div className="grid grid-cols-2 gap-3">
           <CampoReserva formulario={formulario} campo="fecha" etiqueta="Fecha" tipo="date" />
           <CampoReserva formulario={formulario} campo="hora" etiqueta="Hora" tipo="time" />

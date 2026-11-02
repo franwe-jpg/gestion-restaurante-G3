@@ -299,3 +299,16 @@ def test_obtener_comanda_ordena_los_detalles_por_id(db: Session) -> None:
     comanda = repository.obtener_comanda(db, 1)
 
     assert [detalle.id for detalle in comanda.detalles] == [2, 5, 7]
+
+
+def test_crear_cliente_asigna_id_con_flush_y_rollback_lo_descarta(db: Session) -> None:
+    cliente = repository.crear_cliente(db, "Ana Pérez", "2804 123456")
+
+    assert isinstance(cliente, Cliente)
+    assert cliente.id is not None
+    assert repository.obtener_cliente(db, cliente.id) is cliente
+    cliente_id = cliente.id
+
+    db.rollback()
+
+    assert repository.obtener_cliente(db, cliente_id) is None

@@ -1,19 +1,27 @@
-"""Pruebas del puente con Mesa y Cliente: lado Mesa real (M3) y lado Cliente stub (M4)."""
+"""Pruebas del puente con Mesa (M3) y Cliente (M4): los dos lados son reales."""
 
 import ast
 import importlib.util
 from pathlib import Path
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.modules.atencion import service as atencion_service
+from app.modules.atencion.models import Cliente
 from app.modules.reservas import puente
 from app.modules.salon import service as salon_service
+from app.shared.excepciones import DatosInvalidosError
 from app.shared.models.enums import EstadoMesa
+from app.shared.paginacion import ParametrosPaginacion
 
 RAIZ_RESERVAS = Path(puente.__file__).parent
 PAQUETE_RESERVAS = "app.modules.reservas"
+SALON = "app.modules.salon"
+ATENCION = "app.modules.atencion"
 SERVICE_DE_SALON = "app.modules.salon.service"
+SERVICE_DE_ATENCION = "app.modules.atencion.service"
 
 
 # S33: el puente lee todas las paginas de M3, no solo la primera
@@ -129,17 +137,44 @@ def test_doble_puente_informa_el_mismo_estado_en_obtener_mesa_y_listar_mesas(
     assert listada.estado == EstadoMesa.FUERA_DE_SERVICIO
 
 
-# S6 y S20: todo cliente con id positivo existe (el stub real, no el doble)
-@pytest.mark.parametrize("cliente_id", [7, 456])
-def test_existe_cliente_stub_acepta_id_positivo(db: Session, puente_real, cliente_id: int) -> None:
-    assert puente.existe_cliente(db, cliente_id) is True
+# S39 y S20: con el puente real, un cliente existe si M4 lo tiene
+def test_existe_cliente_real_conoce_al_cliente_de_m4(
+    db: Session, puente_real, cliente_en_m4: int
+) -> None:
+    assert puente.existe_cliente(db, cliente_en_m4) is True
 
 
-@pytest.mark.parametrize("cliente_id", [0, -1])
-def test_existe_cliente_stub_rechaza_id_no_positivo(
-    db: Session, puente_real, cliente_id: int
+@pytest.mark.parametrize("cliente_id", [456, 0])
+def test_existe_cliente_real_rechaza_al_que_m4_no_conoce(
+    db: Session, puente_real, cliente_en_m4: int, cliente_id: int
 ) -> None:
     assert puente.existe_cliente(db, cliente_id) is False
+
+
+# S41: el cliente nuevo queda en M4 una vez que quien llama confirma la transaccion
+def test_registrar_cliente_real_devuelve_el_id_y_queda_en_m4(db: Session, puente_real) -> None:
+    cliente_id = puente.registrar_cliente(db, "Luis Gómez", "+54 280 1234567")
+    db.commit()
+
+    assert cliente_id > 0
+    assert atencion_service.existe_cliente(db, cliente_id) is True
+    pagina = atencion_service.listar_clientes(db, ParametrosPaginacion(), "Luis")
+    assert [(c.id, c.nombre) for c in pagina.items] == [(cliente_id, "Luis Gómez")]
+
+
+# S42 y Decision 31: M4 rechaza los datos y el mensaje nombra el campo
+@pytest.mark.parametrize(
+    "nombre, telefono, campo", [("Luis3", "123", "nombre:"), ("Luis", "abc", "telefono:")]
+)
+def test_registrar_cliente_real_propaga_el_rechazo_de_m4(
+    db: Session, puente_real, nombre: str, telefono: str, campo: str
+) -> None:
+    with pytest.raises(DatosInvalidosError) as error:
+        puente.registrar_cliente(db, nombre, telefono)
+
+    assert campo in str(error.value)
+    assert not db.new
+    assert db.scalars(select(Cliente)).all() == []
 
 
 # --- Contratos de importacion (RNF-MAN-09): lint-imports no puede decir "solo desde el puente" ---
@@ -162,16 +197,15 @@ def _es_de(modulo: str, paquete: str) -> bool:
     return modulo == paquete or modulo.startswith(f"{paquete}.")
 
 
-def test_solo_el_puente_importa_salon() -> None:
+def test_solo_el_puente_importa_salon_y_atencion() -> None:
     archivos = sorted(RAIZ_RESERVAS.rglob("*.py"))
     assert RAIZ_RESERVAS / "puente.py" in archivos
 
     for archivo in archivos:
         modulos = _modulos_importados(archivo)
-        de_salon = {modulo for modulo in modulos if _es_de(modulo, "app.modules.salon")}
-
-        assert not any(_es_de(modulo, "app.modules.atencion") for modulo in modulos), archivo.name
-        if archivo.name == "puente.py":
-            assert all(_es_de(modulo, SERVICE_DE_SALON) for modulo in de_salon), de_salon
-        else:
-            assert not de_salon, f"{archivo.name} importa {sorted(de_salon)}"
+        for paquete, service in ((SALON, SERVICE_DE_SALON), (ATENCION, SERVICE_DE_ATENCION)):
+            de_otro_modulo = {modulo for modulo in modulos if _es_de(modulo, paquete)}
+            if archivo.name == "puente.py":
+                assert all(_es_de(modulo, service) for modulo in de_otro_modulo), de_otro_modulo
+            else:
+                assert not de_otro_modulo, f"{archivo.name} importa {sorted(de_otro_modulo)}"

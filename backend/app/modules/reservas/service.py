@@ -87,20 +87,39 @@ def _confirmar(db: Session, reserva: Reserva) -> None:
         raise conflicto from error
 
 
+def _validar_un_cliente(datos: ReservaCrear) -> None:
+    """S39: un cliente existente o uno nuevo, nunca los dos ni ninguno. Se comprueba primero."""
+    if (datos.cliente_id is None) == (datos.cliente_nuevo is None):
+        raise DatosInvalidosError(
+            "cliente_id/cliente_nuevo: indique un cliente registrado (cliente_id) "
+            "o los datos de un cliente nuevo (cliente_nuevo), no los dos ni ninguno"
+        )
+
+
+def _id_del_cliente(db: Session, datos: ReservaCrear) -> int:
+    """El cliente existente o, si no hay, el nuevo recien registrado en M4 (S41)."""
+    if datos.cliente_id is not None:
+        return datos.cliente_id
+    nuevo = datos.cliente_nuevo
+    return puente.registrar_cliente(db, nuevo.nombre, nuevo.telefono)
+
+
 def crear_reserva(db: Session, datos: ReservaCrear) -> ReservaSalida:
+    _validar_un_cliente(datos)
     _validar_mesa(db, datos.mesa_id)
-    _validar_cliente(db, datos.cliente_id)
+    if datos.cliente_id is not None:
+        _validar_cliente(db, datos.cliente_id)
     _validar_momento(datos.fecha, datos.hora)
     _validar_turno_libre(db, datos.mesa_id, datos.fecha, datos.hora)
     reserva = Reserva(
         mesa_id=datos.mesa_id,
-        cliente_id=datos.cliente_id,
+        cliente_id=_id_del_cliente(db, datos),  # ultimo paso antes de guardar (S41)
         fecha=datos.fecha,
         hora=datos.hora,
         cantidad_personas=datos.cantidad_personas,
         estado=EstadoReserva.ACTIVA,
     )
-    _confirmar(db, reserva)
+    _confirmar(db, reserva)  # un solo commit: la reserva y el cliente nuevo
     return ReservaSalida.model_validate(reserva)
 
 

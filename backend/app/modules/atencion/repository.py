@@ -92,6 +92,14 @@ def obtener_cliente(db: Session, cliente_id: int) -> Cliente | None:
     return db.get(Cliente, cliente_id)
 
 
+def crear_cliente(db: Session, nombre: str, telefono: str) -> Cliente:
+    """Agrega un cliente y obtiene su id con `flush`; sin commit, la transacción es del llamador."""
+    cliente = Cliente(nombre=nombre, telefono=telefono)
+    db.add(cliente)
+    db.flush()
+    return cliente
+
+
 def listar_clientes(
     db: Session, parametros: ParametrosPaginacion, q: str | None
 ) -> tuple[list[Cliente], int]:

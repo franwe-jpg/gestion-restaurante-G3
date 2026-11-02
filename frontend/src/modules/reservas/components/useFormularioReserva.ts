@@ -9,7 +9,12 @@ import type { Reserva, ReservaCrear, ReservaModificar } from '../types';
 import { useMesasDisponibles } from './useMesasDisponibles';
 import type { EstadoMesasDisponibles } from './useMesasDisponibles';
 import { errorDelServidor, turnoValido, validarReserva } from './validarReserva';
-import type { DatosFormularioReserva, ErrorDelServidor, ModoReserva } from './validarReserva';
+import type {
+  DatosFormularioReserva,
+  ErrorDelServidor,
+  ModoReserva,
+  SeleccionCliente,
+} from './validarReserva';
 
 export interface OpcionesFormularioReserva {
   /** Con `reserva` el formulario modifica esa fila; sin ella da de alta una reserva nueva. */
@@ -18,7 +23,7 @@ export interface OpcionesFormularioReserva {
 }
 
 const DATOS_VACIOS: DatosFormularioReserva = {
-  cliente: '',
+  cliente: { tipo: 'ninguno' },
   fecha: '',
   hora: '',
   cantidad: '',
@@ -30,11 +35,17 @@ const TEXTOS: Record<ModoReserva, { aviso: string; error: string }> = {
   edicion: { aviso: 'Reserva modificada', error: 'No se pudo modificar la reserva' },
 };
 
-/** La edición parte de los datos de la fila del listado, sin pedirlos de nuevo a la API (S24). */
+/** Campos de texto del formulario: el cliente se elige con `elegirCliente`, no se escribe. */
+export type CampoReserva = Exclude<keyof DatosFormularioReserva, 'cliente'>;
+
+/**
+ * La edición parte de los datos de la fila del listado, sin pedirlos de nuevo a la API (S24). El
+ * cliente de la edición no cambia ni se envía: queda en `ninguno` y la pantalla muestra el de la fila.
+ */
 function datosIniciales(reserva?: Reserva): DatosFormularioReserva {
   if (!reserva) return DATOS_VACIOS;
   return {
-    cliente: String(reserva.cliente_id),
+    cliente: DATOS_VACIOS.cliente,
     fecha: reserva.fecha,
     hora: reserva.hora,
     cantidad: String(reserva.cantidad_personas),
@@ -42,10 +53,19 @@ function datosIniciales(reserva?: Reserva): DatosFormularioReserva {
   };
 }
 
+/** Un cliente registrado viaja como `cliente_id`; uno nuevo, como `cliente_nuevo` (nunca los dos). */
+function aClienteDeReserva(cliente: SeleccionCliente) {
+  if (cliente.tipo === 'nuevo') {
+    return { cliente_nuevo: { nombre: cliente.nombre.trim(), telefono: cliente.telefono.trim() } };
+  }
+  // `ninguno` no llega acá: la validación local lo frena. Con 0 la API lo rechazaría con 422.
+  return { cliente_id: cliente.tipo === 'existente' ? cliente.cliente.id : 0 };
+}
+
 function aReservaCrear(datos: DatosFormularioReserva): ReservaCrear {
   return {
     mesa_id: Number(datos.mesa),
-    cliente_id: Number(datos.cliente),
+    ...aClienteDeReserva(datos.cliente),
     fecha: datos.fecha,
     hora: datos.hora,
     cantidad_personas: Number(datos.cantidad),
@@ -100,10 +120,25 @@ function useMesasDelTurno(
   return { estadoMesas, mesaElegida };
 }
 
+/** Estado de los datos escritos y sus cambios; la edición parte de los datos de la fila. */
+function useDatosReserva(reserva?: Reserva) {
+  const [datos, setDatos] = useState(() => datosIniciales(reserva));
+
+  const cambiar = (campo: CampoReserva, valor: string) => {
+    setDatos((anteriores) => ({ ...anteriores, [campo]: valor }));
+  };
+
+  const elegirCliente = (cliente: SeleccionCliente) => {
+    setDatos((anteriores) => ({ ...anteriores, cliente }));
+  };
+
+  return { datos, setDatos, cambiar, elegirCliente };
+}
+
 export function useFormularioReserva({ reserva, onGuardado }: OpcionesFormularioReserva) {
   const { mostrarToast } = useToast();
   const modo: ModoReserva = reserva ? 'edicion' : 'alta';
-  const [datos, setDatos] = useState(() => datosIniciales(reserva));
+  const { datos, setDatos, cambiar, elegirCliente } = useDatosReserva(reserva);
   const [errores, setErrores] = useState<ErrorDelServidor>({});
   const [enviando, setEnviando] = useState(false);
   const { estadoMesas, mesaElegida } = useMesasDelTurno(datos, setDatos, modo);
@@ -116,10 +151,6 @@ export function useFormularioReserva({ reserva, onGuardado }: OpcionesFormulario
       vigente.current = false;
     };
   }, []);
-
-  const cambiar = (campo: keyof DatosFormularioReserva, valor: string) => {
-    setDatos((anteriores) => ({ ...anteriores, [campo]: valor }));
-  };
 
   const enviar = async () => {
     const locales = validarReserva(
@@ -141,12 +172,13 @@ export function useFormularioReserva({ reserva, onGuardado }: OpcionesFormulario
       onGuardado();
       return;
     }
-    setErrores(errorDelServidor(respuesta.error ?? TEXTOS[modo].error));
+    setErrores(errorDelServidor(respuesta.error ?? TEXTOS[modo].error, datos.cliente));
   };
 
   return {
     datos,
     cambiar,
+    elegirCliente,
     errores,
     enviando,
     enviar,

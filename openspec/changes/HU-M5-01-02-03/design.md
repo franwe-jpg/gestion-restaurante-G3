@@ -4,6 +4,7 @@
 - **Entradas:** `proposal.md` (decisiones y supuestos S1 a S14) y `exploration.md` de este cambio. La spec (`specs/`) fija el contrato exacto de la API y los escenarios; si este diseño y la spec difieren en un código de estado o un mensaje, gana la spec y se corrige el diseño.
 - **Delta del issue #61 (mesas disponibles):** la spec aprobada agrega `GET /reservas/mesas-disponibles`, el rechazo de una mesa `FUERA_DE_SERVICIO` en el alta, el puente real con M3 y el selector de mesa del panel (supuestos S4, S5, S9, S10, S13, S17, S20 y S23 reescritos; S29 a S35 nuevos). Este diseño se actualizó en el lugar: las Decisiones 2, 3, 6 y 9 se ajustaron sin cambiar su número, y las Decisiones 13 a 20 son nuevas. Lo ya implementado antes del delta (tabla `reservas`, migración, listado, modificación y pantalla) no cambia, salvo lo que se indica.
 - **Delta del modal (AGENTS.md §5, regla del equipo del 2026-11-01):** la spec aprobada (commit `533ae20`) reemplaza el panel lateral de alta y edición por un modal sobre el `Dialog` compartido (supuestos S24, S34, S36, S37 y S38; requisitos «Formulario de alta», «Formulario de edición» y «Listado de reservas en pantalla»). La Decisión 10 queda **reemplazada** (se conserva su texto como historia) y las Decisiones 21 a 24 son nuevas. Es un delta solo del frontend: no cambia el backend, `shared/`, otros módulos, rutas ni migraciones.
+- **Delta del cliente registrado o nuevo (issue #61, HU-M4-01):** la spec agrega la sección «Delta: cliente registrado o nuevo (issue #61)», reescribe el contrato de `ReservaCrear` y del puente (lado Cliente real, operación `registrar_cliente`) y los supuestos S6, S13, S17, S20 y S34, y agrega S39 a S43. Las Decisiones 25 a 31, el flujo, los archivos, las pruebas, la estimación y la reversión de este delta están en la sección «Delta: cliente registrado o nuevo (issue #61)», al final. Las afirmaciones anteriores que describían el cliente como stub quedan marcadas como reemplazadas. Depende de dos funciones públicas de M4 que se implementan en el mismo PR, antes que este delta.
 - **Referencias:** `SPRINT-0/S0-05-arquitectura.md` (sección 3.3 y decisiones D-xx), `AGENTS.md` (secciones 4, 5, 6 y 9), `openspec/config.yaml` (`rules.design`).
 
 ## Enfoque técnico
@@ -11,7 +12,7 @@
 El módulo `reservas` se construye de punta a punta con el mismo patrón que M1 `productos` y M3 `salon`:
 
 - **Backend:** `router → service → repository → models` (D-01, D-02), con `schemas` en la entrada y la salida (D-06). El `service` abre y cierra la transacción (D-10); el `repository` solo hace `flush`. Los errores de negocio usan `shared/excepciones.py` y el manejador global de `main.py` los convierte en `{"detalle": "..."}` con 404, 409 o 422 (D-25, D-26). El listado usa `shared/paginacion.py` (D-27).
-- **Puente propio:** Mesa y Cliente se validan con un **puente propio** (`reservas/puente.py`), y el `service` lo llama siempre como `puente.<operación>(...)`. Con el delta del issue #61, el **lado Mesa es real**: el puente consulta a M3 solo con `app.modules.salon.service.listar_mesas` y lee todas sus páginas (Decisión 14, S33). El **lado Cliente sigue siendo un stub** hasta que M4 exponga Cliente (S6, S20). El puente es el único archivo de `reservas` que importa algo de `salon`, y no importa nada de `atencion` (contratos de `backend/pyproject.toml:138-154`, RNF-MAN-09).
+- **Puente propio:** Mesa y Cliente se validan con un **puente propio** (`reservas/puente.py`), y el `service` lo llama siempre como `puente.<operación>(...)`. Con el delta del issue #61, el **lado Mesa es real**: el puente consulta a M3 solo con `app.modules.salon.service.listar_mesas` y lee todas sus páginas (Decisión 14, S33). Con el delta del cliente, el **lado Cliente también es real**: `existe_cliente` y `registrar_cliente` delegan en `app.modules.atencion.service` (Decisión 27, S39); el stub de S6 y S20 ya no existe. El puente es el único archivo de `reservas` que importa algo de `salon` o de `atencion`, y solo sus `service` (contratos de `backend/pyproject.toml:53-69` y `:138-154`, RNF-MAN-09).
 - **Mesas disponibles (issue #61):** `GET /reservas/mesas-disponibles?fecha&hora` devuelve una lista simple de las mesas que se pueden reservar en ese turno: el `service` cruza las mesas del puente (sin las `FUERA_DE_SERVICIO`) con las reservas `ACTIVA` de esa fecha y hora exactas (Decisiones 13 y 15). El alta rechaza una mesa `FUERA_DE_SERVICIO` con 409 (Decisión 16).
 - **Regla de conflicto (R13):** doble defensa. El `service` consulta si ya hay una reserva `ACTIVA` en la misma mesa, fecha y hora; además, un **índice único parcial** en la base (`WHERE estado = 'ACTIVA'`) impide la doble reserva aunque dos solicitudes pasen la consulta al mismo tiempo. El `IntegrityError` del índice se traduce en 409.
 - **Frontend:** una sola página (`ReservasPage`) con navegador de fecha y tabla de reservas del día, como la maqueta `SPRINT-2/S2-04-maqueta/reservas.html`. El alta y la edición se abren en un **modal** (`ReservaFormDialog`, sobre el `Dialog` de `frontend/src/shared/components/ui/dialog.tsx`), no en el panel lateral de la primera versión ni en una página aparte (AGENTS.md §5, S24; Decisiones 21 a 24, que reemplazan a la Decisión 10). No se agregan rutas en `App.tsx` (la ruta `/reservas` ya existe en `frontend/src/App.tsx:104`). En el alta, el campo Mesa es un selector que se llena con la lista de mesas disponibles pedida al `api.ts` del módulo (Decisiones 18 y 19); el frontend no importa nada del módulo `salon` (AGENTS.md §9.4).
@@ -54,6 +55,8 @@ def existe_cliente(db: Session, cliente_id: int) -> bool:
     """Stub hasta que M4 exponga Cliente (S6, S20): todo cliente con id positivo existe."""
     return cliente_id > 0
 ```
+
+> **Actualización (delta del cliente):** el `existe_cliente` de arriba es la versión histórica. Ahora delega en `atencion.service.existe_cliente` y se agrega `registrar_cliente(db, nombre, telefono) -> int` (Decisión 27). El mecanismo de esta decisión no cambia.
 
 El `service` lo usa siempre a través del módulo (`from app.modules.reservas import puente` y luego `puente.obtener_mesa(db, ...)`), nunca con `from ... import obtener_mesa`. Así las pruebas reemplazan el comportamiento con `monkeypatch.setattr(puente, "obtener_mesa", ...)` y el código de producción no cambia.
 
@@ -110,9 +113,10 @@ Las reglas de S3 usan `ahora().date()` y `ahora().time()`. Las pruebas del `serv
 | --- | --- | --- |
 | Crear | 1. mesa existe (`puente.obtener_mesa`) | `NoEncontradoError` → 404 |
 | | 2. mesa no está `FUERA_DE_SERVICIO` (delta, S31) | `ReglaDeNegocioError` → 409 |
-| | 3. cliente existe (`puente.existe_cliente`) | `NoEncontradoError` → 404 |
+| | 3. cliente existe (`puente.existe_cliente`), solo con `cliente_id` (delta del cliente) | `NoEncontradoError` → 404 |
 | | 4. fecha y hora no pasadas (S3) | `DatosInvalidosError` → 422 |
 | | 5. sin otra reserva `ACTIVA` en mesa, fecha y hora (S4) | `ReglaDeNegocioError` → 409 |
+| | 6. solo con `cliente_nuevo`: registro del cliente en M4, último paso antes de guardar (delta del cliente, S41, Decisión 28) | `DatosInvalidosError` de M4 → 422 |
 | Modificar | 1. la reserva existe | `NoEncontradoError` → 404 |
 | | 2. la reserva está `ACTIVA` (S7) | `ReglaDeNegocioError` → 409 |
 | | 3. fecha y hora no pasadas | `DatosInvalidosError` → 422 |
@@ -144,7 +148,7 @@ La modificación no cambia con el delta: no consulta al puente (S27), así que u
 
 **Elección:** `mesa_id` y `cliente_id` son `INTEGER NOT NULL` sin FK (S10).
 
-**Justificación:** la tabla `clientes` no existe y el módulo es autocontenido; la integridad referencial la cubre el puente. Las FK se agregan en una migración posterior (seguimiento de la propuesta). El delta no cambia esta decisión: aunque el lado Mesa del puente ya consulta a M3, una FK hacia `mesas` acoplaría el esquema de `reservas` al de M3 y exigiría una migración nueva, que el delta no incluye (S10).
+**Justificación:** la tabla `clientes` no existe y el módulo es autocontenido; la integridad referencial la cubre el puente. Las FK se agregan en una migración posterior (seguimiento de la propuesta). El delta no cambia esta decisión: aunque el lado Mesa del puente ya consulta a M3, una FK hacia `mesas` acoplaría el esquema de `reservas` al de M3 y exigiría una migración nueva, que el delta no incluye (S10). Con el delta del cliente, la tabla de clientes de M4 ya existe y el puente consulta a M4, pero tampoco se agrega la FK hacia ella: el delta no incluye migraciones y la FK queda como seguimiento coordinado con M4 (preguntas abiertas).
 
 ### Decisión 10: frontend en una sola página con panel lateral, sin rutas nuevas (REEMPLAZADA por la Decisión 21)
 
@@ -279,6 +283,8 @@ El orden del alta queda: forma, existencia, fuera de servicio, cliente, momento 
 - Fixture `puente_real` (no autouse): deshace el doble volviendo a poner las funciones originales del módulo `puente`, guardadas al importar `conftest.py` (`OBTENER_MESA_REAL = puente.obtener_mesa`, etc.). Solo la piden las pruebas «el puente real».
 - Fixture `mesas_en_m3(db)`: fábrica que crea un sector y N mesas en la base de prueba con los modelos `Sector` y `Mesa` de `salon` (un `add_all` y un `commit`; el validador de `Sector.nombre` completa `nombre_normalizado`), con estado configurable. Los modelos de `salon` se importan **solo en las pruebas**: `lint-imports` controla `root_package = "app"` (`backend/pyproject.toml:51`) y no alcanza a `tests/`. El estado `FUERA_DE_SERVICIO` se asigna sobre el modelo porque M3 no ofrece una operación para cambiarlo.
 - Prueba de arquitectura `test_solo_el_puente_importa_salon` (en `test_puente.py`): recorre con `ast` los archivos de `app/modules/reservas/` y comprueba que ninguno importa `app.modules.atencion` y que solo `puente.py` importa de `app.modules.salon`, y únicamente `app.modules.salon.service`.
+
+> **Actualización (delta del cliente, Decisión 27):** el `existe_cliente` del doble ya no es «`cliente_id > 0`»: consulta un diccionario de clientes (por defecto, el 7) y el doble agrega `registrar_cliente`. `puente_sin_cliente` vacía ese diccionario y `puente_real` restaura también `existe_cliente` y `registrar_cliente` reales. La prueba de arquitectura pasa a permitir en `puente.py` también `app.modules.atencion.service`, y solo ese módulo de `atencion`.
 
 **Alternativas descartadas:**
 - Sembrar M3 en todas las pruebas: acopla las pruebas de `reservas` al esquema de M3 y las hace más lentas; la spec pide el doble (S20).
@@ -475,6 +481,10 @@ export function useFormularioReserva({ reserva, onGuardado }: OpcionesFormulario
 
 **Justificación:** S37: el formulario tiene cinco campos, el mismo volumen que `MesaFormDialog` y `ClienteFormDialog`, que usan el tamaño por defecto. El panel actual mide `lg:w-96` (24 rem), menos que `max-w-lg` (32 rem), así que el contenido entra sin cambios de estilo.
 
+### Decisiones 25 a 31 (delta del cliente)
+
+Están en la sección «Delta: cliente registrado o nuevo (issue #61)», al final de este documento, junto con su flujo, archivos, pruebas, estimación y reversión.
+
 ## Flujo de datos
 
 ```text
@@ -482,7 +492,7 @@ POST /api/v1/reservas  (ReservaCrear)
   router.crear_reserva ──→ service.crear_reserva
                               ├─ puente.obtener_mesa ─────── 404 si None (lee todas las páginas de M3)
                               │                      └────── 409 si FUERA_DE_SERVICIO
-                              ├─ puente.existe_cliente ────── 404 si False (stub)
+                              ├─ puente.existe_cliente ────── 404 si False (real, M4; solo con cliente_id; ver el delta del cliente)
                               ├─ _validar_momento(ahora()) ── 422 si es pasado
                               ├─ repository.existe_reserva_activa ── 409 si hay otra ACTIVA
                               ├─ repository.agregar (flush)
@@ -573,7 +583,8 @@ class Reserva(Base):
 | Schema | Campos | Notas |
 | --- | --- | --- |
 | `_DatosDelTurno` (base) | `fecha: date`, `hora: time`, `cantidad_personas: StrictInt = Field(gt=0)` | `extra="forbid"`; `field_validator("hora")` rechaza segundos, microsegundos y zona |
-| `ReservaCrear(_DatosDelTurno)` | `mesa_id: StrictInt = Field(gt=0)`, `cliente_id: StrictInt = Field(gt=0)` | `estado` no se recibe (422 por `extra="forbid"`) |
+| `ReservaCrear(_DatosDelTurno)` | `mesa_id: StrictInt = Field(gt=0)`; con el delta del cliente, `cliente_id: StrictInt \| None = Field(default=None, gt=0)` y `cliente_nuevo: ClienteNuevo \| None = None` (antes, `cliente_id` obligatorio) | `estado` no se recibe (422 por `extra="forbid"`); `model_validator` exige exactamente un cliente (Decisión 25) |
+| `ClienteNuevo` (delta del cliente) | `nombre: StrictStr`, `telefono: StrictStr` | `extra="forbid"`; solo forma, las reglas de contenido son de M4 (Decisión 26, S40, S42) |
 | `ReservaModificar(_DatosDelTurno)` | (solo los tres campos de la base) | enviar `mesa_id` o `cliente_id` da 422 (la mesa y el cliente no cambian, S7) |
 | `ReservaSalida` | `id`, `mesa_id`, `cliente_id`, `fecha`, `hora`, `cantidad_personas`, `estado: EstadoReserva` | `from_attributes=True`; `field_serializer("hora")` → `"HH:MM"` |
 | `FiltroReservas(ParametrosPaginacion)` | `fecha: date \| None = None`, `estado: EstadoReserva \| None = None` | se recibe con `Query()` |
@@ -591,9 +602,10 @@ Los nombres JSON van en `snake_case`, como `sector_id` en `salon` (S14: `cantida
 | `MesaReservable` | `dataclass(frozen=True)`: `id`, `numero`, `capacidad`, `sector: SectorDeMesa`, `estado: EstadoMesa` | Decisión 2 |
 | `listar_mesas(db) -> list[MesaReservable]` | todas las mesas de M3, incluidas las `FUERA_DE_SERVICIO`, en el orden de M3 | Decisión 14 |
 | `obtener_mesa(db, mesa_id) -> MesaReservable \| None` | la mesa con ese `id` dentro de la misma lectura, o `None` | Decisión 14 |
-| `existe_cliente(db, cliente_id) -> bool` | stub: `cliente_id > 0` | sin cambios (S6, S20) |
+| `existe_cliente(db, cliente_id) -> bool` | real: delega en `atencion.service.existe_cliente` (antes, stub `cliente_id > 0`) | Decisión 27 (S39) |
+| `registrar_cliente(db, nombre, telefono) -> int` | delega en `atencion.service.registrar_cliente_para_reserva`; sin `commit` ni `rollback` | Decisión 27 (S39, S41) |
 
-Importaciones del puente: `app.modules.salon.service` (solo ese módulo de `salon`), `app.shared.models.enums.EstadoMesa` y `app.shared.paginacion` (`LIMIT_MAXIMO`, `ParametrosPaginacion`). El docstring del módulo se actualiza: ya no dice que toda mesa positiva existe.
+Importaciones del puente: `app.modules.salon.service` (solo ese módulo de `salon`), `app.modules.atencion.service` (solo ese módulo de `atencion`, delta del cliente), `app.shared.models.enums.EstadoMesa` y `app.shared.paginacion` (`LIMIT_MAXIMO`, `ParametrosPaginacion`). El docstring del módulo se actualiza: ya no dice que toda mesa positiva existe.
 
 ### Backend: repository (`reservas/repository.py`)
 
@@ -620,7 +632,7 @@ def listar_reservas(db: Session, filtro: FiltroReservas) -> Pagina[ReservaSalida
 def listar_mesas_disponibles(db: Session, fecha: date, hora: time) -> list[MesaDisponible]  # delta
 ```
 
-Funciones privadas (cada una de pocas líneas, para cumplir el límite de 50 líneas y complejidad 10 de RNF-MAN-05): `_validar_mesa` (con el delta, también rechaza `FUERA_DE_SERVICIO`, Decisión 16), `_validar_cliente`, `_validar_momento(fecha, hora)`, `_validar_turno_libre(db, mesa_id, fecha, hora, excluir_id)`, `_obtener(db, reserva_id)`, `_validar_activa(reserva)`, `_confirmar(db, reserva)`. Como en `productos.service.modificar_seccion` (`backend/app/modules/productos/service.py:119-144`), la reserva se modifica recién después de validar todo.
+Funciones privadas (cada una de pocas líneas, para cumplir el límite de 50 líneas y complejidad 10 de RNF-MAN-05): `_validar_mesa` (con el delta, también rechaza `FUERA_DE_SERVICIO`, Decisión 16), `_validar_cliente` (con el delta del cliente, solo si llega `cliente_id`), `_id_del_cliente(db, datos)` (delta del cliente: registra al cliente nuevo como último paso, Decisión 28), `_validar_momento(fecha, hora)`, `_validar_turno_libre(db, mesa_id, fecha, hora, excluir_id)`, `_obtener(db, reserva_id)`, `_validar_activa(reserva)`, `_confirmar(db, reserva)`. Como en `productos.service.modificar_seccion` (`backend/app/modules/productos/service.py:119-144`), la reserva se modifica recién después de validar todo.
 
 ### Backend: router (`reservas/router.py`) y registro
 
@@ -691,7 +703,7 @@ Los parámetros de consulta se arman con `URLSearchParams`. Los tipos de mesa so
 | `components/estadosReserva.ts` | Etiqueta y variante de cada estado (Decisión 12) |
 | `components/ReservaFormulario.tsx` → `components/ReservaFormDialog.tsx` (delta del modal) | Primera versión: panel lateral (`Card`) con título «Nueva reserva» o «Modificar reserva», botón «Cerrar formulario», campos Cliente (número), Fecha, Hora, Cantidad de personas y Mesa (número), botones «Cancelar» y «Guardar reserva»; en edición, Cliente y Mesa se muestran deshabilitados. Con el delta del modal: modal sobre `Dialog` (`size` por defecto), mismo título y mismos campos, sin «Cerrar formulario» (lo reemplaza la X del `Dialog`) y con «Cancelar» y «Guardar reserva» en el `footer` (Decisiones 21 y 24) |
 | `components/useFormularioReserva.ts` | Estado del formulario, validación local, llamada a `crearReserva` o `modificarReserva`, toast de éxito (`useToast`) y errores del servidor, siguiendo `useFormularioSeccion` (`frontend/src/modules/productos/components/useFormularioSeccion.ts:77-130`) |
-| `components/validarReserva.ts` | `validarReserva(datos, modo, hoy, horaActual)`: cliente y mesa enteros positivos (solo alta), fecha obligatoria y no anterior a hoy, hora obligatoria y posterior a la actual si la fecha es hoy, personas entero positivo; `errorDelServidor(mensaje)` deja el mensaje del 404, 409 o 422 como error general (como `validarSeccion.ts:41-48`) |
+| `components/validarReserva.ts` | `validarReserva(datos, modo, hoy, horaActual)`: cliente y mesa enteros positivos (solo alta; con el delta del cliente, Cliente es una `SeleccionCliente` y el cliente nuevo se valida con el espejo de las reglas de M4, Decisiones 30 y 31), fecha obligatoria y no anterior a hoy, hora obligatoria y posterior a la actual si la fecha es hoy, personas entero positivo; `errorDelServidor(mensaje)` deja el mensaje del 404, 409 o 422 como error general (como `validarSeccion.ts:41-48`) |
 | `fechas.ts` | Funciones de la Decisión 11 |
 | `components/index.ts` | Reexporta `ReservasTabla`, `ReservaFormulario` (con el delta del modal, `ReservaFormDialog`) y `NavegadorFecha` |
 | `components/useMesasDisponibles.ts` (delta) | Pide la lista solo con un turno válido, deriva `inactivo`, `cargando`, `listo` o `error` y descarta respuestas viejas (Decisión 18) |
@@ -705,8 +717,8 @@ La validación local recibe `hoy` y `horaActual` como parámetros (el hook los t
 
 | Maqueta | Implementación | Motivo |
 | --- | --- | --- |
-| Cliente con búsqueda por nombre o teléfono y alta de cliente nuevo | Campo numérico «Cliente (número)» | M4 no expone Cliente (S6, S13) |
-| Columna «Teléfono» y nombre del cliente | Sin teléfono; «Cliente n.º 12» | Ídem |
+| Cliente con búsqueda por nombre o teléfono y alta de cliente nuevo | Con el delta del cliente: búsqueda por nombre o teléfono con resultados «Nombre · Teléfono» y opción «Cliente nuevo» con Nombre y Teléfono (Decisiones 29 y 30). La edición sigue con «Cliente (número)» de solo lectura | Antes, campo numérico porque M4 no exponía Cliente; el delta lo resuelve (S13, S43). La forma exacta del selector puede diferir de la maqueta: se reutilizan `SearchInput`, `List` y `Button` de `shared/` |
+| Columna «Teléfono» y nombre del cliente | Sin teléfono; «Cliente n.º 12» | Sigue fuera de alcance con el delta del cliente (S23, S43) |
 | Mesa como `select` con sector y capacidad | Alta: selector «Sector · Mesa N (capacidad personas)» con las mesas disponibles para la fecha y la hora (delta, S13, S34). Edición: campo de solo lectura con el `mesa_id`. La tabla sigue mostrando «Mesa n.º {mesa_id}» con el `id` interno | La tabla no cambia en este cambio (S23); ver «Riesgos del delta y reversión» |
 | La tabla muestra todos los estados del día | Selector de estado con `Activa` por defecto y opción «Todas» | S8 |
 | Acción «Cancelar reserva» | No se muestra | HU-M5-04 y HU-M5-05 fuera de alcance |
@@ -726,7 +738,7 @@ Cada prueba se escribe primero, se ve fallar (RED) y después se implementa (GRE
 
 | Capa | Archivo | Pruebas (una por escenario crítico) |
 | --- | --- | --- |
-| Puente | `test_puente.py` | `test_obtener_mesa_stub_devuelve_la_mesa_con_su_id` (se elimina con el delta, ver «Backend: pruebas del delta»), `test_existe_cliente_stub_acepta_id_positivo` |
+| Puente | `test_puente.py` | `test_obtener_mesa_stub_devuelve_la_mesa_con_su_id` (se elimina con el delta, ver «Backend: pruebas del delta»), `test_existe_cliente_stub_acepta_id_positivo` (se elimina con el delta del cliente: la reemplazan las pruebas del puente real con M4) |
 | Schemas | `test_schemas.py` | `test_reserva_crear_acepta_datos_validos`, `test_reserva_crear_rechaza_cantidad_no_positiva` (parametrizada 0 y -1), `test_reserva_crear_rechaza_tipos_laxos` (`"4"`, `true`), `test_reserva_crear_rechaza_estado`, `test_reserva_crear_rechaza_hora_con_segundos`, `test_reserva_modificar_rechaza_mesa_o_cliente`, `test_reserva_salida_serializa_hora_en_minutos`, `test_filtro_reservas_rechaza_estado_desconocido` |
 | Service, HU-M5-01 | `test_service.py` | `test_crear_reserva_queda_activa`, `test_crear_reserva_rechaza_fecha_pasada`, `test_crear_reserva_rechaza_hora_pasada_de_hoy`, `test_crear_reserva_acepta_hoy_con_hora_futura` (límite), `test_crear_reserva_rechaza_mesa_inexistente`, `test_crear_reserva_rechaza_cliente_inexistente`, `test_crear_reserva_acepta_una_cantidad_muy_grande_de_personas` (límite: 100 personas, sin control contra la capacidad; S5), `test_crear_reserva_rechaza_turno_ocupado`, `test_crear_reserva_permite_turno_de_reserva_cancelada`, `test_crear_reserva_permite_misma_hora_en_otra_mesa` |
 | Service, R13 | `test_service.py` | `test_crear_reserva_traduce_conflicto_del_indice_en_409`: se reemplaza `repository.existe_reserva_activa` por una función que devuelve `False` (simula dos altas simultáneas) y el `commit` choca con el índice parcial; se espera `ReglaDeNegocioError` y la sesión queda usable (`rollback`) |
@@ -741,7 +753,7 @@ Las pruebas de migración siguen el estilo de `backend/tests/modules/salon/test_
 
 | Capa | Archivo | Pruebas nuevas |
 | --- | --- | --- |
-| Puente real | `test_puente.py` (con `puente_real` y `mesas_en_m3`) | `test_listar_mesas_lee_todas_las_paginas_de_m3` (120 mesas en un sector, números 1 a 120: devuelve 120, la última es la 120); `test_obtener_mesa_encuentra_la_mesa_de_la_segunda_pagina` (la 120); `test_obtener_mesa_inexistente_devuelve_none` (999); `test_listar_mesas_incluye_fuera_de_servicio_con_su_estado`; `test_obtener_mesa_y_listar_mesas_coinciden` (mismo `MesaReservable` para cada id); `test_listar_mesas_propaga_el_error_de_m3_en_la_segunda_pagina` (`pytest.raises`); `test_existe_cliente_stub_*` (se conservan); `test_solo_el_puente_importa_salon` (Decisión 17) |
+| Puente real | `test_puente.py` (con `puente_real` y `mesas_en_m3`) | `test_listar_mesas_lee_todas_las_paginas_de_m3` (120 mesas en un sector, números 1 a 120: devuelve 120, la última es la 120); `test_obtener_mesa_encuentra_la_mesa_de_la_segunda_pagina` (la 120); `test_obtener_mesa_inexistente_devuelve_none` (999); `test_listar_mesas_incluye_fuera_de_servicio_con_su_estado`; `test_obtener_mesa_y_listar_mesas_coinciden` (mismo `MesaReservable` para cada id); `test_listar_mesas_propaga_el_error_de_m3_en_la_segunda_pagina` (`pytest.raises`); `test_existe_cliente_stub_*` (se conservaban hasta el delta del cliente, que las elimina); `test_solo_el_puente_importa_salon` (Decisión 17; el delta del cliente la extiende a `atencion`) |
 | Schemas | `test_schemas.py` | `test_consulta_mesas_disponibles_exige_fecha_y_hora`, `test_consulta_mesas_disponibles_rechaza_hora_con_segundos`, `test_mesa_disponible_no_expone_el_estado` |
 | Service, disponibles | `test_service.py` | una por escenario del requisito «Mesas disponibles»: mesa libre (forma exacta del elemento), fuera de servicio excluida, reserva activa en el turno excluye, otra hora u otra fecha no excluye, reservas no activas no excluyen (parametrizada), `OCUPADA` incluida, fecha pasada y hora pasada o igual (422, y el puente no se llama: el doble falla si se lo llama), turnos válidos parecidos, todas reservadas (vacía), ninguna reservable (vacía, dos casos), orden por sector, número e id con el doble 12, 15, 14, mismo número en sectores distintos, reservar saca la mesa de la lista, la consulta no modifica datos |
 | Service, alta | `test_service.py` | `test_crear_reserva_rechaza_mesa_fuera_de_servicio` (409 y nada guardado), `test_crear_reserva_acepta_mesa_ocupada`, `test_crear_reserva_rechaza_mesa_que_m3_no_conoce` (123 → 404), `test_modificar_reserva_con_mesa_fuera_de_servicio_se_modifica` (S27) |
@@ -759,7 +771,7 @@ Las pruebas de migración siguen el estilo de `backend/tests/modules/salon/test_
 | `conftest.py` | `puente_sin_mesa` | Vacía el doble en lugar de reemplazar solo `obtener_mesa` |
 | `test_puente.py` | `test_obtener_mesa_stub_devuelve_la_mesa_con_su_id`, `test_obtener_mesa_stub_rechaza_id_no_positivo` | Se eliminan: el stub de mesa ya no existe; los reemplazan las pruebas del puente real |
 | `test_puente.py` | docstring del módulo | Ya no dice «stub hasta que M3…» para la mesa |
-| `test_service.py` | `test_crear_reserva_acepta_cualquier_id_positivo_con_el_stub` (mesa 123 → 201) | Se divide: la mesa 123 responde 404 (escenario «Una mesa que M3 no conoce…») y el cliente 456 con la mesa 5 responde 201 (escenario «El stub de cliente…») |
+| `test_service.py` | `test_crear_reserva_acepta_cualquier_id_positivo_con_el_stub` (mesa 123 → 201) | Se divide: la mesa 123 responde 404 (escenario «Una mesa que M3 no conoce…») y el cliente 456 con la mesa 5 responde 201 (escenario «El stub de cliente…»; con el delta del cliente esa segunda parte pasa a esperar 404, ver «Pruebas del delta (Strict TDD)» del delta del cliente) |
 | `test_service.py` | `test_crear_reserva_conflicto_no_depende_del_puente` | Compara con la mesa 5 del doble en lugar de `MesaReservable(id=5)` |
 | `test_service.py` | `test_crear_reserva_orden_de_validacion` | `MesaReservable(mesa_id)` posicional ya no construye; usa `puente_doble.poner(...)`, y agrega el paso «fuera de servicio» entre la mesa inexistente y el cliente |
 | `test_service.py` | `test_modificar_reserva_no_consulta_mesa_ni_cliente` | Sigue válida; se refuerza con un doble cuyos métodos fallan si se los llama |
@@ -827,7 +839,7 @@ Cobertura esperada por encima de los umbrales (70 % backend, 60 % frontend), por
 
 ## Matriz de amenazas
 
-N/A (también para el delta del modal, que solo cambia componentes del frontend, y para el delta del issue #61, que solo agrega una ruta HTTP de lectura y una llamada en proceso a `salon.service`): el cambio no agrega enrutamiento de procesos, comandos de shell, subprocesos, automatización de VCS o PR, clasificación de archivos ejecutables ni integración de procesos. Las consultas son parametrizadas por SQLAlchemy (D-07, RNF-SEG-05) y los errores no exponen trazas (D-26).
+N/A (también para el delta del modal, que solo cambia componentes del frontend, y para el delta del issue #61, que solo agrega una ruta HTTP de lectura y una llamada en proceso a `salon.service`; también para el delta del cliente, que agrega dos llamadas en proceso a `atencion.service` y, en el frontend, una lectura de la ruta existente `GET /clientes`): el cambio no agrega enrutamiento de procesos, comandos de shell, subprocesos, automatización de VCS o PR, clasificación de archivos ejecutables ni integración de procesos. Las consultas son parametrizadas por SQLAlchemy (D-07, RNF-SEG-05) y los errores no exponen trazas (D-26).
 
 ## Archivos a crear o modificar
 
@@ -988,6 +1000,351 @@ Orden sugerido para el delta del modal (Strict TDD, una sola unidad de trabajo d
 
 **Reversión del delta del modal:** no hay esquema ni backend involucrados, así que no hace falta ningún `alembic downgrade`. Antes de integrar, se revierte su commit (`git revert`), con lo que vuelven el panel lateral y el nombre `ReservaFormulario`. **Atención:** si se quisiera volver al panel conservando la corrección, hay que revertir solo el contenedor y la página y **mantener la guarda de `useFormularioReserva`**: es una corrección real (S38), válida también para el panel, y no un efecto secundario del modal. Ya integrado, el plan de reversión de la propuesta no cambia. Verificación: las pruebas del frontend en verde.
 
+## Delta: cliente registrado o nuevo (issue #61)
+
+- **Entradas:** spec, sección «Delta: cliente registrado o nuevo (issue #61)», contrato de `ReservaCrear` y `ClienteNuevo`, contrato del puente y supuestos S39 a S43 (S6, S13, S17, S20 y S34 reescritos).
+- **Interfaz de M4** (acordada en `openspec/changes/HU-M4-01-02-03/design.md`, «Delta: interfaz acordada con M5»): `atencion.service.registrar_cliente_para_reserva(db, nombre, telefono) -> int` valida con el `ClienteNuevo` de M4, lanza `DatosInvalidosError` con un mensaje que nombra el campo, hace `add` + `flush` y **nunca** `commit` ni `rollback`; `atencion.service.existe_cliente(db, cliente_id) -> bool`. M4 las implementa en el mismo PR y **antes** que este delta.
+- **No cambia:** la tabla `reservas` y sus migraciones, `ReservaSalida`, `PUT /reservas/{id}`, el listado, las mesas disponibles, la tabla de la pantalla («Cliente n.º», S23) y el modal de edición.
+
+### Decisión 25: `ReservaCrear` con exactamente un cliente, validado con `model_validator`
+
+**Elección:**
+
+```python
+class ReservaCrear(_DatosDelTurno):
+    mesa_id: StrictInt = Field(gt=0)
+    cliente_id: StrictInt | None = Field(default=None, gt=0)
+    cliente_nuevo: ClienteNuevo | None = None
+
+    @model_validator(mode="after")
+    def _exactamente_un_cliente(self) -> Self:
+        """S39: un cliente existente o uno nuevo, nunca los dos ni ninguno."""
+        if (self.cliente_id is None) == (self.cliente_nuevo is None):
+            raise ValueError("Indique exactamente uno de cliente_id o cliente_nuevo")
+        return self
+```
+
+- `"cliente_nuevo": null` cuenta como ausente: sin `cliente_id` responde 422 (escenario «Ningún cliente»). Los dos presentes también responden 422. Por simetría, `"cliente_id": null` también cuenta como ausente: con un `cliente_nuevo` válido se acepta como alta con cliente nuevo. `Supuesto:` la spec no trae ese caso; se anota en el PR. FastAPI lo resuelve antes de llamar al `service`, así que no se consulta al puente ni se guarda nada.
+- El error de un `model_validator` llega con `loc = ("body",)`, y el manejador global (`backend/app/main.py:85-91`) arma `Datos invalidos. : Value error, Indique exactamente uno de cliente_id o cliente_nuevo`. El `detalle` nombra los dos campos, que es lo que pide la spec. El «: » sin campo delante es cosmético y se acepta.
+- `Self` se importa de `typing` (Python 3.12).
+
+**Alternativas descartadas:**
+
+| Opción | Problema |
+| --- | --- |
+| `field_validator("cliente_nuevo")` con `validate_default=True` que lee `info.data["cliente_id"]` | El `loc` nombraría `cliente_nuevo`, pero si `cliente_id` es inválido (`0`, `"7"`) no está en `info.data` y se sumaría un segundo error falso de «ningún cliente». La regla queda escondida en un campo |
+| Unión de dos esquemas (`...ConCliente` y `...ConClienteNuevo`) | El JSON no trae discriminador y Pydantic informa los errores de las dos ramas, difíciles de leer |
+| Hacer que el manejador global nombre un campo cuando `loc` está vacío | Toca `backend/app/main.py`, que es compartido; queda fuera del delta |
+
+**Justificación:** S39, S15 y D-06. Es una regla de forma, así que vive en el `schema`, como S16.
+
+### Decisión 26: `ClienteNuevo` de M5 solo de forma
+
+**Elección:**
+
+```python
+class ClienteNuevo(BaseModel):
+    """Cliente que se registra con la reserva (S40). Solo forma: las reglas de contenido son de M4 (S42)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    nombre: StrictStr
+    telefono: StrictStr
+```
+
+- `StrictStr` rechaza `"nombre": 123` y `extra="forbid"` rechaza `dni` (escenario «Forma inválida del cliente»), con el mismo criterio que `StrictInt`.
+- Sin `min_length`, sin recorte y sin patrón: `""`, `"   "` y `"Luis3"` pasan la forma y los rechaza M4 al registrar, con su mensaje (Decisión 28).
+- Consecuencia aceptada (S17): un nombre inválido junto con una mesa inexistente responde 404 y no 422 (escenario «Datos inválidos del cliente con mesa inexistente»).
+
+**Alternativas descartadas:** copiar los validadores de `atencion.schemas.ClienteNuevo` (duplica las reglas que S42 deja en M4 y pueden divergir); importar ese esquema (prohibido por `backend/pyproject.toml:53-69`); usar `str` (Pydantic v2 tampoco convierte números a texto, pero `StrictStr` deja explícita la intención y sigue el estilo del módulo).
+
+### Decisión 27: lado Cliente del puente real, por el `service` de M4
+
+**Elección:**
+
+```python
+from app.modules.atencion import service as atencion_service
+
+
+def existe_cliente(db: Session, cliente_id: int) -> bool:
+    """Real (S39): un cliente existe si M4 lo tiene."""
+    return atencion_service.existe_cliente(db, cliente_id)
+
+
+def registrar_cliente(db: Session, nombre: str, telefono: str) -> int:
+    """Registra el cliente en M4 dentro de la sesion de la reserva; M4 no confirma (S41)."""
+    return atencion_service.registrar_cliente_para_reserva(db, nombre, telefono)
+```
+
+- El puente llama a M4 a través del módulo (`atencion_service.<función>`), como a `salon_service` (Decisión 14), para que las pruebas puedan reemplazarlo.
+- Sin `try`: el `DatosInvalidosError` de M4 sube tal cual y el manejador global responde 422 con el mensaje de M4. `existe_cliente(db, 0)` lo responde M4 (`False`); el puente no agrega reglas. El docstring del módulo deja de decir «stub».
+- **Contratos:** `app.modules.reservas.puente → app.modules.atencion.service` está permitido (`backend/pyproject.toml:53-69` prohíbe solo `router`, `repository`, `models` y `schemas`). No hay ciclo: `atencion.service` no importa nada de `reservas`.
+- **Doble de prueba** (`backend/tests/modules/reservas/conftest.py`): `DoblePuente` agrega `clientes: dict[int, tuple[str, str]]` (por defecto el 7, «Ana Pérez», «+54 280 1234567»), `registrados: list[tuple[int, str, str]]`, `poner_cliente(id, nombre, telefono)` y `registrar_cliente(db, nombre, telefono)`. Este último valida con el `ClienteNuevo` de `atencion.schemas`, importado **solo en las pruebas** (como los modelos de `salon` de la Decisión 17; `lint-imports` no alcanza a `tests/`), traduce el `ValidationError` a `DatosInvalidosError("Datos invalidos. <campo>: <mensaje>")`, asigna ids desde 100 y lo agrega a `clientes` y a `registrados`. `existe_cliente` consulta `clientes`. `puente_sin_cliente` vacía `clientes`; `puente_real` restaura también `registrar_cliente` (`REGISTRAR_CLIENTE_REAL`).
+- **Límite del doble:** su lista no participa de la transacción y un `rollback` no la vacía. Por eso el escenario «La base rechaza el duplicado al confirmar» con cliente nuevo se prueba solo con el puente real.
+- **Prueba de arquitectura:** `test_solo_el_puente_importa_salon` pasa a `test_solo_el_puente_importa_salon_y_atencion`: fuera de `puente.py`, ningún archivo importa `app.modules.salon` ni `app.modules.atencion`; `puente.py` importa solo `app.modules.salon.service` y `app.modules.atencion.service`.
+
+**Alternativas descartadas:** llamar a M4 desde el `service` (la spec lo reserva al puente); pasar al puente el `ClienteNuevo` de M5 (acopla el puente al esquema; el contrato con M4 es de tipos primitivos); que el doble copie las reglas de M4 (pueden divergir; usar el esquema real de M4 en las pruebas mantiene una sola fuente).
+
+### Decisión 28: orden del alta con el registro al final y atomicidad sin código de transacción nuevo
+
+**Elección:**
+
+```python
+def crear_reserva(db: Session, datos: ReservaCrear) -> ReservaSalida:
+    _validar_mesa(db, datos.mesa_id)                        # 404 y 409
+    if datos.cliente_id is not None:
+        _validar_cliente(db, datos.cliente_id)              # 404, solo con cliente existente
+    _validar_momento(datos.fecha, datos.hora)               # 422
+    _validar_turno_libre(db, datos.mesa_id, datos.fecha, datos.hora)  # 409
+    reserva = Reserva(
+        mesa_id=datos.mesa_id,
+        cliente_id=_id_del_cliente(db, datos),              # ultimo paso antes de guardar (S41)
+        fecha=datos.fecha,
+        hora=datos.hora,
+        cantidad_personas=datos.cantidad_personas,
+        estado=EstadoReserva.ACTIVA,
+    )
+    _confirmar(db, reserva)                                 # un solo commit: reserva y cliente
+    return ReservaSalida.model_validate(reserva)
+
+
+def _id_del_cliente(db: Session, datos: ReservaCrear) -> int:
+    """El cliente existente o, si no hay, el nuevo recien registrado en M4 (Decision 25)."""
+    if datos.cliente_id is not None:
+        return datos.cliente_id
+    nuevo = datos.cliente_nuevo
+    return puente.registrar_cliente(db, nuevo.nombre, nuevo.telefono)
+```
+
+Sin `assert` (Ruff `S101` lo prohíbe en `app/`): el `model_validator` garantiza que, sin `cliente_id`, hay `cliente_nuevo`. `crear_reserva` queda en unas 18 líneas y complejidad 2; `_id_del_cliente`, complejidad 2 (RNF-MAN-05).
+
+**Atomicidad (S41), verificada contra el código actual:**
+
+1. Todas las lecturas y reglas van antes de cualquier escritura. Un 404, 409 o 422 de mesa, cliente existente, momento o turno deja la sesión sin cambios pendientes, y el cliente nuevo nunca se registra.
+2. `registrar_cliente` (M4) hace `add` + `flush` sin confirmar: el cliente queda en la transacción abierta de la sesión de la solicitud.
+3. `_confirmar` (`backend/app/modules/reservas/service.py:75-87`) ya hace `repository.agregar` (flush) y `db.commit()` dentro de un `try`: reserva y cliente se confirman juntos. Ante un `IntegrityError` (en el flush o en el commit, incluida la carrera por el índice único parcial) hace `db.rollback()`, que descarta también el cliente pendiente, y responde 409. No cambia.
+4. Si M4 rechaza los datos, valida antes de agregar (prueba 4 del diseño de M4), así que no queda nada pendiente. Aunque quedara algo, `get_db` (`backend/app/database.py:53-56`) usa `with SessionLocal()`: al terminar la solicitud sin `commit`, `Session.close()` deshace la transacción. Lo mismo vale para cualquier otro error (500).
+
+Por eso no se agrega ningún `try`/`rollback`, `begin_nested` ni `commit` nuevo. Efecto lateral: el `flush` de M4 toma el bloqueo de escritura de SQLite unos milisegundos antes del `commit`, muy por debajo de los 200 ms de RNF-REN-03.
+
+**Alternativas descartadas:**
+
+| Opción | Problema |
+| --- | --- |
+| Registrar al cliente primero y validar después | Invierte S17 (un nombre inválido ganaría a la mesa inexistente) y deja un cliente pendiente ante cada 404, 409 o 422 posterior; en la sesión compartida de las pruebas, o ante un `commit` futuro, sería un huérfano |
+| `db.begin_nested()` (punto de guardado) alrededor del registro | Innecesario con una sola confirmación al final |
+| Que M4 confirme y M5 borre el cliente si la reserva falla | Compensación frágil y un borrado en datos de otro módulo (S0-05 §3.3) |
+| `try`/`except DatosInvalidosError` con `rollback` explícito | Duplica lo que ya garantiza el cierre de la sesión |
+
+### Decisión 29: búsqueda de clientes desde el `api.ts` de reservas (300 ms de espera, desde 1 carácter, 10 resultados)
+
+**Elección:**
+
+- `types.ts` (propios de `reservas`, AGENTS.md §9.4): `ClienteEncontrado { id: number; nombre: string; telefono: string }` (los campos de `ClienteSalida` de M4 que se usan), `ClienteNuevo { nombre: string; telefono: string }` y `ReservaCrear` como unión, para que el tipo impida enviar los dos clientes:
+
+  ```ts
+  interface DatosDelAlta { mesa_id: number; fecha: string; hora: string; cantidad_personas: number }
+  export type ReservaCrear = DatosDelAlta & ({ cliente_id: number } | { cliente_nuevo: ClienteNuevo });
+  ```
+
+- `api.ts`: `buscarClientes(q: string): Promise<RespuestaApi<Pagina<ClienteEncontrado>>>` pide `GET /clientes?q=<q>&limit=10&offset=0` con `URLSearchParams` (`LIMITE_BUSQUEDA_CLIENTES = 10`).
+- `components/useBuscarClientes.ts`, con el patrón de `useMesasDisponibles` (Decisión 18) más una espera:
+
+  ```ts
+  export type EstadoBusquedaClientes =
+    | { tipo: 'inactivo' }                              // sin texto: no pide nada
+    | { tipo: 'buscando' }                              // esperando la pausa o la respuesta
+    | { tipo: 'listo'; clientes: ClienteEncontrado[] }  // puede venir vacía
+    | { tipo: 'error'; mensaje: string };
+
+  export function useBuscarClientes(texto: string): EstadoBusquedaClientes;
+  ```
+
+  - `clave = texto.trim()`, o `null` si queda vacío: con `null` no se pide nada y el estado es `inactivo` (S43: al menos un carácter).
+  - Un efecto con dependencia `[clave]` arma `setTimeout(..., ESPERA_BUSQUEDA_MS)` con `ESPERA_BUSQUEDA_MS = 300` y recién entonces llama a `buscarClientes(clave)`; guarda `{ clave, respuesta }` solo si `vigente`. La limpieza hace `clearTimeout` y `vigente = false`: cada tecla cancela la espera pendiente y descarta la respuesta de la búsqueda anterior (escenario «Una respuesta vieja de la búsqueda no pisa a la nueva»).
+  - Estado derivado en el render: clave `null` → `inactivo`; resultado guardado de otra clave → `buscando`; si no, `listo` o `error` (mensaje de la API o «No se pudieron buscar los clientes.»).
+- **Valores fijados (S43):** 300 ms de espera, 1 carácter como mínimo después de recortar, 10 resultados (primera página, sin paginar en pantalla).
+
+**Alternativas descartadas:** `useApi` de `shared` (no se puede deshabilitar y conserva los datos viejos, Decisión 18); un hook genérico de espera en `frontend/src/shared/hooks/` (toca `shared/`, AGENTS.md §9.3; queda como seguimiento); pedir en cada tecla (una solicitud por carácter); 2 o 3 caracteres como mínimo (S43 pide «al menos un carácter»); importar `listarClientes` del `api.ts` de `atencion` (AGENTS.md §9.4).
+
+**Justificación:** D-16, S43 y el mismo descarte de respuestas viejas que S35. En las pruebas del modal solo se simula `Date` (`vi.useFakeTimers({ toFake: ['Date'] })`), así que la espera de 300 ms corre con el reloj real y `findBy*` la cubre; las pruebas del hook usan `vi.useFakeTimers()` y `vi.advanceTimersByTime(300)` dentro de `act`.
+
+### Decisión 30: `SelectorCliente` y la elección del cliente como unión de tres estados
+
+**Elección:**
+
+```ts
+// validarReserva.ts
+export type SeleccionCliente =
+  | { tipo: 'ninguno' }
+  | { tipo: 'existente'; cliente: ClienteEncontrado }
+  | { tipo: 'nuevo'; nombre: string; telefono: string };
+```
+
+- `DatosFormularioReserva.cliente` pasa de `string` a `SeleccionCliente`, con `ninguno` como valor inicial (también en la edición, donde no se usa).
+- **Transiciones:** elegir un resultado → `existente` (descarta Nombre y Teléfono); «Cliente nuevo» → `nuevo` con los campos vacíos (descarta el cliente elegido; si ya era `nuevo`, no cambia nada); escribir Nombre o Teléfono → actualiza `nuevo`. No hay vuelta a `ninguno` (la spec no la pide). Cerrar el modal lo desmonta y la apertura siguiente parte de `ninguno` (escenario «Cerrar el modal descarta la elección»).
+- **`components/SelectorCliente.tsx`** (solo en el alta), con props `{ seleccion, errores: { cliente?, nombre?, telefono? }, onCambiar(seleccion) }`. Guarda el texto de búsqueda en un estado local y llama a `useBuscarClientes(texto)`:
+  - `FormField` «Cliente» (obligatorio; error = `errores.cliente` o el mensaje del estado `error`) con `SearchInput` (`aria-label` «Buscar cliente», `placeholder` «Nombre o teléfono», `onLimpiar`). Enter en la caja hace `preventDefault`, para no enviar la reserva.
+  - Resultados, solo con texto, con `List` y `ListItem` de `shared/`: un `Button` `type="button"` `variant="ghost"` por cliente con el texto «Nombre · Teléfono». `buscando` muestra «Buscando clientes…»; `listo` vacía, «No se encontraron clientes»; `error`, ningún resultado (el mensaje va en el campo).
+  - Al elegir: `onCambiar({ tipo: 'existente', cliente })` y se vacía el texto de búsqueda (la lista desaparece y no se pide nada). El elegido se muestra bajo la caja: «Cliente elegido: Ana Pérez · +54 280 1234567».
+  - `Button` `type="button"` `variant="outline"` «Cliente nuevo», siempre visible. Con `nuevo` muestra «Nombre» y «Teléfono» (`FormField` + `Input`, ids `reserva-cliente-nombre` y `reserva-cliente-telefono`) con `errores.nombre` y `errores.telefono`.
+  - Se divide en `ResultadosDeClientes` y `CamposClienteNuevo` para quedar por debajo de 50 líneas y complejidad 10 por función.
+- **`ReservaFormDialog`:** en el alta, `SelectorCliente` en lugar de `CampoReserva campo="cliente"`; en la edición, un `Input` deshabilitado «Cliente (número)» con `reserva.cliente_id`. Como `SelectorCliente` no se monta en la edición, no se pide `GET /clientes`. `CampoReserva` se restringe a los campos de texto (`Exclude<keyof DatosFormularioReserva, 'cliente'>`).
+- **`useFormularioReserva`:** agrega `elegirCliente(seleccion)`; `aReservaCrear` envía `{ cliente_id }` o `{ cliente_nuevo: { nombre: nombre.trim(), telefono: telefono.trim() } }`, nunca los dos. La función ya está en el límite de 50 líneas (`useFormularioReserva.ts:103-157`), así que el estado de los datos (`datos`, `cambiar` y `elegirCliente`) pasa a un hook interno `useDatosReserva(reserva)` del mismo archivo.
+
+**Alternativas descartadas:**
+
+| Opción | Problema |
+| --- | --- |
+| Combobox ARIA nuevo sobre `Popover` | No existe en `shared/`; más código y estilos nuevos (AGENTS.md §5) |
+| `Select` con todos los clientes | No escala y M4 pagina |
+| Campos sueltos (`clienteId`, `nombre`, `telefono`) | Permiten enviar los dos clientes, que la API rechaza |
+| `Tabs` «Registrado» y «Nuevo» | Agrega un control que la spec no pide: «Cliente nuevo» es una opción |
+
+### Decisión 31: espejo local de las reglas de M4 y errores de la API junto a Nombre o Teléfono
+
+**Elección:**
+
+- `validarReserva.ts`, solo en el alta: `ninguno` → `cliente: 'El cliente es obligatorio.'` (el texto actual); `existente` → sin error; `nuevo` → `validarClienteNuevo(nombre, telefono)`, con las mismas expresiones y los mismos textos que `validarCliente` de M4 (`frontend/src/modules/atencion/components/ClienteFormDialog.tsx:47-60`), **copiados** y no importados (AGENTS.md §9.4), con un comentario que apunta al origen y a S42:
+  - Nombre: vacío → «El nombre es obligatorio»; si el texto recortado no cumple `/^[\p{L}]+(?: [\p{L}]+)*$/u` → «El nombre debe contener solo letras».
+  - Teléfono: vacío → «El teléfono es obligatorio»; si el texto recortado no cumple `/^\+?[0-9 -]+$/` → «El teléfono solo admite dígitos, espacios, guiones y + al inicio».
+- `errorDelServidor(mensaje, seleccion)`: si la elección es `nuevo` y el mensaje nombra un campo con `/(?:^|[\s.])(nombre|telefono):/`, lo devuelve en ese campo; si no, como error general. Cubre el 422 de M4 (`Datos invalidos. nombre: …`) y el 422 de forma (`cliente_nuevo.telefono: …`). Los 404, 409 y demás 422 siguen siendo error general.
+
+**Riesgo S42:** si M4 cambia una regla o un texto, el espejo queda desfasado. Mitigación: el backend es la fuente de verdad y su 422 se muestra igual junto al campo; una prueba del puente real fija que el `detalle` de M4 contiene `nombre:` o `telefono:`, que es el contrato que usa `errorDelServidor`; el PR avisa a Juan Ignacio Riquelme (M4). Diferencia conocida: la pantalla, como la de M4, rechaza dos espacios seguidos en el nombre y el backend de M4 no.
+
+**Alternativas descartadas:** no validar en la pantalla (la spec lo pide); mover las reglas a `frontend/src/shared/` para M4 y M5 (mejor a mediano plazo, pero toca `shared/` y el módulo de M4; seguimiento); distinguir el 422 por el código de estado (`RespuestaApi` no lo expone y cambiarlo toca `shared/api`).
+
+### Enmienda a las Decisiones 25 y 31 (orquestador, 2026-11-02)
+
+**Decisión 25 (regla de «exactamente un cliente»).** Deja de ser un `model_validator` de `ReservaCrear`: el manejador global arma `Datos invalidos. : Value error, ...` con el campo vacío, y la regla pide un mensaje que nombre los campos. `ReservaCrear` conserva `cliente_id` y `cliente_nuevo` como opcionales y valida solo la forma (tipos, `gt=0`, `extra="forbid"`). La regla pasa a ser la **primera comprobación de `crear_reserva`** en el `service`: si `(cliente_id is None) == (cliente_nuevo is None)`, lanza `DatosInvalidosError` con un mensaje del estilo «cliente_id/cliente_nuevo: indicá un cliente registrado o los datos de un cliente nuevo, no los dos». Responde 422 igual que antes, antes de cualquier otra validación y sin consultar al puente (incluida la mesa inexistente: con los dos clientes o ninguno y una mesa 99 responde 422, no 404). `"cliente_nuevo": null` y `"cliente_id": null` siguen contando como ausentes. La semántica de la spec (422 que nombra el campo) no cambia. Se descarta el `model_validator`; el resto de la Decisión 25 (alternativas, `Self`) deja de aplicar.
+
+**Decisión 31 (espejo local de las reglas de M4).** El espejo de la pantalla **no puede ser más estricto que M4**: acepta exactamente lo que acepta `backend/app/modules/atencion/schemas.py` `ClienteNuevo` (nombre: solo letras y espacios, con espacios consecutivos permitidos; teléfono: `/^\+?[0-9 -]+$/`; ambos con texto no vacío al recortar). Por eso la expresión del nombre pasa de `/^[\p{L}]+(?: [\p{L}]+)*$/u` a `/^[\p{L} ]+$/u` aplicada al texto recortado, y desaparece la «diferencia conocida» del riesgo S42 sobre los dos espacios seguidos. Los textos de error pueden seguir siendo los de `ClienteFormDialog` de M4. Una prueba fija la paridad con los mismos valores de ejemplo de `backend/tests/modules/atencion/test_schemas.py`.
+
+### Flujo de datos del delta
+
+```text
+POST /api/v1/reservas  (ReservaCrear: ... y exactamente uno de cliente_id | cliente_nuevo)
+  Pydantic: solo forma ─────────────────────────────────────── 422 (no llega al service)
+  service.crear_reserva  (Enmienda: 1.º, exactamente un cliente → DatosInvalidosError 422)
+     ├─ _validar_mesa ── puente.obtener_mesa ───────────────── 404 / 409
+     ├─ solo con cliente_id: puente.existe_cliente ── atencion.service.existe_cliente ── 404
+     ├─ _validar_momento ───────────────────────────────────── 422
+     ├─ _validar_turno_libre ────────────────────────────────── 409
+     ├─ _id_del_cliente, solo con cliente_nuevo: puente.registrar_cliente
+     │      └─ atencion.service.registrar_cliente_para_reserva: valida (422) → add + flush, sin commit
+     └─ _confirmar: agregar (flush) + commit ÚNICO de reserva y cliente
+            └─ IntegrityError → rollback (también del cliente) → 409
+  Cualquier otra excepción: get_db cierra la sesión sin commit → no se confirma nada
+
+Frontend (alta)
+  ReservaFormDialog
+     ├─ SelectorCliente ── texto ── useBuscarClientes (300 ms, ≥ 1 carácter, descarta respuestas viejas)
+     │       │                          └─ api.buscarClientes ── GET /clientes?q=&limit=10&offset=0
+     │       └─ onCambiar(SeleccionCliente) ── useFormularioReserva.elegirCliente
+     └─ enviar: validarReserva (espejo de M4) ── crearReserva({ cliente_id } | { cliente_nuevo })
+                  └─ error: errorDelServidor → Nombre, Teléfono o error general
+```
+
+### Archivos del delta
+
+| Archivo | Acción | Descripción |
+| --- | --- | --- |
+| `backend/app/modules/reservas/schemas.py` | Modificar | `ClienteNuevo`; `ReservaCrear` con `cliente_id` opcional, `cliente_nuevo` y `model_validator` (Decisiones 25 y 26) |
+| `backend/app/modules/reservas/puente.py` | Modificar | `existe_cliente` real, `registrar_cliente`, importación de `atencion.service`, docstring (Decisión 27) |
+| `backend/app/modules/reservas/service.py` | Modificar | `crear_reserva` con `_validar_cliente` condicional y `_id_del_cliente` (Decisión 28) |
+| `backend/tests/modules/reservas/conftest.py` | Modificar | `DoblePuente` con clientes y `registrar_cliente`, `puente_sin_cliente`, `puente_real`, fixture `cliente_en_m4` (registra con la función real de M4 y confirma) |
+| `backend/tests/modules/reservas/test_{schemas,service,router,puente}.py` | Modificar | Pruebas nuevas y adaptadas (ver abajo) |
+| `frontend/src/modules/reservas/types.ts` | Modificar | `ClienteEncontrado`, `ClienteNuevo`, `ReservaCrear` como unión |
+| `frontend/src/modules/reservas/api.ts` | Modificar | `buscarClientes` |
+| `frontend/src/modules/reservas/components/useBuscarClientes.ts` | Crear | Hook de la Decisión 29 |
+| `frontend/src/modules/reservas/components/SelectorCliente.tsx` | Crear | Selector de la Decisión 30 |
+| `frontend/src/modules/reservas/components/validarReserva.ts` | Modificar | `SeleccionCliente`, `validarClienteNuevo`, `errorDelServidor(mensaje, seleccion)` |
+| `frontend/src/modules/reservas/components/useFormularioReserva.ts` | Modificar | `useDatosReserva`, `elegirCliente`, `aReservaCrear` |
+| `frontend/src/modules/reservas/components/ReservaFormDialog.tsx` | Modificar | `SelectorCliente` en el alta; Cliente de solo lectura en la edición |
+| `frontend/src/modules/reservas/{api.test.ts,components/*.test.ts(x),pages/ReservasPage.test.tsx}` | Crear y modificar | `useBuscarClientes.test.ts` y `SelectorCliente.test.tsx` nuevos; adaptaciones |
+
+Sin cambios: `router.py`, `models.py`, `repository.py`, `backend/alembic/`, `backend/app/main.py`, `backend/pyproject.toml`, `components/index.ts` (el selector se usa dentro del modal), `shared/` (backend y frontend), `frontend/src/App.tsx` y `salon/`. El módulo `atencion/` lo modifica el cambio `HU-M4-01-02-03`, no este.
+
+### Pruebas del delta (Strict TDD)
+
+Cada prueba se escribe primero y se ve fallar. «Doble» es el doble por defecto (Decisión 27); «real» pide `puente_real`, `mesas_en_m3` y, si hace falta, `cliente_en_m4`.
+
+| Escenario de la spec | Prueba |
+| --- | --- |
+| Alta con un cliente existente | `test_service`: con el doble, 201 con `cliente_id` 7 y `registrados == []` |
+| Alta con un cliente nuevo | `test_service`: `cliente_id >= 100`, un registrado con nombre y teléfono; `test_router`: 201 y `GET /reservas/{id}` con el mismo `cliente_id` |
+| Con el puente real el cliente nuevo queda en M4 | `test_router` (real): 201 y `GET /clientes?q=Luis` lista el cliente con el `id` de la reserva |
+| Dos reservas con el mismo nombre de cliente nuevo | `test_service` (doble): dos altas en turnos distintos, dos ids distintos |
+| Cliente existente y nuevo juntos; Ningún cliente (ausente y `null`); Forma inválida del cliente | `test_schemas` parametrizada; `test_router`: 422 cuyo `detalle` contiene `cliente_id` y `cliente_nuevo` (o el campo de forma), sin reservas ni registrados |
+| Nombre faltante, vacío o con símbolos; Teléfono faltante o inválido | Faltante: `test_schemas`. `""`, `"   "`, `"Luis3"`, `"abc"`, `"280+456"`: `test_service` (doble) parametrizada, `DatosInvalidosError` que nombra el campo, sin reservas; `test_router`: 422 |
+| Nombre con acentos y teléfono con prefijo | `test_service` (doble): 201 y registrado |
+| La mesa no existe; está fuera de servicio; fecha u hora inválidas; turno ya reservado (sin cliente huérfano) | `test_service` (doble) parametrizada: el error esperado y `registrados == []` (prueba el orden de la Decisión 28) |
+| La base rechaza el duplicado al confirmar (con cliente nuevo) | `test_router` (real): reserva `ACTIVA` previa, `repository.existe_reserva_activa` reemplazada por `False`, 409 con el mensaje de conflicto, una sola reserva y ningún cliente en M4 |
+| Datos inválidos del cliente con mesa inexistente | `test_service` (doble): mesa 99 y `"Luis3"` → 404 «La mesa 99 no existe» |
+| El puente real consulta a M4 | `test_puente` (real): `existe_cliente` es `True` para el id de `cliente_en_m4`, `False` para 456 y para 0 |
+| El puente real registra un cliente nuevo en M4 | `test_puente` (real): devuelve el id; tras `db.commit()`, `GET /clientes?q=Ana` lo lista |
+| El puente real propaga el rechazo de M4 | `test_puente` (real): `DatosInvalidosError` cuyo mensaje contiene `nombre:` o `telefono:` (contrato de la Decisión 31) y ningún cliente en la sesión |
+| Un identificador positivo que M4 no conoce no se acepta | `test_service` (doble): cliente 456 → 404; reemplaza `test_crear_reserva_acepta_cualquier_cliente_positivo_con_el_stub` |
+| Un doble de prueba con cuatro operaciones alcanza; Aislamiento del módulo | Prueba existente con `registrar_cliente`; `test_solo_el_puente_importa_salon_y_atencion` |
+
+Frontend (Vitest y Testing Library, `vi.mock('../api')`):
+
+| Archivo | Casos |
+| --- | --- |
+| `api.test.ts` | `buscarClientes('Ana')` pide `/clientes?q=Ana&limit=10&offset=0`; `crearReserva` envía `cliente_nuevo` sin `cliente_id` |
+| `components/useBuscarClientes.test.ts` (nuevo) | texto vacío o de espacios: `inactivo` y sin llamadas; «Ana»: `buscando`, sin llamada antes de 300 ms y con una después; `listo`; lista vacía; error con el mensaje de la API; **respuesta vieja**: «An» y después «Ana», se resuelve primero «Ana» y después «An», y queda la lista de «Ana» |
+| `components/SelectorCliente.test.tsx` (nuevo) | Buscar por nombre y por teléfono («Ana Pérez · +54 280 1234567»); sin resultados («No se encontraron clientes» y «Cliente nuevo» visible); falla de la búsqueda junto al campo; elegir llama a `onCambiar` con `existente` y vacía la búsqueda; «Cliente nuevo» muestra Nombre y Teléfono vacíos; pasar de uno a otro descarta lo anterior |
+| `components/validarReserva.test.ts` | `ninguno` → «El cliente es obligatorio.»; `nuevo` con «Luis3», vacío, «280+456» → textos de M4; `existente` sin error; `errorDelServidor` lleva `telefono:` al campo solo con `nuevo` y deja el 409 como general |
+| `components/ReservaFormDialog.test.tsx` | Elegir un cliente y guardar → `cliente_id` 7 sin `cliente_nuevo`; guardar con cliente nuevo → `cliente_nuevo` recortado sin `cliente_id`; pasar de uno a otro (y al revés); sin cliente no envía; datos inválidos del cliente nuevo no envían; 422 con `telefono` junto a Teléfono; 409 con cliente nuevo como error general conservando Nombre y Teléfono; la edición muestra «Cliente (número)» 7 deshabilitado y no llama a `buscarClientes` |
+| `pages/ReservasPage.test.tsx` | Cerrar el modal descarta la elección: al volver a abrir «Nueva reserva» el selector está vacío |
+
+**Pruebas existentes que cambian:**
+
+| Archivo | Cambio |
+| --- | --- |
+| `conftest.py` | Doble con clientes y `registrar_cliente`; `puente_sin_cliente` y `puente_real` (Decisión 27) |
+| `test_service.py` | Las altas con `cliente_id=8` (líneas 231, 374 y 388) esperan 409, pero con el doble el cliente 8 no existe y responderían 404 antes: usan `puente_doble.poner_cliente(8, ...)`; la prueba del stub (línea 209) pasa a esperar 404 |
+| `test_router.py` | El alta con `cliente_id` 8 de la línea 64 usa `poner_cliente` por el mismo motivo; la de la línea 446 es un `PUT` con un campo prohibido y no cambia; el 404 del cliente 99 sigue igual |
+| `test_schemas.py` | `test_reserva_crear_rechaza_campos_faltantes` y `..._campos_nulos` sacan `cliente_id` de `CAMPOS`: sin él (o con `null`) el error es el de «ningún cliente», con `loc` vacío (Decisión 25), y lo cubre una prueba propia que comprueba el mensaje |
+| `test_puente.py` | Salen `test_existe_cliente_stub_*`; se extiende la prueba de arquitectura |
+| `ReservaFormDialog.test.tsx` | `completar` busca y elige «Ana Pérez» en lugar de escribir «Cliente (número)»; sale el caso «Cliente 0» |
+| `validarReserva.test.ts` | Los casos de Cliente usan `SeleccionCliente` |
+| `ReservasPage.test.tsx` | `beforeEach` simula `buscarClientes`; la prueba del alta elige un cliente |
+
+### Estimación del delta (líneas agregadas más borradas, punto de control de 800 por lado)
+
+| Lado | Código | Pruebas | Total del delta |
+| --- | --- | --- | --- |
+| `backend/` (solo M5) | schemas 20 a 25, puente 12 a 18, service 12 a 20 → **~45 a 65** | conftest 35 a 55, schemas 35 a 55, service 90 a 140, router 60 a 100, puente 50 a 80 → **~270 a 430** | **~315 a 495** |
+| `frontend/` | types 12 a 18, api 10 a 15, hook 40 a 55, selector 80 a 110, validación 35 a 50, hook del formulario 30 a 50, modal 15 a 25 → **~220 a 320** | api 15 a 20, hook 80 a 120, selector 90 a 140, validación 40 a 60, modal 110 a 170, página 20 a 40 → **~355 a 550** | **~575 a 870** |
+
+El lado `backend/` del PR suma además la parte de M4 (`HU-M4-01-02-03`). El frontend del delta puede superar 800 por sí solo, y el acumulado del PR ya lo superaba. Es informativo: la HU va en un solo PR (AGENTS.md §4), sin recortar pruebas; la nota del PR informa el total real de cada lado.
+
+### Orden de implementación del delta
+
+18. **Requisito previo:** las dos funciones públicas de M4 integradas en la rama, con sus pruebas (cambio `HU-M4-01-02-03`).
+19. **Backend, forma:** `test_schemas` en RED → `ClienteNuevo` y `ReservaCrear` con `model_validator`.
+20. **Backend, doble:** `DoblePuente` con clientes y `registrar_cliente`; adaptar las pruebas existentes (en verde).
+21. **Backend, puente real:** `test_puente` con M4 real y prueba de arquitectura en RED → `existe_cliente` y `registrar_cliente`.
+22. **Backend, alta:** pruebas del orden y del cliente nuevo con el doble en RED → `_id_del_cliente` y `crear_reserva`.
+23. **Backend, API e integración:** `test_router` con el doble y con el puente real (cliente en M4, 409 por la carrera sin cliente huérfano, 422 que nombra el campo).
+24. **Frontend:** `types.ts` y `buscarClientes` → `useBuscarClientes` → `validarReserva` (`SeleccionCliente`, espejo, `errorDelServidor`) → `SelectorCliente` → `useFormularioReserva` y `ReservaFormDialog` → adaptación de las pruebas existentes.
+25. **Cierre:** los controles de la sección 7 de AGENTS.md en `backend/` y `frontend/`.
+
+### Riesgos del delta del cliente y reversión
+
+| Riesgo | Efecto | Mitigación |
+| --- | --- | --- |
+| Las funciones de M4 no están o cambian de firma | El puente real falla | Requisito previo del paso 18; las pruebas del puente real usan el `service` verdadero de M4 y fallan en la CI |
+| M4 cambia el formato del mensaje (sin `campo:`) | El error del cliente nuevo se muestra como error general y no junto al campo | Prueba del puente real que fija `nombre:` y `telefono:` (Decisión 31) |
+| Espejo de reglas desfasado (S42) | La pantalla acepta o rechaza distinto que M4 | El backend decide y su 422 se muestra junto al campo; aviso a M4 en el PR; seguimiento para mover las reglas a `shared/` |
+| M4 agregara el cliente antes de validar | Quedaría un cliente pendiente en la sesión | La prueba 4 de M4 lo impide; aun así, el cierre de la sesión de `get_db` deshace lo no confirmado (Decisión 28) |
+| El doble no es transaccional | Una prueba con el doble no puede comprobar el `rollback` del cliente | Ese escenario se prueba con el puente real (Decisión 27) |
+| `detalle` del 422 de exactamente un cliente con «: » sin campo | Cosmético | Aceptado (Decisión 25); el texto nombra `cliente_id` y `cliente_nuevo` |
+| Clientes repetidos | Dos altas iguales crean dos clientes | Aceptado por S42, igual que en M4 |
+
+**Reversión:** ni este delta ni la parte de M4 cambian el esquema, así que no hace falta ningún `alembic downgrade`. Antes de integrar, se revierten los commits del delta (`git revert`), con lo que vuelven el stub de cliente, el campo numérico y las pruebas anteriores. Si también se revierte la parte de M4, primero se revierte M5, porque depende de M4. Ya integrado, revertir el merge deshace los dos; los clientes creados mientras tanto quedan en M4 como clientes válidos y las reservas que los nombran siguen siendo coherentes. Verificación: `pytest`, `lint-imports` y las pruebas del frontend en verde.
+
 ## Preguntas abiertas
 
 - [ ] El equipo valida S1 a S14, en especial `ACTIVA` frente a `PENDIENTE` (S1) y la falta de horario de atención (S2). Ninguna bloquea el diseño: cada una cambia en un solo lugar (enum o una función del `service`).
@@ -996,3 +1353,7 @@ Orden sugerido para el delta del modal (Strict TDD, una sola unidad de trabajo d
 - [ ] `Supuesto:` texto de la opción vacía del selector cuando hay mesas, «Seleccione una mesa» (la spec no lo fija). No bloquea.
 - [ ] (Delta del modal, no bloquea) La spec no define qué pasa con la acción «Modificar reserva» de otra fila mientras hay un modal abierto: el diseño no agrega lógica porque el fondo del `Dialog` la tapa (Decisión 22). Si el equipo quiere deshabilitarla también, es un cambio de la spec.
 - [ ] Seguimiento con M3 (no bloquea): ofrecer `obtener_mesa` por `id` o un filtro por estado en `salon.service`, para que el puente no lea todas las páginas.
+- [ ] (Delta del cliente, no bloquea) `Supuesto:` `"cliente_id": null` junto con un `cliente_nuevo` válido se acepta como alta con cliente nuevo (Decisión 25); la spec no trae el caso.
+- [ ] (Delta del cliente, no bloquea) Seguimiento con M4: mover a `frontend/src/shared/` las reglas de nombre y teléfono que hoy se copian (S42, Decisión 31), y un hook común de búsqueda con espera.
+- [ ] (Delta del cliente, no bloquea) Seguimiento con M4: clave foránea `reservas.cliente_id → clientes.id` ahora que la tabla existe (S10, Decisión 9), en una migración posterior.
+- [ ] (Delta del cliente) El delta depende de que M4 publique `registrar_cliente_para_reserva` y `existe_cliente` con la firma acordada antes de implementar el paso 21; si cambia la firma, cambia solo el cuerpo del puente.
