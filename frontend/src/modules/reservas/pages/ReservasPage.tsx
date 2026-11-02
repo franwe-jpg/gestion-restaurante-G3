@@ -1,25 +1,113 @@
-import { CalendarDays } from 'lucide-react';
+import { Plus } from 'lucide-react';
+import { useCallback, useState } from 'react';
+
 import { PageHeader } from '../../../shared/components/PageHeader';
-import { Card, CardContent } from '../../../shared/components/ui/card';
-import { EmptyState } from '../../../shared/components/EmptyState';
+import { Button } from '../../../shared/components/ui/button';
+import { Card, CardDescription, CardHeader } from '../../../shared/components/ui/card';
+import { Pagination } from '../../../shared/components/ui/pagination';
+import {
+  NavegadorFecha,
+  ReservaFormDialog,
+  ReservasTabla,
+  SelectorEstadoReserva,
+} from '../components';
+import { formatearFechaReserva } from '../fechas';
+import type { Reserva } from '../types';
+
+import { useListadoReservas } from './useListadoReservas';
+
+/** El modal de reserva: cerrado, para una reserva nueva o para modificar la fila elegida (S36). */
+type Panel = 'cerrado' | 'alta' | { edicion: Reserva };
+
+interface ListadoDelDiaProps {
+  listado: ReturnType<typeof useListadoReservas>;
+  onModificar: (reserva: Reserva) => void;
+}
+
+/** Navegador de fecha, filtro de estado, tabla del día y paginación. */
+function ListadoDelDia({ listado, onModificar }: ListadoDelDiaProps) {
+  const { fecha, estado, paginacion, reservas } = listado;
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <NavegadorFecha fecha={fecha} onCambiar={listado.cambiarFecha} />
+        <SelectorEstadoReserva estado={estado} onCambiar={listado.cambiarEstado} />
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardDescription>Reservas del {formatearFechaReserva(fecha)}</CardDescription>
+        </CardHeader>
+        <ReservasTabla
+          reservas={reservas.datos?.items ?? []}
+          cargando={reservas.cargando}
+          error={reservas.error}
+          onReintentar={reservas.recargar}
+          onModificar={onModificar}
+        />
+      </Card>
+
+      {paginacion.totalPaginas > 1 && (
+        <Pagination
+          pagina={paginacion.pagina}
+          totalPaginas={paginacion.totalPaginas}
+          onCambiarPagina={paginacion.irAPagina}
+        />
+      )}
+    </div>
+  );
+}
+
+interface ModalDeReservaProps {
+  panel: Panel;
+  onOpenChange: (abierto: boolean) => void;
+  onGuardado: () => void;
+}
+
+/** Monta `ReservaFormDialog` solo mientras el modal debe verse (Decisión 21 y 22). */
+function ModalDeReserva({ panel, onOpenChange, onGuardado }: ModalDeReservaProps) {
+  if (panel === 'cerrado') return null;
+  const reserva = panel === 'alta' ? undefined : panel.edicion;
+  return (
+    // La clave reinicia el formulario al pasar de una fila a otra o de la edición al alta.
+    <ReservaFormDialog
+      key={reserva?.id ?? 'alta'}
+      reserva={reserva}
+      onOpenChange={onOpenChange}
+      onGuardado={onGuardado}
+    />
+  );
+}
 
 export function ReservasPage() {
+  const listado = useListadoReservas();
+  const [panel, setPanel] = useState<Panel>('cerrado');
+
+  const alGuardar = () => {
+    setPanel('cerrado');
+    listado.reservas.recargar();
+  };
+
+  // Estable: `onOpenChange` es una dependencia del efecto de foco del `Dialog` (Decisión 22).
+  const alCambiarModal = useCallback((abierto: boolean) => {
+    if (!abierto) setPanel('cerrado');
+  }, []);
+
   return (
     <div className="space-y-6">
       <PageHeader
         titulo="Reservas"
         descripcion="Libro de reservas, turnos de almuerzo/cena y confirmación de comensales."
+        acciones={
+          <Button onClick={() => setPanel('alta')} disabled={typeof panel === 'object'}>
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            Nueva reserva
+          </Button>
+        }
       />
 
-      <Card>
-        <CardContent className="pt-6">
-          <EmptyState
-            icono={CalendarDays}
-            titulo="Módulo pendiente de implementación"
-            descripcion="La planilla y calendario de reservas se integrarán en esta sección."
-          />
-        </CardContent>
-      </Card>
+      <ListadoDelDia listado={listado} onModificar={(reserva) => setPanel({ edicion: reserva })} />
+      <ModalDeReserva panel={panel} onOpenChange={alCambiarModal} onGuardado={alGuardar} />
     </div>
   );
 }

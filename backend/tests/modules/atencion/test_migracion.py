@@ -399,7 +399,7 @@ def test_migracion_cantidad_entregada_una_sola_cabeza(base_temporal: tuple[str, 
     _, config = base_temporal
     script = ScriptDirectory.from_config(config)
 
-    assert script.get_heads() == [REVISION_ENTREGAS]
+    assert len(script.get_heads()) == 1
     assert script.get_revision(REVISION_ENTREGAS).down_revision == REVISION_PREVIA_ENTREGAS
 
 

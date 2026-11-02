@@ -1,7 +1,44 @@
 import { clienteHttp } from '../../shared/api/client';
-import type { RespuestaApi } from '../../shared/types';
-import type { Reserva } from './types';
+import type { Pagina, RespuestaApi } from '../../shared/types';
+import type {
+  FiltroEstadoReserva,
+  MesaDisponible,
+  Reserva,
+  ReservaCrear,
+  ReservaModificar,
+} from './types';
 
-export async function listarReservas(): Promise<RespuestaApi<Reserva[]>> {
-  return clienteHttp.get<Reserva[]>('/reservas');
+/** Reservas de un día. `'TODAS'` no envía `estado`: la API trae los cuatro estados. */
+export function listarReservas(
+  fecha: string,
+  estado: FiltroEstadoReserva,
+  limit: number,
+  offset: number,
+): Promise<RespuestaApi<Pagina<Reserva>>> {
+  const consulta = new URLSearchParams({ fecha });
+  if (estado !== 'TODAS') consulta.set('estado', estado);
+  consulta.set('limit', String(limit));
+  consulta.set('offset', String(offset));
+  return clienteHttp.get<Pagina<Reserva>>(`/reservas?${consulta.toString()}`);
+}
+
+/** Mesas libres para una fecha `YYYY-MM-DD` y una hora `HH:MM`: una lista simple, sin paginar. */
+export function listarMesasDisponibles(
+  fecha: string,
+  hora: string,
+): Promise<RespuestaApi<MesaDisponible[]>> {
+  const consulta = new URLSearchParams({ fecha, hora });
+  return clienteHttp.get<MesaDisponible[]>(`/reservas/mesas-disponibles?${consulta.toString()}`);
+}
+
+export function crearReserva(datos: ReservaCrear): Promise<RespuestaApi<Reserva>> {
+  return clienteHttp.post<Reserva, ReservaCrear>('/reservas', datos);
+}
+
+/** Cambia solo fecha, hora y cantidad de personas: mesa, cliente y estado no se envían. */
+export function modificarReserva(
+  id: number,
+  datos: ReservaModificar,
+): Promise<RespuestaApi<Reserva>> {
+  return clienteHttp.put<Reserva, ReservaModificar>(`/reservas/${id}`, datos);
 }
