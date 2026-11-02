@@ -10,7 +10,7 @@ Capacidad nueva: en `openspec/specs/` no hay ninguna spec de reservas, así que 
 
 Origen: HU-M5-01 (crear), HU-M5-02 (modificar) y HU-M5-03 (listar), un solo cambio, una rama y un PR.
 
-Fuera de alcance: cancelación anticipada (HU-M5-04) y por ausencia (HU-M5-05), comanda desde la reserva (HU-M5-06) y reporte (HU-M5-07). Ninguna ruta de este cambio asigna `ATENDIDA`, `CANCELADA_ANTICIPADA` ni `CANCELADA_POR_AUSENCIA`: esos valores existen en el enumerado y en la base para los cambios posteriores. También queda fuera el criterio «cliente no registrado» del issue #61: depende de M4, que todavía no ofrece ni la búsqueda ni el alta de un cliente, y Cliente sigue siendo un número en el panel.
+Fuera de alcance: cancelación anticipada (HU-M5-04) y por ausencia (HU-M5-05), comanda desde la reserva (HU-M5-06) y reporte (HU-M5-07). Ninguna ruta de este cambio asigna `ATENDIDA`, `CANCELADA_ANTICIPADA` ni `CANCELADA_POR_AUSENCIA`: esos valores existen en el enumerado y en la base para los cambios posteriores. También queda fuera el criterio «cliente no registrado» del issue #61: depende de M4, que todavía no ofrece ni la búsqueda ni el alta de un cliente, y Cliente sigue siendo un número en el modal.
 
 Criterios de aceptación (CA): salvo el texto de la mesa del issue #61, no se leyeron los issues. Los CA se numeran en esta spec a partir de la propuesta (consigna, diagrama de clases, S1-07, S2-02 y maqueta) y se citan como «HU-M5-0x CA n». Lo que dice el issue #61 sobre la mesa se cita como «issue #61». Hay que confirmar los CA contra cada issue antes del PR.
 
@@ -990,7 +990,7 @@ El cambio NO DEBE modificar el código de `salon/`, de `atencion/` ni de `shared
 
 ### Requisito: Listado de reservas en pantalla (HU-M5-03)
 
-La ruta `/reservas`, que ya existe, DEBE mostrar una sola pantalla con el navegador de fecha, la tabla de las reservas del día elegido y, al costado, un panel con el formulario de alta y edición, como la maqueta `SPRINT-2/S2-04-maqueta/reservas.html` (S24). La tabla DEBE tener las columnas Hora, Cliente, Personas, Mesa, Estado y acciones, y mostrar Cliente y Mesa como «Cliente n.º {cliente_id}» y «Mesa n.º {mesa_id}» (S6, S13, S23). La acción «Modificar reserva» DEBE aparecer solo en las filas `ACTIVA`. La pantalla DEBE ofrecer el botón «Nueva reserva», mostrar el panel cerrado al entrar y paginar con `limit` 50 y `offset` de la API. Toda llamada DEBE pasar por el `api.ts` del módulo. El módulo NO DEBE agregar rutas ni modificar `frontend/src/App.tsx`.
+La ruta `/reservas`, que ya existe, DEBE mostrar una sola pantalla con el navegador de fecha y la tabla de las reservas del día elegido. El formulario de alta y edición NO DEBE mostrarse al costado de la tabla: DEBE abrirse en un modal sobre la misma pantalla, construido con el componente `Dialog` compartido (`frontend/src/shared/components/ui/dialog.tsx`), según la regla general de formularios de AGENTS.md (sección 5) y no según la maqueta `SPRINT-2/S2-04-maqueta/reservas.html`, que los muestra en una página aparte (S24). La tabla DEBE tener las columnas Hora, Cliente, Personas, Mesa, Estado y acciones, y mostrar Cliente y Mesa como «Cliente n.º {cliente_id}» y «Mesa n.º {mesa_id}» (S6, S13, S23). La acción «Modificar reserva» DEBE aparecer solo en las filas `ACTIVA`. La pantalla DEBE ofrecer el botón «Nueva reserva», no mostrar ningún modal abierto al entrar y paginar con `limit` 50 y `offset` de la API. Solo puede haber un modal de reserva abierto a la vez: mientras el modal de edición está abierto, el botón «Nueva reserva» DEBE verse pero estar deshabilitado, así que no se puede abrir el de alta hasta cerrar la edición (S36). Toda llamada DEBE pasar por el `api.ts` del módulo. El módulo NO DEBE agregar rutas ni modificar `frontend/src/App.tsx`.
 
 #### Escenario: Tabla con reservas
 
@@ -998,11 +998,11 @@ La ruta `/reservas`, que ya existe, DEBE mostrar una sola pantalla con el navega
 - CUANDO se abre `/reservas`
 - ENTONCES se muestra una fila por reserva con hora, «Cliente n.º 7», personas, «Mesa n.º 5» y estado
 
-#### Escenario: Panel cerrado al entrar
+#### Escenario: Modal cerrado al entrar
 
 - DADO la ruta `/reservas` recién abierta
 - CUANDO se muestra la pantalla
-- ENTONCES el panel del formulario está cerrado y se ve el botón «Nueva reserva»
+- ENTONCES no hay ningún modal abierto y se ve el botón «Nueva reserva»
 
 #### Escenario: Acción solo para activas
 
@@ -1010,18 +1010,31 @@ La ruta `/reservas`, que ya existe, DEBE mostrar una sola pantalla con el navega
 - CUANDO se muestran las filas
 - ENTONCES solo la `ACTIVA` ofrece «Modificar reserva»
 
-#### Escenario: Abrir el panel de edición
+#### Escenario: Abrir el modal de edición
 
 - DADO una fila `ACTIVA` con id 1
 - CUANDO la persona pulsa «Modificar reserva»
-- ENTONCES se abre el panel «Modificar reserva» con los datos de esa fila
+- ENTONCES se abre el modal «Modificar reserva» con los datos de esa fila
 - Y la ruta sigue siendo `/reservas` y no se pide `GET /reservas/1`
 
-#### Escenario: Abrir el panel de alta
+#### Escenario: Abrir el modal de alta
 
 - DADO la pantalla de reservas
 - CUANDO la persona pulsa «Nueva reserva»
-- ENTONCES se abre el panel «Nueva reserva» con los campos vacíos y la ruta sigue siendo `/reservas`
+- ENTONCES se abre el modal «Nueva reserva» con los campos vacíos y la ruta sigue siendo `/reservas`
+
+#### Escenario: El botón «Nueva reserva» se deshabilita durante la edición
+
+- DADO el modal de edición abierto
+- CUANDO se muestra la pantalla detrás del modal
+- ENTONCES el botón «Nueva reserva» está deshabilitado (S36)
+- Y pulsarlo no hace nada: el modal de edición sigue abierto, con sus datos, y no se abre un segundo modal
+
+#### Escenario: El botón «Nueva reserva» se habilita de nuevo al cerrar la edición
+
+- DADO el modal de edición abierto y el botón «Nueva reserva» deshabilitado
+- CUANDO la persona cierra el modal de edición, con o sin guardar
+- ENTONCES el botón «Nueva reserva» vuelve a estar habilitado
 
 #### Escenario: Cambiar de página
 
@@ -1107,7 +1120,7 @@ La tabla DEBE mostrar el estado de cada reserva con un texto legible y una insig
 
 ### Requisito: Formulario de alta (HU-M5-01)
 
-El botón «Nueva reserva» DEBE abrir, al costado de la tabla y sin cambiar de ruta, el panel «Nueva reserva» con los campos Cliente (número), Fecha, Hora, Cantidad de personas y Mesa (selector), el botón «Cerrar formulario» y los botones «Cancelar» y «Guardar reserva». Mientras M4 no expone clientes, Cliente se pide por su identificador (S13). Antes de enviar, el panel DEBE validar localmente y mostrar bajo cada campo qué falla: Cliente entero positivo; Fecha obligatoria y no anterior a hoy; Hora obligatoria y, si la fecha es hoy, posterior a la hora actual (S3); Cantidad de personas entero positivo; Mesa obligatoria, es decir, una mesa elegida de la lista. Si hay algún error local, NO DEBE llamar a la API. Al guardar bien, DEBE enviar `POST /reservas`, mostrar un aviso de éxito, cerrar el panel y recargar la tabla. Si la API responde 404, 409 o 422, DEBE mostrar el `detalle` como error general del panel, conservar los datos escritos (también la mesa elegida) y dejar el panel abierto.
+El botón «Nueva reserva» DEBE abrir, como modal sobre la misma pantalla y sin cambiar de ruta, el modal «Nueva reserva», construido con el componente `Dialog` compartido (`frontend/src/shared/components/ui/dialog.tsx`): el título «Nueva reserva» (`title` del `Dialog`), los campos Cliente (número), Fecha, Hora, Cantidad de personas y Mesa (selector) en el cuerpo del modal, y los botones «Cancelar» y «Guardar reserva» en el pie del modal (`footer`). El propio `Dialog` ya ofrece su botón de cerrar (la X); el modal NO necesita un botón «Cerrar formulario» aparte, igual que `MesaFormDialog` y `ClienteFormDialog` (AGENTS.md, sección 5). Mientras M4 no expone clientes, Cliente se pide por su identificador (S13). Antes de enviar, el modal DEBE validar localmente y mostrar bajo cada campo qué falla: Cliente entero positivo; Fecha obligatoria y no anterior a hoy; Hora obligatoria y, si la fecha es hoy, posterior a la hora actual (S3); Cantidad de personas entero positivo; Mesa obligatoria, es decir, una mesa elegida de la lista. Si hay algún error local, NO DEBE llamar a la API. Al guardar bien, DEBE enviar `POST /reservas`, mostrar un aviso de éxito, cerrar el modal y recargar la tabla. Si la API responde 404, 409 o 422, DEBE mostrar el `detalle` como error general del modal, conservar los datos escritos (también la mesa elegida) y dejar el modal abierto. Cerrar el modal con la X, con la tecla Escape, haciendo clic en el fondo (fuera del modal) o con el botón «Cancelar» DEBE tener el mismo efecto: cerrar sin guardar y sin volver a pedir la tabla de reservas.
 
 El campo Mesa DEBE ser un selector que se llena con `GET /reservas/mesas-disponibles`, pedido por el `api.ts` del módulo, y no un número escrito a mano (S13, S34):
 
@@ -1117,56 +1130,56 @@ El campo Mesa DEBE ser un selector que se llena con `GET /reservas/mesas-disponi
 - Si la lista llega vacía, DEBE mostrar «No hay mesas disponibles para esa fecha y hora» y el botón «Guardar reserva» DEBE quedar deshabilitado.
 - Si la consulta falla, DEBE mostrar el mensaje de error de la API junto al campo Mesa y no ofrecer mesas.
 - Al cambiar Fecha u Hora, DEBE volver a pedir la lista. Si la mesa elegida ya no figura en la lista nueva, DEBE borrar la elección; si todavía figura, DEBE conservarla.
-- La lista mostrada DEBE corresponder siempre a la Fecha y la Hora que el panel tiene en ese momento.
+- La lista mostrada DEBE corresponder siempre a la Fecha y la Hora que el modal tiene en ese momento.
 
-La lista es una ayuda: la API vuelve a verificar la mesa al guardar (S35). El panel solo usa la API de reservas para esto; no importa nada del módulo de M3 (S34). No se agregan estilos nuevos: se reutilizan los componentes compartidos existentes.
+La lista es una ayuda: la API vuelve a verificar la mesa al guardar (S35). El modal solo usa la API de reservas para esto; no importa nada del módulo de M3 (S34). No se agregan estilos nuevos: se reutilizan los componentes compartidos existentes.
 
 #### Escenario: Campos vacíos
 
-- DADO el panel de alta con algún campo vacío, incluida la mesa sin elegir
+- DADO el modal de alta con algún campo vacío, incluida la mesa sin elegir
 - CUANDO la persona pulsa «Guardar reserva»
 - ENTONCES no se envía la solicitud y cada campo vacío, también Mesa, muestra un mensaje de obligatorio
 
 #### Escenario: Cantidad inválida
 
-- DADO el panel de alta con la cantidad de personas `0`, o con un texto no numérico
+- DADO el modal de alta con la cantidad de personas `0`, o con un texto no numérico
 - CUANDO la persona pulsa «Guardar reserva»
 - ENTONCES no se envía la solicitud y se advierte que la cantidad debe ser un entero positivo
 
 #### Escenario: Cliente inválido
 
-- DADO el panel de alta con Cliente `0`, o con un texto no numérico
+- DADO el modal de alta con Cliente `0`, o con un texto no numérico
 - CUANDO la persona pulsa «Guardar reserva»
 - ENTONCES no se envía la solicitud y Cliente advierte que debe ser un entero positivo
 
 #### Escenario: Mesa sin elegir
 
-- DADO el panel de alta con todos los campos válidos, la lista de mesas cargada y ninguna mesa elegida
+- DADO el modal de alta con todos los campos válidos, la lista de mesas cargada y ninguna mesa elegida
 - CUANDO la persona pulsa «Guardar reserva»
 - ENTONCES no se envía la solicitud y Mesa advierte que es obligatoria
 
 #### Escenario: Fecha anterior a hoy
 
-- DADO que hoy es el `2026-11-02` y el panel con `fecha` `2026-11-01`
+- DADO que hoy es el `2026-11-02` y el modal con `fecha` `2026-11-01`
 - CUANDO la persona pulsa «Guardar reserva»
 - ENTONCES no se envía la solicitud y el campo Fecha advierte que no puede ser anterior a hoy
 
 #### Escenario: Hoy con una hora pasada o igual a la actual
 
-- DADO que hoy es el `2026-11-02`, son las `12:00` y el panel con `fecha` `2026-11-02` y `hora` `11:30`, o `12:00`
+- DADO que hoy es el `2026-11-02`, son las `12:00` y el modal con `fecha` `2026-11-02` y `hora` `11:30`, o `12:00`
 - CUANDO la persona pulsa «Guardar reserva»
 - ENTONCES no se envía la solicitud y el campo Hora advierte que debe ser posterior a la hora actual
 
 #### Escenario: Hoy con una hora posterior
 
-- DADO que hoy es el `2026-11-02`, son las `12:00` y el panel con `fecha` `2026-11-02`, `hora` `12:01` y los demás campos válidos, incluida una mesa elegida
+- DADO que hoy es el `2026-11-02`, son las `12:00` y el modal con `fecha` `2026-11-02`, `hora` `12:01` y los demás campos válidos, incluida una mesa elegida
 - CUANDO la persona pulsa «Guardar reserva»
 - ENTONCES se envía la solicitud
 
 #### Escenario: El selector se llena con las mesas disponibles
 
-- DADO el panel de alta con `fecha` `2026-11-02` y `hora` `21:30`, y una API que devuelve la mesa 5 (sector «Salón», número 5, capacidad 4) y la mesa 12 (sector «Terraza», número 1, capacidad 2)
-- CUANDO el panel tiene Fecha y Hora válidas
+- DADO el modal de alta con `fecha` `2026-11-02` y `hora` `21:30`, y una API que devuelve la mesa 5 (sector «Salón», número 5, capacidad 4) y la mesa 12 (sector «Terraza», número 1, capacidad 2)
+- CUANDO el modal tiene Fecha y Hora válidas
 - ENTONCES se pide `GET /reservas/mesas-disponibles?fecha=2026-11-02&hora=21:30`
 - Y el selector ofrece las opciones «Salón · Mesa 5 (4 personas)» y «Terraza · Mesa 1 (2 personas)», con los valores 5 y 12
 
@@ -1178,103 +1191,122 @@ La lista es una ayuda: la API vuelve a verificar la mesa al guardar (S35). El pa
 
 #### Escenario: El selector espera una fecha y una hora válidas
 
-- DADO el panel de alta recién abierto, o con `fecha` anterior a hoy, o con `hora` vacía
+- DADO el modal de alta recién abierto, o con `fecha` anterior a hoy, o con `hora` vacía
 - CUANDO se muestra el selector de Mesa
 - ENTONCES está deshabilitado, sin opciones, y no se pidió `GET /reservas/mesas-disponibles`
 
 #### Escenario: Estado de carga de la lista
 
-- DADO el panel con Fecha y Hora válidas y una API que todavía no respondió
+- DADO el modal con Fecha y Hora válidas y una API que todavía no respondió
 - CUANDO se muestra el selector de Mesa
 - ENTONCES el selector está deshabilitado y su única opción dice «Cargando mesas…», sin ninguna mesa para elegir
 - Y el botón «Guardar reserva» sigue habilitado, pero pulsarlo no envía nada y marca el error de Mesa obligatoria (S34)
 
 #### Escenario: Sin mesas disponibles
 
-- DADO el panel con Fecha y Hora válidas y una API que devuelve la lista vacía
+- DADO el modal con Fecha y Hora válidas y una API que devuelve la lista vacía
 - CUANDO termina de cargar
 - ENTONCES el selector muestra «No hay mesas disponibles para esa fecha y hora»
 - Y el botón «Guardar reserva» está deshabilitado
 
 #### Escenario: Cambiar la fecha o la hora recarga la lista y borra la mesa que ya no está
 
-- DADO el panel con `fecha` `2026-11-02`, `hora` `21:30` y la mesa 5 elegida
+- DADO el modal con `fecha` `2026-11-02`, `hora` `21:30` y la mesa 5 elegida
 - CUANDO la persona cambia `hora` a `22:00` y la API devuelve una lista sin la mesa 5
 - ENTONCES se pide `GET /reservas/mesas-disponibles?fecha=2026-11-02&hora=22:00`
 - Y el selector muestra la lista nueva y la elección queda vacía
 
 #### Escenario: Cambiar la fecha o la hora conserva la mesa que sigue disponible
 
-- DADO el panel con `fecha` `2026-11-02`, `hora` `21:30` y la mesa 5 elegida
+- DADO el modal con `fecha` `2026-11-02`, `hora` `21:30` y la mesa 5 elegida
 - CUANDO la persona cambia `hora` a `22:00` y la API devuelve una lista que incluye la mesa 5
 - ENTONCES se pide la lista de nuevo y la mesa 5 sigue elegida
 
 #### Escenario: Una respuesta vieja no pisa a la nueva
 
-- DADO el panel con `fecha` `2026-11-02` y `hora` `21:30`, y la consulta de ese turno todavía sin responder
+- DADO el modal con `fecha` `2026-11-02` y `hora` `21:30`, y la consulta de ese turno todavía sin responder
 - CUANDO la persona cambia `hora` a `22:00`, se pide la lista del turno nuevo y la respuesta del turno viejo llega después que la del nuevo
 - ENTONCES el selector muestra la lista del turno de las `22:00`
 - Y la respuesta del turno de las `21:30` se descarta, aunque haya llegado última
 
 #### Escenario: Falla la consulta de la lista
 
-- DADO el panel con Fecha y Hora válidas para el navegador y una API que responde 422 con «La hora de la reserva debe ser posterior a la hora actual» al pedir las mesas disponibles (el navegador puede estar en otra zona horaria que la del restaurante)
+- DADO el modal con Fecha y Hora válidas para el navegador y una API que responde 422 con «La hora de la reserva debe ser posterior a la hora actual» al pedir las mesas disponibles (el navegador puede estar en otra zona horaria que la del restaurante)
 - CUANDO termina la consulta
 - ENTONCES se muestra ese mensaje junto al campo Mesa y el selector no ofrece mesas
 
 #### Escenario: Alta correcta
 
-- DADO el panel de alta completo con datos válidos y la mesa 5 elegida de la lista
+- DADO el modal de alta completo con datos válidos y la mesa 5 elegida de la lista
 - CUANDO la persona pulsa «Guardar reserva»
 - ENTONCES se envía `POST /reservas` con `mesa_id` 5 (el `id` de la mesa elegida), `cliente_id`, `fecha`, `hora` y `cantidad_personas`
-- Y se muestra el aviso de éxito, el panel se cierra y la tabla se vuelve a pedir
+- Y se muestra el aviso de éxito, el modal se cierra y la tabla se vuelve a pedir
 
 #### Escenario: Conflicto de mesa
 
-- DADO el panel completo y una API que responde 409 con «La mesa 5 ya tiene una reserva activa el 2026-11-02 a las 21:30»
+- DADO el modal completo y una API que responde 409 con «La mesa 5 ya tiene una reserva activa el 2026-11-02 a las 21:30»
 - CUANDO la persona pulsa «Guardar reserva»
-- ENTONCES el panel muestra ese mensaje como error general, conserva los datos y sigue abierto
+- ENTONCES el modal muestra ese mensaje como error general, conserva los datos y sigue abierto
 
 #### Escenario: Mesa inexistente o fecha rechazada por la API
 
-- DADO el panel completo y una API que responde 404 con «La mesa 99 no existe», o 422 con «La fecha de la reserva no puede ser anterior a hoy»
+- DADO el modal completo y una API que responde 404 con «La mesa 99 no existe», o 422 con «La fecha de la reserva no puede ser anterior a hoy»
 - CUANDO la persona pulsa «Guardar reserva»
-- ENTONCES el panel muestra el mensaje, conserva los datos y sigue abierto
+- ENTONCES el modal muestra el mensaje, conserva los datos y sigue abierto
 
 #### Escenario: Mesa fuera de servicio rechazada por la API
 
-- DADO el panel completo con la mesa 6 elegida y una API que responde 409 con «La mesa 6 está fuera de servicio» (la mesa cambió de estado después de pedir la lista)
+- DADO el modal completo con la mesa 6 elegida y una API que responde 409 con «La mesa 6 está fuera de servicio» (la mesa cambió de estado después de pedir la lista)
 - CUANDO la persona pulsa «Guardar reserva»
-- ENTONCES el panel muestra ese mensaje como error general, conserva los datos y sigue abierto
+- ENTONCES el modal muestra ese mensaje como error general, conserva los datos y sigue abierto
 
 #### Escenario: Cancelar o cerrar el alta
 
-- DADO el panel de alta con datos escritos
-- CUANDO la persona pulsa «Cancelar» o «Cerrar formulario»
-- ENTONCES el panel se cierra, la ruta sigue siendo `/reservas` y no se envía ninguna solicitud
+- DADO el modal de alta con datos escritos
+- CUANDO la persona pulsa «Cancelar», la X del modal, la tecla Escape o hace clic en el fondo (fuera del modal)
+- ENTONCES el modal se cierra sin guardar, la ruta sigue siendo `/reservas`, no se envía ninguna solicitud y la tabla no se vuelve a pedir
+
+#### Escenario: Cerrar mientras se guarda (S38)
+
+- DADO el modal de alta con «Guardar reserva» ya pulsado y la solicitud `POST /reservas` todavía sin responder
+- CUANDO la persona cierra el modal con la X, Escape, el fondo o «Cancelar» antes de que la solicitud termine
+- ENTONCES la solicitud sigue en curso: no se cancela
+- Y cuando termine, sea cual sea el resultado, NO muestra el aviso de éxito, NO recarga la tabla y NO toca el modal que esté abierto en ese momento, aunque sea uno distinto abierto después
+
+#### Escenario: Una respuesta de guardado tardía no cierra un modal distinto
+
+- DADO que se cerró un modal de edición con un `PUT` todavía sin responder y después se abrió el modal «Nueva reserva»
+- CUANDO el `PUT` tardío termina bien
+- ENTONCES el modal «Nueva reserva» sigue abierto, con sus datos intactos, y la tabla no se recarga por esa respuesta
+
+#### Escenario: Lo mismo al revés, con un alta tardía
+
+- DADO que se cerró el modal «Nueva reserva» con un `POST` todavía sin responder y después se abrió el modal de edición de otra fila
+- CUANDO el `POST` tardío termina bien
+- ENTONCES el modal de edición sigue abierto, con sus datos intactos, y la tabla no se recarga por esa respuesta
 
 ### Requisito: Formulario de edición (HU-M5-02)
 
-La acción «Modificar reserva» de una fila `ACTIVA` DEBE abrir el mismo panel, sin cambiar de ruta, con el título «Modificar reserva» y los datos de esa fila; el frontend NO necesita pedir `GET /reservas/{id}` (S24). Cliente y Mesa DEBEN verse deshabilitados y no validarse: en la edición Mesa NO es el selector del alta, sigue siendo un campo de solo lectura con el identificador de la fila y NO pide la lista de mesas disponibles. La persona solo puede cambiar Fecha, Hora y Cantidad de personas, con la misma validación local del alta. Al guardar DEBE enviar `PUT /reservas/{id}` con exactamente `fecha`, `hora` y `cantidad_personas`; si termina bien, mostrar un aviso de éxito, cerrar el panel y recargar la tabla. Si la API responde 404, 409 o 422, DEBE mostrar el `detalle` como error general del panel, conservar los datos y dejar el panel abierto.
+La acción «Modificar reserva» de una fila `ACTIVA` DEBE abrir el mismo modal (el mismo `Dialog`), sin cambiar de ruta, con el título «Modificar reserva» y los datos de esa fila; el frontend NO necesita pedir `GET /reservas/{id}` (S24). Cliente y Mesa DEBEN verse deshabilitados y no validarse: en la edición Mesa NO es el selector del alta, sigue siendo un campo de solo lectura con el identificador de la fila y NO pide la lista de mesas disponibles. La persona solo puede cambiar Fecha, Hora y Cantidad de personas, con la misma validación local del alta. Al guardar DEBE enviar `PUT /reservas/{id}` con exactamente `fecha`, `hora` y `cantidad_personas`; si termina bien, mostrar un aviso de éxito, cerrar el modal y recargar la tabla. Si la API responde 404, 409 o 422, DEBE mostrar el `detalle` como error general del modal, conservar los datos y dejar el modal abierto. Cerrar el modal con la X, con Escape, haciendo clic en el fondo o con «Cancelar» cierra sin guardar y sin pedir la reserva de nuevo, igual que en el alta.
 
-#### Escenario: Panel con los datos actuales
+#### Escenario: Modal con los datos actuales
 
 - DADO una fila `ACTIVA` de la mesa 5 y el cliente 7
 - CUANDO la persona pulsa «Modificar reserva»
-- ENTONCES el panel «Modificar reserva» trae Fecha, Hora y Cantidad de personas de la fila
+- ENTONCES el modal «Modificar reserva» trae Fecha, Hora y Cantidad de personas de la fila
 - Y Cliente y Mesa muestran 7 y 5 deshabilitados
 - Y no se pidió `GET /reservas/mesas-disponibles`
 
 #### Escenario: Modificación correcta
 
-- DADO el panel de edición con una cantidad nueva
+- DADO el modal de edición con una cantidad nueva
 - CUANDO la persona pulsa «Guardar reserva»
 - ENTONCES se envía `PUT /reservas/{id}` con exactamente `fecha`, `hora` y `cantidad_personas`
-- Y se muestra el aviso de éxito, el panel se cierra y la tabla se vuelve a pedir
+- Y se muestra el aviso de éxito, el modal se cierra y la tabla se vuelve a pedir
 
 #### Escenario: Misma validación local que el alta
 
-- DADO el panel de edición con una `fecha` anterior a hoy, o con la cantidad `0`
+- DADO el modal de edición con una `fecha` anterior a hoy, o con la cantidad `0`
 - CUANDO la persona pulsa «Guardar reserva»
 - ENTONCES no se envía el `PUT` y el campo correspondiente muestra qué falla
 
@@ -1282,25 +1314,25 @@ La acción «Modificar reserva» de una fila `ACTIVA` DEBE abrir el mismo panel,
 
 - DADO una API que responde 409 con «La mesa 5 ya tiene una reserva activa el 2026-11-02 a las 21:30»
 - CUANDO la persona guarda
-- ENTONCES el panel muestra ese mensaje como error general, conserva los datos y sigue abierto
+- ENTONCES el modal muestra ese mensaje como error general, conserva los datos y sigue abierto
 
 #### Escenario: La reserva dejó de estar activa
 
-- DADO el panel de edición de una reserva que, mientras tanto, pasó a `ATENDIDA`
+- DADO el modal de edición de una reserva que, mientras tanto, pasó a `ATENDIDA`
 - CUANDO la persona guarda y la API responde 409 «La reserva {id} no está activa y no se puede modificar»
-- ENTONCES el panel muestra ese mensaje y sigue abierto
+- ENTONCES el modal muestra ese mensaje y sigue abierto
 
 #### Escenario: La reserva ya no existe
 
-- DADO el panel de edición de la reserva 999, que dejó de existir
+- DADO el modal de edición de la reserva 999, que dejó de existir
 - CUANDO la persona guarda y el `PUT` responde 404 «La reserva 999 no existe»
-- ENTONCES el panel muestra ese mensaje como error general, conserva los datos y sigue abierto
+- ENTONCES el modal muestra ese mensaje como error general, conserva los datos y sigue abierto
 
 #### Escenario: Cancelar la edición
 
-- DADO el panel de edición con cambios sin guardar
-- CUANDO la persona pulsa «Cancelar» o «Cerrar formulario»
-- ENTONCES el panel se cierra y no se envía el `PUT`
+- DADO el modal de edición con cambios sin guardar
+- CUANDO la persona pulsa «Cancelar», la X del modal, Escape o hace clic en el fondo (fuera del modal)
+- ENTONCES el modal se cierra sin guardar, no se envía el `PUT` y la tabla no se vuelve a pedir
 
 ### Requisito: Estados vacío y error del listado
 
@@ -1326,7 +1358,7 @@ La tabla DEBE mostrar «No hay reservas para los filtros elegidos.» cuando la A
 
 ## Supuestos
 
-Los supuestos S1 a S14 son los de la propuesta, con la misma numeración. S15 en adelante son nuevos de esta spec. Por el issue #61 se reescribieron S4, S5, S9, S10, S13, S17, S20 y S23 (sin cambiar su número) y se agregaron S29 a S35. Todos están marcados `Supuesto:` para que el equipo los valide (AGENTS.md, sección 9.2).
+Los supuestos S1 a S14 son los de la propuesta, con la misma numeración. S15 en adelante son nuevos de esta spec. Por el issue #61 se reescribieron S4, S5, S9, S10, S13, S17, S20 y S23 (sin cambiar su número) y se agregaron S29 a S35. Por la regla general de modales de AGENTS.md (sección 5) se reescribieron además S24 y S34 (sin cambiar su número, el panel lateral pasa a ser un modal) y se agregaron S36, S37 y S38. Todos están marcados `Supuesto:` para que el equipo los valide (AGENTS.md, sección 9.2).
 
 - Supuesto: S1. Estado inicial `ACTIVA`. Lo dicen el diagrama de clases, S2-02 y la maqueta. Contradicción de fuentes: S1-07 (CP-HU-M5-01) usa `PENDIENTE`. Se sigue el diagrama porque manda en nombres y valores; el equipo tiene que validarlo y corregir S1-07.
 - Supuesto: S2. Horario de atención: ninguna fuente lo define, así que no se restringe la hora de la reserva (vale cualquier hora del día). Si el equipo define un horario, se agrega como validación 422 en un cambio posterior.
@@ -1351,9 +1383,9 @@ Los supuestos S1 a S14 son los de la propuesta, con la misma numeración. S15 en
 - Supuesto: S21. Un mismo cliente PUEDE tener varias reservas `ACTIVA`, incluso en la misma fecha y hora en mesas distintas. La única regla de conflicto es la de mesa, fecha y hora (diagrama).
 - Supuesto: S22. En el listado, `estado` distingue mayúsculas y minúsculas (`activa` responde 422, como en `GET /productos` y `GET /secciones`); `fecha` usa `YYYY-MM-DD`; el filtro de fecha acepta cualquier día, también pasado, a diferencia del alta.
 - Supuesto: S23. `ReservaSalida` y la tabla de pantalla traen `mesa_id` y `cliente_id` y no nombres de mesa, sector, cliente ni teléfono. Este cambio no modifica `ReservaSalida` ni la tabla: mostrar el sector y el número de la mesa en el listado queda para un cambio posterior. La tabla muestra «Mesa n.º {mesa_id}» con el `id` interno de la mesa, que puede no coincidir con su `numero` (el selector del alta muestra el sector y el número). La maqueta muestra Cliente, Teléfono y Mesa con texto: la diferencia se anota en el PR.
-- Supuesto: S24. El frontend es una sola pantalla: `ReservasPage` en la ruta `/reservas`, que ya existe, con un panel lateral para el alta y la edición, como muestra la maqueta. No se agregan rutas ni se modifica `frontend/src/App.tsx` ni ningún archivo compartido. La edición parte de los datos de la fila, así que el frontend no usa `GET /reservas/{id}` (la ruta existe en el backend porque la pide HU-M5-02).
+- Supuesto: S24. El frontend es una sola pantalla: `ReservasPage` en la ruta `/reservas`, que ya existe. El alta y la edición se abren en un modal sobre esa misma pantalla, con el componente `Dialog` compartido (`frontend/src/shared/components/ui/dialog.tsx`), porque AGENTS.md (sección 5) pide que «los formularios de alta y edición se abren en un modal sobre la misma página», como ya hacen `MesaFormDialog`, `SectorFormDialog`, `ClienteFormDialog`, `ProductoFormDialog` y `MedioPagoFormDialog`. Cambio respecto de la propuesta: la maqueta `SPRINT-2/S2-04-maqueta/reservas.html` muestra el alta y la edición en una página aparte y con un panel lateral, pero esa regla general de AGENTS.md gana sobre la maqueta (AGENTS.md, sección 2: la maqueta tiene la prioridad más baja de todas las fuentes). No se agregan rutas ni se modifica `frontend/src/App.tsx` ni ningún archivo compartido. La edición parte de los datos de la fila, así que el frontend no usa `GET /reservas/{id}` (la ruta existe en el backend porque la pide HU-M5-02).
 - Supuesto: S25. Fecha y filtros de la pantalla, según la maqueta: la tabla muestra las reservas de un día, que arranca en hoy (fecha local del navegador), con los botones «Día anterior» y «Día siguiente», el campo «Día» y el botón «Hoy». El estado arranca en `ACTIVA` (S8) y el selector ofrece además «Todas». Cambiar de día vuelve a la página 1. El día se maneja como texto `YYYY-MM-DD` (S11).
-- Supuesto: S26. Los textos de los estados vacío y de error de la tabla son los de «Estados vacío y error del listado». El aviso de éxito del panel es un toast del sistema de avisos compartido, sin modificarlo.
+- Supuesto: S26. Los textos de los estados vacío y de error de la tabla son los de «Estados vacío y error del listado». El aviso de éxito del modal es un toast del sistema de avisos compartido, sin modificarlo.
 - Supuesto: S27. Al modificar, el `service` no revalida que la mesa o el cliente existan, porque no cambian, y tampoco consulta al puente.
 - Supuesto: S28. «Hoy» y «hora actual» son la fecha y la hora de la zona del restaurante: UTC-3 fija (Argentina no usa horario de verano desde 2009), calculadas a partir del reloj UTC del servidor. No dependen de `TZ` del proceso ni del contenedor. Reemplaza al supuesto anterior, «la hora local del servidor»: el 2026-10-31 se comprobó que Docker corre en UTC sin `TZ`, y eso rechazaba con 422 las reservas de las próximas 3 horas. La zona es una constante del módulo, sin variable de entorno ni dependencia nueva (se usa un desplazamiento fijo y no `zoneinfo`, que necesita la base de zonas del sistema). Las pruebas fijan el reloj para los escenarios con fecha de hoy.
 - Supuesto: S29. La lista de mesas disponibles es una lista simple, sin paginar (no es una `Pagina[T]`). Un selector tiene que mostrar todas las mesas posibles, y un restaurante tiene muchas menos mesas que el tope de una página (100). Por eso la respuesta no trae `total`, `limit` ni `offset`.
@@ -1361,5 +1393,8 @@ Los supuestos S1 a S14 son los de la propuesta, con la misma numeración. S15 en
 - Supuesto: S31. Una mesa fuera de servicio en el alta responde 409 «La mesa {id} está fuera de servicio» y no 422. Se trata como un conflicto con una regla de negocio, igual que la doble reserva (D-25, D-26): los datos enviados están bien formados, pero el estado de la mesa impide la reserva. 422 queda para datos mal formados o fechas y horas pasadas. El issue #61 pide que no se cree la reserva y que se avise; no fija el código.
 - Supuesto: S32. La consulta de mesas disponibles reutiliza las reglas de «no pasado» del alta (S3) con los mismos mensajes 422: un turno que no se podría reservar tampoco tiene mesas disponibles. La consulta de fechas pasadas del listado (S22) es otra cosa y no cambia.
 - Supuesto: S33. El puente lee todas las páginas de `listar_mesas` del `service` de M3 y a partir de esa lectura resuelve `obtener_mesa` y `listar_mesas`. Es lo único que M3 ofrece (páginas de hasta 100, orden por sector, `numero` e `id`, sin filtro por estado ni búsqueda por `id`) y `reservas` no puede cambiar `salon` (AGENTS.md, sección 9.3). Cada alta y cada consulta de mesas disponibles leen todas las mesas; con las decenas de mesas de un restaurante el costo es aceptable. Si M3 agrega una búsqueda por `id` o un filtro por estado, se cambia el cuerpo del puente sin tocar las reglas.
-- Supuesto: S34. Selector de mesa del panel. La lista se pide solo con Fecha y Hora válidas. La opción se escribe «Sector · Mesa N (capacidad personas)», con «personas» también cuando la capacidad es 1. Con la lista vacía, el botón «Guardar reserva» se deshabilita; no así mientras la lista carga ni cuando falló, porque en esos casos no hay mesa elegida y la validación local de Mesa impide el envío. Cliente sigue siendo un número (M4). El panel no importa nada del módulo de M3: pide la lista a la API de reservas.
-- Supuesto: S35. La lista de mesas disponibles es solo informativa: no reserva ni bloquea la mesa. Entre que se pide la lista y se guarda, otra persona puede reservar la mesa o M3 puede ponerla fuera de servicio; el alta vuelve a verificar la mesa, el estado y el turno libre y responde 404 o 409 con su mensaje, que el panel muestra como error general. Para ver la lista actualizada hay que cambiar Fecha u Hora, o cerrar y volver a abrir el panel.
+- Supuesto: S34. Selector de mesa del modal. La lista se pide solo con Fecha y Hora válidas. La opción se escribe «Sector · Mesa N (capacidad personas)», con «personas» también cuando la capacidad es 1. Con la lista vacía, el botón «Guardar reserva» se deshabilita; no así mientras la lista carga ni cuando falló, porque en esos casos no hay mesa elegida y la validación local de Mesa impide el envío. Cliente sigue siendo un número (M4). El modal no importa nada del módulo de M3: pide la lista a la API de reservas.
+- Supuesto: S35. La lista de mesas disponibles es solo informativa: no reserva ni bloquea la mesa. Entre que se pide la lista y se guarda, otra persona puede reservar la mesa o M3 puede ponerla fuera de servicio; el alta vuelve a verificar la mesa, el estado y el turno libre y responde 404 o 409 con su mensaje, que el modal muestra como error general. Para ver la lista actualizada hay que cambiar Fecha u Hora, o cerrar y volver a abrir el modal.
+- Supuesto: S36. Solo existe un modal de reserva a la vez: la pantalla guarda como mucho un modal abierto (cerrado, alta o edición de una fila), el mismo estado que ya tenía el panel lateral de la versión anterior. Mientras el modal de edición está abierto, el botón «Nueva reserva» se ve pero está deshabilitado: hay que cerrar la edición (con o sin guardar) antes de poder abrir el alta. Así nunca hay dos modales abiertos a la vez, sin cerrar en silencio cambios sin guardar; el `Dialog` compartido tampoco está pensado para montarse dos veces juntas.
+- Supuesto: S37. El modal usa el tamaño por defecto del `Dialog` compartido, `size="md"` (`max-w-lg`), igual que `MesaFormDialog` y `ClienteFormDialog`. El formulario tiene solo cinco campos (Cliente, Fecha, Hora, Cantidad de personas y Mesa), con Fecha y Hora en la misma fila, así que no necesita el ancho mayor `size="lg"` que usa `ProductoFormDialog` para un formulario largo con desplazamiento interno.
+- Supuesto: S38. Cerrar el modal no cancela una solicitud `POST` o `PUT` en curso: la solicitud sigue hasta el navegador, pero el formulario que la pidió se desentiende de su respuesta al desmontarse, con el mismo mecanismo que ya usa S35 para descartar una respuesta vieja de la consulta de mesas (una bandera que se apaga al desmontar). Por eso una respuesta tardía, llegue bien o mal, nunca muestra un aviso, nunca recarga la tabla y nunca toca el modal que esté abierto en ese momento, sea el mismo, ninguno o uno distinto abierto después. Antes de este ajuste, una respuesta tardía sí mostraba el aviso y recargaba la tabla aunque el modal ya estuviera cerrado, y podía cerrar un modal nuevo sin avisar; se corrige acá porque la conversión al modal lo hizo visible y el mecanismo ya existe en el propio módulo.
