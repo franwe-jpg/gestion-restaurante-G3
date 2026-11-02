@@ -304,15 +304,17 @@ y el PR los decide la persona.
 
 - [ ] P.1 Completar `Closes #65` y `Closes #66` en la descripción del PR, uno por línea (con
   `Closes #65, #66` GitHub cierra solo el primero).
-- [ ] P.2 Humo manual en el navegador, con el backend y el frontend reales (comandos de
-  `FLUJO_DIARIO.md`, read-only): `uvicorn app.main:app` desde `backend/` y `npm run dev` desde
-  `frontend/`. Abrir `/reservas`, con una reserva `ACTIVA` futura pulsar «Cancelar reserva»,
-  confirmar y comprobar el aviso de éxito y que la fila cambia (o desaparece, si el filtro es
-  «Activas»); con una reserva `ACTIVA` ya pasada (o cambiando el reloj del sistema, o editando una
-  reserva a una hora ya pasada si el formulario lo permite) pulsar «Cancelar por ausencia» y
-  comprobar el mismo flujo; cancelar un diálogo de confirmación y comprobar que no pasa nada;
-  provocar un 409 (cancelar la misma reserva dos veces) y comprobar el aviso `danger` con el
-  mensaje del backend.
+- [x] P.2 **Hecho (2026-11-04), persona responsable con `docker compose`.** Cancelar una reserva
+  mostró el aviso de éxito y la fila cambió de estado; cancelar por ausencia, lo mismo. Cancelar el
+  diálogo de confirmación («Volver») no hizo nada: la reserva siguió `ACTIVA`. El 409 por doble
+  cancelación no se pudo repetir desde la tabla, porque los botones solo se muestran en filas
+  `ACTIVA` y la fila cancelada deja de mostrarlos (comportamiento esperado, no un defecto); ese
+  caso ya lo cubren las pruebas automáticas aprobadas del backend y del hook. De paso se encontró y
+  se corrigió un problema ajeno a este cambio: la base de datos local tenía un volumen de Docker
+  viejo, sin la tabla `clientes`, porque Alembic no vuelve a recorrer una cadena de migraciones ya
+  marcada como «al día» aunque se le intercalen migraciones nuevas por debajo con el mismo
+  identificador de revisión final. Se resolvió con `docker compose down -v && docker compose up
+  --build`; no afecta a `develop` ni a otras máquinas que levanten el proyecto desde cero.
 - [ ] P.3 Validar con el equipo los supuestos S47 a S52 de la spec (S44, S45 y S46 ya los confirmó
   la persona responsable el 2026-11-02): S47 (sin tolerancia para la ausencia), S48 (mensajes y
   códigos), S49 («registrar el ausente» es el estado, sin contador en `Cliente`), S50 (los dos
