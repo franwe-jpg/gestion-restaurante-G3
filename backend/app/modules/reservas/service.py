@@ -152,6 +152,52 @@ def modificar_reserva(db: Session, reserva_id: int, datos: ReservaModificar) -> 
     return ReservaSalida.model_validate(reserva)
 
 
+# Estados terminales de cancelacion: una reserva en cualquiera de ellos "ya fue cancelada".
+_CANCELADAS = frozenset({EstadoReserva.CANCELADA_ANTICIPADA, EstadoReserva.CANCELADA_POR_AUSENCIA})
+
+
+def _obtener_cancelable(db: Session, reserva_id: int) -> Reserva:
+    """La reserva existe (404) y no esta cancelada ni atendida (409), en ese orden (S48)."""
+    reserva = _obtener(db, reserva_id)
+    if reserva.estado in _CANCELADAS:
+        raise ReglaDeNegocioError(f"La reserva {reserva_id} ya fue cancelada")
+    if reserva.estado == EstadoReserva.ATENDIDA:
+        raise ReglaDeNegocioError(f"La reserva {reserva_id} ya fue atendida y no se puede cancelar")
+    return reserva
+
+
+def _llego_su_hora(reserva: Reserva) -> bool:
+    """`(fecha, hora) <= ahora()` comparado en minutos, sin minutos de gracia (S46 y S47)."""
+    actual = ahora().replace(second=0, microsecond=0)
+    return datetime.combine(reserva.fecha, reserva.hora) <= actual
+
+
+def cancelar_anticipada(db: Session, reserva_id: int) -> ReservaSalida:
+    """HU-M5-04: una reserva ACTIVA cuya hora todavia no llego pasa a CANCELADA_ANTICIPADA."""
+    reserva = _obtener_cancelable(db, reserva_id)
+    if _llego_su_hora(reserva):
+        raise ReglaDeNegocioError(
+            f"La reserva {reserva_id} ya llegó a su hora; si el cliente no vino, "
+            "cancélela por ausencia"
+        )
+    reserva.estado = EstadoReserva.CANCELADA_ANTICIPADA
+    db.commit()
+    return ReservaSalida.model_validate(reserva)
+
+
+def cancelar_por_ausencia(db: Session, reserva_id: int) -> ReservaSalida:
+    """HU-M5-05: una reserva ACTIVA cuya hora ya llego pasa a CANCELADA_POR_AUSENCIA."""
+    reserva = _obtener_cancelable(db, reserva_id)
+    if not _llego_su_hora(reserva):
+        raise ReglaDeNegocioError(
+            f"La reserva {reserva_id} todavía no llegó a su hora y no se puede cancelar "
+            "por ausencia"
+        )
+    reserva.estado = EstadoReserva.CANCELADA_POR_AUSENCIA
+    db.commit()
+    return ReservaSalida.model_validate(reserva)
+
+
 def listar_reservas(db: Session, filtro: FiltroReservas) -> Pagina[ReservaSalida]:
     reservas, total = repository.listar_reservas(db, filtro, filtro.fecha, filtro.estado)
     return Pagina[ReservaSalida](

@@ -73,7 +73,7 @@ Dos commits, no uno ni cuatro (uno por HU):
 
 ## Fase 1. Backend: `cancelar_anticipada` y `cancelar_por_ausencia` (HU-M5-04 y HU-M5-05)
 
-- [ ] 1.1 (Rojo) `backend/tests/modules/reservas/test_service.py`, HU-M5-04 (`cancelar_anticipada`),
+- [x] 1.1 (Rojo) `backend/tests/modules/reservas/test_service.py`, HU-M5-04 (`cancelar_anticipada`),
   un caso por escenario de la spec (Requisito «Cancelar una reserva anticipadamente»):
   - `test_cancelar_anticipada_reserva_activa_queda_cancelada_y_libera_la_mesa` (escenario
     «Cancelación anticipada válida y la mesa queda disponible»: mesa 5, `2026-11-02` `21:30`, hora
@@ -99,7 +99,7 @@ Dos commits, no uno ni cuatro (uno por HU):
   - `test_cancelar_anticipada_reserva_inexistente_responde_404` (escenario «Reserva inexistente»:
     id `999`, `NoEncontradoError` con `"La reserva 999 no existe"`).
   Fallan por `AttributeError`/`ImportError`: `cancelar_anticipada` no existe todavía.
-- [ ] 1.2 (Rojo) `backend/tests/modules/reservas/test_service.py`, HU-M5-05
+- [x] 1.2 (Rojo) `backend/tests/modules/reservas/test_service.py`, HU-M5-05
   (`cancelar_por_ausencia`), un caso por escenario de la spec (Requisito «Cancelar una reserva por
   ausencia»):
   - `test_cancelar_por_ausencia_reserva_activa_queda_cancelada` (escenario «Cancelación por ausencia
@@ -123,7 +123,7 @@ Dos commits, no uno ni cuatro (uno por HU):
   - `test_cancelar_por_ausencia_reserva_inexistente_responde_404` (escenario «Reserva inexistente»:
     id `999`, `"La reserva 999 no existe"`).
   Fallan por `AttributeError`: `cancelar_por_ausencia` no existe todavía.
-- [ ] 1.3 (Rojo) `backend/tests/modules/reservas/test_service.py`, orden de verificación y
+- [x] 1.3 (Rojo) `backend/tests/modules/reservas/test_service.py`, orden de verificación y
   liberación automática (Requisito «El estado cancelado excluye la mesa de la disponibilidad
   automáticamente»), parametrizadas sobre las dos funciones:
   - `test_cancelar_atendida_con_hora_futura_responde_ya_atendida` y
@@ -139,7 +139,7 @@ Dos commits, no uno ni cuatro (uno por HU):
     `False`; la primera además verifica, con `service.crear_reserva`, que se puede reservar de
     nuevo el mismo turno con otro cliente, sin ningún paso adicional).
   Fallan junto con 1.1 y 1.2: las dos funciones del `service` no existen.
-- [ ] 1.4 (Rojo) `backend/tests/modules/reservas/test_router.py`, las dos rutas nuevas:
+- [x] 1.4 (Rojo) `backend/tests/modules/reservas/test_router.py`, las dos rutas nuevas:
   - `test_post_reservas_cancelar_anticipada_devuelve_200_con_el_estado` y
     `test_post_reservas_cancelar_por_ausencia_devuelve_200_con_el_estado` (`POST
     /reservas/{id}/cancelar-anticipada` y `/cancelar-por-ausencia` sin cuerpo; `200` con
@@ -161,25 +161,25 @@ Dos commits, no uno ni cuatro (uno por HU):
     se cancela con cualquiera de las dos rutas y se relee `Mesa.estado == LIBRE` en la base; cubre
     también «Contratos de importación», junto con 1.9 que corre `lint-imports`).
   Fallan con `404 Not Found` (las rutas no existen).
-- [ ] 1.5 (Verde) `backend/app/modules/reservas/service.py`, después de `modificar_reserva`
+- [x] 1.5 (Verde) `backend/app/modules/reservas/service.py`, después de `modificar_reserva`
   (Decisión 32): constante `_CANCELADAS`, `_obtener_cancelable(db, reserva_id)`,
   `_llego_su_hora(reserva)`, `cancelar_anticipada(db, reserva_id) -> ReservaSalida` y
   `cancelar_por_ausencia(db, reserva_id) -> ReservaSalida`, con el código exacto de la Decisión 32
   del diseño (orden: existencia 404, cancelada 409, atendida 409, hora 409; `db.commit()` directo,
   sin `_confirmar`, porque pasar de `ACTIVA` a cancelada saca la fila del índice único parcial y el
   `IntegrityError` es imposible en esta transición). Pasa 1.1, 1.2 y 1.3.
-- [ ] 1.6 (Verde) `backend/app/modules/reservas/router.py`, al final del archivo (Decisión 33): dos
+- [x] 1.6 (Verde) `backend/app/modules/reservas/router.py`, al final del archivo (Decisión 33): dos
   rutas `@router.post("/reservas/{reserva_id}/cancelar-anticipada")` y
   `@router.post("/reservas/{reserva_id}/cancelar-por-ausencia")`, sin `status_code` (200 por
   defecto), `response_model` `ReservaSalida` por el tipo de retorno, que solo delegan al `service`.
   Pasa 1.4.
-- [ ] 1.7 (Refactor) Revisar `service.py` y `router.py`: cada función hasta 50 líneas y complejidad
+- [x] 1.7 (Refactor) Revisar `service.py` y `router.py`: cada función hasta 50 líneas y complejidad
   ciclomática 10 (RNF-MAN-05, ya cumplido según el diseño: menos de 15 líneas y complejidad 2 o 3);
   que `_obtener_cancelable` sea la única fuente de los mensajes «ya fue cancelada» y «ya fue
   atendida»; que `_llego_su_hora` sea el único predicado de la regla de hora, usado negado en un
   lado y afirmado en el otro. Sin cambios de comportamiento; las pruebas de 1.1 a 1.4 siguen en
   verde.
-- [ ] 1.8 Mutaciones de las reglas clave, una por vez, cada una restaurada a mano desde una copia de
+- [x] 1.8 Mutaciones de las reglas clave, una por vez, cada una restaurada a mano desde una copia de
   respaldo del archivo (no `git restore`: nada de este cambio está commiteado todavía) antes de la
   siguiente mutación: (a) invertir el signo de `_llego_su_hora` (`<=` por `<`) y comprobar que
   `test_cancelar_anticipada_rechaza_hora_igual_a_la_actual` y
@@ -188,7 +188,7 @@ Dos commits, no uno ni cuatro (uno por HU):
   `test_cancelar_anticipada_reserva_ya_cancelada_responde_409` falla; (c) quitar la verificación de
   `ATENDIDA` y comprobar que `test_cancelar_anticipada_reserva_atendida_responde_409` falla.
   Restaurar el archivo original después de la tercera mutación.
-- [ ] 1.9 Verificar con `V-BACK`: `ruff check --fix . && ruff format .`, luego
+- [x] 1.9 Verificar con `V-BACK`: `ruff check --fix . && ruff format .`, luego
   `ruff check . && ruff format --check . && lint-imports && pytest` (cobertura ≥ 70 %). Comprobar
   además `alembic heads` (desde `backend/`): un único head, sin cambios (no se agrega ninguna
   migración). La suite completa del módulo y de M3 (vía `puente_real`) siguen en verde.

@@ -50,3 +50,13 @@ def consultar_reserva(reserva_id: int, db: Sesion) -> ReservaSalida:
 @router.put("/reservas/{reserva_id}")
 def modificar_reserva(reserva_id: int, datos: ReservaModificar, db: Sesion) -> ReservaSalida:
     return service.modificar_reserva(db, reserva_id, datos)
+
+
+@router.post("/reservas/{reserva_id}/cancelar-anticipada")
+def cancelar_anticipada(reserva_id: int, db: Sesion) -> ReservaSalida:
+    return service.cancelar_anticipada(db, reserva_id)
+
+
+@router.post("/reservas/{reserva_id}/cancelar-por-ausencia")
+def cancelar_por_ausencia(reserva_id: int, db: Sesion) -> ReservaSalida:
+    return service.cancelar_por_ausencia(db, reserva_id)
