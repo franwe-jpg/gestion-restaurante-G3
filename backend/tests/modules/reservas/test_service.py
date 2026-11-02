@@ -205,12 +205,159 @@ def test_crear_reserva_mesa_fuera_de_servicio_se_rechaza_antes_que_cliente_y_fec
     assert _reservas(db) == []
 
 
-# S6 y S20: el lado Cliente sigue siendo un stub, todo cliente positivo existe
-def test_crear_reserva_acepta_cualquier_cliente_positivo_con_el_stub(db: Session) -> None:
-    salida = service.crear_reserva(db, _datos(mesa_id=5, cliente_id=456))
+# S39 y S20: un identificador positivo que M4 no conoce no se acepta
+def test_crear_reserva_rechaza_cliente_positivo_que_m4_no_conoce(db: Session) -> None:
+    with pytest.raises(NoEncontradoError, match="El cliente 456 no existe"):
+        service.crear_reserva(db, _datos(mesa_id=5, cliente_id=456))
 
-    assert salida.mesa_id == 5
-    assert salida.cliente_id == 456
+    assert _reservas(db) == []
+
+
+# --- Cliente registrado o nuevo (issue #61, S39 a S43) ---
+
+CLIENTE_NUEVO = {"nombre": "Luis Gómez", "telefono": "+54 280 1234567"}
+
+
+def _datos_con_cliente_nuevo(**cambios) -> ReservaCrear:
+    return _datos(cliente_id=None, cliente_nuevo=CLIENTE_NUEVO, **cambios)
+
+
+# Enmienda: "exactamente un cliente" es la primera comprobacion y no consulta al puente
+def test_crear_reserva_rechaza_los_dos_clientes(db: Session, puente_doble) -> None:
+    with pytest.raises(DatosInvalidosError) as error:
+        service.crear_reserva(db, _datos(cliente_nuevo=CLIENTE_NUEVO))
+
+    assert "cliente_id" in str(error.value)
+    assert "cliente_nuevo" in str(error.value)
+    assert puente_doble.registrados == []
+    assert _reservas(db) == []
+
+
+def test_crear_reserva_rechaza_ningun_cliente(db: Session, puente_doble) -> None:
+    with pytest.raises(DatosInvalidosError) as error:
+        service.crear_reserva(db, _datos(cliente_id=None))
+
+    assert "cliente_id" in str(error.value)
+    assert "cliente_nuevo" in str(error.value)
+    assert puente_doble.registrados == []
+    assert _reservas(db) == []
+
+
+def test_crear_reserva_exactamente_un_cliente_se_valida_antes_que_la_mesa(
+    db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def no_debe_consultarse(*_args, **_kwargs):
+        raise AssertionError("el puente no se consulta")
+
+    monkeypatch.setattr(puente, "obtener_mesa", no_debe_consultarse)
+    monkeypatch.setattr(puente, "existe_cliente", no_debe_consultarse)
+
+    with pytest.raises(DatosInvalidosError):
+        service.crear_reserva(db, _datos(mesa_id=99, cliente_nuevo=CLIENTE_NUEVO))
+
+
+def test_crear_reserva_con_cliente_existente_no_registra_clientes(
+    db: Session, puente_doble
+) -> None:
+    salida = service.crear_reserva(db, _datos(cliente_id=7))
+
+    assert salida.cliente_id == 7
+    assert puente_doble.registrados == []
+
+
+def test_crear_reserva_con_cliente_nuevo_lo_registra(db: Session, puente_doble) -> None:
+    salida = service.crear_reserva(db, _datos_con_cliente_nuevo())
+
+    assert salida.cliente_id >= 100
+    assert puente_doble.registrados == [(salida.cliente_id, "Luis Gómez", "+54 280 1234567")]
+    db.expire_all()
+    assert db.get(Reserva, salida.id).cliente_id == salida.cliente_id
+
+
+def test_crear_reserva_dos_altas_con_cliente_nuevo_crean_dos_clientes(
+    db: Session, puente_doble
+) -> None:
+    primera = service.crear_reserva(db, _datos_con_cliente_nuevo())
+    segunda = service.crear_reserva(db, _datos_con_cliente_nuevo(hora=time(22, 30)))
+
+    assert primera.cliente_id != segunda.cliente_id
+    assert len(puente_doble.registrados) == 2
+
+
+def test_crear_reserva_acepta_cliente_nuevo_con_acentos_y_prefijo(
+    db: Session, puente_doble
+) -> None:
+    datos = _datos(cliente_id=None, cliente_nuevo={"nombre": "María José", "telefono": "+54 280"})
+
+    service.crear_reserva(db, datos)
+
+    assert [(n, t) for _, n, t in puente_doble.registrados] == [("María José", "+54 280")]
+
+
+@pytest.mark.parametrize(
+    "nombre, telefono, campo",
+    [
+        ("", "123", "nombre"),
+        ("   ", "123", "nombre"),
+        ("Luis3", "123", "nombre"),
+        ("Luis", "", "telefono"),
+        ("Luis", "abc", "telefono"),
+        ("Luis", "280+456", "telefono"),
+    ],
+)
+def test_crear_reserva_rechaza_datos_invalidos_del_cliente_nuevo(
+    db: Session, puente_doble, nombre: str, telefono: str, campo: str
+) -> None:
+    datos = _datos(cliente_id=None, cliente_nuevo={"nombre": nombre, "telefono": telefono})
+
+    with pytest.raises(DatosInvalidosError, match=f"{campo}:"):
+        service.crear_reserva(db, datos)
+
+    assert puente_doble.registrados == []
+    assert _reservas(db) == []
+
+
+# Decision 28: una reserva fallida no deja un cliente huerfano (el registro es el ultimo paso)
+@pytest.mark.parametrize(
+    "cambios, excepcion",
+    [
+        ({"mesa_id": 99}, NoEncontradoError),
+        ({"mesa_id": 6}, ReglaDeNegocioError),
+        ({"fecha": date(2026, 11, 1)}, DatosInvalidosError),
+        ({"hora": time(11, 0)}, DatosInvalidosError),
+        ({}, ReglaDeNegocioError),
+    ],
+    ids=[
+        "mesa-inexistente",
+        "mesa-fuera-de-servicio",
+        "fecha-pasada",
+        "hora-pasada",
+        "turno-ocupado",
+    ],
+)
+def test_crear_reserva_fallida_con_cliente_nuevo_no_registra_al_cliente(
+    db: Session, fabrica_reserva, puente_doble, cambios: dict, excepcion: type[Exception]
+) -> None:
+    puente_doble.poner(6, estado=EstadoMesa.FUERA_DE_SERVICIO)
+    _ocupar_turno(fabrica_reserva)
+
+    with pytest.raises(excepcion):
+        service.crear_reserva(db, _datos_con_cliente_nuevo(**cambios))
+
+    assert puente_doble.registrados == []
+    assert len(_reservas(db)) == 1
+
+
+# S17: la mesa se verifica antes que los datos del cliente nuevo
+def test_crear_reserva_mesa_inexistente_con_cliente_nuevo_invalido_informa_la_mesa(
+    db: Session, puente_sin_mesa
+) -> None:
+    datos = _datos(
+        mesa_id=99, cliente_id=None, cliente_nuevo={"nombre": "Luis3", "telefono": "123"}
+    )
+
+    with pytest.raises(NoEncontradoError, match="La mesa 99 no existe"):
+        service.crear_reserva(db, datos)
 
 
 # CA 7, S5 (issue #61): la cantidad solo debe ser un entero mayor a cero; no se la compara con
@@ -224,7 +371,8 @@ def test_crear_reserva_acepta_una_cantidad_muy_grande_de_personas(db: Session) -
 
 
 # CA 9
-def test_crear_reserva_rechaza_turno_ocupado(db: Session, fabrica_reserva) -> None:
+def test_crear_reserva_rechaza_turno_ocupado(db: Session, fabrica_reserva, puente_doble) -> None:
+    puente_doble.poner_cliente(8, "Beto Díaz", "+54 280 7654321")
     existente = _ocupar_turno(fabrica_reserva)
 
     with pytest.raises(ReglaDeNegocioError) as error:
@@ -311,7 +459,6 @@ def test_crear_reserva_orden_de_validacion(
     puente_doble,
     puente_sin_mesa,
     puente_sin_cliente,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _ocupar_turno(fabrica_reserva)
     ayer = date(2026, 11, 1)
@@ -327,7 +474,7 @@ def test_crear_reserva_orden_de_validacion(
     with pytest.raises(NoEncontradoError, match="El cliente 7 no existe"):
         service.crear_reserva(db, _datos(fecha=ayer))
 
-    monkeypatch.setattr(puente, "existe_cliente", puente_doble.existe_cliente)
+    puente_doble.poner_cliente(7, "Ana Pérez", "+54 280 1234567")
     with pytest.raises(DatosInvalidosError, match="La fecha de la reserva"):
         service.crear_reserva(db, _datos(fecha=ayer))
 
@@ -365,8 +512,9 @@ def _sin_verificacion_previa(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_crear_reserva_traduce_conflicto_del_indice_en_409(
-    db: Session, fabrica_reserva, monkeypatch: pytest.MonkeyPatch
+    db: Session, fabrica_reserva, puente_doble, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    puente_doble.poner_cliente(8, "Beto Díaz", "+54 280 7654321")
     existente = _ocupar_turno(fabrica_reserva)
     _sin_verificacion_previa(monkeypatch)
 
@@ -379,8 +527,9 @@ def test_crear_reserva_traduce_conflicto_del_indice_en_409(
 
 
 def test_crear_reserva_dos_altas_iguales_sin_verificacion_previa_deja_una_sola_activa(
-    db: Session, monkeypatch: pytest.MonkeyPatch
+    db: Session, puente_doble, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    puente_doble.poner_cliente(8, "Beto Díaz", "+54 280 7654321")
     _sin_verificacion_previa(monkeypatch)
 
     primera = service.crear_reserva(db, _datos(cliente_id=7))

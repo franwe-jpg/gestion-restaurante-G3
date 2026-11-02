@@ -12,8 +12,12 @@ from dataclasses import replace
 from datetime import UTC, date, datetime, time
 
 import pytest
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
+# Los esquemas y el service de atencion se importan solo en las pruebas (como los de salon).
+from app.modules.atencion import service as atencion_service
+from app.modules.atencion.schemas import ClienteNuevo
 from app.modules.reservas import puente, service
 from app.modules.reservas.models import EstadoReserva, Reserva
 from app.modules.reservas.puente import MesaReservable, SectorDeMesa
@@ -21,6 +25,7 @@ from app.modules.reservas.puente import MesaReservable, SectorDeMesa
 # Los modelos de salon se importan solo en las pruebas: lint-imports controla `app`, no `tests`.
 from app.modules.salon import service as salon_service
 from app.modules.salon.models import Mesa, Sector
+from app.shared.excepciones import DatosInvalidosError
 from app.shared.models.enums import EstadoMesa
 
 # Lunes 2 de noviembre de 2026, mediodia: los escenarios de la spec se trasladan a este reloj.
@@ -38,6 +43,7 @@ AHORA_REAL = service.ahora
 OBTENER_MESA_REAL = puente.obtener_mesa
 LISTAR_MESAS_REAL = puente.listar_mesas
 EXISTE_CLIENTE_REAL = puente.existe_cliente
+REGISTRAR_CLIENTE_REAL = puente.registrar_cliente
 
 SECTOR_SALON = SectorDeMesa(1, "Salón")
 
@@ -49,16 +55,21 @@ FabricaMesasM3 = Callable[..., list[Mesa]]
 
 
 class DoblePuente:
-    """Puente de prueba con las tres operaciones del contrato y las mesas 5 y 6 por defecto.
+    """Puente de prueba con las operaciones del contrato, las mesas 5 y 6 y el cliente 7.
 
     `obtener_mesa` y `listar_mesas` leen el mismo diccionario, asi que nunca difieren en el
-    estado de una mesa.
+    estado de una mesa. Los clientes nuevos se validan con el `ClienteNuevo` real de M4 (una sola
+    fuente de reglas, S42), pero su lista no participa de la transaccion: un `rollback` no la
+    vacia (Decision 27); lo que depende de la transaccion se prueba con el puente real.
     """
 
     def __init__(self) -> None:
         self.mesas: dict[int, MesaReservable] = {}
         self.poner(5)
         self.poner(6)
+        self.clientes: dict[int, tuple[str, str]] = {}
+        self.registrados: list[tuple[int, str, str]] = []
+        self.poner_cliente(7, "Ana Pérez", "+54 280 1234567")
 
     def poner(self, mesa_id: int, **cambios) -> MesaReservable:
         """Reemplaza la mesa con `cambios`; si no existe, la agrega con los valores por defecto."""
@@ -80,8 +91,24 @@ class DoblePuente:
     def listar_mesas(self, _db: Session) -> list[MesaReservable]:
         return list(self.mesas.values())
 
+    def poner_cliente(self, cliente_id: int, nombre: str, telefono: str) -> None:
+        self.clientes[cliente_id] = (nombre, telefono)
+
     def existe_cliente(self, _db: Session, cliente_id: int) -> bool:
-        return cliente_id > 0
+        return cliente_id in self.clientes
+
+    def registrar_cliente(self, _db: Session, nombre: str, telefono: str) -> int:
+        try:
+            datos = ClienteNuevo(nombre=nombre, telefono=telefono)
+        except ValidationError as error:
+            falla = error.errors()[0]
+            campo = str(falla["loc"][0])
+            mensaje = falla["msg"].removeprefix("Value error, ")
+            raise DatosInvalidosError(f"Datos invalidos. {campo}: {mensaje}") from error
+        cliente_id = max([99, *self.clientes]) + 1  # ids desde 100
+        self.poner_cliente(cliente_id, datos.nombre, datos.telefono)
+        self.registrados.append((cliente_id, datos.nombre, datos.telefono))
+        return cliente_id
 
 
 class DatetimeConRelojFijo(datetime):
@@ -142,6 +169,7 @@ def puente_doble(monkeypatch: pytest.MonkeyPatch) -> DoblePuente:
     monkeypatch.setattr(puente, "obtener_mesa", doble.obtener_mesa)
     monkeypatch.setattr(puente, "listar_mesas", doble.listar_mesas)
     monkeypatch.setattr(puente, "existe_cliente", doble.existe_cliente)
+    monkeypatch.setattr(puente, "registrar_cliente", doble.registrar_cliente)
     return doble
 
 
@@ -176,8 +204,8 @@ def puente_sin_mesa(puente_doble: DoblePuente) -> None:
 
 
 @pytest.fixture
-def puente_sin_cliente(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(puente, "existe_cliente", lambda _db, _cliente_id: False)
+def puente_sin_cliente(puente_doble: DoblePuente) -> None:
+    puente_doble.clientes.clear()
 
 
 @pytest.fixture
@@ -186,6 +214,7 @@ def puente_real(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(puente, "obtener_mesa", OBTENER_MESA_REAL)
     monkeypatch.setattr(puente, "listar_mesas", LISTAR_MESAS_REAL)
     monkeypatch.setattr(puente, "existe_cliente", EXISTE_CLIENTE_REAL)
+    monkeypatch.setattr(puente, "registrar_cliente", REGISTRAR_CLIENTE_REAL)
 
 
 @pytest.fixture
@@ -218,3 +247,11 @@ def m3_falla_desde_la_segunda_pagina(monkeypatch: pytest.MonkeyPatch) -> None:
         return original(db, parametros)
 
     monkeypatch.setattr(salon_service, "listar_mesas", envoltura)
+
+
+@pytest.fixture
+def cliente_en_m4(db: Session) -> int:
+    """Registra "Ana Pérez" con la funcion real de M4 y confirma; devuelve su id."""
+    cliente_id = atencion_service.registrar_cliente_para_reserva(db, "Ana Pérez", "+54 280 1234567")
+    db.commit()
+    return cliente_id
