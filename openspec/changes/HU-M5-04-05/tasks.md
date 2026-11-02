@@ -286,18 +286,15 @@ Dos commits, no uno ni cuatro (uno por HU):
 
 ## Fase 3. Cierre
 
-- [ ] 3.1 Verificación completa: `V-BACK` y `V-FRONT` otra vez, de punta a punta, sobre el árbol
-  final de las dos fases (no solo los comandos enfocados de 1.9 y 2.11). `alembic heads` (desde
-  `backend/`): el mismo head único que antes del cambio, sin ninguna migración nueva (Requisito
-  «Aislamiento del módulo», escenario «Sin migración nueva»).
-- [ ] 3.2 Aislamiento: `git diff --name-only develop...HEAD` (o el equivalente contra la base del
-  PR) no incluye ningún archivo de `backend/app/modules/salon/`, `backend/app/modules/atencion/`,
-  `frontend/src/modules/salon/`, `frontend/src/modules/atencion/`, `shared/` (backend y frontend)
-  ni `backend/pyproject.toml`; solo archivos de `backend/app/modules/reservas/`,
-  `backend/tests/modules/reservas/`, `frontend/src/modules/reservas/` y
-  `openspec/changes/HU-M5-04-05/` (escenario «Sin cambios en módulos ajenos»). `lint-imports` (ya
-  corrido en 1.9) confirma que no se agregó ninguna importación nueva de `salon` ni de `atencion`
-  (escenario «Contratos de importación»).
+- [x] 3.1 **Hecho (2026-11-02).** `V-BACK`: `ruff check`, `ruff format --check`, `lint-imports`
+  (10 contratos, 0 rotos), `alembic heads` (`d6f8a0c2e4b6`, único) y `pytest`: 1658 pruebas,
+  cobertura 99,23 %. `V-FRONT`: `lint`, `format:check`, `typecheck`, `test:coverage` (911 pruebas
+  en 76 archivos) y `build`, todos con salida 0.
+- [x] 3.2 **Hecho (2026-11-02).** `git diff --name-only origin/develop...HEAD` contra todo el
+  cambio: solo archivos de `backend/app/modules/reservas/`, `backend/tests/modules/reservas/`,
+  `frontend/src/modules/reservas/` y `openspec/changes/HU-M5-04-05/`. Nada de `salon`, `atencion`,
+  `shared` (backend ni frontend) ni `backend/pyproject.toml`. `lint-imports` (3.1) confirma los
+  mismos 10 contratos sin romper.
 
 ## Antes del PR
 
