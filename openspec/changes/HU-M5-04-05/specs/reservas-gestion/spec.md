@@ -1,7 +1,7 @@
 # Delta para reservas-gestion (HU-M5-04-05)
 
 Origen: HU-M5-04 (cancelar una reserva anticipadamente, issue #65) y HU-M5-05 (cancelar una
-reserva por ausencia, issue #66), un solo cambio, una rama y un PR (S39). Delta sobre
+reserva por ausencia, issue #66), un solo cambio, una rama y un PR (S44). Delta sobre
 `openspec/changes/HU-M5-01-02-03/specs/reservas-gestion/spec.md`, que hoy es el texto completo
 de la capacidad `reservas-gestion` porque ese cambio todavía no se archivó.
 
@@ -23,7 +23,7 @@ los escenarios» de la spec base (`HU-M5-01-02-03/specs/reservas-gestion/spec.md
 es `2026-10-28` y la hora actual son las `14:30`, pero el `AHORA` real del `conftest.py` (y el
 comentario de `test_service.py`, «El reloj de las pruebas marca el 2026-11-02 a las 12:00») usan
 otro valor. El código y las pruebas ya avanzaron sobre ese reloj; este delta sigue el valor real
-del fixture (S39) y no el texto de la spec base, que quedó desactualizado.
+del fixture (S44) y no el texto de la spec base, que quedó desactualizado.
 
 ## Contrato de la API (agregado)
 
@@ -47,7 +47,7 @@ nuevo.
 DEBE verificar en este orden: la reserva existe (404 «La reserva {id} no existe», el `_obtener`
 ya existente); no está ya cancelada, en ninguno de los dos estados de cancelación (409 «La
 reserva {id} ya fue cancelada»); no está `ATENDIDA` (409 «La reserva {id} ya fue atendida y no se
-puede cancelar»); su `(fecha, hora)` todavía no llegó, comparada con `ahora()` en minutos (S41) —
+puede cancelar»); su `(fecha, hora)` todavía no llegó, comparada con `ahora()` en minutos (S46) —
 si ya llegó o coincide exactamente con la hora actual, DEBE responder 409 «La reserva {id} ya
 llegó a su hora; si el cliente no vino, cancélela por ausencia».
 
@@ -103,7 +103,7 @@ llegó a su hora; si el cliente no vino, cancélela por ausencia».
 DEBE verificar en este orden: la reserva existe (404 «La reserva {id} no existe»); no está ya
 cancelada, en ninguno de los dos estados de cancelación (409 «La reserva {id} ya fue
 cancelada»); no está `ATENDIDA` (409 «La reserva {id} ya fue atendida y no se puede cancelar»);
-su `(fecha, hora)` ya llegó, es decir `(fecha, hora) <= ahora()` comparada en minutos (S42, el
+su `(fecha, hora)` ya llegó, es decir `(fecha, hora) <= ahora()` comparada en minutos (S47, el
 complemento exacto de la regla de HU-M5-04) — una reserva llega a su propia hora en el minuto
 exacto, sin minutos de gracia. Si todavía no llegó, DEBE responder 409 «La reserva {id} todavía
 no llegó a su hora y no se puede cancelar por ausencia».
@@ -114,14 +114,17 @@ no llegó a su hora y no se puede cancelar por ausencia».
   las `12:00`)
 - CUANDO se hace `POST /reservas/20/cancelar-por-ausencia`
 - ENTONCES responde 200 con `estado` `CANCELADA_POR_AUSENCIA`
-- Y `GET /reservas/mesas-disponibles?fecha=2026-11-02&hora=11:30` incluye la mesa 6 en la lista
+- Y la mesa 6 deja de tener una reserva `ACTIVA` para `2026-11-02` a las `11:30` (la consulta de
+  `GET /reservas/mesas-disponibles` no se puede usar aquí: rechaza con 422 cualquier turno ya
+  pasado, S32, y toda cancelación por ausencia es justamente de un turno pasado; se comprueba a
+  nivel del `repository`, como en el requisito siguiente)
 
 #### Escenario: Límite exacto — la reserva llega a su hora en el minuto justo
 
 - DADO una reserva `ACTIVA` con `id` 21 en la mesa 5 para `2026-11-02` a las `12:00` (coincide
   exactamente con la hora actual)
 - CUANDO se hace `POST /reservas/21/cancelar-por-ausencia`
-- ENTONCES responde 200 con `estado` `CANCELADA_POR_AUSENCIA` (S42: sin minutos de gracia)
+- ENTONCES responde 200 con `estado` `CANCELADA_POR_AUSENCIA` (S47: sin minutos de gracia)
 
 #### Escenario: La hora todavía no llegó
 
@@ -150,9 +153,12 @@ no llegó a su hora y no se puede cancelar por ausencia».
 No DEBE existir ningún paso explícito de «liberar la mesa»: `repository.ids_de_mesas_con_reserva_activa`,
 la verificación de turno libre del alta y el índice único parcial `ux_reservas_mesa_fecha_hora_activa`
 ya cuentan solo las reservas `ACTIVA` (hallazgo de `exploration.md`, sección 3). En cuanto una
-reserva pasa a `CANCELADA_ANTICIPADA` o `CANCELADA_POR_AUSENCIA`, DEBE volver a figurar disponible
-para esa fecha y hora en `GET /reservas/mesas-disponibles` y DEBE admitir una reserva nueva en el
-mismo turno, sin ningún cambio adicional en el `service` ni en el `repository` de este requisito.
+reserva pasa a `CANCELADA_ANTICIPADA` o `CANCELADA_POR_AUSENCIA`, esa mesa DEBE dejar de contar como
+ocupada para esa fecha y hora, sin ningún cambio adicional en el `service` ni en el `repository` de
+este requisito. Para un turno futuro (cancelación anticipada) esto se prueba de punta a punta con
+`GET /reservas/mesas-disponibles`; para un turno ya pasado (cancelación por ausencia) ese endpoint
+no sirve, porque rechaza con 422 cualquier turno pasado (S32), así que se prueba directo contra
+`repository.ids_de_mesas_con_reserva_activa` y `repository.existe_reserva_activa`.
 
 #### Escenario: Una mesa cancelada anticipadamente admite una reserva nueva en el mismo turno
 
@@ -162,13 +168,14 @@ mismo turno, sin ningún cambio adicional en el `service` ni en el `repository` 
   `hora` `21:30`
 - ENTONCES responde 201 con `estado` `ACTIVA`, sin ningún paso adicional para liberar la mesa
 
-#### Escenario: Una mesa cancelada por ausencia figura en la lista de disponibles de inmediato
+#### Escenario: Una mesa cancelada por ausencia deja de contar como ocupada de inmediato
 
 - DADO una reserva `ACTIVA` con `id` 31 en la mesa 6 para `2026-11-02` a las `11:30` (ya pasó),
   cancelada por ausencia (`POST /reservas/31/cancelar-por-ausencia`)
-- CUANDO se hace `GET /reservas/mesas-disponibles?fecha=2026-11-02&hora=11:30`
-- ENTONCES la mesa 6 figura en la lista inmediatamente después de cancelar, sin ningún paso
-  adicional
+- CUANDO se llama a `repository.ids_de_mesas_con_reserva_activa(db, fecha=2026-11-02, hora=11:30)`
+  y a `repository.existe_reserva_activa(db, mesa_id=6, fecha=2026-11-02, hora=11:30)`
+- ENTONCES la mesa 6 no aparece en el primer resultado y el segundo devuelve `False`, sin ningún
+  paso adicional
 
 ### Requisito: Aislamiento del módulo (HU-M5-04-05, AGENTS.md sección 9.3)
 
@@ -220,7 +227,7 @@ Al confirmar, DEBE llamar al endpoint correspondiente de `api.ts` (`cancelarRese
 aviso de error (`danger`) y NO DEBE modificar la fila ni volver a pedir el listado. Cancelar el
 diálogo de confirmación NO DEBE llamar a la API ni cambiar nada.
 
-Supuesto: S47 fija los textos exactos de los diálogos y de los avisos, porque la propuesta
+Supuesto: S52 fija los textos exactos de los diálogos y de los avisos, porque la propuesta
 (sección «Frontend») solo fija los `aria-label` de los botones y el patrón de `useConfirm`, no el
 `titulo`, la `descripcion` ni el texto del aviso de éxito de cada acción.
 
@@ -261,42 +268,42 @@ Supuesto: S47 fija los textos exactos de los diálogos y de los avisos, porque l
 
 ## Supuestos
 
-Los supuestos S39 a S47 son los de este delta. S39 a S46 vienen de la propuesta
+Los supuestos S44 a S52 son los de este delta. S44 a S51 vienen de la propuesta
 (`openspec/changes/HU-M5-04-05/proposal.md`, sección «Supuestos a validar por el equipo», S1 a
 S8), renumerados para continuar la secuencia de la capacidad `reservas-gestion` (que termina en
-S38 en la spec de HU-M5-01-02-03). S39, S40 y S41 ya están confirmados por la persona responsable
-el 2026-11-02; S42 a S47 quedan `Supuesto:` para que el equipo los valide (AGENTS.md, sección 9.2).
+S38 en la spec de HU-M5-01-02-03). S44, S45 y S46 ya están confirmados por la persona responsable
+el 2026-11-02; S47 a S52 quedan `Supuesto:` para que el equipo los valide (AGENTS.md, sección 9.2).
 
-- Supuesto: S39 (proposal S1, confirmado 2026-11-02). HU-M5-04 y HU-M5-05 van en un solo cambio,
+- Supuesto: S44 (proposal S1, confirmado 2026-11-02). HU-M5-04 y HU-M5-05 van en un solo cambio,
   como las dos bajas lógicas de `Reserva` (AGENTS.md §4 usa `HU-M5-01-02-04` como ejemplo, con
   HU-M5-04 como baja). El mismo §4 excluye «flujos de estado» y el plan llama «flujos» a las
   cancelaciones; se mantienen juntas porque no hay una HU de baja aparte y las dos tocan el mismo
   estado de la misma entidad.
-- Supuesto: S40 (proposal S2, confirmado 2026-11-02). Dos rutas, `POST /reservas/{id}/cancelar-anticipada`
+- Supuesto: S45 (proposal S2, confirmado 2026-11-02). Dos rutas, `POST /reservas/{id}/cancelar-anticipada`
   y `POST /reservas/{id}/cancelar-por-ausencia`, en lugar del `/cancelar` único del ejemplo de
   D-24, porque el diagrama de clases declara dos operaciones separadas (`cancelarAnticipada()` y
   `cancelarPorAusencia()`) con reglas de tiempo opuestas.
-- Supuesto: S41 (proposal S3, confirmado 2026-11-02). Cancelar anticipadamente una reserva cuya
+- Supuesto: S46 (proposal S3, confirmado 2026-11-02). Cancelar anticipadamente una reserva cuya
   hora ya llegó se rechaza con 409 «La reserva {id} ya llegó a su hora; si el cliente no vino,
   cancélela por ausencia», porque «anticipadamente» y «una reserva futura» (CA1 de HU-M5-04)
   indican que es antes del horario, y así el ausentismo no se pierde.
-- Supuesto: S42 (proposal S4). Sin tolerancia ni límite superior para la cancelación por
+- Supuesto: S47 (proposal S4). Sin tolerancia ni límite superior para la cancelación por
   ausencia: se cancela desde el minuto exacto de la reserva (`(fecha, hora) <= ahora()`), sin
   minutos de gracia y sin límite de días hacia atrás.
-- Supuesto: S43 (proposal S5). Mensajes y códigos: 404 si la reserva no existe; 409 si ya fue
+- Supuesto: S48 (proposal S5). Mensajes y códigos: 404 si la reserva no existe; 409 si ya fue
   cancelada, si fue atendida o si no se cumple la regla de hora de cada endpoint. Respuesta 200
   con la reserva actualizada en los dos endpoints.
-- Supuesto: S44 (proposal S6). «Registrar el ausente» se cumple con el estado
+- Supuesto: S49 (proposal S6). «Registrar el ausente» se cumple con el estado
   `CANCELADA_POR_AUSENCIA` de la reserva; no se agrega un contador en `Cliente` (M4) ni un campo
   nuevo. El reporte de ausentismo (HU-M5-07) queda para un cambio posterior.
-- Supuesto: S45 (proposal S7). Las dos acciones de la pantalla se muestran en toda reserva
+- Supuesto: S50 (proposal S7). Las dos acciones de la pantalla se muestran en toda reserva
   `ACTIVA`, sin calcular la hora en el navegador: la regla de hora la aplica el backend y el
   aviso muestra su mensaje, para no depender del reloj del navegador (que puede diferir del
   servidor).
-- Supuesto: S46 (proposal S8). Sin concurrencia especial: si dos personas cancelan la misma
+- Supuesto: S51 (proposal S8). Sin concurrencia especial: si dos personas cancelan la misma
   reserva a la vez, la segunda recibe 409 «ya fue cancelada» si lee después del `commit` de la
   primera; no se agrega bloqueo.
-- Supuesto: S47 (nuevo de esta spec). Textos de pantalla que la propuesta no fija: los diálogos
+- Supuesto: S52 (nuevo de esta spec). Textos de pantalla que la propuesta no fija: los diálogos
   de confirmación usan `titulo` «¿Cancelar la reserva?» (anticipada) y «¿Cancelar por ausencia?»
   (por ausencia); `descripcion` «La mesa quedará disponible para ese turno.» (anticipada) y «La
   mesa quedará disponible para ese turno y se registra que el cliente no vino.» (por ausencia);
