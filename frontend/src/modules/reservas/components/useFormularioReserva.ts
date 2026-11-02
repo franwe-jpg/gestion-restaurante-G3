@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { useToast } from '../../../shared/hooks/useToast';
 import type { RespuestaApi } from '../../../shared/types';
@@ -107,6 +107,15 @@ export function useFormularioReserva({ reserva, onGuardado }: OpcionesFormulario
   const [errores, setErrores] = useState<ErrorDelServidor>({});
   const [enviando, setEnviando] = useState(false);
   const { estadoMesas, mesaElegida } = useMesasDelTurno(datos, setDatos, modo);
+  /** `true` mientras el modal que creó este formulario sigue montado (S38). */
+  const vigente = useRef(false);
+
+  useEffect(() => {
+    vigente.current = true;
+    return () => {
+      vigente.current = false;
+    };
+  }, []);
 
   const cambiar = (campo: keyof DatosFormularioReserva, valor: string) => {
     setDatos((anteriores) => ({ ...anteriores, [campo]: valor }));
@@ -124,6 +133,7 @@ export function useFormularioReserva({ reserva, onGuardado }: OpcionesFormulario
 
     setEnviando(true);
     const respuesta = await guardar(datos, reserva);
+    if (!vigente.current) return; // el modal se cerró: la respuesta no toca nada (S38)
     setEnviando(false);
 
     if (respuesta.exito) {

@@ -1,9 +1,8 @@
-import { X } from 'lucide-react';
 import type { FormEvent } from 'react';
 
 import { Alert } from '../../../shared/components/ui/alert';
 import { Button } from '../../../shared/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../../../shared/components/ui/card';
+import { Dialog } from '../../../shared/components/ui/dialog';
 import { FormField } from '../../../shared/components/ui/form-field';
 import { Input } from '../../../shared/components/ui/input';
 
@@ -13,12 +12,14 @@ import { useFormularioReserva } from './useFormularioReserva';
 import { SelectorMesa } from './SelectorMesa';
 import type { DatosFormularioReserva } from './validarReserva';
 
-export interface ReservaFormularioProps {
-  /** Con `reserva` el panel modifica esa fila; sin ella da de alta una reserva nueva. */
+export interface ReservaFormDialogProps {
+  /** Con `reserva` el modal modifica esa fila; sin ella da de alta una reserva nueva. */
   reserva?: Reserva;
-  onCerrar: () => void;
   onGuardado: () => void;
+  onOpenChange: (abierto: boolean) => void;
 }
+
+const ID_FORMULARIO_RESERVA = 'formulario-reserva';
 
 type Formulario = ReturnType<typeof useFormularioReserva>;
 
@@ -67,22 +68,12 @@ function CampoMesa({ formulario, edicion }: { formulario: Formulario; edicion: b
   );
 }
 
-function CabeceraDelPanel({ titulo, onCerrar }: { titulo: string; onCerrar: () => void }) {
-  return (
-    <CardHeader className="flex-row items-center justify-between space-y-0">
-      <CardTitle id="titulo-reserva">{titulo}</CardTitle>
-      <Button variant="ghost" size="sm" aria-label="Cerrar formulario" onClick={onCerrar}>
-        <X className="h-4 w-4" aria-hidden="true" />
-      </Button>
-    </CardHeader>
-  );
-}
-
 /**
- * Panel lateral de alta y de edición. Se monta al abrirlo: el alta parte de campos vacíos y la
- * edición, de los datos de la fila. En la edición Cliente y Mesa no se pueden cambiar.
+ * Se monta solo mientras debe verse un modal: la página decide si se muestra. El alta parte de
+ * campos vacíos y la edición, de los datos de la fila. En la edición Cliente y Mesa no se pueden
+ * cambiar.
  */
-export function ReservaFormulario({ reserva, onCerrar, onGuardado }: ReservaFormularioProps) {
+export function ReservaFormDialog({ reserva, onGuardado, onOpenChange }: ReservaFormDialogProps) {
   const formulario = useFormularioReserva({ reserva, onGuardado });
   const { errores } = formulario;
   const edicion = reserva !== undefined;
@@ -93,36 +84,40 @@ export function ReservaFormulario({ reserva, onCerrar, onGuardado }: ReservaForm
   };
 
   return (
-    <Card>
-      <form aria-labelledby="titulo-reserva" noValidate onSubmit={alEnviar}>
-        <CabeceraDelPanel
-          titulo={edicion ? 'Modificar reserva' : 'Nueva reserva'}
-          onCerrar={onCerrar}
+    <Dialog
+      open
+      onOpenChange={onOpenChange}
+      title={edicion ? 'Modificar reserva' : 'Nueva reserva'}
+      footer={
+        <>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancelar
+          </Button>
+          <Button
+            type="submit"
+            form={ID_FORMULARIO_RESERVA}
+            disabled={formulario.guardarDeshabilitado}
+          >
+            Guardar reserva
+          </Button>
+        </>
+      }
+    >
+      <form id={ID_FORMULARIO_RESERVA} noValidate onSubmit={alEnviar} className="space-y-4">
+        {errores.general && <Alert variant="danger">{errores.general}</Alert>}
+        <CampoReserva
+          formulario={formulario}
+          campo="cliente"
+          etiqueta="Cliente (número)"
+          deshabilitado={edicion}
         />
-        <CardContent className="space-y-4">
-          {errores.general && <Alert variant="danger">{errores.general}</Alert>}
-          <CampoReserva
-            formulario={formulario}
-            campo="cliente"
-            etiqueta="Cliente (número)"
-            deshabilitado={edicion}
-          />
-          <div className="grid grid-cols-2 gap-3">
-            <CampoReserva formulario={formulario} campo="fecha" etiqueta="Fecha" tipo="date" />
-            <CampoReserva formulario={formulario} campo="hora" etiqueta="Hora" tipo="time" />
-          </div>
-          <CampoReserva formulario={formulario} campo="cantidad" etiqueta="Cantidad de personas" />
-          <CampoMesa formulario={formulario} edicion={edicion} />
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={onCerrar}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={formulario.guardarDeshabilitado}>
-              Guardar reserva
-            </Button>
-          </div>
-        </CardContent>
+        <div className="grid grid-cols-2 gap-3">
+          <CampoReserva formulario={formulario} campo="fecha" etiqueta="Fecha" tipo="date" />
+          <CampoReserva formulario={formulario} campo="hora" etiqueta="Hora" tipo="time" />
+        </div>
+        <CampoReserva formulario={formulario} campo="cantidad" etiqueta="Cantidad de personas" />
+        <CampoMesa formulario={formulario} edicion={edicion} />
       </form>
-    </Card>
+    </Dialog>
   );
 }

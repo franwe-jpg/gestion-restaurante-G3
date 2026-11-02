@@ -925,3 +925,104 @@ Mediciones con `diff` contra las copias hechas al empezar (sin git): `service.py
 
 - 11.4: commit 15 (`fix: calcula hoy y la hora actual en la zona del restaurante (HU-M5-01)`), a cargo del orquestador, con `service.py`, `conftest.py`, `test_service.py`, `test_router.py`, `tasks.md` y `apply-progress.md`. El `conftest.py` tiene que entrar en el commit: `test_service.py` y `test_router.py` fallan sin sus fixtures nuevas (`reloj_utc_fijo` y `zona_del_proceso`).
 - La mejora complementaria (`TZ=America/Argentina/Buenos_Aires` en `compose.yaml`) sigue fuera de este cambio (ver «Pendiente fuera de este cambio», punto b).
+
+## Fase 12 · Modal de alta y edición (AGENTS.md sección 5)
+
+**Lote G (Fase 12, commit 16 pendiente, frontend: modal de alta y edición sobre el `Dialog` compartido): tareas 12.1 a 12.13 completas.** Delta solo del frontend; no se tocó `backend/`, `shared/` (frontend ni backend), otro módulo, rutas ni `frontend/src/App.tsx`. Entorno: todos los comandos de frontend se corrieron en el host, desde `frontend/`, con el `node_modules` existente. Línea base de esta fase (sobre `f1a210f`, commit 9): `npx vitest run src/modules/reservas` 151 pruebas en 9 archivos; suite completa `npm run test:coverage` 820 pruebas en 73 archivos; `lint`, `format:check`, `typecheck` y `build` limpios.
+
+### Tareas completadas
+
+| Tarea | Estado | Resultado observado |
+|-------|--------|---------------------|
+| 12.1 | [x] | `ReservaFormulario.test.tsx` (+4, 2 por modo con `it.each` de respuesta buena/error): RED = 2 fallos reales (`mostrarToast` llamado tras `unmount()` en el caso de respuesta buena, alta y edición) y 2 pasan de forma trivial (el camino de error nunca llama a `mostrarToast` ni a `onGuardado`, con o sin la guarda; se anota como par de pruebas sin poder de detección propio, no como guarda falsa) |
+| 12.2 | [x] | `useFormularioReserva.ts`: referencia `vigente` con su efecto (`useEffect(() => { vigente.current = true; return () => { vigente.current = false; }; }, [])`) y el corte en `enviar()` inmediatamente después del `await guardar(...)`. GREEN: 155/155 en el módulo (151 previas + 4 nuevas) |
+| 12.3 | [x] | Revisado: el hook queda en 55 líneas totales, `enviar` en 16; sin cambios de comportamiento. `eslint --max-warnings=0` sobre el hook y la prueba pidió partir el `describe` de 57 líneas en dos funciones de ayuda (`altaNoAplicaRespuestaTardia`, `edicionNoAplicaRespuestaTardia`); 155/155 siguen en verde |
+| 12.4 | [x] | Renombrado hecho con `mv` (plain, no `git mv`, nada confirmado): `components/ReservaFormulario.tsx` → `components/ReservaFormDialog.tsx` y `components/ReservaFormulario.test.tsx` → `components/ReservaFormDialog.test.tsx`. **Desvío de la tarea:** el mandato del delegador prohíbe tocar git en este lote (el orquestador hace el `git add`/`mv`-equivalente al confirmar), así que se usó el movimiento de archivos de las herramientas (no `git mv` de la tarea); el efecto en el árbol de trabajo es el mismo: ambos archivos viejos no existen más y los nuevos ya tienen el contenido final, así que `git` puede detectar el renombrado por similitud de contenido cuando el orquestador confirme |
+| 12.5 | [x] | `ReservaFormDialog.test.tsx` reescrita (prop `onCerrar` → `onOpenChange`, `describe` «panel» → «modal», `heading` → `dialog`, sin «Cerrar formulario», nuevo `describe.each` de 2×4 = 8 casos para las cuatro vías de cierre en alta y edición): RED = 55/55 fallos, todos `Element type is invalid` porque `ReservaFormDialog.tsx` todavía exportaba `ReservaFormulario` (el archivo renombrado conservaba el contenido viejo) |
+| 12.6 | [x] | `ReservaFormDialog.tsx` reescrito sobre `Dialog` (open fijo, `onOpenChange`, `title`, `footer` con Cancelar y Guardar reserva con `form={ID_FORMULARIO_RESERVA}`); `components/index.ts` reexporta `ReservaFormDialog`. GREEN: 55/55 en `ReservaFormDialog.test.tsx` |
+| 12.7 | [x] | Revisado: el componente queda en 36 líneas, sin importaciones sobrantes (`Card`, `CardContent`, `CardHeader`, `CardTitle`, el ícono `X` y `CabeceraDelPanel` desaparecieron); docstring actualizado («se monta solo mientras debe verse un modal»). `eslint --max-warnings=0` limpio; 55/55 siguen en verde |
+| 12.8 | [x] | `ReservasPage.test.tsx`: reemplazadas las dos pruebas que contradecían S36 (ahora cierran con «Cancelar» antes del siguiente paso) y agregadas 3 pruebas de «un solo modal a la vez» más 2 de respuesta tardía (S38) con `RespuestaApi` importado de `shared/types`. RED = 11 fallos, los 11 casos que montan el modal (`PanelDeReserva` seguía usando el `ReservaFormulario` ya eliminado de `components/index.ts`); los 11 casos que no montan el modal (navegador de fecha, filtro, paginación, vacío/error) siguieron en verde. **Desvío de la «Honestidad del Rojo» anotada en la tarea:** las dos pruebas de respuesta tardía NO llegaron a pasar como guarda en este Rojo, porque para esta fase el renombrado de 12.4-12.6 ya había roto el import de la página antes de escribir estas pruebas (orden secuencial de la fase); fallaron por la misma causa que las demás (`Element type is invalid`), no por una diferencia de comportamiento. Se anota como corrección honesta de la expectativa de la tarea, no como fallo inventado |
+| 12.9 | [x] | `ReservasPage.tsx` reescrita (Decisión 22): `ModalDeReserva` (antes `PanelDeReserva`) monta `ReservaFormDialog` solo si `panel !== 'cerrado'`; desaparecen el `<div className="w-full lg:w-96 lg:shrink-0">` y el `flex ... lg:flex-row`; `alCambiarModal` memoizada con `useCallback`; «Nueva reserva» con `disabled={typeof panel === 'object'}`. GREEN: 165/165 en el módulo (155 previas + 10 nuevas) en la primera corrida con todo implementado |
+| 12.10 | [x] | Revisado: `ListadoDelDia` en 29 líneas, `ModalDeReserva` en 13, `ReservasPage` en 32; sin clases de layout de dos columnas sobrantes. `eslint --max-warnings=0` limpio; 165/165 siguen en verde |
+| 12.11 | [x] | `npx vitest run src/modules/reservas`: 165/165 en 9 archivos. `V-FRONT`: `npm run format` sin cambios, `lint` limpio, `format:check` limpio, `typecheck` limpio, `npm run test:coverage` 834/834 en 73 archivos (cobertura de `shared/` y `App.tsx` sin cambios porque `vite.config.ts` no mide `modules/`), `npm run build` terminó en 725 ms. `V-TZ` sobre el módulo completo (no solo `fechas.test.ts`, para cubrir también los casos de S38 y S36 nuevos): 165/165 con `TZ=America/Argentina/Buenos_Aires` y con `TZ=UTC` |
+| 12.12 | [x] | 3 mutaciones, cada una restaurada desde una copia en el scratchpad de la sesión (no `git restore`): ver «Comprobaciones de mutación» abajo |
+| 12.13 | [x] | Medido con `git diff --no-index` (sin `git add`, ver «Desvíos y decisiones», punto 2): ver «Tamaño de la unidad» abajo |
+
+### TDD Cycle Evidence
+
+| Tarea | Archivo de prueba | Capa | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|-------|-------------------|------|------------|-----|-------|-------------|----------|
+| 12.1, 12.2 | `components/ReservaFormulario.test.tsx` (renombrado en 12.4) | Componente (Testing Library, promesa controlada a mano, `unmount()`) | 151/151 de la línea base del módulo | Escrito y ejecutado: 2 fallos reales (`mostrarToast` llamado tras `unmount()`), 2 sin poder de detección (camino de error) | 155/155 | Alta y edición, respuesta buena y con error | Dos funciones de ayuda (`altaNoAplicaRespuestaTardia`, `edicionNoAplicaRespuestaTardia`) para bajar el `describe` de 57 a menos de 50 líneas por `max-lines-per-function` |
+| 12.5, 12.6 | `components/ReservaFormDialog.test.tsx` | Componente (Testing Library, roles `dialog`/`button`, `fireEvent.keyDown(window, ...)` para Escape, clic en el nodo `[aria-hidden="true"]` para el fondo) | N/A (reescritura completa; 0/0 hasta 12.6) | Escrito y ejecutado: 55/55 fallos, `Element type is invalid` | 55/55 | Título exacto por modo, ausencia del botón «Cerrar formulario», cuatro vías de cierre (Cancelar, X, Escape, fondo) en alta y en edición, sin llamar a la API ni a `onGuardado` | Ninguno necesario: el componente ya quedó dentro de los límites de tamaño y complejidad en la primera versión |
+| 12.8, 12.9 | `pages/ReservasPage.test.tsx` | Página (Testing Library, `MemoryRouter`, `vi.mock('../api')`, reloj `Date` simulado, promesas controladas a mano para el PUT y el POST tardíos) | 151/151 de la página previa | Escrito y ejecutado: 11 fallos (los 11 casos que montan el modal) | 165/165 | Deshabilitado durante la edición y pulsarlo no abre un segundo modal; habilitado de nuevo al cerrar con «Cancelar» y al guardar; un `PUT` tardío no cierra el alta abierta después; un `POST` tardío no cierra la edición abierta después; cerrar una edición y abrir la de otra fila trae los datos de la fila nueva; «Nueva reserva» tras cerrar con «Cancelar» abre el modal vacío. **Comprobaciones de mutación:** ver abajo | Ninguno necesario: `ListadoDelDia`, `ModalDeReserva` y `ReservasPage` ya quedaron dentro de 50 líneas y complejidad 10 |
+
+### Comprobaciones de mutación (12.12)
+
+Cada mutación se aplicó sobre el árbol todavía sin confirmar, con una copia previa del archivo guardada en el scratchpad de la sesión (nunca `git restore`, porque habría borrado las ediciones de 12.1 a 12.10 todavía no confirmadas) y se restauró con `cp` antes de la siguiente, verificando con `diff` que la restauración quedó idéntica al original.
+
+| Mutación | Archivo | Resultado |
+|----------|---------|-----------|
+| Quitar `if (!vigente.current) return;` de `enviar()` | `useFormularioReserva.ts` | **Detectada.** 4 fallos: las 2 pruebas de respuesta buena de «cerrar el modal ... no aplica una respuesta tardía (S38)» en `ReservaFormDialog.test.tsx` (alta y edición) y las 2 pruebas de respuesta tardía de `ReservasPage.test.tsx` (`PUT` y `POST` tardíos) |
+| Quitar `disabled={typeof panel === 'object'}` de «Nueva reserva» | `ReservasPage.tsx` | **Detectada.** 3 fallos: «el botón "Nueva reserva" se deshabilita durante la edición…» y las 2 pruebas de «se habilita de nuevo» (con «Cancelar» y al guardar), que esperaban el estado deshabilitado antes de cerrar |
+| Cambiar `alCambiarModal` de `useCallback((abierto) => {...}, [])` a una función nueva en cada render (sin `useCallback`) | `ReservasPage.tsx` | **Mutante equivalente, como anticipa la tarea.** 22/22 pruebas de `ReservasPage.test.tsx` siguen en verde: jsdom no reproduce la pérdida de foco que corrige la Decisión 22 (el efecto de `dialog.tsx` se limpia y se repite en cada repintado, pero ninguna aserción de Testing Library comprueba a qué elemento vuelve el foco durante ese repintado intermedio). No bloquea el cierre de la unidad: el diseño documenta por qué hace falta el `useCallback` aunque ninguna prueba unitaria lo detecte |
+
+### Tamaño de la unidad (12.13)
+
+**Desvío de la tarea:** la tarea pide medir con `git diff --shortstat -- frontend/src/modules/reservas` sobre el árbol sin confirmar. Al ejecutarlo se necesitó incluir los dos archivos nuevos todavía sin seguimiento (`ReservaFormDialog.tsx` y su prueba) en el cálculo de similitud de renombrado, y por error se usó `git add -N` (intent-to-add) para que `git diff` los contemplara; eso es una operación de *stage*, que el mandato de este lote prohíbe explícitamente (el orquestador es el único que debe tocar el índice de git). Se deshizo de inmediato con `git reset -- <los 2 archivos>` (no es `restore`, `stash`, `commit`, `push` ni `mv`: solo quita la entrada del índice, sin tocar el árbol de trabajo ni el historial) y se comprobó con `git status --short` que el árbol quedó exactamente como antes (dos archivos borrados, cuatro modificados, dos nuevos sin seguimiento, nada en el índice). La medición final se repitió sin tocar git: `git show HEAD:<ruta> > copia` más `git diff --no-index <copia> <archivo actual>` por archivo (operación de lectura pura, no distinta de `git diff`/`git status`, que no mueve ninguna referencia ni crea entradas en el índice).
+
+| Archivo | Líneas (+/−) |
+|---------|--------------|
+| `components/ReservaFormDialog.tsx` (código, renombrado) | +43 −48 |
+| `components/index.ts` (código) | +1 −1 |
+| `components/useFormularioReserva.ts` (código) | +11 −1 |
+| `pages/ReservasPage.tsx` (código) | +23 −24 |
+| `components/ReservaFormDialog.test.tsx` (pruebas, renombrado) | +143 −43 |
+| `pages/ReservasPage.test.tsx` (pruebas) | +99 −2 |
+
+Código: 91 + 2 + 12 + 47 = **152 líneas** (pronóstico del diseño: ≈ 65 a 105). Pruebas: 186 + 101 = **287 líneas** (pronóstico: ≈ 140 a 250). Total: **439 líneas** (pronóstico: ≈ 205 a 355). Las tres cifras superan el rango estimado del diseño. El acumulado del frontend medido en 10.41 (≈ 2.679 líneas) pasa a quedar en ≈ 3.118 (2.679 + 439), por encima del rango informativo que el diseño anticipaba (≈ 2.884 a 3.034) en unas 84 líneas. Es informativo, no bloquea: la HU no se divide en varios PR (AGENTS.md §4) y la excepción `size:exception` ya solicitada en 8.6 y 10.41 sigue en pie. Ningún recorte de comentarios, líneas en blanco, documentación ni pruebas se usó para acercar el número al pronóstico; el exceso se explica por las pruebas nuevas de las cuatro vías de cierre (8 casos) y de las dos respuestas tardías (S38) a nivel de página, que el pronóstico del diseño no detalla caso por caso. Estas cifras van a la nota del PR (P.8), a cargo del orquestador.
+
+### Archivos tocados
+
+| Archivo | Acción | Qué se hizo |
+|---------|--------|--------------|
+| `frontend/src/modules/reservas/components/ReservaFormulario.tsx` → `frontend/src/modules/reservas/components/ReservaFormDialog.tsx` | Renombrado + reescrito | `Dialog` compartido en lugar de `Card`; `onOpenChange` en lugar de `onCerrar`; sin botón «Cerrar formulario» aparte; pie con Cancelar y Guardar reserva (`form={ID_FORMULARIO_RESERVA}`) |
+| `frontend/src/modules/reservas/components/ReservaFormulario.test.tsx` → `frontend/src/modules/reservas/components/ReservaFormDialog.test.tsx` | Renombrado + reescrito | Roles `dialog`, cuatro vías de cierre parametrizadas por modo, guarda S38 |
+| `frontend/src/modules/reservas/components/useFormularioReserva.ts` | Modificado | Referencia `vigente` y su efecto; corte en `enviar()` tras el `await` (S38, Decisión 23) |
+| `frontend/src/modules/reservas/components/index.ts` | Modificado | Reexporta `ReservaFormDialog` en lugar de `ReservaFormulario` |
+| `frontend/src/modules/reservas/pages/ReservasPage.tsx` | Modificado | `ModalDeReserva` (antes `PanelDeReserva`) sin layout de dos columnas; `alCambiarModal` con `useCallback`; «Nueva reserva» con `disabled` durante la edición |
+| `frontend/src/modules/reservas/pages/ReservasPage.test.tsx` | Modificado | Pruebas de un solo modal a la vez, de respuesta tardía (S38) y de los dos reemplazos que exigía 12.8 |
+| `openspec/changes/HU-M5-01-02-03/tasks.md` | Modificado | 12.1 a 12.13 marcadas `[x]` (12.14, el commit, queda a cargo del orquestador) |
+| `openspec/changes/HU-M5-01-02-03/apply-progress.md` | Modificado | Esta sección |
+
+No se tocó `backend/`, `shared/` (frontend ni backend), otro módulo, `frontend/src/App.tsx` ni ninguna migración.
+
+### Desvíos y decisiones
+
+1. **Renombrado sin `git mv`.** La tarea 12.4 pide `git mv`; el mandato de este lote prohíbe tocar git (lo hace el orquestador al confirmar). Se usó un movimiento de archivos de las herramientas (equivalente a `mv`, no a `git mv`): mismo resultado en el árbol de trabajo, porque los dos archivos viejos no existen más y el contenido final ya está en los nuevos nombres antes de cualquier `git add`.
+2. **Error corregido: `git add -N`.** Al medir las líneas reales (12.13) se usó por error `git add -N` para que `git diff --shortstat` detectara el renombrado incluyendo los archivos nuevos sin seguimiento. Es una operación de *stage*, prohibida en este lote. Se deshizo con `git reset -- <archivos>` en el momento en que se notó, y se confirmó con `git status --short` que el índice quedó limpio y el árbol de trabajo intacto. La medición final (12.13) se repitió con `git show HEAD:<ruta>` más `git diff --no-index`, que no toca el índice ni ninguna referencia.
+3. **`fireEvent.keyDown(window, { key: 'Escape' })` en lugar de `user.keyboard('{Escape}')`.** La tarea 12.5 sugiere `@testing-library/user-event`, que no está instalado en el proyecto (no figura en `package.json` ni se usa en ningún otro archivo del repositorio). El `Dialog` compartido escucha `Escape` con `window.addEventListener('keydown', ...)` (`dialog.tsx:74`), así que `fireEvent.keyDown(window, ...)` ejercita exactamente ese listener sin agregar una dependencia nueva (AGENTS.md §9.7).
+4. **Clic en el fondo por `document.querySelector('[aria-hidden="true"]')`.** El `Dialog` no le pone ningún rol ni texto accesible al fondo (es `aria-hidden`), así que no hay un selector de Testing Library por rol o texto; se usó el mismo criterio que describe la tarea 12.5 («el elemento con `aria-hidden="true"` hermano anterior del `role="dialog"`»).
+5. **`getByRole('heading', ...)` se dejó sin cambiar en los lugares donde ya existía en `ReservasPage.test.tsx`**, salvo en las pruebas nuevas (que usan `heading` también, por simplicidad: el `Dialog` sigue usando un `h2`, y la tarea 12.8 permite dejarlo así). En `ReservaFormDialog.test.tsx` se cambió a `getByRole('dialog', ...)` porque la tarea 12.5 lo pide explícitamente para probar la forma del modal, no solo su título.
+6. **Honestidad del Rojo de 12.1:** de las 4 pruebas nuevas (alta/edición × respuesta buena/error), solo las 2 de respuesta buena fallaron en el Rojo por el motivo esperado (`mostrarToast` llamado tras `unmount()`); las 2 de error ya cumplían la aserción `not.toHaveBeenCalled()` sin la guarda, porque el camino de error del hook nunca llama a `mostrarToast` ni a `onGuardado` (solo llama a `setErrores`, que no es observable después de `unmount()`). Se dejaron en el archivo porque documentan que la guarda tampoco rompe el camino de error, aunque no lo hayan detectado en el Rojo.
+7. **Corrección de la expectativa de «Honestidad del Rojo» de 12.8:** la tarea anticipaba que las dos pruebas de respuesta tardía (S38) a nivel de página podían pasar ya en el Rojo gracias a la guarda de 12.2. En la secuencia real de esta fase (12.4 a 12.7 ya habían renombrado el componente y roto el import de la página antes de escribir las pruebas de 12.8), las 11 pruebas que montan el modal fallaron por la misma causa (`Element type is invalid`), incluidas esas dos; no se pudo observar la guarda aislada a nivel de página antes de 12.9. Se anota la corrección en vez de forzar la expectativa original.
+8. **Herramientas:** `bat`, `fd` y `sd` no están instalados en esta máquina; se usaron `Read`, `Edit`, `Write` y un script de Python (vía `Bash`) para los reemplazos mecánicos de texto.
+
+### Verificación final (12.11)
+
+| Comando | Resultado observado |
+|---------|---------------------|
+| `npx vitest run src/modules/reservas --coverage.enabled=false` | 165 passed (165) en 9 archivos |
+| `npm run format` | Sin cambios (todos los archivos ya tenían el estilo de Prettier) |
+| `npm run lint` (`eslint . --max-warnings=0`) | Limpio |
+| `npm run format:check` | «All matched files use Prettier code style!» |
+| `npm run typecheck` (`tsc --noEmit`) | Sin errores |
+| `npm run test:coverage` | 834 passed (834) en 73 archivos (línea base 820 en 73); cobertura 76,37 % sentencias / 73,29 % ramas / 72,46 % funciones / 78,01 % líneas (umbral 60 %; `vite.config.ts` no mide `modules/`, así que el número no refleja las pruebas nuevas del módulo) |
+| `npm run build` | `✓ built in 725ms` (y `588ms` en la corrida final después de restaurar las mutaciones) |
+| `TZ=America/Argentina/Buenos_Aires npx vitest run src/modules/reservas --coverage.enabled=false` | 165 passed (165) |
+| `TZ=UTC npx vitest run src/modules/reservas --coverage.enabled=false` | 165 passed (165) |
+| `npx eslint --max-warnings=0 .` (repetido después de restaurar las 3 mutaciones) | Limpio |
+
+### Pendiente
+
+- 12.14: commit 16 (`fix: abre el alta y la edición de reservas en un modal (HU-M5-01-02-03)`), a cargo del orquestador, con el renombrado de `ReservaFormDialog.tsx`/`.test.tsx` (desde `ReservaFormulario.*`), `useFormularioReserva.ts`, `components/index.ts`, `pages/ReservasPage.tsx`, `pages/ReservasPage.test.tsx`, `tasks.md` y esta sección de `apply-progress.md`. El árbol de trabajo queda exactamente como lo deja esta fase: dos archivos borrados (`ReservaFormulario.tsx` y su prueba), cuatro modificados y dos nuevos sin seguimiento (`ReservaFormDialog.tsx` y su prueba); un `git add -A` seguido del commit debería dejar que `git` detecte el renombrado por similitud de contenido, como pide 12.4.
+- Las tareas «Antes del PR» (P.1 a P.6, P.8) siguen a cargo de la persona responsable o del orquestador con su confirmación explícita; esta fase no las tocó.

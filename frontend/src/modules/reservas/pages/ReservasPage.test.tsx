@@ -3,6 +3,7 @@ import { MemoryRouter, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ToastContext } from '../../../shared/components/ui/toast-context';
+import type { RespuestaApi } from '../../../shared/types';
 import { crearReserva, listarMesasDisponibles, listarReservas, modificarReserva } from '../api';
 import type { MesaDisponible, Reserva } from '../types';
 
@@ -273,13 +274,14 @@ describe('ReservasPage: abrir el panel de edición', () => {
     expect(modificarReserva).not.toHaveBeenCalled();
   });
 
-  it('«Modificar reserva» de otra fila con el panel abierto trae los datos de esa fila', async () => {
+  it('cerrar la edición de una fila con «Cancelar» y abrir la de otra trae los datos de la fila nueva', async () => {
     vi.mocked(listarReservas).mockResolvedValue(pagina([RESERVA, OTRA]));
     abrir();
     await screen.findByText('Cliente n.º 9');
     await modificar(0);
     expect(screen.getByLabelText(/Cantidad de personas/)).toHaveValue('4');
 
+    await pulsar('Cancelar');
     await modificar(1);
 
     expect(screen.getByLabelText(/Cantidad de personas/)).toHaveValue('2');
@@ -288,10 +290,11 @@ describe('ReservasPage: abrir el panel de edición', () => {
     expect(screen.getByLabelText(/Mesa/)).toHaveValue('3');
   });
 
-  it('«Nueva reserva» después de editar abre el panel vacío', async () => {
+  it('«Nueva reserva» después de cerrar la edición con «Cancelar» abre el modal vacío', async () => {
     abrir();
     await screen.findByText('Cliente n.º 7');
     await modificar();
+    await pulsar('Cancelar');
 
     await pulsar('Nueva reserva');
 
@@ -306,6 +309,100 @@ describe('ReservasPage: abrir el panel de edición', () => {
     expect(screen.getByLabelText(/Mesa/)).toBeDisabled();
     expect(screen.queryAllByRole('option', { name: /Mesa/ })).toHaveLength(0);
     expect(listarMesasDisponibles).not.toHaveBeenCalled();
+  });
+});
+
+describe('ReservasPage: un solo modal a la vez (S36)', () => {
+  it('el botón «Nueva reserva» se deshabilita durante la edición y pulsarlo no hace nada', async () => {
+    abrir();
+    await screen.findByText('Cliente n.º 7');
+    await modificar();
+
+    expect(screen.getByRole('button', { name: 'Nueva reserva' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Nueva reserva' }));
+    await asentar();
+
+    expect(screen.getByRole('heading', { name: 'Modificar reserva' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Nueva reserva' })).toBeNull();
+    expect(screen.getByLabelText(/Cantidad de personas/)).toHaveValue('4');
+  });
+
+  it('«Nueva reserva» se habilita de nuevo al cerrar la edición con «Cancelar»', async () => {
+    abrir();
+    await screen.findByText('Cliente n.º 7');
+    await modificar();
+    expect(screen.getByRole('button', { name: 'Nueva reserva' })).toBeDisabled();
+
+    await pulsar('Cancelar');
+
+    expect(screen.getByRole('button', { name: 'Nueva reserva' })).toBeEnabled();
+  });
+
+  it('«Nueva reserva» se habilita de nuevo al guardar la edición', async () => {
+    vi.mocked(modificarReserva).mockResolvedValue({ datos: RESERVA, exito: true });
+    abrir();
+    await screen.findByText('Cliente n.º 7');
+    await modificar();
+    expect(screen.getByRole('button', { name: 'Nueva reserva' })).toBeDisabled();
+
+    await pulsar('Guardar reserva');
+    await waitFor(() =>
+      expect(screen.queryByRole('heading', { name: 'Modificar reserva' })).toBeNull(),
+    );
+
+    expect(screen.getByRole('button', { name: 'Nueva reserva' })).toBeEnabled();
+  });
+});
+
+describe('ReservasPage: una respuesta de guardado tardía no toca un modal distinto (S38)', () => {
+  it('un PUT tardío no cierra el alta abierta después', async () => {
+    let resolverPut: (valor: RespuestaApi<Reserva>) => void = () => undefined;
+    vi.mocked(modificarReserva).mockReturnValue(new Promise((resolve) => (resolverPut = resolve)));
+    abrir();
+    await screen.findByText('Cliente n.º 7');
+    await modificar();
+    fireEvent.change(screen.getByLabelText(/Cantidad de personas/), { target: { value: '6' } });
+    await pulsar('Guardar reserva');
+
+    await pulsar('Cancelar');
+    await pulsar('Nueva reserva');
+    fireEvent.change(screen.getByLabelText(/Cliente/), { target: { value: '9' } });
+    await asentar();
+
+    resolverPut({ datos: RESERVA, exito: true });
+    await asentar();
+
+    expect(screen.getByRole('heading', { name: 'Nueva reserva' })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Cliente/)).toHaveValue('9');
+    expect(listarReservas).toHaveBeenCalledTimes(1);
+  });
+
+  it('un POST tardío no cierra la edición abierta después', async () => {
+    let resolverPost: (valor: RespuestaApi<Reserva>) => void = () => undefined;
+    vi.mocked(crearReserva).mockReturnValue(new Promise((resolve) => (resolverPost = resolve)));
+    vi.mocked(listarReservas).mockResolvedValue(pagina([RESERVA, OTRA]));
+    abrir();
+    await screen.findByText('Cliente n.º 9');
+    await pulsar('Nueva reserva');
+    const campos = { Cliente: '7', Fecha: '2026-11-03', Hora: '21:30', Cantidad: '4' };
+    for (const [etiqueta, valor] of Object.entries(campos)) {
+      fireEvent.change(screen.getByLabelText(new RegExp(etiqueta)), { target: { value: valor } });
+    }
+    await screen.findByRole('option', { name: 'Salón · Mesa 5 (4 personas)' });
+    fireEvent.change(screen.getByLabelText(/Mesa/), { target: { value: '5' } });
+    await pulsar('Guardar reserva');
+
+    await pulsar('Cancelar');
+    await modificar(1);
+    fireEvent.change(screen.getByLabelText(/Cantidad de personas/), { target: { value: '9' } });
+    await asentar();
+
+    resolverPost({ datos: RESERVA, exito: true });
+    await asentar();
+
+    expect(screen.getByRole('heading', { name: 'Modificar reserva' })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Cantidad de personas/)).toHaveValue('9');
+    expect(listarReservas).toHaveBeenCalledTimes(1);
   });
 });
 

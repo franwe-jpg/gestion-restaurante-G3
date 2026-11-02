@@ -1,5 +1,5 @@
 import { Plus } from 'lucide-react';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 
 import { PageHeader } from '../../../shared/components/PageHeader';
 import { Button } from '../../../shared/components/ui/button';
@@ -7,7 +7,7 @@ import { Card, CardDescription, CardHeader } from '../../../shared/components/ui
 import { Pagination } from '../../../shared/components/ui/pagination';
 import {
   NavegadorFecha,
-  ReservaFormulario,
+  ReservaFormDialog,
   ReservasTabla,
   SelectorEstadoReserva,
 } from '../components';
@@ -16,7 +16,7 @@ import type { Reserva } from '../types';
 
 import { useListadoReservas } from './useListadoReservas';
 
-/** El panel lateral: cerrado, para una reserva nueva o para modificar la fila elegida. */
+/** El modal de reserva: cerrado, para una reserva nueva o para modificar la fila elegida (S36). */
 type Panel = 'cerrado' | 'alta' | { edicion: Reserva };
 
 interface ListadoDelDiaProps {
@@ -28,7 +28,7 @@ interface ListadoDelDiaProps {
 function ListadoDelDia({ listado, onModificar }: ListadoDelDiaProps) {
   const { fecha, estado, paginacion, reservas } = listado;
   return (
-    <div className="min-w-0 flex-1 space-y-4">
+    <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <NavegadorFecha fecha={fecha} onCambiar={listado.cambiarFecha} />
         <SelectorEstadoReserva estado={estado} onCambiar={listado.cambiarEstado} />
@@ -58,25 +58,24 @@ function ListadoDelDia({ listado, onModificar }: ListadoDelDiaProps) {
   );
 }
 
-interface PanelDeReservaProps {
+interface ModalDeReservaProps {
   panel: Panel;
-  onCerrar: () => void;
+  onOpenChange: (abierto: boolean) => void;
   onGuardado: () => void;
 }
 
-function PanelDeReserva({ panel, onCerrar, onGuardado }: PanelDeReservaProps) {
+/** Monta `ReservaFormDialog` solo mientras el modal debe verse (Decisión 21 y 22). */
+function ModalDeReserva({ panel, onOpenChange, onGuardado }: ModalDeReservaProps) {
   if (panel === 'cerrado') return null;
   const reserva = panel === 'alta' ? undefined : panel.edicion;
   return (
-    <div className="w-full lg:w-96 lg:shrink-0">
-      {/* La clave reinicia el formulario al pasar de una fila a otra o de la edición al alta. */}
-      <ReservaFormulario
-        key={reserva?.id ?? 'alta'}
-        reserva={reserva}
-        onCerrar={onCerrar}
-        onGuardado={onGuardado}
-      />
-    </div>
+    // La clave reinicia el formulario al pasar de una fila a otra o de la edición al alta.
+    <ReservaFormDialog
+      key={reserva?.id ?? 'alta'}
+      reserva={reserva}
+      onOpenChange={onOpenChange}
+      onGuardado={onGuardado}
+    />
   );
 }
 
@@ -89,26 +88,26 @@ export function ReservasPage() {
     listado.reservas.recargar();
   };
 
+  // Estable: `onOpenChange` es una dependencia del efecto de foco del `Dialog` (Decisión 22).
+  const alCambiarModal = useCallback((abierto: boolean) => {
+    if (!abierto) setPanel('cerrado');
+  }, []);
+
   return (
     <div className="space-y-6">
       <PageHeader
         titulo="Reservas"
         descripcion="Libro de reservas, turnos de almuerzo/cena y confirmación de comensales."
         acciones={
-          <Button onClick={() => setPanel('alta')}>
+          <Button onClick={() => setPanel('alta')} disabled={typeof panel === 'object'}>
             <Plus className="h-4 w-4" aria-hidden="true" />
             Nueva reserva
           </Button>
         }
       />
 
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
-        <ListadoDelDia
-          listado={listado}
-          onModificar={(reserva) => setPanel({ edicion: reserva })}
-        />
-        <PanelDeReserva panel={panel} onCerrar={() => setPanel('cerrado')} onGuardado={alGuardar} />
-      </div>
+      <ListadoDelDia listado={listado} onModificar={(reserva) => setPanel({ edicion: reserva })} />
+      <ModalDeReserva panel={panel} onOpenChange={alCambiarModal} onGuardado={alGuardar} />
     </div>
   );
 }

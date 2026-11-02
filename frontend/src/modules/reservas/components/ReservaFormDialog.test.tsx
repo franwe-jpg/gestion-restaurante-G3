@@ -6,7 +6,7 @@ import type { RespuestaApi } from '../../../shared/types';
 import { crearReserva, listarMesasDisponibles, modificarReserva } from '../api';
 import type { MesaDisponible, Reserva } from '../types';
 
-import { ReservaFormulario } from './ReservaFormulario';
+import { ReservaFormDialog } from './ReservaFormDialog';
 
 vi.mock('../api');
 
@@ -40,14 +40,14 @@ function conMesas(mesas: MesaDisponible[]): RespuestaApi<MesaDisponible[]> {
 const mostrarToast = vi.fn();
 
 function abrir(reserva?: Reserva) {
-  const onCerrar = vi.fn();
+  const onOpenChange = vi.fn();
   const onGuardado = vi.fn();
   render(
     <ToastContext.Provider value={{ mostrarToast }}>
-      <ReservaFormulario reserva={reserva} onCerrar={onCerrar} onGuardado={onGuardado} />
+      <ReservaFormDialog reserva={reserva} onOpenChange={onOpenChange} onGuardado={onGuardado} />
     </ToastContext.Provider>,
   );
-  return { onCerrar, onGuardado };
+  return { onOpenChange, onGuardado };
 }
 
 type Campos = Partial<Record<'cliente' | 'fecha' | 'hora' | 'cantidad', string>>;
@@ -94,6 +94,27 @@ function guardar() {
   fireEvent.click(screen.getByRole('button', { name: 'Guardar reserva' }));
 }
 
+type MetodoDeCierre = 'Cancelar' | 'X' | 'Escape' | 'Fondo';
+
+/** Cierra el modal por una de las cuatro vías equivalentes (Decisión 21). */
+function cerrarCon(metodo: MetodoDeCierre) {
+  if (metodo === 'Cancelar') {
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+    return;
+  }
+  if (metodo === 'X') {
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar modal' }));
+    return;
+  }
+  if (metodo === 'Escape') {
+    fireEvent.keyDown(window, { key: 'Escape' });
+    return;
+  }
+  const fondo = document.querySelector('[aria-hidden="true"]');
+  if (!(fondo instanceof HTMLElement)) throw new Error('No se encontró el fondo del modal');
+  fireEvent.click(fondo);
+}
+
 beforeEach(() => {
   // Solo el reloj: los temporizadores reales siguen sirviendo a waitFor y findBy.
   vi.useFakeTimers({ toFake: ['Date'] });
@@ -106,35 +127,41 @@ afterEach(() => {
   vi.resetAllMocks();
 });
 
-describe('ReservaFormulario: panel de alta', () => {
-  it('se titula «Nueva reserva» y trae los campos y los botones', () => {
+describe('ReservaFormDialog: modal de alta', () => {
+  it('se titula «Nueva reserva», trae los campos, y no tiene un botón «Cerrar formulario» aparte', () => {
     abrir();
 
-    expect(screen.getByRole('heading', { name: 'Nueva reserva' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Nueva reserva' })).toBeInTheDocument();
     for (const etiqueta of Object.values(ETIQUETAS)) {
       expect(screen.getByLabelText(etiqueta)).toBeInTheDocument();
     }
-    expect(screen.getByRole('button', { name: 'Cerrar formulario' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Cerrar formulario' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Cerrar modal' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cancelar' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Guardar reserva' })).toBeInTheDocument();
   });
-
-  it.each([
-    ['Cancelar', 'Cancelar'],
-    ['Cerrar formulario', 'Cerrar formulario'],
-  ])('«%s» cierra el panel sin enviar nada', async (_nombre, boton) => {
-    const { onCerrar, onGuardado } = abrir();
-    await completar();
-
-    fireEvent.click(screen.getByRole('button', { name: boton }));
-
-    expect(onCerrar).toHaveBeenCalledTimes(1);
-    expect(onGuardado).not.toHaveBeenCalled();
-    expect(crearReserva).not.toHaveBeenCalled();
-  });
 });
 
-describe('ReservaFormulario: validación local', () => {
+describe.each([
+  ['alta', undefined, () => crearReserva],
+  ['edición', EXISTENTE, () => modificarReserva],
+] as const)('ReservaFormDialog: cerrar el modal de %s', (_modo, reserva, apiLlamada) => {
+  it.each(['Cancelar', 'X', 'Escape', 'Fondo'] as MetodoDeCierre[])(
+    '«%s» cierra el modal sin enviar nada',
+    async (metodo) => {
+      const { onOpenChange, onGuardado } = abrir(reserva);
+      if (!reserva) await completar();
+
+      cerrarCon(metodo);
+
+      expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(false);
+      expect(onGuardado).not.toHaveBeenCalled();
+      expect(apiLlamada()).not.toHaveBeenCalled();
+    },
+  );
+});
+
+describe('ReservaFormDialog: validación local', () => {
   it('con campos vacíos no envía y marca cada uno como obligatorio', () => {
     abrir();
 
@@ -180,7 +207,7 @@ describe('ReservaFormulario: validación local', () => {
   });
 });
 
-describe('ReservaFormulario: fecha y hora', () => {
+describe('ReservaFormDialog: fecha y hora', () => {
   it('con una fecha anterior a hoy advierte y no envía', async () => {
     abrir();
     await completar({ fecha: '2026-11-01', mesa: '' });
@@ -212,7 +239,7 @@ describe('ReservaFormulario: fecha y hora', () => {
   });
 });
 
-describe('ReservaFormulario: selector de mesas', () => {
+describe('ReservaFormDialog: selector de mesas', () => {
   it.each([
     ['recién abierto', {}],
     ['con una fecha anterior a hoy', { fecha: '2026-11-01', hora: '21:30' }],
@@ -256,7 +283,7 @@ describe('ReservaFormulario: selector de mesas', () => {
   });
 });
 
-describe('ReservaFormulario: lista de mesas cargando o con error', () => {
+describe('ReservaFormDialog: lista de mesas cargando o con error', () => {
   it('mientras la lista carga, Guardar reserva no envía nada y marca Mesa como obligatoria', async () => {
     vi.mocked(listarMesasDisponibles).mockReturnValue(
       new Promise<RespuestaApi<MesaDisponible[]>>(() => undefined),
@@ -305,7 +332,7 @@ describe('ReservaFormulario: lista de mesas cargando o con error', () => {
   });
 });
 
-describe('ReservaFormulario: cambiar la hora con una mesa elegida', () => {
+describe('ReservaFormDialog: cambiar la hora con una mesa elegida', () => {
   const CASOS: [string, MesaDisponible[], string][] = [
     ['borra la mesa que ya no figura', [MESA_12], ''],
     ['conserva la mesa que sigue disponible', [MESA_12, MESA_5], '5'],
@@ -344,10 +371,10 @@ describe('ReservaFormulario: cambiar la hora con una mesa elegida', () => {
   });
 });
 
-describe('ReservaFormulario: envío', () => {
+describe('ReservaFormDialog: envío', () => {
   it('envía los datos como números, avisa y notifica a quien lo abrió', async () => {
     vi.mocked(crearReserva).mockResolvedValue({ datos: CREADA, exito: true });
-    const { onGuardado, onCerrar } = abrir();
+    const { onGuardado, onOpenChange } = abrir();
     await completar();
 
     guardar();
@@ -363,7 +390,7 @@ describe('ReservaFormulario: envío', () => {
     expect(mostrarToast).toHaveBeenCalledWith(
       expect.objectContaining({ titulo: 'Reserva creada', variante: 'success' }),
     );
-    expect(onCerrar).not.toHaveBeenCalled();
+    expect(onOpenChange).not.toHaveBeenCalled();
   });
 
   it.each(['5', '12'])('elegir la mesa %s y guardar envía su id como mesa_id', async (id) => {
@@ -395,7 +422,7 @@ describe('ReservaFormulario: envío', () => {
   });
 });
 
-describe('ReservaFormulario: errores del servidor', () => {
+describe('ReservaFormDialog: errores del servidor', () => {
   it.each([
     'La mesa 5 ya tiene una reserva activa el 2026-11-02 a las 21:30',
     'La mesa 99 no existe',
@@ -411,7 +438,7 @@ describe('ReservaFormulario: errores del servidor', () => {
     expect(onGuardado).not.toHaveBeenCalled();
     expect(screen.getByLabelText(ETIQUETAS.mesa)).toHaveValue('5');
     expect(screen.getByLabelText(ETIQUETAS.cantidad)).toHaveValue('4');
-    expect(screen.getByRole('heading', { name: 'Nueva reserva' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Nueva reserva' })).toBeInTheDocument();
   });
 
   it('409 «La mesa 6 está fuera de servicio» al guardar se muestra como error general y conserva la mesa elegida', async () => {
@@ -440,12 +467,12 @@ describe('ReservaFormulario: errores del servidor', () => {
   });
 });
 
-describe('ReservaFormulario: panel de edición', () => {
+describe('ReservaFormDialog: modal de edición', () => {
   it('se titula «Modificar reserva» y trae los datos de la fila', () => {
     abrir(EXISTENTE);
 
-    expect(screen.getByRole('heading', { name: 'Modificar reserva' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Nueva reserva' })).toBeNull();
+    expect(screen.getByRole('dialog', { name: 'Modificar reserva' })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Nueva reserva' })).toBeNull();
     expect(screen.getByLabelText(ETIQUETAS.fecha)).toHaveValue('2026-11-03');
     expect(screen.getByLabelText(ETIQUETAS.hora)).toHaveValue('21:30');
     expect(screen.getByLabelText(ETIQUETAS.cantidad)).toHaveValue('4');
@@ -485,22 +512,22 @@ describe('ReservaFormulario: panel de edición', () => {
     expect(screen.queryAllByRole('option')).toHaveLength(0);
   });
 
-  it.each(['Cancelar', 'Cerrar formulario'])('«%s» cierra el panel sin enviar el PUT', (boton) => {
-    const { onCerrar, onGuardado } = abrir(EXISTENTE);
+  it('«Cancelar» cierra el modal sin enviar el PUT, aun con cambios sin guardar', () => {
+    const { onOpenChange, onGuardado } = abrir(EXISTENTE);
     escribir({ cantidad: '6' });
 
-    fireEvent.click(screen.getByRole('button', { name: boton }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
 
-    expect(onCerrar).toHaveBeenCalledTimes(1);
+    expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(false);
     expect(onGuardado).not.toHaveBeenCalled();
     expect(modificarReserva).not.toHaveBeenCalled();
   });
 });
 
-describe('ReservaFormulario: guardar la edición', () => {
+describe('ReservaFormDialog: guardar la edición', () => {
   it('envía solo fecha, hora y cantidad, avisa y notifica a quien lo abrió', async () => {
     vi.mocked(modificarReserva).mockResolvedValue({ datos: EXISTENTE, exito: true });
-    const { onGuardado, onCerrar } = abrir(EXISTENTE);
+    const { onGuardado, onOpenChange } = abrir(EXISTENTE);
     escribir({ fecha: '2026-11-04', hora: '20:00', cantidad: '6' });
 
     guardar();
@@ -515,7 +542,7 @@ describe('ReservaFormulario: guardar la edición', () => {
       expect.objectContaining({ titulo: 'Reserva modificada', variante: 'success' }),
     );
     expect(crearReserva).not.toHaveBeenCalled();
-    expect(onCerrar).not.toHaveBeenCalled();
+    expect(onOpenChange).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -532,7 +559,80 @@ describe('ReservaFormulario: guardar la edición', () => {
   });
 });
 
-describe('ReservaFormulario: errores de la edición', () => {
+/** Alta con «Guardar reserva» pulsado, el componente desmontado y la solicitud resuelta después. */
+async function altaNoAplicaRespuestaTardia(respuesta: RespuestaApi<Reserva>) {
+  let resolver: (valor: RespuestaApi<Reserva>) => void = () => undefined;
+  vi.mocked(crearReserva).mockReturnValue(new Promise((resolve) => (resolver = resolve)));
+  const onGuardado = vi.fn();
+  const { unmount } = render(
+    <ToastContext.Provider value={{ mostrarToast }}>
+      <ReservaFormDialog onOpenChange={vi.fn()} onGuardado={onGuardado} />
+    </ToastContext.Provider>,
+  );
+  await completar();
+
+  guardar();
+  unmount();
+  resolver(respuesta);
+  await asentar();
+
+  expect(mostrarToast).not.toHaveBeenCalled();
+  expect(onGuardado).not.toHaveBeenCalled();
+}
+
+/** Lo mismo que `altaNoAplicaRespuestaTardia`, en modo edición con `modificarReserva`. */
+async function edicionNoAplicaRespuestaTardia(respuesta: RespuestaApi<Reserva>) {
+  let resolver: (valor: RespuestaApi<Reserva>) => void = () => undefined;
+  vi.mocked(modificarReserva).mockReturnValue(new Promise((resolve) => (resolver = resolve)));
+  const onGuardado = vi.fn();
+  const { unmount } = render(
+    <ToastContext.Provider value={{ mostrarToast }}>
+      <ReservaFormDialog reserva={EXISTENTE} onOpenChange={vi.fn()} onGuardado={onGuardado} />
+    </ToastContext.Provider>,
+  );
+
+  guardar();
+  unmount();
+  resolver(respuesta);
+  await asentar();
+
+  expect(mostrarToast).not.toHaveBeenCalled();
+  expect(onGuardado).not.toHaveBeenCalled();
+}
+
+describe('ReservaFormDialog: guarda del guardado vigente (S38)', () => {
+  it.each([
+    ['con una respuesta buena', { datos: CREADA, exito: true } as RespuestaApi<Reserva>],
+    [
+      'con un error',
+      {
+        datos: null,
+        exito: false,
+        error: 'La mesa 5 ya tiene una reserva activa el 2026-11-03 a las 21:30',
+      } as RespuestaApi<Reserva>,
+    ],
+  ])(
+    'cerrar el modal de alta mientras se guarda no aplica una respuesta tardía (%s)',
+    async (_caso, respuesta) => {
+      await altaNoAplicaRespuestaTardia(respuesta);
+    },
+  );
+
+  it.each([
+    ['con una respuesta buena', { datos: EXISTENTE, exito: true } as RespuestaApi<Reserva>],
+    [
+      'con un error',
+      { datos: null, exito: false, error: 'La reserva 12 no existe' } as RespuestaApi<Reserva>,
+    ],
+  ])(
+    'cerrar el modal de edición mientras se guarda no aplica una respuesta tardía (%s)',
+    async (_caso, respuesta) => {
+      await edicionNoAplicaRespuestaTardia(respuesta);
+    },
+  );
+});
+
+describe('ReservaFormDialog: errores de la edición', () => {
   it.each([
     'La mesa 5 ya tiene una reserva activa el 2026-11-03 a las 21:30',
     'La reserva 12 no está activa y no se puede modificar',
@@ -548,7 +648,7 @@ describe('ReservaFormulario: errores de la edición', () => {
     expect(onGuardado).not.toHaveBeenCalled();
     expect(screen.getByLabelText(ETIQUETAS.cantidad)).toHaveValue('6');
     expect(screen.getByLabelText(ETIQUETAS.cliente)).toBeDisabled();
-    expect(screen.getByRole('heading', { name: 'Modificar reserva' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Modificar reserva' })).toBeInTheDocument();
   });
 
   it('si la respuesta no trae detalle muestra un error general de la modificación', async () => {
