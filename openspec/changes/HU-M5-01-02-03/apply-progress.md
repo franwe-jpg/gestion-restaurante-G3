@@ -1026,3 +1026,50 @@ No se tocó `backend/`, `shared/` (frontend ni backend), otro módulo, `frontend
 
 - 12.14: commit 16 (`fix: abre el alta y la edición de reservas en un modal (HU-M5-01-02-03)`), a cargo del orquestador, con el renombrado de `ReservaFormDialog.tsx`/`.test.tsx` (desde `ReservaFormulario.*`), `useFormularioReserva.ts`, `components/index.ts`, `pages/ReservasPage.tsx`, `pages/ReservasPage.test.tsx`, `tasks.md` y esta sección de `apply-progress.md`. El árbol de trabajo queda exactamente como lo deja esta fase: dos archivos borrados (`ReservaFormulario.tsx` y su prueba), cuatro modificados y dos nuevos sin seguimiento (`ReservaFormDialog.tsx` y su prueba); un `git add -A` seguido del commit debería dejar que `git` detecte el renombrado por similitud de contenido, como pide 12.4.
 - Las tareas «Antes del PR» (P.1 a P.6, P.8) siguen a cargo de la persona responsable o del orquestador con su confirmación explícita; esta fase no las tocó.
+
+## Fase 13 backend (cliente registrado o nuevo, issue #61)
+
+Estado: tareas 13.1 a 13.13 hechas; 13.14 (commit 17) pendiente para la persona o el orquestador. Frontend (13.15 a 13.29) queda para el próximo lote. Commit de M4: sin commit todavía (los cambios de `atencion/` están en el árbol de trabajo; `registrar_cliente_para_reserva` y `existe_cliente` existen y sus pruebas pasan, 13.1).
+
+| Tarea | Rojo | Verde |
+|-------|------|-------|
+| 13.2/13.3 | 10 pruebas nuevas de `test_schemas.py` fallaron (`cliente_id` obligatorio, `ClienteNuevo` ausente). | `ClienteNuevo` (`extra="forbid"`, `StrictStr`) y `ReservaCrear` con `cliente_id` opcional y `cliente_nuevo`, sin `model_validator` (Enmienda). 85 en verde. |
+| 13.4/13.5/13.6 | `conftest.py` falló al importar: `puente.registrar_cliente` no existe. | `puente.existe_cliente` y `registrar_cliente` delegan en `atencion.service`; doble con `clientes`, `registrados`, `poner_cliente`; fixture `cliente_en_m4`. Se adaptaron las cuatro pruebas con cliente 8 (`poner_cliente(8, ...)`), la prueba del stub (ahora 404 para 456) y las tres de `puente_real` que usaban el cliente 7 (ahora `cliente_en_m4`). |
+| 13.7 | n/a | `lint-imports`: 10 contratos kept, 0 broken (`reservas.puente → atencion.service` permitido). `pyproject.toml` sin cambios. |
+| 13.8/13.9 | 15 pruebas de `test_service.py` fallaron. | `_validar_un_cliente` como primera comprobación y `_id_del_cliente` como último paso antes de crear la `Reserva`. Sin `try`/`rollback`/`commit` nuevos. 302 en verde. |
+| 13.10/13.11 | `[sin-cliente]` de `test_router.py` falló antes de 13.9; el resto de las pruebas del router pasó en su primer Rojo (el router no cambia): quedan como pruebas de guarda. | Integración con puente real: alta con cliente nuevo y `GET /clientes?q=Luis`; sin cliente huérfano con 404, 409 y 422; carrera por `IntegrityError` (409, un solo cliente); nombre inválido; dato faltante; cliente 456 desconocido (404). |
+| 13.12 | n/a | Funciones cortas, mensajes en un solo lugar, docstring del puente sin «stub». |
+| 13.13 | n/a | `ruff check`, `ruff format --check`, `lint-imports` y `pytest` en verde: 1625 pruebas, cobertura 99,26 %. `alembic heads` no se corrió (sin cambios de esquema). Mutaciones (de a una, restauradas): `_validar_un_cliente` después de `_validar_mesa` rompió `test_crear_reserva_exactamente_un_cliente_se_valida_antes_que_la_mesa`; `_id_del_cliente` antes de `_validar_turno_libre` rompió `test_puente_real_reserva_fallida_no_deja_cliente_huerfano[turno-ocupado]`; sin `rollback` en `_confirmar` rompió `test_puente_real_carrera_por_el_indice_unico_no_deja_cliente_nuevo`. |
+
+Supuesto: el mensaje de 422 de «uno o ninguno» tiene la forma `cliente_id/cliente_nuevo: indique ...`, así que `detalle` nombra los dos campos. Líneas del backend (`git diff --shortstat -- backend`): 12 archivos, +691 -46 en total; solo M5 (`reservas/`): 8 archivos, +581 -46.
+
+## Fase 13 frontend (cliente registrado o nuevo, issue #61)
+
+Estado: tareas 13.15 a 13.28, 13.30 y 13.31 hechas. Pendientes para la persona o el orquestador: 13.29 (commit 18), 13.32 (humo manual) y 13.33 (commit 19). Sin commits en este lote.
+
+| Tarea | Rojo | Verde |
+|-------|------|-------|
+| 13.15/13.16 | 2 pruebas de `api.test.ts` fallaron: `buscarClientes is not a function`. | `buscarClientes` (`LIMITE_BUSQUEDA_CLIENTES = 10`, `URLSearchParams`) y tipos `ClienteEncontrado`, `ClienteNuevo`, `ReservaCrear` como unión. 10 en verde. |
+| 13.17/13.18 | `useBuscarClientes.test.ts` no corrió: el módulo no existe. | `useBuscarClientes` con espera de 300 ms, `clearTimeout` y bandera `vigente`. 12 en verde. |
+| 13.19/13.20 | 37 de 52 pruebas de `validarReserva.test.ts` fallaron (`validarClienteNuevo` y `SeleccionCliente` ausentes). | `SeleccionCliente`, `validarClienteNuevo` (nombre `/^[\p{L} ]+$/u` sobre el texto recortado, teléfono `/^\+?[0-9 -]+$/`), `errorDelServidor(mensaje, seleccion)`. 52 en verde, con paridad fijada para «Ana  Luis», «Zoë», «--» y espacios en los extremos. |
+| 13.21/13.22 | `SelectorCliente.test.tsx` no corrió: el componente no existe. | `SelectorCliente` con `ResultadosDeClientes` y `CamposClienteNuevo`, solo componentes de `shared/`. 15 en verde. |
+| 13.23 | n/a (refactor en verde) | `useDatosReserva(reserva)` extraído de `useFormularioReserva` (estado `datos`, `cambiar`, `elegirCliente`); las pruebas existentes siguieron en verde. |
+| 13.24/13.25 | 45 pruebas de `ReservaFormDialog.test.tsx` fallaron (el selector no estaba integrado). | `aReservaCrear` con `{ cliente_id }` o `{ cliente_nuevo }` recortado, `CampoCliente` en el diálogo, `CampoReserva` restringido a `CampoReserva`. |
+| 13.26 | La prueba de alta de `ReservasPage` falló al simular `buscarClientes` y no elegir cliente. | Adaptada. La prueba nueva «cerrar el modal descarta la elección» pasó en su primer Rojo (el modal se desmonta): queda como prueba de guarda. |
+| 13.27 | n/a | `validarClienteNuevo` partido en `errorDeNombre` y `errorDeTelefono` (sin ternarios anidados); funciones ≤ 50 líneas y complejidad ≤ 10 (ESLint en 0). |
+
+Mutaciones de 13.28 (de a una, restauradas desde copia): nombre `/^[\p{L}]+(?: [\p{L}]+)*$/u` rompió la paridad «Ana  Luis»; sin `clearTimeout`/`vigente` rompieron 3 pruebas del hook (debounce, desmontaje y respuesta vieja); enviar los dos clientes rompió 5 pruebas (diálogo y página).
+
+Verificación (desde `frontend/`): `npm run format`, `npm run lint` (0 errores, 0 advertencias), `npm run format:check`, `npm run typecheck`, `npm run test:coverage` (896 pruebas en 75 archivos; cobertura 76,37 % sentencias / 73,29 % ramas / 72,46 % funciones / 78,01 % líneas, umbral 60 %) y `npm run build` en verde. `TZ=America/Argentina/Buenos_Aires` y `TZ=UTC` sobre `fechas.test.ts` y `validarReserva.test.ts`: 62 pruebas en verde en las dos. Backend (13.31): `ruff check`, `ruff format --check`, `lint-imports` y `pytest` en verde, 1625 pruebas, cobertura 99,26 %. El diff no toca archivos fuera de `reservas/`, `atencion/` y `openspec/` (`.claude/` sin seguimiento no es de este cambio).
+
+Líneas (13.30), contra el árbol de trabajo sin commits: frontend, `git diff --shortstat -- frontend` = 9 archivos, +523 -64, más 4 archivos nuevos sin seguimiento (`SelectorCliente.tsx`/`.test.tsx`, `useBuscarClientes.ts`/`.test.ts`) con 573 líneas: ≈ 1.096 insertadas, por encima del punto de control de 800: registrar `size:exception` en el PR (P.8), sin dividir. Backend, `git diff --shortstat -- backend` = 12 archivos, +691 -46 (M5 y M4 juntos), por debajo de 800. El hash base del commit 17 no existe todavía (sin commits).
+
+Supuesto: `aReservaCrear` usa `cliente_id: 0` para `ninguno`; no se alcanza porque la validación local lo frena y, si se alcanzara, la API respondería 422.
+
+### Humo manual (13.32), para la persona
+
+Backend con `uvicorn` sobre una base temporal migrada (un sector y una mesa creados por la API de M3) y frontend con `npm run dev`. Recorrer: crear «Ana Pérez» en M4 y abrir «Nueva reserva»; buscar «ana» y una parte del teléfono; elegir el cliente y guardar; repetir con «Cliente nuevo» («Luis Gómez», «+54 280 1234567») y comprobar que aparece en Atención; probar «Luis3» y teléfono «abc» (error junto al campo); intentar un turno ocupado con un cliente nuevo y comprobar en Atención que no quedó un cliente repetido; cerrar el modal y reabrirlo (selector vacío); abrir la edición (Cliente de solo lectura). Anotar el resultado y las diferencias con la maqueta.
+
+## Humo manual de la Fase 13 (13.32)
+
+La persona (Franco Martín Soler) probó el alta con cliente registrado y con cliente nuevo en el navegador el 2026-11-02 y confirmó que funciona.

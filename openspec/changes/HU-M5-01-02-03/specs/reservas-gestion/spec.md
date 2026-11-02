@@ -4,17 +4,17 @@
 
 Alta, consulta por id, modificación (fecha, hora y cantidad de personas) y listado paginado de reservas, con sus reglas de validación, el estado inicial `ACTIVA`, la consulta de las mesas disponibles para una fecha y hora y el contrato del puente con Mesa y Cliente. Entidades del diagrama de clases: `Reserva`, `EstadoReserva`; relaciones con `Mesa` (1 - 0..*) y `Cliente` (1 - `Reserva`).
 
-La mesa de una reserva ya no se escribe por su número: la persona la elige de una lista de mesas disponibles para la fecha y la hora (issue #61, HU-M5-01). Por eso el lado Mesa del puente consulta a M3 de verdad. El lado Cliente sigue siendo un stub hasta que M4 exponga Cliente.
+La mesa de una reserva ya no se escribe por su número: la persona la elige de una lista de mesas disponibles para la fecha y la hora (issue #61, HU-M5-01). Por eso el lado Mesa del puente consulta a M3 de verdad. El cliente de la reserva también se resuelve de verdad: el lado Cliente del puente consulta a M4 y la persona elige un cliente registrado o carga uno nuevo en el mismo alta (issue #61, HU-M4-01; sección «Delta: cliente registrado o nuevo (issue #61)»).
 
 Capacidad nueva: en `openspec/specs/` no hay ninguna spec de reservas, así que todo el contenido es `ADDED`, también los requisitos que se reescribieron o se agregaron por el issue #61 (la capacidad todavía no se archivó). No modifica `salon-mesas` ni ninguna otra capacidad.
 
 Origen: HU-M5-01 (crear), HU-M5-02 (modificar) y HU-M5-03 (listar), un solo cambio, una rama y un PR.
 
-Fuera de alcance: cancelación anticipada (HU-M5-04) y por ausencia (HU-M5-05), comanda desde la reserva (HU-M5-06) y reporte (HU-M5-07). Ninguna ruta de este cambio asigna `ATENDIDA`, `CANCELADA_ANTICIPADA` ni `CANCELADA_POR_AUSENCIA`: esos valores existen en el enumerado y en la base para los cambios posteriores. También queda fuera el criterio «cliente no registrado» del issue #61: depende de M4, que todavía no ofrece ni la búsqueda ni el alta de un cliente, y Cliente sigue siendo un número en el modal.
+Fuera de alcance: cancelación anticipada (HU-M5-04) y por ausencia (HU-M5-05), comanda desde la reserva (HU-M5-06) y reporte (HU-M5-07). Ninguna ruta de este cambio asigna `ATENDIDA`, `CANCELADA_ANTICIPADA` ni `CANCELADA_POR_AUSENCIA`: esos valores existen en el enumerado y en la base para los cambios posteriores. El criterio «cliente no registrado» del issue #61 ya no está fuera de alcance: lo cubre el delta «cliente registrado o nuevo». Siguen fuera de alcance de ese delta: mostrar el nombre del cliente en la tabla de reservas (sigue «Cliente n.º», S23), el apellido y el DNI del cliente (no figuran en HU-M4-01 ni en el diagrama de clases) y cambiar el cliente de una reserva ya creada.
 
 Criterios de aceptación (CA): salvo el texto de la mesa del issue #61, no se leyeron los issues. Los CA se numeran en esta spec a partir de la propuesta (consigna, diagrama de clases, S1-07, S2-02 y maqueta) y se citan como «HU-M5-0x CA n». Lo que dice el issue #61 sobre la mesa se cita como «issue #61». Hay que confirmar los CA contra cada issue antes del PR.
 
-Convención de los escenarios: salvo que se indique otra cosa, «hoy» es `2026-10-28` y la hora actual de la zona del restaurante (S28) son las `14:30`. El cliente 7 existe, porque el stub de cliente da por válido todo id positivo (S20). Las mesas salen de un doble de prueba del puente (S20) que ofrece solo dos: las mesas 5 y 6, ambas del sector «Salón», con `numero` igual a su `id`, capacidad 4 y estado `LIBRE`. Una mesa que el doble no ofrece (por ejemplo la 99 o la 123) no existe. Los escenarios que dicen «un puente que informa…», o que nombran otras mesas, otro estado, otro sector u otra capacidad, cambian lo que el doble ofrece. Los escenarios que dicen «el puente real» usan el puente de verdad sobre una base de prueba con mesas creadas en M3 (S33). «La lista» de un escenario es la respuesta de `GET /reservas/mesas-disponibles`.
+Convención de los escenarios: salvo que se indique otra cosa, «hoy» es `2026-10-28` y la hora actual de la zona del restaurante (S28) son las `14:30`. El cliente 7 existe, porque el doble de prueba del puente lo ofrece (S20, S39); el doble registra además los clientes nuevos que se le piden, con ids a partir de 100, y valida nombre y teléfono con las reglas de M4 (S42). Las mesas salen de un doble de prueba del puente (S20) que ofrece solo dos: las mesas 5 y 6, ambas del sector «Salón», con `numero` igual a su `id`, capacidad 4 y estado `LIBRE`. Una mesa que el doble no ofrece (por ejemplo la 99 o la 123) no existe. Los escenarios que dicen «un puente que informa…», o que nombran otras mesas, otro estado, otro sector u otra capacidad, cambian lo que el doble ofrece. Los escenarios que dicen «el puente real» usan el puente de verdad sobre una base de prueba con mesas creadas en M3 (S33). «La lista» de un escenario es la respuesta de `GET /reservas/mesas-disponibles`.
 
 ## Contrato de la API
 
@@ -34,7 +34,8 @@ La ruta `GET /reservas/mesas-disponibles` DEBE declararse de modo que `GET /rese
 
 Esquemas (nombres JSON en `snake_case`; `cantidad_personas` es el `cantidadPersonas` del diagrama, S14):
 
-- `ReservaCrear`: `mesa_id: int` (> 0), `cliente_id: int` (> 0), `fecha: date`, `hora: time`, `cantidad_personas: int` (> 0). Los cinco son obligatorios. Los campos extra están prohibidos (S15).
+- `ReservaCrear`: `mesa_id: int` (> 0), `fecha: date`, `hora: time`, `cantidad_personas: int` (> 0) y exactamente uno de `cliente_id: int` (estricto, > 0; cliente existente) o `cliente_nuevo: ClienteNuevo` (cliente que se registra con la reserva) (S39). Los cuatro primeros son obligatorios. Enviar los dos cliente o ninguno responde 422 nombrando el campo `cliente_id`/`cliente_nuevo`. Los campos extra están prohibidos (S15).
+- `ClienteNuevo` (esquema de M5, solo de forma, S40): `nombre: str`, `telefono: str`, los dos obligatorios; los campos extra están prohibidos. Las reglas de contenido (nombre solo con letras y espacios, teléfono con dígitos, espacios, guiones y `+` solo al inicio, obligatoriedad) son de M4 y no se duplican en M5 (S42).
 - `ReservaModificar`: `fecha: date`, `hora: time`, `cantidad_personas: int` (> 0). Los tres son obligatorios (S19). Los campos extra están prohibidos (S15).
 - `ReservaSalida`: `id: int`, `fecha: date` (`YYYY-MM-DD`), `hora` (`HH:MM`), `cantidad_personas: int`, `estado: ACTIVA | ATENDIDA | CANCELADA_ANTICIPADA | CANCELADA_POR_AUSENCIA`, `mesa_id: int`, `cliente_id: int`. No incluye nombres de mesa ni de cliente (S23).
 - `MesaDisponible` (nombre de referencia): `id: int`, `numero: int`, `capacidad: int`, `sector: {id: int, nombre: str}`. No incluye el estado de la mesa. La respuesta es una lista de `MesaDisponible`, no una `Pagina[T]` (S29).
@@ -42,11 +43,11 @@ Esquemas (nombres JSON en `snake_case`; `cantidad_personas` es el `cantidadPerso
 
 Parámetros del listado: `fecha` (día exacto, `YYYY-MM-DD`) y `estado` (uno de los cuatro valores de `EstadoReserva`, con esa capitalización). Valores inválidos responden 422 (S22).
 
-Mensajes de negocio de referencia (S18): 404 «La reserva {id} no existe», «La mesa {id} no existe» y «El cliente {id} no existe»; 409 «La mesa {mesa_id} ya tiene una reserva activa el {fecha} a las {hora}», «La mesa {id} está fuera de servicio» (S31) y «La reserva {id} no está activa y no se puede modificar»; 422 «La fecha de la reserva no puede ser anterior a hoy» y «La hora de la reserva debe ser posterior a la hora actual». Los 422 de forma usan el manejador global existente (`Datos invalidos. <campo>: <mensaje>`), que nombra cada campo inválido.
+Mensajes de negocio de referencia (S18): 404 «La reserva {id} no existe», «La mesa {id} no existe» y «El cliente {id} no existe»; 409 «La mesa {mesa_id} ya tiene una reserva activa el {fecha} a las {hora}», «La mesa {id} está fuera de servicio» (S31) y «La reserva {id} no está activa y no se puede modificar»; 422 «La fecha de la reserva no puede ser anterior a hoy» y «La hora de la reserva debe ser posterior a la hora actual». Un `cliente_nuevo` con nombre o teléfono inválidos responde 422 con el mensaje de M4 (`Datos invalidos. nombre: …` o `telefono: …`), que nombra el campo. Los 422 de forma usan el manejador global existente (`Datos invalidos. <campo>: <mensaje>`), que nombra cada campo inválido.
 
 Orden de validación (S17):
 
-- Alta: 422 de forma, 404 de mesa, 409 de mesa fuera de servicio, 404 de cliente, 422 de fecha, 422 de hora y 409 de conflicto.
+- Alta: 422 de forma (incluido «exactamente uno de `cliente_id` o `cliente_nuevo`»), 404 de mesa, 409 de mesa fuera de servicio, 404 de cliente (solo con `cliente_id`), 422 de fecha, 422 de hora, 409 de conflicto y, solo al final, el registro del `cliente_nuevo` (422 de M4 si sus datos son inválidos) y el guardado (S41).
 - Modificación: 422 de forma, 404 de la reserva, 409 por no estar `ACTIVA`, 422 de fecha, 422 de hora y 409 de conflicto. No consulta al puente (S27).
 - Mesas disponibles: 422 de forma (falta `fecha` u `hora`, o su formato es inválido), 422 de fecha y 422 de hora. Usa los mismos mensajes que el alta (S32).
 
@@ -77,17 +78,18 @@ El `service` de `reservas` consulta a Mesa y a Cliente solo a través de un puen
 | --- | --- | --- |
 | `obtener_mesa` | `mesa_id: int` | La mesa con su `id` y su `estado` (`LIBRE`, `OCUPADA` o `FUERA_DE_SERVICIO`), o ausencia si la mesa no existe. |
 | `listar_mesas` | ninguna | Todas las mesas, cada una con `id`, `numero`, `capacidad`, `sector` (`id` y `nombre`) y `estado`, en el orden de M3: nombre del sector, `numero` e `id`. Incluye las mesas `FUERA_DE_SERVICIO`: descartarlas es una regla de `reservas`, no del puente. |
-| `existe_cliente` | `cliente_id: int` | `true` si el cliente existe; `false` si no. |
+| `existe_cliente` | `cliente_id: int` | `true` si el cliente existe; `false` si no. Real: delega en `existe_cliente` de M4 (S39). |
+| `registrar_cliente` | `nombre: str`, `telefono: str` | El `id` del cliente registrado. Delega en `registrar_cliente_para_reserva` de M4, que valida y agrega el cliente a la sesión sin confirmar ni deshacer; si los datos son inválidos propaga el error 422 de M4 (S39, S41). |
 
 La capacidad que informa `listar_mesas` sirve solo para mostrarla en el selector de mesas: la cantidad de personas no se valida contra ella (S5).
 
 Implementación incluida en este cambio:
 
 - Lado Mesa (real, S33): `obtener_mesa` y `listar_mesas` DEBEN consultar a M3 solo con `app.modules.salon.service.listar_mesas`, sin importar de `salon` ni su `router`, ni su `repository`, ni sus `models`, ni sus `schemas` (contrato de importación RNF-MAN-09), y sin modificar `salon`. Esa consulta es paginada (100 por página como máximo), no filtra por estado y no busca por `id`; por eso el puente DEBE leer todas las páginas, y `obtener_mesa` y `listar_mesas` DEBEN responder lo mismo para la misma mesa.
-- Lado Cliente (stub, S6, S20): todo cliente con id positivo existe. La implementación real (llamada al `service` de M4) queda para un cambio posterior y no debe exigir cambios en las reglas de esta spec.
+- Lado Cliente (real, S39; reemplaza al stub de S6 y S20): `existe_cliente` y `registrar_cliente` DEBEN consultar a M4 solo con `app.modules.atencion.service.existe_cliente` y `app.modules.atencion.service.registrar_cliente_para_reserva`, sin importar de `atencion` su `router`, su `repository`, sus `models` ni sus `schemas` (RNF-MAN-09), y sin modificar `atencion`. Ya no basta con que el id sea positivo: un cliente que M4 no tiene no existe.
 - El puente no participa en la regla de doble reserva: esa regla usa solo la tabla `reservas`.
 
-Doble de prueba (S20): sustituye al puente en las pruebas del `service` y de la API, sin usar la base de M3. Un doble DEBE ofrecer las tres operaciones con la forma de la tabla. Lo que `obtener_mesa` informa de una mesa DEBE coincidir con lo que `listar_mesas` ofrece de esa misma mesa (mismo `estado`). Una mesa que el doble no ofrece no existe. Para los escenarios, el doble por defecto es el de la «Convención de los escenarios».
+Doble de prueba (S20): sustituye al puente en las pruebas del `service` y de la API, sin usar la base de M3. Un doble DEBE ofrecer las cuatro operaciones con la forma de la tabla; `registrar_cliente` del doble guarda el cliente en una lista propia (para que las pruebas comprueben si quedó o no registrado) y valida los datos con las reglas de M4 (S42). Lo que `obtener_mesa` informa de una mesa DEBE coincidir con lo que `listar_mesas` ofrece de esa misma mesa (mismo `estado`). Una mesa que el doble no ofrece no existe. Para los escenarios, el doble por defecto es el de la «Convención de los escenarios».
 
 ## ADDED Requirements
 
@@ -126,7 +128,7 @@ El estado inicial DEBE ser `ACTIVA` (S1) y NO DEBE recibirse en el cuerpo. Si `R
 
 ### Requisito: Campos obligatorios y tipos (HU-M5-01 CA 3)
 
-Faltar `mesa_id`, `cliente_id`, `fecha`, `hora` o `cantidad_personas`, o enviar alguno con valor `null`, DEBE responder 422 sin guardar, indicando el campo. `mesa_id` y `cliente_id` DEBEN ser enteros estrictos mayores a cero; `fecha` DEBE tener el formato `YYYY-MM-DD` y `hora` el formato `HH:MM`, sin segundos distintos de cero (S16).
+Faltar `mesa_id`, `fecha`, `hora` o `cantidad_personas`, o enviar alguno con valor `null`, DEBE responder 422 sin guardar, indicando el campo. El cliente se indica con exactamente uno de `cliente_id` o `cliente_nuevo` (requisito «Alta con cliente existente o con cliente nuevo»); faltar ambos responde 422 nombrando el campo cliente. `mesa_id` y `cliente_id` DEBEN ser enteros estrictos mayores a cero; `fecha` DEBE tener el formato `YYYY-MM-DD` y `hora` el formato `HH:MM`, sin segundos distintos de cero (S16).
 
 #### Escenario: Falta un campo obligatorio
 
@@ -136,9 +138,9 @@ Faltar `mesa_id`, `cliente_id`, `fecha`, `hora` o `cantidad_personas`, o enviar 
 
 #### Escenario: Cada campo obligatorio se valida
 
-- DADO cuerpos a los que les falta, uno por vez, `mesa_id`, `cliente_id`, `hora` o `cantidad_personas`
+- DADO cuerpos a los que les falta, uno por vez, `mesa_id`, `hora` o `cantidad_personas`, y un cuerpo sin `cliente_id` ni `cliente_nuevo`
 - CUANDO se hace `POST /reservas`
-- ENTONCES cada uno responde 422 nombrando el campo faltante y no se crea nada
+- ENTONCES cada uno responde 422 nombrando el campo faltante (el último, el campo cliente) y no se crea nada
 
 #### Escenario: Identificador no positivo o no entero
 
@@ -154,7 +156,7 @@ Faltar `mesa_id`, `cliente_id`, `fecha`, `hora` o `cantidad_personas`, o enviar 
 
 ### Requisito: Mesa y cliente existentes (HU-M5-01 CA 4)
 
-El sistema DEBE consultar al puente que la mesa exista y que el cliente exista. Si el puente informa que la mesa no existe, DEBE responder 404 «La mesa {id} no existe»; si informa que el cliente no existe, 404 «El cliente {id} no existe». En ambos casos NO DEBE guardar la reserva. La mesa se verifica antes que el cliente (S17). Una mesa que existe pero está fuera de servicio se rechaza con otro error (requisito «El alta rechaza una mesa fuera de servicio»), también antes de verificar al cliente.
+El sistema DEBE consultar al puente que la mesa exista y, cuando el cuerpo trae `cliente_id`, que el cliente exista (con `cliente_nuevo` no hay nada que verificar: el cliente se registra, ver el delta). Si el puente informa que la mesa no existe, DEBE responder 404 «La mesa {id} no existe»; si informa que el cliente no existe, 404 «El cliente {id} no existe». En ambos casos NO DEBE guardar la reserva. La mesa se verifica antes que el cliente (S17). Una mesa que existe pero está fuera de servicio se rechaza con otro error (requisito «El alta rechaza una mesa fuera de servicio»), también antes de verificar al cliente.
 
 #### Escenario: Mesa inexistente
 
@@ -180,11 +182,11 @@ El sistema DEBE consultar al puente que la mesa exista y que el cliente exista. 
 - CUANDO se hace `POST /reservas` con `mesa_id` 123 y datos válidos
 - ENTONCES responde 404 con «La mesa 123 no existe» y no se crea nada (S20: ya no basta con que el id sea positivo)
 
-#### Escenario: El stub de cliente acepta cualquier identificador positivo
+#### Escenario: Un identificador positivo que M4 no conoce no se acepta
 
-- DADO el doble de prueba del puente con la mesa 5
+- DADO el doble de prueba del puente con la mesa 5, que no ofrece al cliente 456
 - CUANDO se crea una reserva con `mesa_id` 5 y `cliente_id` 456
-- ENTONCES responde 201 (S20; el control real de existencia del cliente se activa al conectar M4)
+- ENTONCES responde 404 con «El cliente 456 no existe» y no se crea nada (S39: el stub ya no existe)
 
 ### Requisito: El alta rechaza una mesa fuera de servicio
 
@@ -861,13 +863,25 @@ Toda respuesta 404, 409 o 422 de estas rutas DEBE tener el cuerpo `{"detalle": "
 
 ### Requisito: Puente con Mesa y Cliente (S6, S10, S20)
 
-El `service` de `reservas` DEBE depender solo del puente definido en «Contrato del puente Mesa y Cliente», llamándolo como `puente.<operación>(...)`, y NO DEBE importar nada de `salon` ni de `atencion`. Solo el puente PUEDE importar de `salon`, y únicamente `app.modules.salon.service`. El lado Mesa del puente DEBE ser real: consulta a M3 solo con `listar_mesas` de ese `service` y lee todas sus páginas (S33). El lado Cliente PUEDE seguir siendo el stub de S20 hasta que M4 exponga Cliente. El módulo DEBE poder sustituir el puente por un doble de prueba sin cambiar las reglas de esta spec ni los contratos de la API. La existencia de la mesa y del cliente viene solo del puente; la tabla no tiene claves foráneas hacia Mesa ni Cliente (S10).
+El `service` de `reservas` DEBE depender solo del puente definido en «Contrato del puente Mesa y Cliente», llamándolo como `puente.<operación>(...)`, y NO DEBE importar nada de `salon` ni de `atencion`. Solo el puente PUEDE importar de `salon` y de `atencion`, y únicamente sus `service` (`app.modules.salon.service` y `app.modules.atencion.service`). El lado Mesa del puente DEBE ser real: consulta a M3 solo con `listar_mesas` de ese `service` y lee todas sus páginas (S33). El lado Cliente DEBE ser real también: consulta a M4 solo con `existe_cliente` y `registrar_cliente_para_reserva` de su `service` (S39). El módulo DEBE poder sustituir el puente por un doble de prueba sin cambiar las reglas de esta spec ni los contratos de la API. La existencia de la mesa y del cliente viene solo del puente; la tabla no tiene claves foráneas hacia Mesa ni Cliente (S10).
 
-#### Escenario: El stub de cliente acepta identificadores positivos
+#### Escenario: El puente real consulta a M4
 
-- DADO el lado Cliente del puente (stub)
-- CUANDO se consulta el cliente 7, el cliente 456 y el cliente 0
-- ENTONCES el 7 y el 456 existen y el 0 no existe
+- DADO el puente real y una base de prueba con el cliente 7 registrado en M4 y sin cliente 456
+- CUANDO se consulta `existe_cliente` con 7, con 456 y con 0
+- ENTONCES responde `true` para el 7 y `false` para el 456 y para el 0
+
+#### Escenario: El puente real registra un cliente nuevo en M4
+
+- DADO el puente real y una base de prueba sin clientes
+- CUANDO se llama a `registrar_cliente` con nombre «Ana Pérez» y teléfono «+54 280 1234567» y se confirma la sesión
+- ENTONCES devuelve el `id` del cliente y `GET /clientes?q=Ana` de M4 lo lista con ese nombre y teléfono
+
+#### Escenario: El puente real propaga el rechazo de M4
+
+- DADO el puente real
+- CUANDO se llama a `registrar_cliente` con nombre «Ana3» o con teléfono vacío
+- ENTONCES se produce el error 422 de M4 nombrando `nombre` o `telefono`, y no queda ningún cliente en la sesión
 
 #### Escenario: El puente real encuentra una mesa de M3
 
@@ -910,7 +924,7 @@ El `service` de `reservas` DEBE depender solo del puente definido en «Contrato 
 
 #### Escenario: Un doble de prueba con tres operaciones alcanza
 
-- DADO un doble del puente que ofrece `obtener_mesa`, `listar_mesas` y `existe_cliente`, sin base de M3
+- DADO un doble del puente que ofrece `obtener_mesa`, `listar_mesas`, `existe_cliente` y `registrar_cliente`, sin base de M3 ni de M4
 - CUANDO se crea una reserva y se pide la lista de mesas disponibles
 - ENTONCES ambas operaciones responden según lo que el doble ofrece, y `obtener_mesa` y `listar_mesas` coinciden en el estado de cada mesa
 
@@ -967,14 +981,14 @@ Una sola migración Alembic nueva, con `down_revision = a8c0e2b4d6f8`, DEBE crea
 
 ### Requisito: Aislamiento del módulo y sin regresión de M3 (AGENTS.md, sección 9.3)
 
-El cambio NO DEBE modificar el código de `salon/`, de `atencion/` ni de `shared/` (backend y frontend), ni los contratos de importación de `backend/pyproject.toml`. Fuera de M5, las únicas modificaciones DEBEN ser la migración nueva y el registro del `router` en `backend/app/main.py`. Tampoco DEBE modificar las pruebas de otros módulos: sus pruebas de migración ya usan revisiones fijas y no dependen del head, y la rama conserva la versión de `develop` de esos archivos.
+(El delta del cliente también cumple esto: usa solo funciones que M4 ya expone en su `service`.) El cambio NO DEBE modificar el código de `salon/`, de `atencion/` ni de `shared/` (backend y frontend), ni los contratos de importación de `backend/pyproject.toml`. Fuera de M5, las únicas modificaciones DEBEN ser la migración nueva y el registro del `router` en `backend/app/main.py`. Tampoco DEBE modificar las pruebas de otros módulos: sus pruebas de migración ya usan revisiones fijas y no dependen del head, y la rama conserva la versión de `develop` de esos archivos.
 
 #### Escenario: Contratos de importación
 
 - DADO el módulo `reservas` terminado
 - CUANDO se ejecuta `lint-imports`
 - ENTONCES pasa sin cambios en los contratos
-- Y `reservas` no importa nada de `atencion` y, de `salon`, solo importa `app.modules.salon.service`, y solo desde el puente
+- Y `reservas` solo importa `app.modules.salon.service` y `app.modules.atencion.service` (nada más de esos módulos), y solo desde el puente
 
 #### Escenario: Pruebas de migración de M3
 
@@ -1120,7 +1134,7 @@ La tabla DEBE mostrar el estado de cada reserva con un texto legible y una insig
 
 ### Requisito: Formulario de alta (HU-M5-01)
 
-El botón «Nueva reserva» DEBE abrir, como modal sobre la misma pantalla y sin cambiar de ruta, el modal «Nueva reserva», construido con el componente `Dialog` compartido (`frontend/src/shared/components/ui/dialog.tsx`): el título «Nueva reserva» (`title` del `Dialog`), los campos Cliente (número), Fecha, Hora, Cantidad de personas y Mesa (selector) en el cuerpo del modal, y los botones «Cancelar» y «Guardar reserva» en el pie del modal (`footer`). El propio `Dialog` ya ofrece su botón de cerrar (la X); el modal NO necesita un botón «Cerrar formulario» aparte, igual que `MesaFormDialog` y `ClienteFormDialog` (AGENTS.md, sección 5). Mientras M4 no expone clientes, Cliente se pide por su identificador (S13). Antes de enviar, el modal DEBE validar localmente y mostrar bajo cada campo qué falla: Cliente entero positivo; Fecha obligatoria y no anterior a hoy; Hora obligatoria y, si la fecha es hoy, posterior a la hora actual (S3); Cantidad de personas entero positivo; Mesa obligatoria, es decir, una mesa elegida de la lista. Si hay algún error local, NO DEBE llamar a la API. Al guardar bien, DEBE enviar `POST /reservas`, mostrar un aviso de éxito, cerrar el modal y recargar la tabla. Si la API responde 404, 409 o 422, DEBE mostrar el `detalle` como error general del modal, conservar los datos escritos (también la mesa elegida) y dejar el modal abierto. Cerrar el modal con la X, con la tecla Escape, haciendo clic en el fondo (fuera del modal) o con el botón «Cancelar» DEBE tener el mismo efecto: cerrar sin guardar y sin volver a pedir la tabla de reservas.
+El botón «Nueva reserva» DEBE abrir, como modal sobre la misma pantalla y sin cambiar de ruta, el modal «Nueva reserva», construido con el componente `Dialog` compartido (`frontend/src/shared/components/ui/dialog.tsx`): el título «Nueva reserva» (`title` del `Dialog`), los campos Cliente (selector de cliente, ver el delta), Fecha, Hora, Cantidad de personas y Mesa (selector) en el cuerpo del modal, y los botones «Cancelar» y «Guardar reserva» en el pie del modal (`footer`). El propio `Dialog` ya ofrece su botón de cerrar (la X); el modal NO necesita un botón «Cerrar formulario» aparte, igual que `MesaFormDialog` y `ClienteFormDialog` (AGENTS.md, sección 5). Cliente se elige con el selector del requisito «Selector de cliente en el modal del alta» y ya no se escribe como número (S13, S43). Antes de enviar, el modal DEBE validar localmente y mostrar bajo cada campo qué falla: Cliente obligatorio (un cliente elegido o los datos de un cliente nuevo válidos); Fecha obligatoria y no anterior a hoy; Hora obligatoria y, si la fecha es hoy, posterior a la hora actual (S3); Cantidad de personas entero positivo; Mesa obligatoria, es decir, una mesa elegida de la lista. Si hay algún error local, NO DEBE llamar a la API. Al guardar bien, DEBE enviar `POST /reservas`, mostrar un aviso de éxito, cerrar el modal y recargar la tabla. Si la API responde 404, 409 o 422, DEBE mostrar el `detalle` como error general del modal, conservar los datos escritos (también la mesa elegida) y dejar el modal abierto. Cerrar el modal con la X, con la tecla Escape, haciendo clic en el fondo (fuera del modal) o con el botón «Cancelar» DEBE tener el mismo efecto: cerrar sin guardar y sin volver a pedir la tabla de reservas.
 
 El campo Mesa DEBE ser un selector que se llena con `GET /reservas/mesas-disponibles`, pedido por el `api.ts` del módulo, y no un número escrito a mano (S13, S34):
 
@@ -1146,11 +1160,11 @@ La lista es una ayuda: la API vuelve a verificar la mesa al guardar (S35). El mo
 - CUANDO la persona pulsa «Guardar reserva»
 - ENTONCES no se envía la solicitud y se advierte que la cantidad debe ser un entero positivo
 
-#### Escenario: Cliente inválido
+#### Escenario: Cliente sin elegir
 
-- DADO el modal de alta con Cliente `0`, o con un texto no numérico
+- DADO el modal de alta con los demás campos válidos y ningún cliente elegido (ni la opción «Cliente nuevo»)
 - CUANDO la persona pulsa «Guardar reserva»
-- ENTONCES no se envía la solicitud y Cliente advierte que debe ser un entero positivo
+- ENTONCES no se envía la solicitud y Cliente advierte que es obligatorio
 
 #### Escenario: Mesa sin elegir
 
@@ -1239,7 +1253,7 @@ La lista es una ayuda: la API vuelve a verificar la mesa al guardar (S35). El mo
 
 - DADO el modal de alta completo con datos válidos y la mesa 5 elegida de la lista
 - CUANDO la persona pulsa «Guardar reserva»
-- ENTONCES se envía `POST /reservas` con `mesa_id` 5 (el `id` de la mesa elegida), `cliente_id`, `fecha`, `hora` y `cantidad_personas`
+- ENTONCES se envía `POST /reservas` con `mesa_id` 5 (el `id` de la mesa elegida), `cliente_id` (o `cliente_nuevo`, según lo elegido), `fecha`, `hora` y `cantidad_personas`
 - Y se muestra el aviso de éxito, el modal se cierra y la tabla se vuelve a pedir
 
 #### Escenario: Conflicto de mesa
@@ -1356,30 +1370,253 @@ La tabla DEBE mostrar «No hay reservas para los filtros elegidos.» cuando la A
 - CUANDO la persona pulsa la acción para reintentar y la API responde bien
 - ENTONCES se vuelve a pedir la misma consulta y se muestra la tabla
 
+## Delta: cliente registrado o nuevo (issue #61)
+
+Origen: criterios de HU-M5-01 del issue #61 («Dado un cliente que no está registrado en el sistema, cuando cargo su nombre y teléfono y guardo la reserva, entonces el cliente queda registrado junto con la reserva (HU-M4-01)»). Este delta reemplaza el cliente stub y el campo «Cliente (número)». Los requisitos de esta sección son `ADDED` (la capacidad aún no se archivó, igual que el resto). Las reglas de contenido de nombre y teléfono son de M4 (HU-M4-01) y no se repiten acá más que como referencia.
+
+Convención de los escenarios de este delta: el doble de prueba del puente ofrece al cliente 7 («Ana Pérez», «+54 280 1234567»), no ofrece al 99, y su `registrar_cliente` guarda en una lista propia (ids desde 100) con las reglas de M4 (S42). Los escenarios que dicen «el puente real» usan M4 de verdad sobre una base de prueba. «Cliente nuevo válido» es `{"nombre": "Luis Gómez", "telefono": "280-4556677"}`. «No queda ningún cliente» significa que ni la lista del doble ni `GET /clientes` de M4 (con el puente real) muestran un cliente nuevo.
+
+### Requisito: Alta con cliente existente o con cliente nuevo (issue #61, HU-M5-01)
+
+`POST /reservas` DEBE recibir exactamente uno de `cliente_id` (cliente existente) o `cliente_nuevo` (`nombre` y `telefono`). Con `cliente_id`, DEBE comprobar con el puente que el cliente exista (404 «El cliente {id} no existe» si no). Con `cliente_nuevo`, DEBE registrar el cliente con el puente (`registrar_cliente`) y asociar la reserva al `id` que se obtiene, de modo que reserva y cliente queden guardados juntos (HU-M4-01). La respuesta es la `ReservaSalida` de siempre, con el `cliente_id` del cliente (existente o recién registrado). Los demás campos y reglas del alta no cambian. `PUT /reservas/{id}` no cambia: el cliente no se modifica (S15).
+
+#### Escenario: Alta con un cliente existente
+
+- DADO el doble de prueba del puente con la mesa 5 y el cliente 7
+- CUANDO se hace `POST /reservas` con `mesa_id` 5, `cliente_id` 7 y datos válidos
+- ENTONCES responde 201 con `cliente_id` 7 y no se registra ningún cliente nuevo
+
+#### Escenario: Alta con un cliente nuevo
+
+- DADO el doble de prueba del puente con la mesa 5 y ningún cliente nuevo
+- CUANDO se hace `POST /reservas` con `mesa_id` 5, datos válidos y `cliente_nuevo` válido
+- ENTONCES responde 201 con `estado` `ACTIVA` y un `cliente_id` distinto de los existentes
+- Y el cliente nuevo queda registrado con ese `id`, su nombre y su teléfono, y `GET /reservas/{id}` devuelve el mismo `cliente_id`
+
+#### Escenario: Con el puente real el cliente nuevo queda en M4
+
+- DADO el puente real, una mesa `LIBRE` en M3 y ningún cliente en M4
+- CUANDO se hace `POST /reservas` con esa mesa, datos válidos y `cliente_nuevo` válido
+- ENTONCES responde 201 y `GET /clientes?q=Luis` lista al cliente con su nombre y teléfono y el mismo `id` que trae la reserva en `cliente_id`
+
+#### Escenario: Dos reservas con el mismo nombre de cliente nuevo
+
+- DADO una reserva ya creada con `cliente_nuevo` válido
+- CUANDO se crea otra, en otro turno, con el mismo `cliente_nuevo`
+- ENTONCES responde 201 y quedan dos clientes distintos (M4 permite nombres repetidos, S42)
+
+### Requisito: Exactamente un cliente por reserva (issue #61)
+
+El cuerpo de `POST /reservas` DEBE traer `cliente_id` o `cliente_nuevo`, y no los dos ni ninguno. Si trae los dos o ninguno, DEBE responder 422 con un `detalle` que nombre el campo cliente (`cliente_id`/`cliente_nuevo`), sin guardar reserva ni cliente y sin consultar al puente. `cliente_id` DEBE ser un entero estricto mayor a cero (S16); `cliente_nuevo` DEBE traer `nombre` y `telefono` como texto y ningún otro campo (S40).
+
+#### Escenario: Cliente existente y cliente nuevo juntos
+
+- DADO un cuerpo válido con `cliente_id` 7 y `cliente_nuevo` válido
+- CUANDO se hace `POST /reservas`
+- ENTONCES responde 422 nombrando el campo cliente y no se crea ninguna reserva ni ningún cliente
+
+#### Escenario: Ningún cliente
+
+- DADO un cuerpo válido sin `cliente_id` ni `cliente_nuevo`, y otro con `cliente_nuevo` igual a `null`
+- CUANDO se hace `POST /reservas`
+- ENTONCES cada uno responde 422 nombrando el campo cliente y no se crea nada
+
+#### Escenario: Forma inválida del cliente
+
+- DADO `cliente_id` `0`, `"7"` o `true`, o `cliente_nuevo` sin `telefono`, con `nombre` numérico o con un campo extra (`dni`)
+- CUANDO se hace `POST /reservas`
+- ENTONCES cada caso responde 422 nombrando el campo y no se crea nada
+
+### Requisito: Datos inválidos del cliente nuevo (issue #61, HU-M4-01)
+
+Si el `cliente_nuevo` no cumple las reglas de M4 (nombre obligatorio y solo con letras y espacios, incluidos los acentos; teléfono obligatorio con dígitos, espacios, guiones y `+` solo al inicio), el alta DEBE responder 422 con el mensaje de M4, que nombra el campo (`nombre` o `telefono`), y NO DEBE guardar la reserva ni el cliente. Las reglas de contenido viven en M4: M5 no las vuelve a implementar (S42).
+
+#### Escenario: Nombre faltante, vacío o con símbolos
+
+- DADO `cliente_nuevo` con `nombre` `""`, `"   "` o `"Luis3"` y teléfono válido
+- CUANDO se hace `POST /reservas` con los demás datos válidos
+- ENTONCES responde 422 con un `detalle` que nombra `nombre`, y no se crea ninguna reserva ni ningún cliente
+
+#### Escenario: Teléfono faltante o inválido
+
+- DADO `cliente_nuevo` con nombre válido y `telefono` `""`, `"abc"` o `"280+456"`
+- CUANDO se hace `POST /reservas` con los demás datos válidos
+- ENTONCES responde 422 con un `detalle` que nombra `telefono`, y no se crea ninguna reserva ni ningún cliente
+
+#### Escenario: Nombre con acentos y teléfono con prefijo
+
+- DADO `cliente_nuevo` con `nombre` «María José Núñez» y `telefono` «+54 280 4-556677»
+- CUANDO se hace `POST /reservas` con los demás datos válidos
+- ENTONCES responde 201 y el cliente queda registrado
+
+### Requisito: Una reserva fallida no deja un cliente huérfano (issue #61)
+
+Cuando el alta trae `cliente_nuevo` y la reserva no se puede crear, NO DEBE quedar ningún cliente registrado. El `service` DEBE validar mesa, existencia (solo con `cliente_id`), fecha, hora y turno libre antes de registrar al cliente nuevo, y DEBE guardar reserva y cliente en una única confirmación; si esa confirmación falla (incluida la carrera por el índice único parcial, que responde 409), DEBE deshacer también el cliente (S41). El orden de errores del alta no cambia con `cliente_nuevo`: los errores de mesa, fecha, hora y turno tienen prioridad sobre los datos del cliente nuevo.
+
+#### Escenario: La mesa no existe
+
+- DADO un puente que informa que la mesa 99 no existe
+- CUANDO se hace `POST /reservas` con `mesa_id` 99, datos válidos y `cliente_nuevo` válido
+- ENTONCES responde 404 con «La mesa 99 no existe» y no queda ningún cliente
+
+#### Escenario: La mesa está fuera de servicio
+
+- DADO un puente que informa la mesa 6 `FUERA_DE_SERVICIO`
+- CUANDO se hace `POST /reservas` con `mesa_id` 6, datos válidos y `cliente_nuevo` válido
+- ENTONCES responde 409 con «La mesa 6 está fuera de servicio» y no queda ningún cliente
+
+#### Escenario: La fecha o la hora son inválidas
+
+- DADO que hoy es `2026-10-28` y son las `14:30`
+- CUANDO se hace `POST /reservas` con `cliente_nuevo` válido y `fecha` `2026-10-27`, y por separado con `fecha` `2026-10-28` y `hora` `14:30`
+- ENTONCES responden 422 (fecha y hora) y no queda ningún cliente
+
+#### Escenario: El turno ya está reservado
+
+- DADO una reserva `ACTIVA` en la mesa 5, `2026-11-02`, `21:30`
+- CUANDO se hace `POST /reservas` con la misma mesa, fecha y hora y un `cliente_nuevo` válido
+- ENTONCES responde 409 con «La mesa 5 ya tiene una reserva activa el 2026-11-02 a las 21:30» y no queda ningún cliente
+
+#### Escenario: La base rechaza el duplicado al confirmar
+
+- DADO que la verificación previa no encuentra conflicto pero otra reserva `ACTIVA` igual se confirma antes de guardar, y un `cliente_nuevo` válido
+- CUANDO la base rechaza la inserción por el índice único parcial
+- ENTONCES el servicio responde 409 con el mensaje de conflicto y no queda la reserva duplicada ni el cliente nuevo
+
+#### Escenario: Datos inválidos del cliente con mesa inexistente
+
+- DADO un puente que informa que la mesa 99 no existe y un `cliente_nuevo` con nombre `"Luis3"`
+- CUANDO se hace `POST /reservas` con `mesa_id` 99
+- ENTONCES responde 404 con «La mesa 99 no existe» (la mesa se verifica antes de registrar al cliente)
+
+### Requisito: Selector de cliente en el modal del alta (issue #61, HU-M5-01)
+
+El modal «Nueva reserva» DEBE reemplazar el campo numérico «Cliente (número)» por un selector de cliente, sin importar nada del módulo `atencion` (AGENTS.md, sección 9.4): la búsqueda usa `GET /clientes?q=` a través del `api.ts` de `reservas` (S43). El selector DEBE ofrecer:
+
+- Una caja de búsqueda por nombre o teléfono. Al escribir, DEBE pedir `GET /clientes?q=<texto>` (con un `limit` acotado) y listar las coincidencias como «Nombre · Teléfono». La persona elige una y queda elegida, visible en el campo.
+- La opción «Cliente nuevo», que muestra los campos Nombre y Teléfono, obligatorios, con las mismas reglas y mensajes que M4 (nombre solo con letras y espacios; teléfono con dígitos, espacios, guiones y `+` solo al inicio). Elegir un cliente de la búsqueda y «Cliente nuevo» son excluyentes: pasar de uno a otro descarta lo del anterior.
+- Sin texto de búsqueda no se muestra ningún resultado ni se pide la lista. Si la búsqueda no encuentra a nadie, DEBE mostrar «No se encontraron clientes» y mantener disponible «Cliente nuevo». Si la consulta falla, DEBE mostrar el mensaje de la API junto al campo Cliente. Una respuesta vieja de la búsqueda NO DEBE pisar a la nueva (mismo mecanismo que S35).
+
+Al guardar, DEBE enviar `cliente_id` si hay un cliente elegido, o `cliente_nuevo` con `nombre` y `telefono` (sin espacios sobrantes en los extremos) si está «Cliente nuevo»; nunca los dos. Si no hay ni uno ni otro, DEBE bloquear el guardado con un mensaje que nombre Cliente y no llamar a la API. Si hay errores locales en Nombre o Teléfono, DEBE mostrarlos bajo cada campo y no llamar a la API. Si la API responde 422 con un `detalle` que nombra `nombre` o `telefono`, DEBE mostrarlo junto a ese campo, conservar los datos y dejar el modal abierto; los demás 404, 409 y 422 siguen siendo error general del modal. El modal de edición NO cambia: Cliente sigue deshabilitado y de solo lectura con el `cliente_id` de la fila (la tabla sigue mostrando «Cliente n.º», S23).
+
+#### Escenario: Buscar un cliente por nombre
+
+- DADO el modal de alta y una API que, para `q=Ana`, devuelve al cliente 7 («Ana Pérez», «+54 280 1234567»)
+- CUANDO la persona escribe «Ana» en la búsqueda de cliente
+- ENTONCES se pide `GET /clientes?q=Ana` por el `api.ts` de reservas
+- Y la lista muestra «Ana Pérez · +54 280 1234567»
+
+#### Escenario: Buscar un cliente por teléfono
+
+- DADO el modal de alta y una API que, para `q=1234567`, devuelve al cliente 7
+- CUANDO la persona escribe «1234567»
+- ENTONCES se pide `GET /clientes?q=1234567` y la lista muestra al cliente 7
+
+#### Escenario: Elegir un cliente de la lista
+
+- DADO la lista de coincidencias con «Ana Pérez · +54 280 1234567»
+- CUANDO la persona la elige y pulsa «Guardar reserva» con los demás campos válidos
+- ENTONCES el cliente queda visible como elegido
+- Y se envía `POST /reservas` con `cliente_id` 7 y sin `cliente_nuevo`
+
+#### Escenario: Búsqueda sin resultados
+
+- DADO una API que devuelve la lista vacía para `q=Zzz`
+- CUANDO la persona escribe «Zzz»
+- ENTONCES se muestra «No se encontraron clientes» y la opción «Cliente nuevo» sigue disponible
+
+#### Escenario: Falla la búsqueda
+
+- DADO una API que responde con error al pedir `GET /clientes?q=Ana`
+- CUANDO termina la consulta
+- ENTONCES se muestra el mensaje de la API junto al campo Cliente y no se ofrece ningún cliente
+
+#### Escenario: Una respuesta vieja de la búsqueda no pisa a la nueva
+
+- DADO la búsqueda `q=An` sin responder
+- CUANDO la persona sigue escribiendo hasta `q=Ana` y la respuesta de `q=An` llega después de la de `q=Ana`
+- ENTONCES la lista muestra los resultados de `q=Ana`
+
+#### Escenario: Cliente nuevo
+
+- DADO el modal de alta
+- CUANDO la persona elige «Cliente nuevo»
+- ENTONCES se muestran los campos Nombre y Teléfono vacíos, y ninguna reserva ni cliente se crea todavía
+
+#### Escenario: Guardar con un cliente nuevo
+
+- DADO el modal con «Cliente nuevo», Nombre «Luis Gómez», Teléfono «280-4556677» y los demás campos válidos, incluida una mesa elegida
+- CUANDO la persona pulsa «Guardar reserva»
+- ENTONCES se envía `POST /reservas` con `cliente_nuevo` `{nombre: "Luis Gómez", telefono: "280-4556677"}` y sin `cliente_id`
+- Y se muestra el aviso de éxito, el modal se cierra y la tabla se vuelve a pedir
+
+#### Escenario: Pasar de un cliente elegido a «Cliente nuevo» (y al revés)
+
+- DADO un cliente elegido de la búsqueda
+- CUANDO la persona elige «Cliente nuevo», escribe Nombre y Teléfono y guarda
+- ENTONCES se envía solo `cliente_nuevo`, sin `cliente_id`
+- Y si después vuelve a elegir a un cliente de la búsqueda, se envía solo `cliente_id` y no `cliente_nuevo`
+
+#### Escenario: Sin cliente
+
+- DADO el modal con los demás campos válidos, sin cliente elegido y sin «Cliente nuevo»
+- CUANDO la persona pulsa «Guardar reserva»
+- ENTONCES no se envía la solicitud y se muestra un error de Cliente obligatorio
+
+#### Escenario: Datos inválidos del cliente nuevo en el modal
+
+- DADO «Cliente nuevo» con Nombre «Luis3» o vacío, o Teléfono vacío o «280+456»
+- CUANDO la persona pulsa «Guardar reserva»
+- ENTONCES no se envía la solicitud y Nombre o Teléfono muestra el mismo mensaje que M4 para ese caso
+
+#### Escenario: La API rechaza los datos del cliente nuevo
+
+- DADO el modal con «Cliente nuevo» completo y una API que responde 422 con un `detalle` que nombra `telefono`
+- CUANDO la persona pulsa «Guardar reserva»
+- ENTONCES el mensaje se muestra junto al campo Teléfono, los datos se conservan y el modal sigue abierto
+
+#### Escenario: La reserva falla con un cliente nuevo
+
+- DADO el modal con «Cliente nuevo» completo y una API que responde 409 con «La mesa 5 ya tiene una reserva activa el 2026-11-02 a las 21:30»
+- CUANDO la persona pulsa «Guardar reserva»
+- ENTONCES el modal muestra ese mensaje como error general, conserva Nombre, Teléfono y los demás datos, y sigue abierto
+
+#### Escenario: La edición no cambia el cliente
+
+- DADO una fila `ACTIVA` del cliente 7
+- CUANDO la persona abre «Modificar reserva»
+- ENTONCES Cliente muestra 7 deshabilitado, sin caja de búsqueda ni «Cliente nuevo», y no se pide `GET /clientes`
+
+#### Escenario: Cerrar el modal descarta la elección
+
+- DADO el modal con un cliente elegido o con «Cliente nuevo» escrito
+- CUANDO la persona cierra el modal y vuelve a abrir «Nueva reserva»
+- ENTONCES el selector de cliente aparece vacío
+
 ## Supuestos
 
-Los supuestos S1 a S14 son los de la propuesta, con la misma numeración. S15 en adelante son nuevos de esta spec. Por el issue #61 se reescribieron S4, S5, S9, S10, S13, S17, S20 y S23 (sin cambiar su número) y se agregaron S29 a S35. Por la regla general de modales de AGENTS.md (sección 5) se reescribieron además S24 y S34 (sin cambiar su número, el panel lateral pasa a ser un modal) y se agregaron S36, S37 y S38. Todos están marcados `Supuesto:` para que el equipo los valide (AGENTS.md, sección 9.2).
+Los supuestos S1 a S14 son los de la propuesta, con la misma numeración. S15 en adelante son nuevos de esta spec. Por el issue #61 se reescribieron S4, S5, S9, S10, S13, S17, S20 y S23 (sin cambiar su número) y se agregaron S29 a S35. Por la regla general de modales de AGENTS.md (sección 5) se reescribieron además S24 y S34 (sin cambiar su número, el panel lateral pasa a ser un modal) y se agregaron S36, S37 y S38. Por el delta «cliente registrado o nuevo» (issue #61, HU-M4-01) se reescribieron además S6, S13, S17, S20 y S34 (sin cambiar su número) y se agregaron S39 a S43. Todos están marcados `Supuesto:` para que el equipo los valide (AGENTS.md, sección 9.2).
 
 - Supuesto: S1. Estado inicial `ACTIVA`. Lo dicen el diagrama de clases, S2-02 y la maqueta. Contradicción de fuentes: S1-07 (CP-HU-M5-01) usa `PENDIENTE`. Se sigue el diagrama porque manda en nombres y valores; el equipo tiene que validarlo y corregir S1-07.
 - Supuesto: S2. Horario de atención: ninguna fuente lo define, así que no se restringe la hora de la reserva (vale cualquier hora del día). Si el equipo define un horario, se agrega como validación 422 en un cambio posterior.
 - Supuesto: S3. Fecha y hora pasadas: `fecha` tiene que ser hoy o posterior (diagrama `{>= hoy}`). Si `fecha` es hoy, `hora` tiene que ser posterior a la hora actual de la zona del restaurante (S28). Si no se cumple, responde 422. La hora se maneja en minutos (sin segundos).
 - Supuesto: S4. Mesa «disponible» para una fecha y hora: la mesa existe según el puente, su estado en M3 no es `FUERA_DE_SERVICIO` y no tiene otra reserva `ACTIVA` con la misma fecha y hora exactas. El estado `OCUPADA` no la excluye (S30). No se modela duración. Cambio respecto de la propuesta: la primera versión de S4 decía que no se modelaba el estado de la mesa; el issue #61 dice que una mesa fuera de servicio no es una mesa disponible y gana sobre esa versión (AGENTS.md, sección 2).
 - Supuesto: S5. Capacidad: resuelto por el issue #61 (HU-M5-01), que dice «Cantidad de personas (obligatoria): número entero mayor a cero. El sistema no la valida contra la capacidad de la mesa (se resuelve en forma presencial)». La cantidad de personas no se valida contra la capacidad de la mesa; se resuelve en forma presencial. S1-07 pedía `cantidadPersonas <= capacidad`, pero el issue manda sobre esa guía (AGENTS.md §2). La capacidad que devuelve `listar_mesas` del puente se usa solo para mostrarla en el selector de mesas; ninguna regla la compara con la cantidad de personas y no existe una respuesta 422 por capacidad excedida.
-- Supuesto: S6. Cliente: se identifica por `cliente_id` entero. El stub da por válido cualquier id positivo hasta que M4 exponga Cliente. S1-07 no menciona al cliente; el diagrama sí (Cliente 1 - Reserva).
+- Supuesto: S6. Cliente: se identifica por `cliente_id` entero. Existe si M4 lo tiene (`existe_cliente`, S39); la versión anterior daba por válido cualquier id positivo con un stub, que ya no existe. Una reserva puede crear al cliente al mismo tiempo con `cliente_nuevo` (S39). S1-07 no menciona al cliente; el diagrama sí (Cliente 1 - Reserva).
 - Supuesto: S7. Modificar: solo se puede modificar una reserva `ACTIVA` (si no, 409). Se modifican `fecha`, `hora` y `cantidad_personas`. Se revalidan S3 y S4 sin contar la propia reserva. La mesa y el cliente no cambian (diagrama). No hay control de concurrencia: gana la última modificación.
 - Supuesto: S8. Listado: paginado (D-27); filtros opcionales `fecha` (día exacto) y `estado`; orden ascendente por `fecha`, `hora` e `id`. Sin filtros, la API devuelve todas las reservas. El frontend arranca con el filtro de estado `ACTIVA`.
 - Supuesto: S9. Códigos de error: 404 si la reserva no existe, y también si la mesa o el cliente indicados no existen según el puente. 409 si hay conflicto con otra reserva `ACTIVA`, si se intenta modificar una reserva que no está `ACTIVA` o si la mesa está fuera de servicio (S31). 422 para errores de validación (fecha u hora pasadas, `cantidad_personas <= 0`). Igual criterio que M1 y M3.
 - Supuesto: S10. Sin claves foráneas: la tabla `clientes` no existe (M4 vacío) y `reservas` no declara claves foráneas hacia Mesa ni Cliente, aunque la mesa se consulte a M3 por el puente. La integridad referencial la cubre el puente; las FK se agregan con una migración posterior, cuando M3 y M4 estén integrados.
 - Supuesto: S11. Fechas en el frontend: `formatearFecha` (`frontend/src/shared/lib/format.ts`) muestra el día anterior en UTC-3 con fechas `YYYY-MM-DD`. M5 formatea sus fechas dentro del módulo, sin tocar `shared/`, y se avisa al equipo para corregir la función compartida.
 - Supuesto: S12. Insignia de estado: `StatusBadge` no conoce los estados de `EstadoReserva`. M5 asigna el texto y la variante dentro del módulo, sin modificar `shared/`.
-- Supuesto: S13. Selección de mesa y cliente en el formulario: la Mesa se elige de la lista de mesas disponibles que arma la propia API de reservas a partir de M3 (issue #61), porque el `numero` de una mesa es único solo dentro de su sector (`ux_mesas_sector_numero`) y pedirlo a mano es ambiguo. Mientras M4 no exponga clientes, el Cliente se pide por su identificador. Las diferencias con la maqueta se anotan en el PR.
+- Supuesto: S13. Selección de mesa y cliente en el formulario: la Mesa se elige de la lista de mesas disponibles que arma la propia API de reservas a partir de M3 (issue #61), porque el `numero` de una mesa es único solo dentro de su sector (`ux_mesas_sector_numero`) y pedirlo a mano es ambiguo. El Cliente se elige con un selector que busca en M4 por nombre o teléfono, o se carga como cliente nuevo (S43); ya no se pide por su identificador. Las diferencias con la maqueta se anotan en el PR.
 - Supuesto: S14. Nombre del atributo: la HU dice «comensales» y el diagrama `cantidadPersonas`. En el código se usa `cantidad_personas` / `cantidadPersonas` (gana el diagrama); en la pantalla dice «Cantidad de personas» (maqueta) o «Personas» en la tabla.
 - Supuesto: S15. Los cuerpos de `ReservaCrear` y `ReservaModificar` prohíben campos extra (como `MesaCrear` de HU-M3-05): `estado` e `id` en el alta, y `mesa_id`, `cliente_id`, `estado` e `id` en la modificación responden 422 en lugar de ignorarse.
 - Supuesto: S16. Formatos y tipos de la API: `fecha` en `YYYY-MM-DD` y `hora` en `HH:MM` (una hora con segundos distintos de cero responde 422; la respuesta siempre usa `HH:MM`). `cantidad_personas`, `mesa_id` y `cliente_id` son enteros estrictos mayores a cero (sin decimales, texto ni booleanos). El formato `DD/MM/AAAA` de S1-07 es solo de pantalla.
-- Supuesto: S17. Orden de validación: el de «Contrato de la API». En el alta: forma, existencia de la mesa, mesa fuera de servicio, existencia del cliente, fecha, hora y turno libre. Un dato inválido nunca deja cambios parciales.
+- Supuesto: S17. Orden de validación: el de «Contrato de la API». En el alta: forma (incluido exactamente uno de `cliente_id` o `cliente_nuevo`), existencia de la mesa, mesa fuera de servicio, existencia del cliente (solo con `cliente_id`), fecha, hora, turno libre y, al final, registro del cliente nuevo y guardado (S41). Un dato inválido nunca deja cambios parciales.
 - Supuesto: S18. Los textos de los mensajes de negocio son los de referencia de «Contrato de la API»; el diseño puede ajustar el redactado sin cambiar el código de estado ni la clave `detalle`.
 - Supuesto: S19. `PUT /reservas/{id}` exige los tres campos modificables (`fecha`, `hora`, `cantidad_personas`); no se ofrece una modificación parcial (`PATCH`).
-- Supuesto: S20. Puente y pruebas. El lado Mesa del puente es real y consulta a M3 (S33); una mesa con id positivo ya no existe por el solo hecho de serlo. El lado Cliente sigue siendo un stub: todo cliente con id positivo existe. Por eso las pruebas usan un doble de prueba del puente (ver «Convención de los escenarios») con las mesas que cada escenario necesita, y los 404 de mesa o de cliente se prueban con una implementación alternativa del puente.
+- Supuesto: S20. Puente y pruebas. El lado Mesa del puente es real y consulta a M3 (S33); una mesa con id positivo ya no existe por el solo hecho de serlo. El lado Cliente también es real y consulta a M4 (S39): un id positivo ya no basta para que el cliente exista. Por eso las pruebas usan un doble de prueba del puente (ver «Convención de los escenarios») con las mesas y los clientes que cada escenario necesita, y los 404 de mesa o de cliente se prueban con el doble o con una implementación alternativa del puente.
 - Supuesto: S21. Un mismo cliente PUEDE tener varias reservas `ACTIVA`, incluso en la misma fecha y hora en mesas distintas. La única regla de conflicto es la de mesa, fecha y hora (diagrama).
 - Supuesto: S22. En el listado, `estado` distingue mayúsculas y minúsculas (`activa` responde 422, como en `GET /productos` y `GET /secciones`); `fecha` usa `YYYY-MM-DD`; el filtro de fecha acepta cualquier día, también pasado, a diferencia del alta.
 - Supuesto: S23. `ReservaSalida` y la tabla de pantalla traen `mesa_id` y `cliente_id` y no nombres de mesa, sector, cliente ni teléfono. Este cambio no modifica `ReservaSalida` ni la tabla: mostrar el sector y el número de la mesa en el listado queda para un cambio posterior. La tabla muestra «Mesa n.º {mesa_id}» con el `id` interno de la mesa, que puede no coincidir con su `numero` (el selector del alta muestra el sector y el número). La maqueta muestra Cliente, Teléfono y Mesa con texto: la diferencia se anota en el PR.
@@ -1393,8 +1630,13 @@ Los supuestos S1 a S14 son los de la propuesta, con la misma numeración. S15 en
 - Supuesto: S31. Una mesa fuera de servicio en el alta responde 409 «La mesa {id} está fuera de servicio» y no 422. Se trata como un conflicto con una regla de negocio, igual que la doble reserva (D-25, D-26): los datos enviados están bien formados, pero el estado de la mesa impide la reserva. 422 queda para datos mal formados o fechas y horas pasadas. El issue #61 pide que no se cree la reserva y que se avise; no fija el código.
 - Supuesto: S32. La consulta de mesas disponibles reutiliza las reglas de «no pasado» del alta (S3) con los mismos mensajes 422: un turno que no se podría reservar tampoco tiene mesas disponibles. La consulta de fechas pasadas del listado (S22) es otra cosa y no cambia.
 - Supuesto: S33. El puente lee todas las páginas de `listar_mesas` del `service` de M3 y a partir de esa lectura resuelve `obtener_mesa` y `listar_mesas`. Es lo único que M3 ofrece (páginas de hasta 100, orden por sector, `numero` e `id`, sin filtro por estado ni búsqueda por `id`) y `reservas` no puede cambiar `salon` (AGENTS.md, sección 9.3). Cada alta y cada consulta de mesas disponibles leen todas las mesas; con las decenas de mesas de un restaurante el costo es aceptable. Si M3 agrega una búsqueda por `id` o un filtro por estado, se cambia el cuerpo del puente sin tocar las reglas.
-- Supuesto: S34. Selector de mesa del modal. La lista se pide solo con Fecha y Hora válidas. La opción se escribe «Sector · Mesa N (capacidad personas)», con «personas» también cuando la capacidad es 1. Con la lista vacía, el botón «Guardar reserva» se deshabilita; no así mientras la lista carga ni cuando falló, porque en esos casos no hay mesa elegida y la validación local de Mesa impide el envío. Cliente sigue siendo un número (M4). El modal no importa nada del módulo de M3: pide la lista a la API de reservas.
+- Supuesto: S34. Selector de mesa del modal. La lista se pide solo con Fecha y Hora válidas. La opción se escribe «Sector · Mesa N (capacidad personas)», con «personas» también cuando la capacidad es 1. Con la lista vacía, el botón «Guardar reserva» se deshabilita; no así mientras la lista carga ni cuando falló, porque en esos casos no hay mesa elegida y la validación local de Mesa impide el envío. Cliente se elige con el selector de S43. El modal no importa nada del módulo de M3: pide la lista a la API de reservas.
 - Supuesto: S35. La lista de mesas disponibles es solo informativa: no reserva ni bloquea la mesa. Entre que se pide la lista y se guarda, otra persona puede reservar la mesa o M3 puede ponerla fuera de servicio; el alta vuelve a verificar la mesa, el estado y el turno libre y responde 404 o 409 con su mensaje, que el modal muestra como error general. Para ver la lista actualizada hay que cambiar Fecha u Hora, o cerrar y volver a abrir el modal.
 - Supuesto: S36. Solo existe un modal de reserva a la vez: la pantalla guarda como mucho un modal abierto (cerrado, alta o edición de una fila), el mismo estado que ya tenía el panel lateral de la versión anterior. Mientras el modal de edición está abierto, el botón «Nueva reserva» se ve pero está deshabilitado: hay que cerrar la edición (con o sin guardar) antes de poder abrir el alta. Así nunca hay dos modales abiertos a la vez, sin cerrar en silencio cambios sin guardar; el `Dialog` compartido tampoco está pensado para montarse dos veces juntas.
 - Supuesto: S37. El modal usa el tamaño por defecto del `Dialog` compartido, `size="md"` (`max-w-lg`), igual que `MesaFormDialog` y `ClienteFormDialog`. El formulario tiene solo cinco campos (Cliente, Fecha, Hora, Cantidad de personas y Mesa), con Fecha y Hora en la misma fila, así que no necesita el ancho mayor `size="lg"` que usa `ProductoFormDialog` para un formulario largo con desplazamiento interno.
 - Supuesto: S38. Cerrar el modal no cancela una solicitud `POST` o `PUT` en curso: la solicitud sigue hasta el navegador, pero el formulario que la pidió se desentiende de su respuesta al desmontarse, con el mismo mecanismo que ya usa S35 para descartar una respuesta vieja de la consulta de mesas (una bandera que se apaga al desmontar). Por eso una respuesta tardía, llegue bien o mal, nunca muestra un aviso, nunca recarga la tabla y nunca toca el modal que esté abierto en ese momento, sea el mismo, ninguno o uno distinto abierto después. Antes de este ajuste, una respuesta tardía sí mostraba el aviso y recargaba la tabla aunque el modal ya estuviera cerrado, y podía cerrar un modal nuevo sin avisar; se corrige acá porque la conversión al modal lo hizo visible y el mecanismo ya existe en el propio módulo.
+- Supuesto: S39. Puente de cliente real. `existe_cliente` y la operación nueva `registrar_cliente(db, nombre, telefono) -> int` del puente delegan en `app.modules.atencion.service` (`existe_cliente` y `registrar_cliente_para_reserva`, que M4 expone con esa firma). Reemplaza al stub de S6 y S20. `registrar_cliente_para_reserva` valida con las reglas de M4, agrega el cliente a la sesión y hace flush, pero nunca confirma ni deshace. `ReservaCrear` pasa de `cliente_id` obligatorio a exactamente uno de `cliente_id` o `cliente_nuevo`; si llegan los dos o ninguno, 422. El cambio depende de que M4 publique esas dos funciones (el cambio HU-M4-01-02-03 se actualiza en paralelo).
+- Supuesto: S40. `ClienteNuevo` es un esquema propio de M5, solo de forma (`nombre` y `telefono` como texto, obligatorios, sin campos extra), para no importar los `schemas` de M4 (AGENTS.md, sección 9.4). Sin apellido ni DNI: no figuran en HU-M4-01 ni en el diagrama de clases.
+- Supuesto: S41. Atomicidad del cliente nuevo. El `service` valida mesa, cliente existente, fecha, hora y turno libre antes de registrar al cliente nuevo, y después guarda reserva y cliente en un solo commit. Si ese commit falla (por ejemplo, la carrera por el índice único parcial), deshace la sesión completa, también el cliente, y responde 409. Nunca queda un cliente huérfano. Como M4 nunca confirma, la confirmación única es de M5. Quedan fuera los errores de la base ajenos a estos casos (responden 500 y también deshacen la sesión).
+- Supuesto: S42. Las reglas de contenido de nombre y teléfono son únicamente las de M4 (nombre obligatorio, solo letras y espacios con acentos; teléfono obligatorio con dígitos, espacios, guiones y `+` solo al inicio; nombres repetidos permitidos): M5 no las copia en el backend. El frontend de M5 repite las mismas reglas y mensajes solo para avisar antes de enviar, porque no puede importar archivos de `atencion` (AGENTS.md, sección 9.4); si M4 cambia las reglas, hay que actualizar ese espejo. No se detectan duplicados de cliente: dos altas iguales crean dos clientes, igual que en M4.
+- Supuesto: S43. Selector de cliente del modal. Reservas pide `GET /clientes?q=&limit=` a través de su propio `api.ts` (la ruta de M4 ya existe y es de solo lectura). Los resultados se leen como «Nombre · Teléfono», acotados a la primera página (sin paginar en pantalla; para afinar se sigue escribiendo). La búsqueda empieza con al menos un carácter escrito y espera una breve pausa al tipear (el diseño fija el valor). El modal de edición no cambia el cliente. Fuera de alcance: mostrar el nombre del cliente en la tabla de reservas (S23).
