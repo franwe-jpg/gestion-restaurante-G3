@@ -23,11 +23,21 @@ const UNA_POR_ESTADO: Reserva[] = [
   { ...ACTIVA, id: 4, hora: '22:00', estado: 'CANCELADA_POR_AUSENCIA' },
 ];
 
-/** La acción de modificar es obligatoria: los casos que no la usan reciben un manejador vacío. */
+type PropsObligatorias = 'onModificar' | 'onCancelarAnticipada' | 'onCancelarPorAusencia';
+
+/** Las tres acciones son obligatorias: los casos que no las usan reciben un manejador vacío. */
 function mostrar(
-  props: Omit<ReservasTablaProps, 'onModificar'> & Pick<Partial<ReservasTablaProps>, 'onModificar'>,
+  props: Omit<ReservasTablaProps, PropsObligatorias> &
+    Pick<Partial<ReservasTablaProps>, PropsObligatorias>,
 ) {
-  render(<ReservasTabla onModificar={vi.fn()} {...props} />);
+  render(
+    <ReservasTabla
+      onModificar={vi.fn()}
+      onCancelarAnticipada={vi.fn()}
+      onCancelarPorAusencia={vi.fn()}
+      {...props}
+    />,
+  );
 }
 
 describe('ReservasTabla: filas', () => {
@@ -110,5 +120,44 @@ describe('ReservasTabla: acción «Modificar reserva»', () => {
     fireEvent.click(segunda.getByRole('button', { name: 'Modificar reserva' }));
 
     expect(onModificar).toHaveBeenCalledExactlyOnceWith(otra);
+  });
+});
+
+describe('ReservasTabla: acciones «Cancelar reserva» y «Cancelar por ausencia» (HU-M5-04-05)', () => {
+  it('se ofrecen solo en las filas ACTIVA', () => {
+    mostrar({ reservas: UNA_POR_ESTADO });
+
+    const filas = screen.getAllByRole('row');
+    const activa = within(filas[1]!);
+    expect(activa.getByRole('button', { name: 'Modificar reserva' })).toBeInTheDocument();
+    expect(activa.getByRole('button', { name: 'Cancelar reserva' })).toBeInTheDocument();
+    expect(activa.getByRole('button', { name: 'Cancelar por ausencia' })).toBeInTheDocument();
+    for (const fila of filas.slice(2)) {
+      expect(within(fila).queryByRole('button', { name: 'Modificar reserva' })).toBeNull();
+      expect(within(fila).queryByRole('button', { name: 'Cancelar reserva' })).toBeNull();
+      expect(within(fila).queryByRole('button', { name: 'Cancelar por ausencia' })).toBeNull();
+    }
+  });
+
+  it('al pulsar «Cancelar reserva» avisa con la reserva de esa fila', () => {
+    const otra: Reserva = { ...ACTIVA, id: 2, hora: '22:00', cantidad_personas: 2 };
+    const onCancelarAnticipada = vi.fn();
+    mostrar({ reservas: [ACTIVA, otra], onCancelarAnticipada });
+
+    const segunda = within(screen.getAllByRole('row')[2]!);
+    fireEvent.click(segunda.getByRole('button', { name: 'Cancelar reserva' }));
+
+    expect(onCancelarAnticipada).toHaveBeenCalledExactlyOnceWith(otra);
+  });
+
+  it('al pulsar «Cancelar por ausencia» avisa con la reserva de esa fila', () => {
+    const otra: Reserva = { ...ACTIVA, id: 2, hora: '22:00', cantidad_personas: 2 };
+    const onCancelarPorAusencia = vi.fn();
+    mostrar({ reservas: [ACTIVA, otra], onCancelarPorAusencia });
+
+    const segunda = within(screen.getAllByRole('row')[2]!);
+    fireEvent.click(segunda.getByRole('button', { name: 'Cancelar por ausencia' }));
+
+    expect(onCancelarPorAusencia).toHaveBeenCalledExactlyOnceWith(otra);
   });
 });

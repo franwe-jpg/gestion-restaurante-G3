@@ -11,6 +11,9 @@ from app.main import app
 from app.modules.atencion.models import Cliente
 from app.modules.reservas import repository
 from app.modules.reservas.models import EstadoReserva, Reserva
+
+# El modelo de salon se importa solo en las pruebas (lint-imports controla `app`, no `tests`).
+from app.modules.salon.models import Mesa
 from app.shared.models.enums import EstadoMesa
 
 RUTA = "/api/v1/reservas"
@@ -963,3 +966,130 @@ def test_puente_real_dato_obligatorio_faltante_no_crea_cliente_ni_reserva(
     assert faltante in respuesta.json()["detalle"]
     assert [c.id for c in _clientes_en_m4(db)] == [cliente_en_m4]
     assert _cantidad_reservas(db) == 0
+
+
+# --- HU-M5-04 y HU-M5-05: cancelar una reserva anticipadamente o por ausencia ---
+# El reloj de las pruebas (conftest.py) marca el 2026-11-02 a las 12:00.
+
+
+def _cancelar_anticipada(cliente: TestClient, reserva_id: int):
+    return cliente.post(f"{RUTA}/{reserva_id}/cancelar-anticipada")
+
+
+def _cancelar_por_ausencia(cliente: TestClient, reserva_id: int):
+    return cliente.post(f"{RUTA}/{reserva_id}/cancelar-por-ausencia")
+
+
+def test_post_reservas_cancelar_anticipada_devuelve_200_con_el_estado(
+    cliente: TestClient, fabrica_reserva
+) -> None:
+    reserva = fabrica_reserva(mesa_id=5, fecha=date(2026, 11, 2), hora=time(21, 30))
+
+    respuesta = _cancelar_anticipada(cliente, reserva.id)
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["estado"] == "CANCELADA_ANTICIPADA"
+
+
+def test_post_reservas_cancelar_por_ausencia_devuelve_200_con_el_estado(
+    cliente: TestClient, fabrica_reserva
+) -> None:
+    reserva = fabrica_reserva(mesa_id=6, fecha=date(2026, 11, 2), hora=time(11, 30))
+
+    respuesta = _cancelar_por_ausencia(cliente, reserva.id)
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["estado"] == "CANCELADA_POR_AUSENCIA"
+
+
+def test_post_reservas_cancelar_anticipada_reserva_inexistente_devuelve_404(
+    cliente: TestClient,
+) -> None:
+    respuesta = _cancelar_anticipada(cliente, 999)
+
+    assert respuesta.status_code == 404
+    assert respuesta.json() == {"detalle": "La reserva 999 no existe"}
+
+
+def test_post_reservas_cancelar_por_ausencia_reserva_inexistente_devuelve_404(
+    cliente: TestClient,
+) -> None:
+    respuesta = _cancelar_por_ausencia(cliente, 999)
+
+    assert respuesta.status_code == 404
+    assert respuesta.json() == {"detalle": "La reserva 999 no existe"}
+
+
+def test_post_reservas_cancelar_anticipada_ya_cancelada_devuelve_409_con_detalle(
+    cliente: TestClient, fabrica_reserva
+) -> None:
+    reserva = fabrica_reserva(fecha=date(2026, 11, 3), estado=EstadoReserva.CANCELADA_ANTICIPADA)
+
+    respuesta = _cancelar_anticipada(cliente, reserva.id)
+
+    assert respuesta.status_code == 409
+    assert respuesta.json() == {"detalle": f"La reserva {reserva.id} ya fue cancelada"}
+    assert list(respuesta.json()) == ["detalle"]
+
+
+def test_post_reservas_cancelar_por_ausencia_hora_no_llegada_devuelve_409_con_detalle(
+    cliente: TestClient, fabrica_reserva
+) -> None:
+    reserva = fabrica_reserva(fecha=date(2026, 11, 2), hora=time(12, 1))
+
+    respuesta = _cancelar_por_ausencia(cliente, reserva.id)
+
+    assert respuesta.status_code == 409
+    assert respuesta.json() == {
+        "detalle": (
+            f"La reserva {reserva.id} todavía no llegó a su hora y no se puede cancelar "
+            "por ausencia"
+        )
+    }
+    assert list(respuesta.json()) == ["detalle"]
+
+
+def test_post_reservas_cancelar_anticipada_no_choca_con_get_ni_put_por_id(
+    cliente: TestClient, fabrica_reserva
+) -> None:
+    reserva = fabrica_reserva(fecha=date(2026, 11, 2), hora=time(21, 30))
+
+    cancelada = _cancelar_anticipada(cliente, reserva.id)
+    consulta = cliente.get(f"{RUTA}/{reserva.id}")
+    modificacion = cliente.put(f"{RUTA}/{reserva.id}", json=CUERPO_PUT)
+
+    assert cancelada.status_code == 200
+    assert consulta.status_code == 200
+    assert consulta.json()["estado"] == "CANCELADA_ANTICIPADA"
+    # PUT /reservas/{id} sigue resolviendo a modificar_reserva, no a una ruta de cancelacion;
+    # responde 409 porque la reserva ya no esta ACTIVA (S7), no 404 por una ruta confundida.
+    assert modificacion.status_code == 409
+    assert modificacion.json() == {
+        "detalle": f"La reserva {reserva.id} no está activa y no se puede modificar"
+    }
+
+
+def test_post_reservas_cancelar_anticipada_hu_m5_04_ca1_de_punta_a_punta(
+    cliente: TestClient,
+) -> None:
+    creada = cliente.post(RUTA, json=CUERPO).json()
+
+    cancelada = _cancelar_anticipada(cliente, creada["id"])
+    disponibles = cliente.get(RUTA_MESAS, params=TURNO)
+
+    assert cancelada.status_code == 200
+    assert cancelada.json()["estado"] == "CANCELADA_ANTICIPADA"
+    assert 5 in _ids_de_mesas(disponibles)
+
+
+def test_puente_real_cancelar_no_cambia_el_estado_de_la_mesa_en_m3(
+    cliente: TestClient, db: Session, puente_real, mesas_en_m3, fabrica_reserva
+) -> None:
+    mesa = mesas_en_m3(1)[0]
+    reserva = fabrica_reserva(mesa_id=mesa.id, fecha=date(2026, 11, 2), hora=time(21, 30))
+
+    respuesta = _cancelar_anticipada(cliente, reserva.id)
+
+    assert respuesta.status_code == 200
+    db.expire_all()
+    assert db.get(Mesa, mesa.id).estado == EstadoMesa.LIBRE

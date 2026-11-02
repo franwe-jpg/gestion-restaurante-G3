@@ -14,6 +14,8 @@ import {
 import { formatearFechaReserva } from '../fechas';
 import type { Reserva } from '../types';
 
+import { useCancelarReserva } from '../components/useCancelarReserva';
+
 import { useListadoReservas } from './useListadoReservas';
 
 /** El modal de reserva: cerrado, para una reserva nueva o para modificar la fila elegida (S36). */
@@ -22,10 +24,17 @@ type Panel = 'cerrado' | 'alta' | { edicion: Reserva };
 interface ListadoDelDiaProps {
   listado: ReturnType<typeof useListadoReservas>;
   onModificar: (reserva: Reserva) => void;
+  onCancelarAnticipada: (reserva: Reserva) => void;
+  onCancelarPorAusencia: (reserva: Reserva) => void;
 }
 
 /** Navegador de fecha, filtro de estado, tabla del día y paginación. */
-function ListadoDelDia({ listado, onModificar }: ListadoDelDiaProps) {
+function ListadoDelDia({
+  listado,
+  onModificar,
+  onCancelarAnticipada,
+  onCancelarPorAusencia,
+}: ListadoDelDiaProps) {
   const { fecha, estado, paginacion, reservas } = listado;
   return (
     <div className="space-y-4">
@@ -44,6 +53,8 @@ function ListadoDelDia({ listado, onModificar }: ListadoDelDiaProps) {
           error={reservas.error}
           onReintentar={reservas.recargar}
           onModificar={onModificar}
+          onCancelarAnticipada={onCancelarAnticipada}
+          onCancelarPorAusencia={onCancelarPorAusencia}
         />
       </Card>
 
@@ -82,6 +93,9 @@ function ModalDeReserva({ panel, onOpenChange, onGuardado }: ModalDeReservaProps
 export function ReservasPage() {
   const listado = useListadoReservas();
   const [panel, setPanel] = useState<Panel>('cerrado');
+  const { cancelarAnticipada, cancelarPorAusencia } = useCancelarReserva({
+    onCancelada: listado.reservas.recargar,
+  });
 
   const alGuardar = () => {
     setPanel('cerrado');
@@ -106,7 +120,12 @@ export function ReservasPage() {
         }
       />
 
-      <ListadoDelDia listado={listado} onModificar={(reserva) => setPanel({ edicion: reserva })} />
+      <ListadoDelDia
+        listado={listado}
+        onModificar={(reserva) => setPanel({ edicion: reserva })}
+        onCancelarAnticipada={(reserva) => void cancelarAnticipada(reserva)}
+        onCancelarPorAusencia={(reserva) => void cancelarPorAusencia(reserva)}
+      />
       <ModalDeReserva panel={panel} onOpenChange={alCambiarModal} onGuardado={alGuardar} />
     </div>
   );

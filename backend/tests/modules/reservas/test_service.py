@@ -1252,3 +1252,231 @@ def test_listar_mesas_disponibles_usa_el_hoy_de_la_zona_del_restaurante(
     db: Session, reloj_utc_fijo
 ) -> None:
     assert _ids_disponibles(db, ANOCHE, time(23, 45)) == [5, 6]
+
+
+# --- HU-M5-04 y HU-M5-05: cancelar una reserva anticipadamente o por ausencia ---
+# El reloj de las pruebas (conftest.py) marca el 2026-11-02 a las 12:00 (HOY, definido arriba).
+
+YA_FUE_CANCELADA = "La reserva {id} ya fue cancelada"
+YA_FUE_ATENDIDA = "La reserva {id} ya fue atendida y no se puede cancelar"
+YA_LLEGO_SU_HORA = (
+    "La reserva {id} ya llegó a su hora; si el cliente no vino, cancélela por ausencia"
+)
+TODAVIA_NO_LLEGO = "La reserva {id} todavía no llegó a su hora y no se puede cancelar por ausencia"
+
+
+def _reserva_guardada(db: Session, reserva_id: int) -> Reserva:
+    """Relee la reserva de la base (no del identity map) despues de intentar cancelarla."""
+    db.expire_all()
+    return db.get(Reserva, reserva_id)
+
+
+# --- HU-M5-04: cancelar_anticipada ---
+
+
+def test_cancelar_anticipada_reserva_activa_queda_cancelada_y_libera_la_mesa(
+    db: Session, fabrica_reserva
+) -> None:
+    reserva = fabrica_reserva(mesa_id=5, cliente_id=7, fecha=HOY, hora=time(21, 30))
+
+    salida = service.cancelar_anticipada(db, reserva.id)
+
+    assert salida.estado == EstadoReserva.CANCELADA_ANTICIPADA
+    guardada = _reserva_guardada(db, reserva.id)
+    assert guardada.estado == EstadoReserva.CANCELADA_ANTICIPADA
+    assert guardada.mesa_id == 5
+    assert guardada.cliente_id == 7
+    assert guardada.fecha == HOY
+    assert guardada.hora == time(21, 30)
+    assert guardada.cantidad_personas == 4
+
+
+def test_cancelar_anticipada_un_minuto_despues_de_la_hora_actual_es_valida(
+    db: Session, fabrica_reserva
+) -> None:
+    reserva = fabrica_reserva(fecha=HOY, hora=time(12, 1))
+
+    salida = service.cancelar_anticipada(db, reserva.id)
+
+    assert salida.estado == EstadoReserva.CANCELADA_ANTICIPADA
+
+
+def test_cancelar_anticipada_rechaza_hora_igual_a_la_actual(db: Session, fabrica_reserva) -> None:
+    reserva = fabrica_reserva(fecha=HOY, hora=time(12, 0))
+
+    with pytest.raises(ReglaDeNegocioError) as error:
+        service.cancelar_anticipada(db, reserva.id)
+
+    assert str(error.value) == YA_LLEGO_SU_HORA.format(id=reserva.id)
+    assert _reserva_guardada(db, reserva.id).estado == EstadoReserva.ACTIVA
+
+
+def test_cancelar_anticipada_rechaza_fecha_anterior(db: Session, fabrica_reserva) -> None:
+    reserva = fabrica_reserva(fecha=date(2026, 11, 1), hora=time(12, 0))
+
+    with pytest.raises(ReglaDeNegocioError) as error:
+        service.cancelar_anticipada(db, reserva.id)
+
+    assert str(error.value) == YA_LLEGO_SU_HORA.format(id=reserva.id)
+    assert _reserva_guardada(db, reserva.id).estado == EstadoReserva.ACTIVA
+
+
+@pytest.mark.parametrize(
+    "estado", [EstadoReserva.CANCELADA_ANTICIPADA, EstadoReserva.CANCELADA_POR_AUSENCIA]
+)
+def test_cancelar_anticipada_reserva_ya_cancelada_responde_409(
+    db: Session, fabrica_reserva, estado: EstadoReserva
+) -> None:
+    reserva = fabrica_reserva(fecha=MANANA, estado=estado)
+
+    with pytest.raises(ReglaDeNegocioError) as error:
+        service.cancelar_anticipada(db, reserva.id)
+
+    assert str(error.value) == YA_FUE_CANCELADA.format(id=reserva.id)
+    assert _reserva_guardada(db, reserva.id).estado == estado
+
+
+def test_cancelar_anticipada_reserva_atendida_responde_409(db: Session, fabrica_reserva) -> None:
+    reserva = fabrica_reserva(fecha=MANANA, estado=EstadoReserva.ATENDIDA)
+
+    with pytest.raises(ReglaDeNegocioError) as error:
+        service.cancelar_anticipada(db, reserva.id)
+
+    assert str(error.value) == YA_FUE_ATENDIDA.format(id=reserva.id)
+    assert _reserva_guardada(db, reserva.id).estado == EstadoReserva.ATENDIDA
+
+
+def test_cancelar_anticipada_reserva_inexistente_responde_404(db: Session) -> None:
+    with pytest.raises(NoEncontradoError, match="La reserva 999 no existe"):
+        service.cancelar_anticipada(db, 999)
+
+
+# --- HU-M5-05: cancelar_por_ausencia ---
+
+
+def test_cancelar_por_ausencia_reserva_activa_queda_cancelada(db: Session, fabrica_reserva) -> None:
+    reserva = fabrica_reserva(mesa_id=6, cliente_id=7, fecha=HOY, hora=time(11, 30))
+
+    salida = service.cancelar_por_ausencia(db, reserva.id)
+
+    assert salida.estado == EstadoReserva.CANCELADA_POR_AUSENCIA
+    guardada = _reserva_guardada(db, reserva.id)
+    assert guardada.estado == EstadoReserva.CANCELADA_POR_AUSENCIA
+    assert guardada.mesa_id == 6
+    assert guardada.cliente_id == 7
+    assert guardada.fecha == HOY
+    assert guardada.hora == time(11, 30)
+    assert guardada.cantidad_personas == 4
+
+
+def test_cancelar_por_ausencia_limite_exacto_responde_200(db: Session, fabrica_reserva) -> None:
+    reserva = fabrica_reserva(fecha=HOY, hora=time(12, 0))
+
+    salida = service.cancelar_por_ausencia(db, reserva.id)
+
+    assert salida.estado == EstadoReserva.CANCELADA_POR_AUSENCIA
+
+
+def test_cancelar_por_ausencia_rechaza_hora_que_todavia_no_llego(
+    db: Session, fabrica_reserva
+) -> None:
+    reserva = fabrica_reserva(fecha=HOY, hora=time(12, 1))
+
+    with pytest.raises(ReglaDeNegocioError) as error:
+        service.cancelar_por_ausencia(db, reserva.id)
+
+    assert str(error.value) == TODAVIA_NO_LLEGO.format(id=reserva.id)
+    assert _reserva_guardada(db, reserva.id).estado == EstadoReserva.ACTIVA
+
+
+def test_cancelar_por_ausencia_rechaza_dia_siguiente(db: Session, fabrica_reserva) -> None:
+    reserva = fabrica_reserva(fecha=MANANA, hora=time(12, 0))
+
+    with pytest.raises(ReglaDeNegocioError) as error:
+        service.cancelar_por_ausencia(db, reserva.id)
+
+    assert str(error.value) == TODAVIA_NO_LLEGO.format(id=reserva.id)
+    assert _reserva_guardada(db, reserva.id).estado == EstadoReserva.ACTIVA
+
+
+@pytest.mark.parametrize(
+    "estado, mensaje",
+    [
+        (EstadoReserva.CANCELADA_ANTICIPADA, YA_FUE_CANCELADA),
+        (EstadoReserva.CANCELADA_POR_AUSENCIA, YA_FUE_CANCELADA),
+        (EstadoReserva.ATENDIDA, YA_FUE_ATENDIDA),
+    ],
+)
+def test_cancelar_por_ausencia_reserva_ya_cancelada_o_atendida_responde_409(
+    db: Session, fabrica_reserva, estado: EstadoReserva, mensaje: str
+) -> None:
+    reserva = fabrica_reserva(fecha=date(2026, 11, 1), estado=estado)
+
+    with pytest.raises(ReglaDeNegocioError) as error:
+        service.cancelar_por_ausencia(db, reserva.id)
+
+    assert str(error.value) == mensaje.format(id=reserva.id)
+    assert _reserva_guardada(db, reserva.id).estado == estado
+
+
+def test_cancelar_por_ausencia_reserva_inexistente_responde_404(db: Session) -> None:
+    with pytest.raises(NoEncontradoError, match="La reserva 999 no existe"):
+        service.cancelar_por_ausencia(db, 999)
+
+
+# --- Orden de verificacion: estado (cancelada/atendida) antes que la regla de hora ---
+
+
+@pytest.mark.parametrize("nombre_cancelar", ["cancelar_anticipada", "cancelar_por_ausencia"])
+def test_cancelar_atendida_con_hora_futura_responde_ya_atendida(
+    db: Session, fabrica_reserva, nombre_cancelar: str
+) -> None:
+    cancelar = getattr(service, nombre_cancelar)
+    reserva = fabrica_reserva(fecha=HOY, hora=time(21, 30), estado=EstadoReserva.ATENDIDA)
+
+    with pytest.raises(ReglaDeNegocioError) as error:
+        cancelar(db, reserva.id)
+
+    assert str(error.value) == YA_FUE_ATENDIDA.format(id=reserva.id)
+
+
+@pytest.mark.parametrize("nombre_cancelar", ["cancelar_anticipada", "cancelar_por_ausencia"])
+@pytest.mark.parametrize(
+    "estado", [EstadoReserva.CANCELADA_ANTICIPADA, EstadoReserva.CANCELADA_POR_AUSENCIA]
+)
+def test_cancelar_cancelada_con_hora_pasada_responde_ya_cancelada(
+    db: Session, fabrica_reserva, estado: EstadoReserva, nombre_cancelar: str
+) -> None:
+    cancelar = getattr(service, nombre_cancelar)
+    reserva = fabrica_reserva(fecha=HOY, hora=time(11, 30), estado=estado)
+
+    with pytest.raises(ReglaDeNegocioError) as error:
+        cancelar(db, reserva.id)
+
+    assert str(error.value) == YA_FUE_CANCELADA.format(id=reserva.id)
+
+
+# --- Liberacion automatica de la mesa (Requisito "El estado cancelado excluye la mesa...") ---
+
+
+def test_cancelar_anticipada_libera_la_mesa_en_repository(db: Session, fabrica_reserva) -> None:
+    reserva = fabrica_reserva(mesa_id=5, cliente_id=1, fecha=HOY, hora=time(21, 30))
+
+    service.cancelar_anticipada(db, reserva.id)
+
+    assert 5 not in repository.ids_de_mesas_con_reserva_activa(db, HOY, time(21, 30))
+    assert repository.existe_reserva_activa(db, 5, HOY, time(21, 30)) is False
+
+    nueva = service.crear_reserva(
+        db, ReservaCrear(mesa_id=5, cliente_id=7, fecha=HOY, hora=time(21, 30), cantidad_personas=2)
+    )
+    assert nueva.estado == EstadoReserva.ACTIVA
+
+
+def test_cancelar_por_ausencia_libera_la_mesa_en_repository(db: Session, fabrica_reserva) -> None:
+    reserva = fabrica_reserva(mesa_id=6, cliente_id=1, fecha=HOY, hora=time(11, 30))
+
+    service.cancelar_por_ausencia(db, reserva.id)
+
+    assert 6 not in repository.ids_de_mesas_con_reserva_activa(db, HOY, time(11, 30))
+    assert repository.existe_reserva_activa(db, 6, HOY, time(11, 30)) is False
