@@ -3,6 +3,7 @@
 - **Cambio:** `HU-M5-01-02-03` (grupo ABM de `Reserva`, M5, responsable Federico Cabaña).
 - **Entradas:** `proposal.md` (decisiones y supuestos S1 a S14) y `exploration.md` de este cambio. La spec (`specs/`) fija el contrato exacto de la API y los escenarios; si este diseño y la spec difieren en un código de estado o un mensaje, gana la spec y se corrige el diseño.
 - **Delta del issue #61 (mesas disponibles):** la spec aprobada agrega `GET /reservas/mesas-disponibles`, el rechazo de una mesa `FUERA_DE_SERVICIO` en el alta, el puente real con M3 y el selector de mesa del panel (supuestos S4, S5, S9, S10, S13, S17, S20 y S23 reescritos; S29 a S35 nuevos). Este diseño se actualizó en el lugar: las Decisiones 2, 3, 6 y 9 se ajustaron sin cambiar su número, y las Decisiones 13 a 20 son nuevas. Lo ya implementado antes del delta (tabla `reservas`, migración, listado, modificación y pantalla) no cambia, salvo lo que se indica.
+- **Delta del modal (AGENTS.md §5, regla del equipo del 2026-11-01):** la spec aprobada (commit `533ae20`) reemplaza el panel lateral de alta y edición por un modal sobre el `Dialog` compartido (supuestos S24, S34, S36, S37 y S38; requisitos «Formulario de alta», «Formulario de edición» y «Listado de reservas en pantalla»). La Decisión 10 queda **reemplazada** (se conserva su texto como historia) y las Decisiones 21 a 24 son nuevas. Es un delta solo del frontend: no cambia el backend, `shared/`, otros módulos, rutas ni migraciones.
 - **Referencias:** `SPRINT-0/S0-05-arquitectura.md` (sección 3.3 y decisiones D-xx), `AGENTS.md` (secciones 4, 5, 6 y 9), `openspec/config.yaml` (`rules.design`).
 
 ## Enfoque técnico
@@ -13,7 +14,7 @@ El módulo `reservas` se construye de punta a punta con el mismo patrón que M1 
 - **Puente propio:** Mesa y Cliente se validan con un **puente propio** (`reservas/puente.py`), y el `service` lo llama siempre como `puente.<operación>(...)`. Con el delta del issue #61, el **lado Mesa es real**: el puente consulta a M3 solo con `app.modules.salon.service.listar_mesas` y lee todas sus páginas (Decisión 14, S33). El **lado Cliente sigue siendo un stub** hasta que M4 exponga Cliente (S6, S20). El puente es el único archivo de `reservas` que importa algo de `salon`, y no importa nada de `atencion` (contratos de `backend/pyproject.toml:138-154`, RNF-MAN-09).
 - **Mesas disponibles (issue #61):** `GET /reservas/mesas-disponibles?fecha&hora` devuelve una lista simple de las mesas que se pueden reservar en ese turno: el `service` cruza las mesas del puente (sin las `FUERA_DE_SERVICIO`) con las reservas `ACTIVA` de esa fecha y hora exactas (Decisiones 13 y 15). El alta rechaza una mesa `FUERA_DE_SERVICIO` con 409 (Decisión 16).
 - **Regla de conflicto (R13):** doble defensa. El `service` consulta si ya hay una reserva `ACTIVA` en la misma mesa, fecha y hora; además, un **índice único parcial** en la base (`WHERE estado = 'ACTIVA'`) impide la doble reserva aunque dos solicitudes pasen la consulta al mismo tiempo. El `IntegrityError` del índice se traduce en 409.
-- **Frontend:** una sola página (`ReservasPage`) con la estructura de la maqueta `SPRINT-2/S2-04-maqueta/reservas.html`: navegador de fecha, tabla de reservas del día y panel lateral con el formulario de alta y edición. No se agregan rutas en `App.tsx` (la ruta `/reservas` ya existe en `frontend/src/App.tsx:104`). En el alta, el campo Mesa es un selector que se llena con la lista de mesas disponibles pedida al `api.ts` del módulo (Decisiones 18 y 19); el frontend no importa nada del módulo `salon` (AGENTS.md §9.4).
+- **Frontend:** una sola página (`ReservasPage`) con navegador de fecha y tabla de reservas del día, como la maqueta `SPRINT-2/S2-04-maqueta/reservas.html`. El alta y la edición se abren en un **modal** (`ReservaFormDialog`, sobre el `Dialog` de `frontend/src/shared/components/ui/dialog.tsx`), no en el panel lateral de la primera versión ni en una página aparte (AGENTS.md §5, S24; Decisiones 21 a 24, que reemplazan a la Decisión 10). No se agregan rutas en `App.tsx` (la ruta `/reservas` ya existe en `frontend/src/App.tsx:104`). En el alta, el campo Mesa es un selector que se llena con la lista de mesas disponibles pedida al `api.ts` del módulo (Decisiones 18 y 19); el frontend no importa nada del módulo `salon` (AGENTS.md §9.4).
 
 ## Decisiones de arquitectura
 
@@ -145,9 +146,11 @@ La modificación no cambia con el delta: no consulta al puente (S27), así que u
 
 **Justificación:** la tabla `clientes` no existe y el módulo es autocontenido; la integridad referencial la cubre el puente. Las FK se agregan en una migración posterior (seguimiento de la propuesta). El delta no cambia esta decisión: aunque el lado Mesa del puente ya consulta a M3, una FK hacia `mesas` acoplaría el esquema de `reservas` al de M3 y exigiría una migración nueva, que el delta no incluye (S10).
 
-### Decisión 10: frontend en una sola página con panel lateral, sin rutas nuevas
+### Decisión 10: frontend en una sola página con panel lateral, sin rutas nuevas (REEMPLAZADA por la Decisión 21)
 
-**Elección:** `ReservasPage` contiene el navegador de fecha, la tabla del día y el panel lateral (`ReservaFormulario`) que se abre en modo alta (botón «Nueva reserva») o edición (acción «Modificar reserva» de una fila `ACTIVA`). La edición parte de la fila del listado, como `SeccionFormDialog` parte de `SeccionListado` (`frontend/src/modules/productos/components/SeccionFormDialog.tsx:105-112`).
+> **Reemplazada el 2026-11-02.** AGENTS.md §5 fija desde el 2026-11-01 una regla para todo el equipo: «los formularios de alta y edición se abren en un modal sobre la misma página (`Dialog` de `frontend/src/shared/components/ui/`)». La spec aprobada (S24) la aplica y deja sin efecto el panel lateral. Siguen valiendo de esta decisión: una sola página, ninguna ruta nueva, `frontend/src/App.tsx` sin cambios y la edición a partir de los datos de la fila, sin `GET /reservas/{id}`. Cambia solo el contenedor del formulario: ver las Decisiones 21 a 24. El texto de abajo se conserva como historia.
+
+**Elección (histórica):** `ReservasPage` contiene el navegador de fecha, la tabla del día y el panel lateral (`ReservaFormulario`) que se abre en modo alta (botón «Nueva reserva») o edición (acción «Modificar reserva» de una fila `ACTIVA`). La edición parte de la fila del listado, como `SeccionFormDialog` parte de `SeccionListado` (`frontend/src/modules/productos/components/SeccionFormDialog.tsx:105-112`).
 
 **Alternativas descartadas:** páginas `ReservaNuevaPage` y `ReservaEditarPage` con rutas propias, como M1 con los productos. Obligan a tocar `frontend/src/App.tsx` (compartido) y se apartan de la maqueta, que muestra el formulario al costado de la tabla.
 
@@ -345,6 +348,133 @@ export function useMesasDisponibles(
 
 **Justificación:** el problema se comprobó el 2026-10-31: `compose.yaml` no define `TZ`, `datetime.now()` devolvía la hora UTC y, para una reserva de hoy, el servidor exigía una hora posterior a la hora local más 3 horas durante todo el día; además, entre las 21:00 y las 24:00 locales rechazaba «hoy» con «La fecha de la reserva no puede ser anterior a hoy». Argentina no usa horario de verano desde 2009, así que un desplazamiento fijo de -3 horas es exacto. Limitación: si el restaurante cambiara de zona, hay que cambiar la constante.
 
+### Decisión 21: el contenedor pasa a ser `ReservaFormDialog`, sobre el `Dialog` compartido (reemplaza a la Decisión 10)
+
+**Elección:**
+- `components/ReservaFormulario.tsx` se **renombra** a `components/ReservaFormDialog.tsx` (y su prueba a `ReservaFormDialog.test.tsx`), con la misma forma que `MesaFormDialog` (`frontend/src/modules/salon/components/MesaFormDialog.tsx:107-149`) y `ClienteFormDialog`:
+
+```tsx
+export interface ReservaFormDialogProps {
+  /** Con `reserva` el modal modifica esa fila; sin ella da de alta una reserva nueva. */
+  reserva?: Reserva;
+  onGuardado: () => void;
+  onOpenChange: (abierto: boolean) => void;
+}
+
+/** Se monta solo mientras el modal está abierto: cada apertura parte de la fila o de campos vacíos. */
+export function ReservaFormDialog({ reserva, onGuardado, onOpenChange }: ReservaFormDialogProps) {
+  const formulario = useFormularioReserva({ reserva, onGuardado });
+  const edicion = reserva !== undefined;
+  return (
+    <Dialog
+      open
+      onOpenChange={onOpenChange}
+      title={edicion ? 'Modificar reserva' : 'Nueva reserva'}
+      footer={
+        <>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button type="submit" form={ID_FORMULARIO_RESERVA} disabled={formulario.guardarDeshabilitado}>
+            Guardar reserva
+          </Button>
+        </>
+      }
+    >
+      <form id={ID_FORMULARIO_RESERVA} noValidate onSubmit={alEnviar} className="space-y-4">
+        {/* error general, Cliente, Fecha y Hora en una fila, Cantidad de personas, CampoMesa: sin cambios */}
+      </form>
+    </Dialog>
+  );
+}
+```
+
+- **No hay prop `open`:** el componente se monta solo mientras debe verse un modal y le pasa `open` fijo al `Dialog`, igual que `MesaFormDialog` y `ClienteFormDialog`. La página decide montarlo o no (Decisión 22).
+- **Título exacto de la spec:** «Nueva reserva» en el alta y «Modificar reserva» en la edición (requisitos «Formulario de alta» y «Formulario de edición»); no «Editar reserva». El botón de guardar dice «Guardar reserva» en los dos modos, como hoy. No se agrega `description`: la spec no fija un texto y no se inventa (AGENTS.md §9.1).
+- **Se elimina** `CabeceraDelPanel` con su botón «Cerrar formulario»: la X del `Dialog` («Cerrar modal») la reemplaza (spec: «el modal NO necesita un botón "Cerrar formulario" aparte»). También se eliminan `Card`, `CardHeader`, `CardTitle`, `CardContent` y el ícono `X` de las importaciones, y el `id="titulo-reserva"`/`aria-labelledby` del formulario: el `Dialog` ya nombra el diálogo con su `title` (`role="dialog"`, `aria-labelledby`).
+- **Pie y envío:** «Cancelar» y «Guardar reserva» pasan al `footer` del `Dialog`. Como el `Dialog` dibuja el `footer` fuera del cuerpo, el `<form>` queda en el cuerpo con un `id` (`ID_FORMULARIO_RESERVA = 'formulario-reserva'`) y el botón de guardar lo envía con el atributo `form`, el mismo mecanismo que ya usa `ProductoFormDialog` (`frontend/src/modules/productos/components/ProductoFormDialog.tsx:60` y `FormularioProducto.tsx:26`). Así se conserva lo que hoy hace el panel: Enter en un campo envía el formulario y `onSubmit` llama a `formulario.enviar()`.
+- **Cerrar:** la X, Escape y el clic en el fondo los maneja el `Dialog` llamando a `onOpenChange(false)` (`dialog.tsx:50-53`, `:90` y `:118`); «Cancelar» llama a lo mismo. Las cuatro vías son equivalentes por construcción (spec: «DEBE tener el mismo efecto»). «Cancelar» y la X **no** se deshabilitan mientras `enviando` es `true`: la spec permite cerrar mientras se guarda (S38), y lo que pase con esa respuesta lo resuelve la Decisión 23.
+- **Qué no cambia:** `useFormularioReserva` (salvo la guarda de la Decisión 23), `validarReserva`, `SelectorMesa`, `useMesasDisponibles`, `CampoReserva`, `CampoMesa` y los textos de los campos, los errores y los avisos. Solo cambia el contenedor JSX: el `<Card>` dentro del `<div className="w-full lg:w-96 lg:shrink-0">` pasa a ser el `<Dialog>`.
+- `components/index.ts` reexporta `ReservaFormDialog` en lugar de `ReservaFormulario`.
+
+**Alternativas descartadas:**
+- Conservar el nombre `ReservaFormulario.tsx` y solo cambiar el contenedor: el resto del proyecto nombra estos componentes `*FormDialog` (`MesaFormDialog`, `SectorFormDialog`, `ClienteFormDialog`, `ProductoFormDialog`, `SeccionFormDialog`, `MedioPagoFormDialog`), y S1-02 pide nombres coherentes en todos los módulos. El renombrado es barato: solo lo importan `ReservasPage.tsx`, `components/index.ts` y su prueba (verificado con búsqueda en `frontend/src`).
+- Recibir `open` y dejar el componente siempre montado: obliga a reiniciar el estado del formulario a mano en cada apertura y rompe la guarda de la Decisión 23, que depende de que cerrar el modal desmonte el formulario.
+- Botones en el cuerpo, sin `footer`: se aparta de los demás `*FormDialog` y del pie con borde del `Dialog`.
+- Botón de guardar con `onClick={() => void formulario.enviar()}` y sin `<form>`, como `MesaFormDialog`: funciona, pero pierde el envío con Enter que el formulario ya tiene; el atributo `form` lo conserva sin código nuevo.
+
+**Justificación:** AGENTS.md §5 (regla del modal y «buscar el componente en `shared/` antes de crearlo»), S24, D-15 (todo dentro de `frontend/src/modules/reservas/`) y D-16 (las llamadas siguen pasando por `api.ts`). El `Dialog` ya ofrece la trampa de foco, Escape, el cierre por el fondo, el bloqueo del desplazamiento y la devolución del foco al cerrar (`dialog.tsx:42-81`), así que el módulo no agrega nada de eso.
+
+### Decisión 22: estado de `ReservasPage`, un solo modal a la vez y «Nueva reserva» deshabilitado durante la edición
+
+**Elección:**
+- Se conserva la unión `Panel = 'cerrado' | 'alta' | { edicion: Reserva }` (se puede renombrar a `ModalDeReserva`; el nombre es indiferente). Como guarda un solo valor, **ya garantiza un solo modal a la vez** (S36: «el mismo estado que ya tenía el panel lateral»): no se agrega estado.
+- `PanelDeReserva` pasa a ser `ModalDeReserva` y monta `ReservaFormDialog` solo cuando el valor no es `'cerrado'`, con la misma clave de hoy, `key={reserva?.id ?? 'alta'}`. Desaparecen el `<div className="w-full lg:w-96 lg:shrink-0">` y el layout de dos columnas (`flex ... lg:flex-row`): el listado ocupa todo el ancho y el modal se dibuja encima.
+- **Callback estable para `onOpenChange`:** `const alCambiarModal = useCallback((abierto: boolean) => { if (!abierto) setPanel('cerrado'); }, [])`. Es necesario, no cosmético: el `Dialog` tiene `onOpenChange` en las dependencias de su efecto (`dialog.tsx:81`); con una función nueva en cada render, cada vez que la página se vuelve a dibujar con el modal abierto (por ejemplo, cuando termina de cargar la tabla) el efecto se limpia y se vuelve a ejecutar, devuelve el foco al elemento anterior y lo pone otra vez en la X, sacándolo del campo donde la persona escribe. `SalonPage` evita lo mismo pasando un `setState` directo (`frontend/src/modules/salon/pages/SalonPage.tsx:172-177`); acá hace falta traducir el booleano a `'cerrado'`, así que se usa `useCallback` (ya usado en el proyecto, por ejemplo en `frontend/src/shared/hooks/useApi.ts`).
+- **Botón «Nueva reserva»:** `disabled={typeof panel === 'object'}`, es decir, deshabilitado **solo durante la edición**. Coincide con los escenarios «El botón "Nueva reserva" se deshabilita durante la edición» (deshabilitado, pulsarlo no hace nada y el modal de edición sigue con sus datos) y «... se habilita de nuevo al cerrar la edición» (al cerrar con o sin guardar, el valor vuelve a `'cerrado'`). Durante el alta no se deshabilita: el botón queda detrás del fondo del modal y fuera de la trampa de foco, así que no se alcanza, y si una prueba en jsdom (que no comprueba qué elemento está encima) lo pulsara, `setPanel('alta')` con el mismo valor no cambia nada. Además, como el `Dialog` devuelve el foco al elemento que lo tenía al abrir (`dialog.tsx:45` y `:79`), que en el alta es justamente «Nueva reserva», mantenerlo habilitado evita depender del orden en que React quita el `disabled` y ejecuta esa devolución.
+- `alGuardar` no cambia: `setPanel('cerrado')` y `listado.reservas.recargar()`. Solo la llama una instancia montada del formulario (Decisión 23).
+- **Acción «Modificar reserva» de otra fila con un modal abierto:** no se agrega lógica. En el navegador el fondo del `Dialog` tapa la tabla y la trampa de foco impide llegar a ella con el teclado. Si igual se disparara, el valor cambia a otra `{ edicion }`, la `key` cambia, el formulario anterior se desmonta (y su guarda descarta cualquier respuesta pendiente) y se monta uno nuevo con los datos de la fila.
+
+**Por qué importa la `key`:** con el flujo normal, todo cambio de modal pasa por `'cerrado'`, que desmonta el formulario. La `key` cubre los cambios directos (de una fila a otra, o de la edición al alta sin pasar por `'cerrado'`) y garantiza que cada modal sea una instancia nueva de `useFormularioReserva`. La guarda de la Decisión 23 se apoya en eso: «instancia montada» equivale a «el modal que pidió el guardado sigue abierto».
+
+**Alternativas descartadas:**
+- `disabled={panel !== 'cerrado'}`: también cumple la spec, pero deshabilita un botón que en el alta no se alcanza y que es el destino de la devolución del foco al cerrar.
+- Cerrar la edición en silencio y abrir el alta al pulsar «Nueva reserva»: perdería cambios sin guardar; S36 lo descarta.
+- Dos estados booleanos (`altaAbierta`, `edicionAbierta`), como `SalonPage`: permitiría dos modales a la vez, que S36 prohíbe y que el `Dialog` no soporta bien (dos trampas de foco y dos escuchas de Escape).
+
+**Justificación:** S36, AGENTS.md §5 y el principio de no agregar estado cuando el que existe ya expresa la regla. La forma de la página sigue la de `SalonPage` (monta el diálogo solo cuando está abierto).
+
+### Decisión 23: guarda de guardado vigente en `useFormularioReserva` (S38)
+
+**Problema:** hoy `enviar()` hace `await guardar(datos, reserva)` y después, sin comprobar nada, llama a `setEnviando(false)`, `mostrarToast(...)` y `onGuardado()` o `setErrores(...)` (`useFormularioReserva.ts:125-134`). Si la persona cierra el modal mientras la solicitud está en curso y después abre otro, la respuesta tardía muestra el aviso, recarga la tabla y, por `alGuardar`, pone el valor en `'cerrado'`, **cerrando el modal nuevo** con sus datos. Con el panel lateral pasaba lo mismo, pero el modal lo hace visible. S38 y los escenarios «Cerrar mientras se guarda», «Una respuesta de guardado tardía no cierra un modal distinto» y «Lo mismo al revés, con un alta tardía» lo prohíben.
+
+**Elección:** una bandera de vigencia por instancia, con el mismo patrón y el mismo nombre que la bandera `vigente` de `useMesasDisponibles` (`useMesasDisponibles.ts:42-50`) y de `useApi`:
+
+```ts
+export function useFormularioReserva({ reserva, onGuardado }: OpcionesFormularioReserva) {
+  // ...estado actual sin cambios...
+  /** `true` mientras el modal que creó este formulario sigue montado (S38). */
+  const vigente = useRef(false);
+
+  useEffect(() => {
+    vigente.current = true;
+    return () => {
+      vigente.current = false;
+    };
+  }, []);
+
+  const enviar = async () => {
+    // ...validación local sin cambios...
+    setEnviando(true);
+    const respuesta = await guardar(datos, reserva);
+    if (!vigente.current) return; // el modal se cerró: la respuesta no toca nada (S38)
+    setEnviando(false);
+    // ...toast y onGuardado(), o setErrores(...), sin cambios...
+  };
+```
+
+- La comprobación va **inmediatamente después del `await`** y antes de cualquier efecto: `setEnviando`, `mostrarToast`, `onGuardado` y `setErrores`. Una respuesta tardía, buena o mala, no hace nada.
+- `vigente.current = true` se pone **dentro del efecto** y no solo como valor inicial: `frontend/src/main.tsx` usa `StrictMode`, que en desarrollo monta, limpia y vuelve a ejecutar los efectos; si el valor `true` viniera solo de `useRef(true)`, la limpieza de StrictMode lo dejaría en `false` para siempre y ningún guardado se aplicaría.
+- Se usa `useRef` (y no la variable local `let vigente` del efecto de `useMesasDisponibles`) porque acá la solicitud no nace en un efecto sino en un manejador de eventos; la idea, el nombre y el momento en que se apaga (al desmontar) son los mismos. No hay dependencia de la implementación de `useMesasDisponibles`: solo se repite el patrón.
+- La solicitud **no se cancela** (spec: «la solicitud sigue en curso»): `clienteHttp` no acepta una señal y agregarla toca `shared/` (Decisión 18).
+- Leer `vigente.current` dentro de `enviar` (un manejador, no el render) no infringe las reglas de `eslint-plugin-react-hooks` 7 sobre referencias.
+
+**Qué archivo cambia:** `components/useFormularioReserva.ts`, función `enviar` y una referencia con su efecto (≈ 10 a 15 líneas). No es un cambio del contenedor: es una corrección de comportamiento del hook, que vale igual si algún día se volviera al panel.
+
+**Alternativas descartadas:**
+- `AbortController`: `clienteHttp` no recibe la señal (tocar `shared/`), y la spec pide no cancelar.
+- Comparar un identificador de solicitud guardado en la página (contador de modales): lleva el problema a la página y agrega estado; la desmontada del formulario ya marca el fin de su modal gracias a la `key` (Decisión 22).
+- Hacer que la página ignore `onGuardado` si el modal ya no es el mismo: no evita el aviso de éxito, que lo muestra el hook.
+- Deshabilitar «Cancelar», la X y Escape mientras se guarda: contradice la spec, que permite cerrar en ese momento.
+
+**Justificación:** S38 pide «el mismo mecanismo que ya usa S35 [...] una bandera que se apaga al desmontar». El cambio es chico, reutiliza un patrón del propio módulo y vuelve comprobables los tres escenarios de respuesta tardía. Desde React 18 un `setState` sobre un componente desmontado no avisa nada, así que el problema no se ve en la consola: solo una prueba lo muestra.
+
+### Decisión 24: tamaño del modal `size="md"`
+
+**Elección:** `ReservaFormDialog` usa el tamaño por defecto del `Dialog`, `md` (`max-w-lg`, `dialog.tsx:19-23`); no se pasa la prop `size`. Fecha y Hora siguen en una fila de dos columnas (`grid grid-cols-2 gap-3`), como hoy.
+
+**Alternativas descartadas:** `size="lg"` (`max-w-2xl`), que usa `ProductoFormDialog` para un formulario largo con desplazamiento interno; `size="sm"` (`max-w-sm`), donde Fecha y Hora en la misma fila quedarían apretadas.
+
+**Justificación:** S37: el formulario tiene cinco campos, el mismo volumen que `MesaFormDialog` y `ClienteFormDialog`, que usan el tamaño por defecto. El panel actual mide `lg:w-96` (24 rem), menos que `max-w-lg` (32 rem), así que el contenido entra sin cambios de estilo.
+
 ## Flujo de datos
 
 ```text
@@ -380,14 +510,19 @@ GET /api/v1/reservas/mesas-disponibles?fecha=&hora=   (ConsultaMesasDisponibles;
 
 Frontend
   ReservasPage ── estado: fecha (hoyLocal), estado (ACTIVA), página, panel (cerrado | alta | edición)
+     ├─ «Nueva reserva» ── disabled mientras panel es { edicion } (S36, Decisión 22)
      ├─ NavegadorFecha ── sumarDias ±1, «Hoy»
      ├─ useApi(listarReservas(fecha, estado, 50, offset)) ──→ ReservasTabla (Badge, acción Modificar)
-     └─ ReservaFormulario ── useFormularioReserva ── validarReserva ── crearReserva | modificarReserva
-            │                    └─ useMesasDisponibles(fecha, hora, alta && turnoValido)
-            │                          └─ listarMesasDisponibles ── descarta respuestas viejas
-            ├─ alta: SelectorMesa (Select + FormField) ── mesaVigente
-            ├─ edición: Mesa de solo lectura, sin pedir la lista
-            └─ al guardar: toast, cierra el panel y recarga el listado
+     └─ panel ≠ cerrado ──→ ReservaFormDialog key={reserva?.id ?? 'alta'}   (Dialog size md, Decisión 21)
+            │   onOpenChange = useCallback(abierto ⇒ si es false, panel = cerrado)
+            │   X · Escape · fondo · «Cancelar» ──→ onOpenChange(false) ──→ desmonta el formulario
+            └─ useFormularioReserva ── validarReserva ── crearReserva | modificarReserva
+                   ├─ useMesasDisponibles(fecha, hora, alta && turnoValido)
+                   │     └─ listarMesasDisponibles ── descarta respuestas viejas
+                   ├─ alta: SelectorMesa (Select + FormField) ── mesaVigente
+                   ├─ edición: Mesa de solo lectura, sin pedir la lista
+                   └─ enviar: await guardar ── si vigente.current es false: no hace nada (S38, Decisión 23)
+                                           └─ si sigue vigente: toast, onGuardado (cierra el modal y recarga)
 ```
 
 ## Contratos e interfaces
@@ -550,15 +685,15 @@ Los parámetros de consulta se arman con `URLSearchParams`. Los tipos de mesa so
 
 | Archivo | Responsabilidad |
 | --- | --- |
-| `pages/ReservasPage.tsx` | `PageHeader` con el botón «Nueva reserva»; estado de fecha (`hoyLocal()`), filtro de estado (`'ACTIVA'` por defecto, S8), página (`usePaginacion`, límite 50) y panel (`cerrado`, `alta` o `{ edicion: Reserva }`); layout de dos columnas como la maqueta |
+| `pages/ReservasPage.tsx` | `PageHeader` con el botón «Nueva reserva»; estado de fecha (`hoyLocal()`), filtro de estado (`'ACTIVA'` por defecto, S8), página (`usePaginacion`, límite 50) y panel (`cerrado`, `alta` o `{ edicion: Reserva }`); primera versión con layout de dos columnas como la maqueta. Con el delta del modal: una columna, el modal montado solo si el panel no está cerrado, `onOpenChange` estable y «Nueva reserva» deshabilitado durante la edición (Decisión 22) |
 | `components/NavegadorFecha.tsx` | Botones «Día anterior» y «Día siguiente» (`sumarDias`), `<Input type="date" aria-label="Día">` y botón «Hoy»; al cambiar el día vuelve a la página 1 |
 | `components/ReservasTabla.tsx` | `DataTable` (`frontend/src/shared/components/ui/data-table.tsx`) con columnas Hora, Cliente, Personas, Mesa, Estado y Acciones; `Badge` con `estadosReserva.ts`; la acción «Modificar reserva» solo en filas `ACTIVA`; vacío, cargando y error con los estados de `DataTable` |
 | `components/estadosReserva.ts` | Etiqueta y variante de cada estado (Decisión 12) |
-| `components/ReservaFormulario.tsx` | Panel lateral (`Card`) con título «Nueva reserva» o «Modificar reserva», botón «Cerrar formulario», campos Cliente (número), Fecha, Hora, Cantidad de personas y Mesa (número), botones «Cancelar» y «Guardar reserva»; en edición, Cliente y Mesa se muestran deshabilitados |
+| `components/ReservaFormulario.tsx` → `components/ReservaFormDialog.tsx` (delta del modal) | Primera versión: panel lateral (`Card`) con título «Nueva reserva» o «Modificar reserva», botón «Cerrar formulario», campos Cliente (número), Fecha, Hora, Cantidad de personas y Mesa (número), botones «Cancelar» y «Guardar reserva»; en edición, Cliente y Mesa se muestran deshabilitados. Con el delta del modal: modal sobre `Dialog` (`size` por defecto), mismo título y mismos campos, sin «Cerrar formulario» (lo reemplaza la X del `Dialog`) y con «Cancelar» y «Guardar reserva» en el `footer` (Decisiones 21 y 24) |
 | `components/useFormularioReserva.ts` | Estado del formulario, validación local, llamada a `crearReserva` o `modificarReserva`, toast de éxito (`useToast`) y errores del servidor, siguiendo `useFormularioSeccion` (`frontend/src/modules/productos/components/useFormularioSeccion.ts:77-130`) |
 | `components/validarReserva.ts` | `validarReserva(datos, modo, hoy, horaActual)`: cliente y mesa enteros positivos (solo alta), fecha obligatoria y no anterior a hoy, hora obligatoria y posterior a la actual si la fecha es hoy, personas entero positivo; `errorDelServidor(mensaje)` deja el mensaje del 404, 409 o 422 como error general (como `validarSeccion.ts:41-48`) |
 | `fechas.ts` | Funciones de la Decisión 11 |
-| `components/index.ts` | Reexporta `ReservasTabla`, `ReservaFormulario` y `NavegadorFecha` |
+| `components/index.ts` | Reexporta `ReservasTabla`, `ReservaFormulario` (con el delta del modal, `ReservaFormDialog`) y `NavegadorFecha` |
 | `components/useMesasDisponibles.ts` (delta) | Pide la lista solo con un turno válido, deriva `inactivo`, `cargando`, `listo` o `error` y descarta respuestas viejas (Decisión 18) |
 | `components/SelectorMesa.tsx` (delta) | Campo «Mesa» del alta sobre `FormField` y `Select`, con los textos de la Decisión 19 |
 
@@ -575,7 +710,8 @@ La validación local recibe `hoy` y `horaActual` como parámetros (el hook los t
 | Mesa como `select` con sector y capacidad | Alta: selector «Sector · Mesa N (capacidad personas)» con las mesas disponibles para la fecha y la hora (delta, S13, S34). Edición: campo de solo lectura con el `mesa_id`. La tabla sigue mostrando «Mesa n.º {mesa_id}» con el `id` interno | La tabla no cambia en este cambio (S23); ver «Riesgos del delta y reversión» |
 | La tabla muestra todos los estados del día | Selector de estado con `Activa` por defecto y opción «Todas» | S8 |
 | Acción «Cancelar reserva» | No se muestra | HU-M5-04 y HU-M5-05 fuera de alcance |
-| Panel abierto al entrar | Panel cerrado hasta elegir «Nueva reserva» o «Modificar reserva» | Evita un formulario vacío permanente; misma estética |
+| Panel abierto al entrar | Ningún modal abierto hasta elegir «Nueva reserva» o «Modificar reserva» | Evita un formulario vacío permanente; misma estética |
+| Formulario al costado de la tabla (y alta y edición en una página aparte en otras pantallas de la maqueta) | Modal sobre la misma página con el `Dialog` compartido, `size` por defecto (delta del modal) | AGENTS.md §5 y S24: la regla del equipo gana sobre la maqueta (AGENTS.md §2); Decisiones 21 a 24 |
 
 ## Estrategia de pruebas (Strict TDD)
 
@@ -667,11 +803,31 @@ Pruebas del delta en el frontend:
 
 Pruebas existentes del frontend que cambian: `validarReserva.test.ts` («rechaza Cliente 0 y Mesa -1»: el caso de Mesa sale, Cliente se conserva; el caso de campos vacíos sigue esperando «La mesa es obligatoria.»); `ReservaFormulario.test.tsx` (`completar` escribe la mesa en un `Input`: pasa a elegir una opción del selector después de que la lista simulada carga; «con Cliente 0 y Mesa -1…» pierde la parte de Mesa; los casos que envían deben simular `listarMesasDisponibles` con la mesa 5; la edición sigue esperando Mesa deshabilitada con valor 5); `ReservasPage.test.tsx` (con `vi.mock('../api')` la función nueva devuelve `undefined` y el `.then` del hook fallaría: `beforeEach` agrega `vi.mocked(listarMesasDisponibles).mockResolvedValue(...)`, y la prueba de alta elige la mesa en el selector en lugar de escribir «5»). `ReservasTabla.test.tsx`, `NavegadorFecha.test.tsx` y `fechas.test.ts` no cambian.
 
+#### Pruebas del delta del modal (Strict TDD)
+
+Las respuestas tardías se simulan con una promesa controlada a mano: `vi.mocked(crearReserva).mockReturnValue(promesa)` (o `modificarReserva`), donde `promesa` se resuelve recién después de cerrar el modal, el mismo recurso que ya usa la prueba de «respuesta vieja» de `useMesasDisponibles.test.ts`. El modal se busca con `getByRole('dialog', { name: 'Nueva reserva' })` o `{ name: 'Modificar reserva' }`, como `MenusPage.test.tsx:61` y `ProductosTab.test.tsx:245`; la X, con `getByRole('button', { name: 'Cerrar modal' })`; Escape, con `user.keyboard('{Escape}')`; el fondo, con un clic sobre el elemento con `aria-hidden="true"` que es hermano anterior del `role="dialog"` (el `Dialog` no le pone un nombre accesible).
+
+| Archivo de prueba | Casos |
+| --- | --- |
+| `components/ReservaFormDialog.test.tsx` (renombrado desde `ReservaFormulario.test.tsx`) | se ve como `dialog` con el título «Nueva reserva» o «Modificar reserva»; no hay botón «Cerrar formulario»; «Cancelar», la X, Escape y el fondo llaman a `onOpenChange(false)` sin enviar nada (parametrizada, alta y edición; reemplaza el `it.each(['Cancelar', 'Cerrar formulario'])` actual); Enter en un campo envía el formulario (el botón del pie usa `form`); **cerrar mientras se guarda**: con el `POST` pendiente se desmonta el componente (`unmount()`), se resuelve la promesa con éxito y con error, y no se llama a `onGuardado` ni se muestra el aviso; el mismo caso con un `PUT` pendiente |
+| `pages/ReservasPage.test.tsx` | «Modal cerrado al entrar» (ningún `dialog`); «Nueva reserva» abre el `dialog` «Nueva reserva» sin cambiar de ruta; «Modificar reserva» abre el `dialog` «Modificar reserva» con los datos de la fila y sin `GET /reservas/{id}`; con la edición abierta «Nueva reserva» está deshabilitado y pulsarlo no abre otro modal ni cambia los datos; al cerrar la edición con «Cancelar» o al guardar, se habilita de nuevo; **PUT tardío**: se cierra la edición con el `PUT` pendiente, se abre «Nueva reserva», se escribe un dato, se resuelve el `PUT` y el alta sigue abierta con el dato, sin aviso y sin un nuevo `listarReservas`; **POST tardío**: lo mismo al revés (alta cerrada con el `POST` pendiente, se abre la edición de otra fila) |
+
+Pruebas existentes que cambian por el delta del modal:
+
+| Archivo | Prueba | Cambio |
+| --- | --- | --- |
+| `ReservaFormulario.test.tsx` → `ReservaFormDialog.test.tsx` | todas | Importan `ReservaFormDialog` y pasan `onOpenChange` en lugar de `onCerrar`; los `describe` dicen «modal» en lugar de «panel». Las que buscan el título con `getByRole('heading', ...)` siguen funcionando (el `Dialog` usa un `h2`), pero se prefiere `getByRole('dialog', { name })` |
+| `ReservaFormulario.test.tsx` | `expect(... 'Cerrar formulario')` (línea 117) y los `it.each` de las líneas 124 y 488 | Pasan a «Cerrar modal», Escape y el fondo; se espera `onOpenChange(false)` |
+| `ReservasPage.test.tsx` | «arranca con el panel cerrado y "Nueva reserva" lo abre...» (línea 121) | Sin cambios de lógica; nombre y búsqueda por `dialog` |
+| `ReservasPage.test.tsx` | «"Modificar reserva" de otra fila con el panel abierto trae los datos de esa fila» (línea 276) | Se reemplaza: con el modal, la tabla queda detrás del fondo. Se prueba en su lugar cerrar la edición y abrir la de otra fila |
+| `ReservasPage.test.tsx` | «"Nueva reserva" después de editar abre el panel vacío» (línea 291) | Contradice S36 tal como está (pulsa «Nueva reserva» con la edición abierta): pasa a cerrar la edición primero y después abrir el alta vacía; el caso de pulsarlo durante la edición lo cubre la prueba nueva del botón deshabilitado |
+| `ReservasPage.test.tsx` | guardar en el alta y en la edición (líneas 219 y 313) | Esperan que desaparezca el `dialog` en lugar del encabezado del panel |
+
 Cobertura esperada por encima de los umbrales (70 % backend, 60 % frontend), porque todas las ramas de error tienen prueba.
 
 ## Matriz de amenazas
 
-N/A (también para el delta, que solo agrega una ruta HTTP de lectura y una llamada en proceso a `salon.service`): el cambio no agrega enrutamiento de procesos, comandos de shell, subprocesos, automatización de VCS o PR, clasificación de archivos ejecutables ni integración de procesos. Las consultas son parametrizadas por SQLAlchemy (D-07, RNF-SEG-05) y los errores no exponen trazas (D-26).
+N/A (también para el delta del modal, que solo cambia componentes del frontend, y para el delta del issue #61, que solo agrega una ruta HTTP de lectura y una llamada en proceso a `salon.service`): el cambio no agrega enrutamiento de procesos, comandos de shell, subprocesos, automatización de VCS o PR, clasificación de archivos ejecutables ni integración de procesos. Las consultas son parametrizadas por SQLAlchemy (D-07, RNF-SEG-05) y los errores no exponen trazas (D-26).
 
 ## Archivos a crear o modificar
 
@@ -724,6 +880,20 @@ No se modifican `backend/alembic/env.py`, `backend/pyproject.toml`, `backend/app
 
 El delta **no agrega ninguna migración** ni modifica `models.py`, `main.py`, `backend/alembic/`, `backend/pyproject.toml`, `compose.yaml`, `shared/` (backend y frontend), `frontend/src/App.tsx` ni ningún archivo de `salon/` o `atencion/`.
 
+### Impacto del delta del modal (AGENTS.md §5) por archivo
+
+| Archivo | Acción | Descripción |
+| --- | --- | --- |
+| `frontend/src/modules/reservas/components/ReservaFormulario.tsx` → `ReservaFormDialog.tsx` | Renombrar y modificar (`git mv`) | `Card` → `Dialog` (`open` fijo, `onOpenChange`, `title`, `footer`); sin `CabeceraDelPanel`; `<form id>` con el botón del pie por `form`; prop `onCerrar` → `onOpenChange` (Decisiones 21 y 24) |
+| `frontend/src/modules/reservas/components/useFormularioReserva.ts` | Modificar | Referencia `vigente` con su efecto y comprobación después del `await` en `enviar` (Decisión 23) |
+| `frontend/src/modules/reservas/pages/ReservasPage.tsx` | Modificar | `PanelDeReserva` → `ModalDeReserva` con la misma `key`; sin el `div` lateral ni el layout de dos columnas; `onOpenChange` estable con `useCallback`; «Nueva reserva» con `disabled={typeof panel === 'object'}` (Decisión 22) |
+| `frontend/src/modules/reservas/components/index.ts` | Modificar | Reexporta `ReservaFormDialog` |
+| `frontend/src/modules/reservas/components/ReservaFormulario.test.tsx` → `ReservaFormDialog.test.tsx` | Renombrar y modificar | Cierre por las cuatro vías, ausencia de «Cerrar formulario», envío con Enter y cierre mientras se guarda |
+| `frontend/src/modules/reservas/pages/ReservasPage.test.tsx` | Modificar | Botón deshabilitado y vuelto a habilitar, las dos respuestas tardías, búsquedas por `dialog` y las dos pruebas que contradicen S36 |
+| `validarReserva.ts`, `SelectorMesa.tsx`, `useMesasDisponibles.ts`, `ReservasTabla.tsx`, `NavegadorFecha.tsx`, `api.ts`, `types.ts`, `fechas.ts` y sus pruebas | Sin cambios | La lógica de los campos, la lista de mesas y la tabla no cambia |
+
+El delta del modal **no toca** el backend, `frontend/src/shared/` (el `Dialog` se usa tal como está), `frontend/src/App.tsx`, otros módulos, rutas ni migraciones.
+
 ## Estimación de líneas (punto de control de 800 por lado, no bloqueo)
 
 | Lado | Código | Pruebas | Total estimado | Frente al límite |
@@ -741,6 +911,24 @@ La estimación es mayor que la de la propuesta (backend 650 a 800, frontend 750 
 | `frontend/` | types 10, api 10 a 15, hook 35 a 55, selector 45 a 70, formulario y hook del formulario 30 a 50, validación 10 a 20 → **~140 a 220** | api 10 a 15, hook 80 a 130, selector 50 a 80, formulario 80 a 130, validación 15 a 25, página 15 a 30 → **~250 a 410** | **~390 a 630** | Supera 800 (lo ya implementado se estimó en ~1000 a 1050) |
 
 Los rangos son amplios a propósito: dependen sobre todo de cuántos escenarios se parametrizan juntos. Es un punto de control informativo: la HU sigue en un solo PR, sin dividirla, sin minificar y sin recortar pruebas para entrar en el límite. La nota del PR informa el total real de cada lado.
+
+### Estimación del delta del modal, líneas agregadas más borradas
+
+Una sola unidad de trabajo del frontend (renombrar y reestructurar un componente, cablear un `disabled` y un callback estable, agregar la guarda a un hook y adaptar sus pruebas):
+
+| Parte | Líneas ≈ |
+| --- | --- |
+| `ReservaFormDialog.tsx` (cambio de contenedor, pie, `form`, sin `CabeceraDelPanel`) | 35 a 55 |
+| `ReservasPage.tsx` (modal, `useCallback`, `disabled`, layout de una columna) | 20 a 35 |
+| `useFormularioReserva.ts` (guarda `vigente`) | 10 a 15 |
+| `components/index.ts` | 2 |
+| **Código** | **~65 a 105** |
+| `ReservaFormDialog.test.tsx` (adaptaciones y casos nuevos) | 60 a 110 |
+| `ReservasPage.test.tsx` (botón, respuestas tardías, pruebas que contradicen S36) | 80 a 140 |
+| **Pruebas** | **~140 a 250** |
+| **Total del delta** | **~205 a 355** |
+
+Queda por debajo de la heurística orientativa de ≈ 400 líneas por tarea, así que es una sola unidad (un commit). El acumulado del frontend que estima `tasks.md` (≈ 1.390 a 1.680) pasa a ≈ 1.595 a 2.035; sigue siendo informativo y la HU no se divide. **Supuesto de medición:** la cifra cuenta los dos renombrados como archivos modificados, que es lo que hace `git diff --shortstat` con la detección de renombrados por defecto mientras la similitud quede por encima del 50 %; si un archivo se reescribiera casi entero, `git` lo contaría como borrado más agregado y la cifra subiría (la prueba del formulario tiene más de 500 líneas). Para evitarlo, el renombrado y los cambios van en el mismo commit con `git mv`, sin reformatear lo que no cambia.
 
 ## Orden de implementación sugerido
 
@@ -761,11 +949,19 @@ Orden sugerido para el delta (Strict TDD, cada paso con su prueba en RED primero
 12. **Frontend:** `types.ts` y `listarMesasDisponibles`; `turnoValido`; `useMesasDisponibles`; `SelectorMesa`; `useFormularioReserva` y `ReservaFormulario`; adaptación de las pruebas existentes.
 13. **Cierre del delta:** los mismos controles del paso 7.
 
+Orden sugerido para el delta del modal (Strict TDD, una sola unidad de trabajo del frontend):
+
+14. **Guarda de guardado vigente:** en `ReservaFormulario.test.tsx`, la prueba «cerrar mientras se guarda» (desmontar con el `POST` y el `PUT` pendientes) en RED → referencia `vigente` y comprobación en `enviar` (Decisión 23). Se hace primero porque es independiente del contenedor y deja verde el resto.
+15. **Contenedor:** `git mv` de `ReservaFormulario.tsx` y de su prueba a `ReservaFormDialog`; pruebas del `dialog` con su título, de las cuatro vías de cierre y del envío con Enter en RED → `Dialog`, `footer` y `form` (Decisiones 21 y 24); `index.ts`.
+16. **Página:** pruebas de «Nueva reserva» deshabilitado y vuelto a habilitar y de las dos respuestas tardías en RED, más la adaptación de las pruebas de las líneas 276 y 291 → `ModalDeReserva`, `useCallback` y `disabled` (Decisión 22).
+17. **Cierre:** `npm run lint && npm run format:check && npm run typecheck && npm run test:coverage && npm run build` desde `frontend/`.
+
 ## Migración y puesta en marcha
 
 - Migración nueva `d6f8a0c2e4b6` sobre `a8c0e2b4d6f8`; reversión con `alembic downgrade a8c0e2b4d6f8` (borra la tabla y sus datos), como describe el plan de reversión de la propuesta.
 - **El delta del issue #61 no agrega ninguna migración ni cambia el esquema:** la consulta de mesas disponibles usa las columnas y el índice `ix_reservas_fecha_hora` que ya existen, y las mesas se leen de M3 por su `service`.
 - Sin banderas de funcionalidad: el endpoint y la pantalla quedan activos al integrar.
+- **El delta del modal no agrega migraciones ni toca el backend:** solo cambia componentes del frontend de `reservas`.
 
 ## Riesgos del delta y reversión
 
@@ -780,10 +976,23 @@ Orden sugerido para el delta (Strict TDD, cada paso con su prueba en RED primero
 
 **Reversión del delta:** el delta no toca el esquema, así que no hace falta ningún `alembic downgrade`. Antes de integrar, se revierten sus commits en la rama (`git revert` de cada uno), con lo que vuelven el stub de mesa, el campo numérico y las pruebas anteriores. Ya integrado, el plan de reversión de la propuesta no cambia: revertir el merge deshace también el delta. Verificación: `pytest`, `lint-imports` y las pruebas del frontend en verde.
 
+### Riesgos del delta del modal y reversión
+
+| Riesgo | Efecto | Mitigación |
+| --- | --- | --- |
+| La guarda de la Decisión 23 cambia el comportamiento del hook, no solo el contenedor | Una respuesta de guardado que llega con el modal ya cerrado deja de mostrar el aviso y de recargar la tabla | Es lo que piden S38 y sus tres escenarios, que surgieron de la revisión nativa del delta de la spec: es una corrección, no un agregado de alcance. Reutiliza el patrón `vigente` del módulo, así que el código agregado es de unas 10 a 15 líneas. La tabla se actualiza igual al volver a abrir la pantalla o al cambiar de día; el registro sí queda guardado en el servidor |
+| `StrictMode` monta, limpia y vuelve a ejecutar los efectos en desarrollo | Si `vigente` solo se inicializara en `true`, ningún guardado se aplicaría en desarrollo | `vigente.current = true` se pone dentro del efecto (Decisión 23); las pruebas cubren el guardado normal y el tardío |
+| `onOpenChange` inestable | El `Dialog` vuelve a ejecutar su efecto en cada render de la página y saca el foco del campo donde se escribe | `useCallback` con dependencias vacías (Decisión 22) |
+| Pruebas en jsdom pueden pulsar elementos que en el navegador quedan detrás del fondo del modal | Una prueba podría «abrir» la edición de otra fila con el modal abierto | La `key` y la guarda mantienen la coherencia aun en ese caso; las pruebas que lo hacían hoy se adaptan (ver «Pruebas del delta del modal») |
+| Al guardar la edición, la tabla se vuelve a pedir y la fila que tenía el foco puede volver a dibujarse | El `Dialog` devuelve el foco a un botón que ya no está y el foco pasa al `body` | Mismo comportamiento que los demás `*FormDialog` del proyecto; no se corrige en este delta (tocaría `shared/`) |
+
+**Reversión del delta del modal:** no hay esquema ni backend involucrados, así que no hace falta ningún `alembic downgrade`. Antes de integrar, se revierte su commit (`git revert`), con lo que vuelven el panel lateral y el nombre `ReservaFormulario`. **Atención:** si se quisiera volver al panel conservando la corrección, hay que revertir solo el contenedor y la página y **mantener la guarda de `useFormularioReserva`**: es una corrección real (S38), válida también para el panel, y no un efecto secundario del modal. Ya integrado, el plan de reversión de la propuesta no cambia. Verificación: las pruebas del frontend en verde.
+
 ## Preguntas abiertas
 
 - [ ] El equipo valida S1 a S14, en especial `ACTIVA` frente a `PENDIENTE` (S1) y la falta de horario de atención (S2). Ninguna bloquea el diseño: cada una cambia en un solo lugar (enum o una función del `service`).
 - [x] `Supuesto:` el servidor corre en la hora local del restaurante (Decisión 3). En Docker no se cumplía; se resolvió el 2026-11-01 con una zona fija UTC-3 en `ahora()` (Decisión 20, Fase 11). Falta solo pedir al equipo `TZ` en `compose.yaml` como mejora complementaria.
 - [ ] Mensajes exactos de 404, 409 y 422: los fija la spec.
 - [ ] `Supuesto:` texto de la opción vacía del selector cuando hay mesas, «Seleccione una mesa» (la spec no lo fija). No bloquea.
+- [ ] (Delta del modal, no bloquea) La spec no define qué pasa con la acción «Modificar reserva» de otra fila mientras hay un modal abierto: el diseño no agrega lógica porque el fondo del `Dialog` la tapa (Decisión 22). Si el equipo quiere deshabilitarla también, es un cambio de la spec.
 - [ ] Seguimiento con M3 (no bloquea): ofrecer `obtener_mesa` por `id` o un filtro por estado en `salon.service`, para que el puente no lea todas las páginas.
