@@ -24,7 +24,8 @@ CUERPO = {
     "hora": "21:30",
     "cantidad_personas": 4,
 }
-CAMPOS = list(CUERPO)
+CAMPOS = [campo for campo in CUERPO if campo != "cliente_id"]  # el cliente va aparte (S39)
+CLIENTE_NUEVO = {"nombre": "Luis Gómez", "telefono": "+54 280 1234567"}
 
 
 def _reserva(**cambios) -> ReservaCrear:
@@ -48,7 +49,7 @@ def test_reserva_crear_acepta_datos_validos() -> None:
     assert datos.cantidad_personas == 4
 
 
-# CA 3: los cinco campos son obligatorios y ninguno admite null
+# CA 3: los cuatro campos son obligatorios y ninguno admite null
 @pytest.mark.parametrize("campo", CAMPOS)
 def test_reserva_crear_rechaza_campos_faltantes(campo: str) -> None:
     cuerpo = {nombre: valor for nombre, valor in CUERPO.items() if nombre != campo}
@@ -87,10 +88,65 @@ def test_reserva_crear_rechaza_cantidad_no_positiva(cantidad: int) -> None:
         ("cliente_id", True),
         ("cliente_id", 0),
         ("cliente_id", -1),
+        ("cliente_nuevo", "Luis"),
+        ("cliente_nuevo", [CLIENTE_NUEVO]),
+        ("cliente_nuevo", {"telefono": "123"}),
+        ("cliente_nuevo", {"nombre": "Luis"}),
+        ("cliente_nuevo", {"nombre": 123, "telefono": "123"}),
+        ("cliente_nuevo", {"nombre": "Luis", "telefono": 123}),
+        ("cliente_nuevo", CLIENTE_NUEVO | {"dni": "1"}),
     ],
 )
 def test_reserva_crear_rechaza_tipos_laxos(campo: str, valor: object) -> None:
     assert _campos_con_error(**{campo: valor}) == {campo}
+
+
+# S39 y S40 (Enmienda): el esquema acepta solo la forma; "exactamente un cliente" es del service
+def test_reserva_crear_acepta_cliente_nuevo_solo() -> None:
+    datos = _reserva(cliente_id=None, cliente_nuevo=CLIENTE_NUEVO)
+
+    assert datos.cliente_id is None
+    assert datos.cliente_nuevo is not None
+    assert (datos.cliente_nuevo.nombre, datos.cliente_nuevo.telefono) == (
+        "Luis Gómez",
+        "+54 280 1234567",
+    )
+
+
+def test_reserva_crear_acepta_cliente_id_solo() -> None:
+    datos = _reserva()
+
+    assert datos.cliente_id == 7
+    assert datos.cliente_nuevo is None
+
+
+@pytest.mark.parametrize("cuerpo", [{}, {"cliente_nuevo": CLIENTE_NUEVO}])
+def test_reserva_crear_acepta_ningun_cliente_o_los_dos(cuerpo: dict) -> None:
+    base = {k: v for k, v in CUERPO.items() if k != "cliente_id"}
+    datos = ReservaCrear.model_validate(base | cuerpo)
+
+    assert datos.cliente_id is None
+    assert (datos.cliente_nuevo is None) == (not cuerpo)
+
+
+def test_reserva_crear_acepta_los_dos_clientes_y_el_service_los_rechaza() -> None:
+    datos = _reserva(cliente_nuevo=CLIENTE_NUEVO)
+
+    assert datos.cliente_id == 7
+    assert datos.cliente_nuevo is not None
+
+
+@pytest.mark.parametrize("campo", ["cliente_id", "cliente_nuevo"])
+def test_reserva_crear_toma_null_del_cliente_como_ausente(campo: str) -> None:
+    assert getattr(_reserva(**{campo: None}), campo) is None
+
+
+# S42: las reglas de contenido son de M4; la forma deja pasar vacios y simbolos
+@pytest.mark.parametrize("nombre, telefono", [("", "abc"), ("   ", "   "), ("Luis3", "280+456")])
+def test_reserva_crear_deja_las_reglas_de_contenido_a_m4(nombre: str, telefono: str) -> None:
+    datos = _reserva(cliente_id=None, cliente_nuevo={"nombre": nombre, "telefono": telefono})
+
+    assert (datos.cliente_nuevo.nombre, datos.cliente_nuevo.telefono) == (nombre, telefono)
 
 
 @pytest.mark.parametrize(

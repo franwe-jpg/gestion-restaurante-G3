@@ -195,3 +195,19 @@ Al cierre de la unidad de migración, solo 1.2 y 1.3 estaban verificadas; el ava
 | Compatibilidad frontend de #49/#50 | RED y GREEN ya registrados para 3.1–3.3 y 4.2; no se inventó RED nuevo. | **19 passed** actuales; no se hizo refactor adicional. | Desde `frontend/`: `PATH="/home/juano/.nvm/versions/node/v22.23.4/bin:$PATH" npm test -- src/modules/atencion/api.test.ts src/modules/atencion/pages/AtencionPage.test.tsx src/modules/atencion/components/ClienteFormDialog.test.tsx` → **3 archivos, 19 passed**. | Testing Library monta página/diálogo y `api.test.ts` comprueba el cliente HTTP simulado; no es integración navegador-servidor. Límite de reversión de esta revisión: solo documentación en `tasks.md` y `apply-progress.md`. |
 
 **Pendientes antes de cerrar el cambio agrupado:** 1.1, 1.5, 2.6, 2.7 y 4.1 requieren acuerdo del DTO/interfaz pública y prueba real de alta vinculada con M5; no inferirlos de `ClienteNuevo`. 4.3 sigue abierta: las discrepancias de los dos diagramas y `SPRINT-1/S1-07-casos-de-prueba.md` constan en la propuesta/spec/diseño, pero no se coordinó aún su actualización posterior. 4.4 sigue abierta: la persona ejecutará controles y coberturas completos en WSL; esta revisión solo ejecutó pruebas focalizadas. 4.5 no se marca completa: excepción y rama local constan previamente, pero no se ha acreditado el cierre de dependencias #61/M3. Los textos históricos de progreso sobre ruta ausente o ejecutores no disponibles describen estados anteriores, no bloqueos actuales de #49/#50.
+
+## Reanudación: interfaz de servicio para M5 (1.5, 2.6, 2.7)
+
+**Resultado:** tareas 1.5, 2.6 y 2.7 completas. 4.1 queda sin marcar: la ejecuta el cambio `HU-M5-01-02-03` con una reserva real. Sin commit, push ni PR.
+
+| Tarea | RED | GREEN y refactor | Archivos |
+| --- | --- | --- | --- |
+| 1.5 | `test_crear_cliente_asigna_id_con_flush_y_rollback_lo_descarta` falló (`repository.crear_cliente` no existe). | `crear_cliente` con `db.add` + `db.flush()`, sin commit; prueba en verde. | `repository.py`, `test_repository.py` |
+| 2.6 | 10 pruebas nuevas de `test_service.py` fallaron (funciones inexistentes): id sin commit, rollback, nombres repetidos, campo vacío (3 casos), nombre inválido (3 casos), `existe_cliente`. | Ver 2.7. | `test_service.py` |
+| 2.7 | Mismo RED que 2.6. | `registrar_cliente_para_reserva` valida con `ClienteNuevo` y traduce `ValidationError` a `DatosInvalidosError` «campo: mensaje» (sin «Value error, » ni campo repetido); `existe_cliente`. Sin commit ni rollback. Refactor: helper `_describir_error`. | `service.py` |
+
+**Verificación (desde `backend/`):** focalizada `tests/modules/atencion` con `--no-cov`: 279 passed. Completa: `ruff check`, `ruff format --check` y `lint-imports` sin errores; `pytest`: 1571 passed, cobertura 99.21 % (umbral 70 %).
+
+### 4.1 Costura M4-M5 con reserva real (evidencia)
+
+Ejecutada por la Fase 13 backend de `HU-M5-01-02-03` (`backend/tests/modules/reservas/test_router.py`, puente real, sin commit todavía). #48 CA1 (alta y asociación): `test_puente_real_alta_con_cliente_nuevo_lo_registra_en_m4`. CA2 (dato faltante sin cliente ni reserva): `test_puente_real_dato_obligatorio_faltante_no_crea_cliente_ni_reserva`. CA3 (nombre inválido): `test_puente_real_nombre_invalido_devuelve_422_sin_cliente`. Fallo sin cliente huérfano (404, 409, 422 y carrera por el índice único): `test_puente_real_reserva_fallida_no_deja_cliente_huerfano` y `test_puente_real_carrera_por_el_indice_unico_no_deja_cliente_nuevo`. Resultado: `pytest` completo: 1625 en verde. La issue #48 la cierra el PR; el cierre lo decide la persona.

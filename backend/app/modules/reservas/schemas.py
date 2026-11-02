@@ -2,7 +2,15 @@
 
 from datetime import date, time
 
-from pydantic import BaseModel, ConfigDict, Field, StrictInt, field_serializer, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StrictInt,
+    StrictStr,
+    field_serializer,
+    field_validator,
+)
 
 from app.modules.reservas.models import EstadoReserva
 from app.shared.paginacion import ParametrosPaginacion
@@ -30,9 +38,21 @@ class _DatosDelTurno(BaseModel):
     _hora_con_precision_de_minutos = field_validator("hora")(_hora_en_minutos)
 
 
+class ClienteNuevo(BaseModel):
+    """Cliente que se registra con la reserva (S40). Solo forma: el contenido lo valida M4."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    nombre: StrictStr
+    telefono: StrictStr
+
+
 class ReservaCrear(_DatosDelTurno):
+    """El cliente es `cliente_id` o `cliente_nuevo`: esa regla la comprueba el service (S39)."""
+
     mesa_id: StrictInt = Field(gt=0)
-    cliente_id: StrictInt = Field(gt=0)
+    cliente_id: StrictInt | None = Field(default=None, gt=0)
+    cliente_nuevo: ClienteNuevo | None = None
 
 
 class ReservaModificar(_DatosDelTurno):

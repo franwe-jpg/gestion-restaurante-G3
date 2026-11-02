@@ -8,6 +8,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.main import app
+from app.modules.atencion.models import Cliente
+from app.modules.reservas import repository
 from app.modules.reservas.models import EstadoReserva, Reserva
 from app.shared.models.enums import EstadoMesa
 
@@ -20,6 +22,8 @@ CUERPO = {
     "hora": "21:30",
     "cantidad_personas": 4,
 }
+CLIENTE_NUEVO = {"nombre": "Luis Gómez", "telefono": "+54 280 1234567"}
+SIN_CLIENTE = {k: v for k, v in CUERPO.items() if k != "cliente_id"}
 TURNO_OCUPADO = "La mesa 5 ya tiene una reserva activa el 2026-11-02 a las 21:30"
 
 
@@ -57,8 +61,9 @@ def test_post_reservas_alta_para_hoy_con_hora_posterior_devuelve_201(cliente: Te
 
 # CA 9
 def test_post_reservas_turno_ocupado_devuelve_409_con_detalle(
-    cliente: TestClient, db: Session, fabrica_reserva
+    cliente: TestClient, db: Session, fabrica_reserva, puente_doble
 ) -> None:
+    puente_doble.poner_cliente(8, "Beto Díaz", "+54 280 7654321")
     fabrica_reserva(mesa_id=5, fecha=date(2026, 11, 2), hora=time(21, 30))
 
     respuesta = cliente.post(RUTA, json=CUERPO | {"cliente_id": 8})
@@ -151,11 +156,11 @@ def test_post_reservas_cliente_inexistente_devuelve_404(
 
 # S33 (issue #61): con el puente real, la mesa sale de M3
 def test_puente_real_alta_en_una_mesa_de_m3_devuelve_201(
-    cliente: TestClient, db: Session, puente_real, mesas_en_m3
+    cliente: TestClient, db: Session, puente_real, mesas_en_m3, cliente_en_m4: int
 ) -> None:
     mesa = mesas_en_m3(1)[0]
 
-    respuesta = cliente.post(RUTA, json=CUERPO | {"mesa_id": mesa.id})
+    respuesta = cliente.post(RUTA, json=CUERPO | {"mesa_id": mesa.id, "cliente_id": cliente_en_m4})
 
     assert respuesta.status_code == 201
     assert respuesta.json()["mesa_id"] == mesa.id
@@ -650,12 +655,12 @@ def test_get_mesas_disponibles_sin_mesas_devuelve_200_con_lista_vacia(
 
 # S33: con el puente real, la lista sale de todas las paginas de M3
 def test_puente_real_mesas_disponibles_y_alta_con_120_mesas(
-    cliente: TestClient, db: Session, puente_real, mesas_en_m3
+    cliente: TestClient, db: Session, puente_real, mesas_en_m3, cliente_en_m4: int
 ) -> None:
     ultima = mesas_en_m3(120)[-1]
 
     lista = cliente.get(RUTA_MESAS, params=TURNO)
-    alta = cliente.post(RUTA, json=CUERPO | {"mesa_id": ultima.id})
+    alta = cliente.post(RUTA, json=CUERPO | {"mesa_id": ultima.id, "cliente_id": cliente_en_m4})
     lista_despues = cliente.get(RUTA_MESAS, params=TURNO)
 
     assert lista.status_code == 200
@@ -753,3 +758,208 @@ def test_get_mesas_disponibles_usa_el_hoy_de_la_zona_del_restaurante(
 
     assert respuesta.status_code == 200
     assert _ids_de_mesas(respuesta) == [5, 6]
+
+
+# --- Cliente registrado o nuevo (issue #61, S39 a S43) ---
+
+
+def _clientes_en_m4(db: Session) -> list[Cliente]:
+    return list(db.scalars(select(Cliente).order_by(Cliente.id)))
+
+
+def test_post_reservas_con_cliente_nuevo_devuelve_201(
+    cliente: TestClient, db: Session, puente_doble
+) -> None:
+    respuesta = cliente.post(RUTA, json=SIN_CLIENTE | {"cliente_nuevo": CLIENTE_NUEVO})
+
+    assert respuesta.status_code == 201
+    cliente_id = respuesta.json()["cliente_id"]
+    assert cliente_id >= 100
+    assert puente_doble.registrados == [(cliente_id, "Luis Gómez", "+54 280 1234567")]
+    assert cliente.get(f"{RUTA}/{respuesta.json()['id']}").json()["cliente_id"] == cliente_id
+
+
+def test_post_reservas_con_cliente_existente_no_registra_clientes(
+    cliente: TestClient, puente_doble
+) -> None:
+    respuesta = cliente.post(RUTA, json=CUERPO)
+
+    assert respuesta.status_code == 201
+    assert respuesta.json()["cliente_id"] == 7
+    assert puente_doble.registrados == []
+
+
+@pytest.mark.parametrize(
+    "cuerpo",
+    [
+        CUERPO | {"cliente_nuevo": CLIENTE_NUEVO},
+        SIN_CLIENTE,
+        SIN_CLIENTE | {"cliente_nuevo": None},
+    ],
+    ids=["los-dos", "ninguno", "cliente-nuevo-null"],
+)
+def test_post_reservas_sin_exactamente_un_cliente_devuelve_422(
+    cliente: TestClient, db: Session, puente_doble, cuerpo: dict
+) -> None:
+    respuesta = cliente.post(RUTA, json=cuerpo)
+
+    assert respuesta.status_code == 422
+    detalle = respuesta.json()["detalle"]
+    assert "cliente_id" in detalle
+    assert "cliente_nuevo" in detalle
+    assert not detalle.startswith("Datos invalidos. :")
+    assert _cantidad_reservas(db) == 0
+    assert puente_doble.registrados == []
+
+
+@pytest.mark.parametrize(
+    "cliente_nuevo, campo",
+    [
+        (CLIENTE_NUEVO | {"dni": "1"}, "dni"),
+        ({"nombre": 123, "telefono": "123"}, "nombre"),
+        ({"nombre": "Luis"}, "telefono"),
+    ],
+)
+def test_post_reservas_cliente_nuevo_con_forma_invalida_devuelve_422(
+    cliente: TestClient, db: Session, cliente_nuevo: dict, campo: str
+) -> None:
+    respuesta = cliente.post(RUTA, json=SIN_CLIENTE | {"cliente_nuevo": cliente_nuevo})
+
+    assert respuesta.status_code == 422
+    assert campo in respuesta.json()["detalle"]
+    assert _cantidad_reservas(db) == 0
+
+
+def test_post_reservas_cliente_nuevo_valida_el_contenido_con_m4(
+    cliente: TestClient, db: Session, puente_doble
+) -> None:
+    invalido = cliente.post(
+        RUTA, json=SIN_CLIENTE | {"cliente_nuevo": CLIENTE_NUEVO | {"nombre": "Luis3"}}
+    )
+    valido = cliente.post(
+        RUTA, json=SIN_CLIENTE | {"cliente_nuevo": CLIENTE_NUEVO | {"nombre": "María José"}}
+    )
+
+    assert invalido.status_code == 422
+    assert "nombre" in invalido.json()["detalle"]
+    assert valido.status_code == 201
+    assert _cantidad_reservas(db) == 1
+
+
+# S41, integracion con el puente real: el cliente nuevo queda en M4 y no hay huerfanos
+def test_puente_real_alta_con_cliente_nuevo_lo_registra_en_m4(
+    cliente: TestClient, db: Session, puente_real, mesas_en_m3
+) -> None:
+    mesa = mesas_en_m3(1)[0]
+
+    respuesta = cliente.post(
+        RUTA, json=SIN_CLIENTE | {"mesa_id": mesa.id, "cliente_nuevo": CLIENTE_NUEVO}
+    )
+
+    assert respuesta.status_code == 201
+    buscados = cliente.get("/api/v1/clientes", params={"q": "Luis"}).json()["items"]
+    assert [c["id"] for c in buscados] == [respuesta.json()["cliente_id"]]
+    assert [c["nombre"] for c in buscados] == ["Luis Gómez"]
+
+
+@pytest.mark.parametrize(
+    "cambios, estado",
+    [({"mesa_id": 999}, 404), ({}, 409), ({"fecha": "2026-11-01"}, 422)],
+    ids=["mesa-inexistente", "turno-ocupado", "fecha-pasada"],
+)
+def test_puente_real_reserva_fallida_no_deja_cliente_huerfano(
+    cliente: TestClient,
+    db: Session,
+    puente_real,
+    mesas_en_m3,
+    cliente_en_m4: int,
+    fabrica_reserva,
+    cambios: dict,
+    estado: int,
+) -> None:
+    mesa = mesas_en_m3(1)[0]
+    fabrica_reserva(mesa_id=mesa.id, fecha=date(2026, 11, 2), hora=time(21, 30))
+    antes = [c.id for c in _clientes_en_m4(db)]
+
+    respuesta = cliente.post(
+        RUTA,
+        json=SIN_CLIENTE | {"mesa_id": mesa.id, "cliente_nuevo": CLIENTE_NUEVO} | cambios,
+    )
+
+    assert respuesta.status_code == estado
+    assert [c.id for c in _clientes_en_m4(db)] == antes == [cliente_en_m4]
+    assert len(cliente.get("/api/v1/clientes").json()["items"]) == 1
+    assert _cantidad_reservas(db) == 1
+
+
+# S41: la carrera por el indice unico deshace tambien al cliente nuevo
+def test_puente_real_carrera_por_el_indice_unico_no_deja_cliente_nuevo(
+    cliente: TestClient,
+    db: Session,
+    puente_real,
+    mesas_en_m3,
+    cliente_en_m4: int,
+    fabrica_reserva,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    mesa = mesas_en_m3(1)[0]
+    fabrica_reserva(mesa_id=mesa.id, fecha=date(2026, 11, 2), hora=time(21, 30))
+    monkeypatch.setattr(repository, "existe_reserva_activa", lambda *_a, **_k: False)
+
+    respuesta = cliente.post(
+        RUTA, json=SIN_CLIENTE | {"mesa_id": mesa.id, "cliente_nuevo": CLIENTE_NUEVO}
+    )
+
+    assert respuesta.status_code == 409
+    assert respuesta.json() == {
+        "detalle": f"La mesa {mesa.id} ya tiene una reserva activa el 2026-11-02 a las 21:30"
+    }
+    assert _cantidad_reservas(db) == 1
+    assert [c.id for c in _clientes_en_m4(db)] == [cliente_en_m4]
+
+
+def test_puente_real_nombre_invalido_devuelve_422_sin_cliente(
+    cliente: TestClient, db: Session, puente_real, mesas_en_m3, cliente_en_m4: int
+) -> None:
+    mesa = mesas_en_m3(1)[0]
+
+    respuesta = cliente.post(
+        RUTA,
+        json=SIN_CLIENTE
+        | {"mesa_id": mesa.id, "cliente_nuevo": CLIENTE_NUEVO | {"nombre": "Luis3"}},
+    )
+
+    assert respuesta.status_code == 422
+    assert "nombre:" in respuesta.json()["detalle"]
+    assert [c.id for c in _clientes_en_m4(db)] == [cliente_en_m4]
+    assert _cantidad_reservas(db) == 0
+
+
+def test_puente_real_cliente_existente_que_m4_no_conoce_devuelve_404(
+    cliente: TestClient, db: Session, puente_real, mesas_en_m3, cliente_en_m4: int
+) -> None:
+    mesa = mesas_en_m3(1)[0]
+
+    respuesta = cliente.post(RUTA, json=CUERPO | {"mesa_id": mesa.id, "cliente_id": 456})
+
+    assert respuesta.status_code == 404
+    assert respuesta.json() == {"detalle": "El cliente 456 no existe"}
+    assert _cantidad_reservas(db) == 0
+
+
+# #48 CA 2: un dato obligatorio faltante no crea ni cliente ni reserva (puente real)
+@pytest.mark.parametrize("faltante", ["nombre", "telefono"])
+def test_puente_real_dato_obligatorio_faltante_no_crea_cliente_ni_reserva(
+    cliente: TestClient, db: Session, puente_real, mesas_en_m3, cliente_en_m4: int, faltante: str
+) -> None:
+    mesa = mesas_en_m3(1)[0]
+    cliente_nuevo = {k: v for k, v in CLIENTE_NUEVO.items() if k != faltante}
+
+    respuesta = cliente.post(
+        RUTA, json=SIN_CLIENTE | {"mesa_id": mesa.id, "cliente_nuevo": cliente_nuevo}
+    )
+
+    assert respuesta.status_code == 422
+    assert faltante in respuesta.json()["detalle"]
+    assert [c.id for c in _clientes_en_m4(db)] == [cliente_en_m4]
+    assert _cantidad_reservas(db) == 0

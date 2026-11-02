@@ -3,12 +3,14 @@
 from decimal import Decimal
 from typing import Protocol
 
+from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.modules.atencion import repository
 from app.modules.atencion.schemas import (
     ClienteModificar,
+    ClienteNuevo,
     ClienteSalida,
     DetalleEntrega,
     DetallePendiente,
@@ -246,3 +248,28 @@ def listar_clientes(
         limit=parametros.limit,
         offset=parametros.offset,
     )
+
+
+def registrar_cliente_para_reserva(db: Session, nombre: str, telefono: str) -> int:
+    """Interfaz para M5: valida y agrega el cliente en la sesión del llamador.
+
+    Obtiene el `id` con `flush`; no hace `commit` ni `rollback`, M5 confirma o revierte
+    junto con la reserva.
+    """
+    try:
+        datos = ClienteNuevo(nombre=nombre, telefono=telefono)
+    except ValidationError as error:
+        raise DatosInvalidosError(_describir_error(error)) from error
+    return repository.crear_cliente(db, datos.nombre, datos.telefono).id
+
+
+def existe_cliente(db: Session, cliente_id: int) -> bool:
+    return repository.obtener_cliente(db, cliente_id) is not None
+
+
+def _describir_error(error: ValidationError) -> str:
+    """Primer error como «campo: mensaje», sin el prefijo de pydantic ni el campo repetido."""
+    primero = error.errors()[0]
+    campo = str(primero["loc"][0]) if primero["loc"] else "datos"
+    mensaje = primero["msg"].removeprefix("Value error, ").removeprefix(f"{campo} ")
+    return f"{campo}: {mensaje}"

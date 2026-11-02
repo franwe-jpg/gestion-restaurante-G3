@@ -541,3 +541,65 @@ def test_consultar_entregas_comanda_cerrada_devuelve_detalles(
 def test_consultar_entregas_comanda_inexistente_lanza_no_encontrado(db: Session) -> None:
     with pytest.raises(NoEncontradoError, match="comanda 999"):
         service.consultar_entregas(db, 999)
+
+
+def _contar_clientes(db: Session) -> int:
+    return db.execute(text("SELECT COUNT(*) FROM clientes")).scalar_one()
+
+
+def test_registrar_cliente_para_reserva_devuelve_id_sin_commit(db: Session) -> None:
+    cliente_id = service.registrar_cliente_para_reserva(db, "Ana Pérez", "2804 123456")
+
+    assert isinstance(cliente_id, int)
+    assert repository.obtener_cliente(db, cliente_id) is not None
+    assert db.in_transaction()
+
+
+def test_registrar_cliente_para_reserva_rollback_posterior_no_deja_cliente(db: Session) -> None:
+    cliente_id = service.registrar_cliente_para_reserva(db, "Ana Pérez", "2804 123456")
+
+    db.rollback()
+
+    assert repository.obtener_cliente(db, cliente_id) is None
+    assert _contar_clientes(db) == 0
+
+
+def test_registrar_cliente_para_reserva_permite_nombres_repetidos(db: Session) -> None:
+    primero = service.registrar_cliente_para_reserva(db, "Ana Pérez", "2804 123456")
+    segundo = service.registrar_cliente_para_reserva(db, "Ana Pérez", "2804 654321")
+
+    assert primero != segundo
+    assert _contar_clientes(db) == 2
+
+
+@pytest.mark.parametrize(
+    ("nombre", "telefono", "campo"),
+    [("", "2804 123456", "nombre"), ("Ana", "", "telefono"), ("  ", "2804 123456", "nombre")],
+)
+def test_registrar_cliente_para_reserva_campo_vacio_nombra_el_campo(
+    db: Session, nombre: str, telefono: str, campo: str
+) -> None:
+    with pytest.raises(DatosInvalidosError) as error:
+        service.registrar_cliente_para_reserva(db, nombre, telefono)
+
+    assert str(error.value).startswith(f"{campo}: ")
+    assert _contar_clientes(db) == 0
+
+
+@pytest.mark.parametrize("nombre", ["Ana2", "Ana!", "Ana_Pérez"])
+def test_registrar_cliente_para_reserva_nombre_invalido_nombra_el_campo(
+    db: Session, nombre: str
+) -> None:
+    with pytest.raises(DatosInvalidosError) as error:
+        service.registrar_cliente_para_reserva(db, nombre, "2804 123456")
+
+    assert str(error.value) == "nombre: solo admite letras y espacios"
+    assert "Value error, " not in str(error.value)
+    assert _contar_clientes(db) == 0
+
+
+def test_existe_cliente_distingue_existente_de_inexistente(db: Session) -> None:
+    cliente_id = service.registrar_cliente_para_reserva(db, "Ana Pérez", "2804 123456")
+
+    assert service.existe_cliente(db, cliente_id) is True
+    assert service.existe_cliente(db, cliente_id + 999) is False

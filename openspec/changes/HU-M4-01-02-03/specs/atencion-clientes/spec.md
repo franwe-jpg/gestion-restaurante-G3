@@ -9,7 +9,7 @@ Capacidad nueva `atencion-clientes`. Esta especificación agrupa únicamente [HU
 | Dato | Contrato |
 | --- | --- |
 | `id` | Identificador de `Cliente` asignado por el sistema. |
-| `nombre` | Texto obligatorio; solo letras. NO DEBE ser único. No se fija longitud, normalización ni interpretación de espacios y acentos en este cambio. |
+| `nombre` | Texto obligatorio; solo letras y espacios (`Supuesto:` incluye letras acentuadas). NO DEBE ser único. No se fija longitud ni normalización en este cambio. |
 | `telefono` | `str` obligatorio, no vacío y NO único. `Supuesto:` formato técnico provisional confirmado: dígitos, espacios, guiones y `+` únicamente al comienzo; sin longitud ni otras restricciones añadidas. |
 
 | Ruta | Entrada | Respuesta | Errores |
@@ -19,13 +19,13 @@ Capacidad nueva `atencion-clientes`. Esta especificación agrupa únicamente [HU
 
 Los errores DEBEN tener la forma `{"detalle": "mensaje"}` y señalar el dato inválido cuando corresponda (D-25, D-26). Una página sin filas NO DEBE tratarse como error HTTP: la interfaz DEBE distinguir, a partir de `q` y la respuesta, entre lista sin clientes y búsqueda sin coincidencias. Un `offset` posterior a la última página no implica que no existan clientes: `total` permite distinguir ese caso. El contrato no define una ruta `POST /api/v1/clientes` de alta aislada ni una ruta de baja.
 
-**Límite M5:** la entrada HTTP de creación de `Reserva` y su respuesta se definirán con el responsable de M5 en HU-M5-01. Esa operación DEBE aceptar la selección de un `Cliente` existente o los datos de uno nuevo; el alta del cliente nuevo y la asociación a la primera reserva DEBEN confirmarse o revertirse juntas. Este documento NO establece unilateralmente la ruta ni el esquema de M5.
+**Límite M5:** la entrada HTTP de creación de `Reserva` y su respuesta las define el responsable de M5 en HU-M5-01; la interfaz de servicio acordada entre M4 y M5 figura en la última sección. Esa operación DEBE aceptar la selección de un `Cliente` existente o los datos de uno nuevo; el alta del cliente nuevo y la asociación a la primera reserva DEBEN confirmarse o revertirse juntas. Este documento NO establece unilateralmente la ruta ni el esquema de M5.
 
 ## Requisitos
 
 ### Requisito: Alta de cliente vinculada a la primera reserva (#48)
 
-El sistema DEBE registrar un cliente nuevo solo al guardar su primera reserva; DEBE asociarlo a esa reserva y NO DEBE dejarlo persistido si la reserva falla. `nombre` y `telefono` DEBEN estar presentes y no vacíos. El nombre DEBE contener solo letras según #48; la interpretación concreta de nombres compuestos o acentuados queda pendiente de acuerdo, sin añadir aquí restricciones. Nombres repetidos DEBEN estar permitidos.
+El sistema DEBE registrar un cliente nuevo solo al guardar su primera reserva; DEBE asociarlo a esa reserva y NO DEBE dejarlo persistido si la reserva falla. `nombre` y `telefono` DEBEN estar presentes y no vacíos. El nombre DEBE contener solo letras según #48 (`Supuesto:` letras acentuadas y espacios permitidos; ver la última sección). Nombres repetidos DEBEN estar permitidos.
 
 #### Escenario: Cliente nuevo y primera reserva guardados (#48 CA1)
 
@@ -131,5 +131,5 @@ El listado DEBE ofrecer los datos de contacto de cada cliente y DEBE paginarse. 
 - `SPRINT-0/G3 - Diagramas por modulo.drawio` atribuye unicidad al nombre y tipa el teléfono como entero; `SPRINT-0/G3 - Diagrama de clases unificado.drawio` declara el teléfono opcional. Se deben actualizar ambos diagramas en una tarea documental posterior; prevalecen #48-#50 y las decisiones confirmadas.
 - `SPRINT-1/S1-07-casos-de-prueba.md` describe el teléfono opcional y de 7 a 20 caracteres; esa guía no define la regla vigente de #49 CA3 y queda pendiente de reconciliación documental.
 - **Formato provisional confirmado:** `Supuesto:` admitir dígitos, espacios, guiones y `+` solo al principio para #49 CA3; no imponer restricciones adicionales. La definición funcional definitiva queda para el equipo.
-- **Coordinación pendiente con M5 (#61):** definir el contrato de entrada/salida del alta de reserva y la responsabilidad transaccional de la creación conjunta antes de implementar #48 CA1-CA3. M5 mantiene la propiedad de `Reserva` y sus reglas; M4 no modifica sus archivos unilateralmente.
-- **Precisión pendiente si bloquea una implementación concreta:** cómo interpretar «solo letras» en nombres con espacios o acentos; no imponer una regla no expresada en #48.
+- **Coordinación con M5 (#61), resuelta:** M4 expone en `atencion.service` `registrar_cliente_para_reserva(db, nombre, telefono) -> int` y `existe_cliente(db, cliente_id) -> bool`. La primera valida con las reglas de M4, informa datos inválidos como 422 con `detalle` que nombra el campo y agrega el cliente en la sesión de M5 sin confirmar ni revertir; M5 confirma o revierte cliente y reserva juntos. No se agrega `POST /api/v1/clientes`. M5 mantiene la propiedad de `Reserva`, su ruta y sus reglas (cambio `HU-M5-01-02-03`). `Supuesto:` los responsables de M4 y M5 revisan el PR conjunto.
+- **«Solo letras», resuelto:** `Supuesto:` se admiten letras, incluidas las acentuadas y la `ñ`, y espacios, según la regla vigente de `ClienteNuevo`; se rechazan dígitos y otros caracteres. El equipo valida el supuesto en la revisión del PR.

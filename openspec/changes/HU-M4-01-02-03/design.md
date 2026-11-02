@@ -2,14 +2,14 @@
 
 ## Enfoque técnico
 
-`Cliente` pertenece a M4. M4 expone listado/búsqueda y modificación, pero no alta independiente: la creación de un cliente nuevo ocurre dentro del guardado de su primera reserva, cuyo flujo HTTP pertenece a M5 (#61). En el estado actual, `backend/app/modules/atencion/` y `backend/app/modules/reservas/` contienen stubs; no existe todavía un contrato de integración implementado. La especificación de esta agrupación está en `specs/atencion-clientes/spec.md`.
+`Cliente` pertenece a M4. M4 expone listado/búsqueda y modificación, pero no alta independiente: la creación de un cliente nuevo ocurre dentro del guardado de su primera reserva, cuyo flujo HTTP pertenece a M5 (#61). La interfaz entre ambos módulos quedó acordada (ver «Delta: interfaz acordada con M5»): M4 expone dos funciones públicas en `atencion.service` y M5 las consume desde su `puente`, en el cambio `HU-M5-01-02-03` del mismo PR. La especificación de esta agrupación está en `specs/atencion-clientes/spec.md`.
 
 ## Decisiones y límites
 
 | Decisión | Elección técnica propuesta | Razón y alternativa descartada |
 | --- | --- | --- |
 | Propiedad y persistencia (D-03, D-05) | Una sola entidad `Cliente` administrada por M4 en `atencion/models.py`; M5 la referencia por clave foránea al nombre de tabla, sin importar sus modelos. Confirmar con M5 la ubicación final si su integración exige `shared/models/`. | Evita duplicar entidades o importar capas internas de otro módulo (RNF-MAN-09). El `env.py` ya registra `atencion.models`. |
-| Alta conjunta (D-04, D-10) | El `service` de M5 coordina la operación de reserva y usa exclusivamente una función pública del `service` de M4 para preparar el cliente en **la misma sesión/transacción**. Esa función agrega/obtiene el identificador, pero no confirma; M5 confirma una vez al persistir la reserva, o revierte ambos. | Dos commits independientes dejarían clientes sin reserva si M5 falla. Esta interfaz se propone para acordar con M5, no se implementa en este cambio por cuenta propia. |
+| Alta conjunta (D-04, D-10) | El `service` de M5 coordina la operación de reserva y usa exclusivamente `atencion.service.registrar_cliente_para_reserva` para crear el cliente en **la misma sesión/transacción**. Esa función obtiene el identificador con `flush`, pero no confirma ni revierte; M5 confirma una vez al persistir la reserva, o revierte ambos. | Dos commits independientes dejarían clientes sin reserva si M5 falla. Interfaz acordada con M5 (tarea 1.1); detalle en la sección «Delta». |
 | HTTP (D-21 a D-27) | `PUT /api/v1/clientes/{id}` con datos completos; `GET /api/v1/clientes?q=...&limit=...&offset=...` paginado. No exponer `POST /clientes` ni `DELETE /clientes`. | `PUT` hace explícita la sustitución completa de los dos datos obligatorios; el alta por M4 permitiría clientes sin primera reserva. |
 | Validación (D-06, D-25, D-26) | Esquemas de M4 para `nombre` y `telefono` requeridos como `str` no vacíos; nombre solo letras y formato técnico provisional del teléfono: dígitos, espacios, guiones y `+` solo al inicio. Validar antes de mutar; responder 422 con `detalle` y el campo. | Sin validación previa se pueden aplicar cambios parciales; no se prescribe longitud ni unicidad telefónica. |
 | Búsqueda (D-27) | Consulta en el repositorio M4: coincidencia total o parcial del nombre, o coincidencia del teléfono, con un único `q`; paginar y contar sobre el mismo filtro. La búsqueda interpreta el texto literalmente, sin convertir caracteres especiales de la consulta en comodines SQL. | Filtrar solo la página en memoria daría `total` incorrecto. No se presupone que el teléfono identifique a una sola persona. |
@@ -20,10 +20,11 @@
 ## Flujo de datos y transacciones
 
 ```text
-M5 (flujo futuro de #61): POST de reserva → reservas.router → reservas.service
-    ├─ cliente existente: localizar/validar por contrato público de M4
-    └─ cliente nuevo: atencion.service.preparar_cliente_para_reserva(db, datos)
-                        → atencion.repository → clientes (sin commit)
+M5 (#61): POST /reservas → reservas.router → reservas.service → reservas.puente
+    ├─ cliente existente: atencion.service.existe_cliente(db, cliente_id) -> bool
+    └─ cliente nuevo: atencion.service.registrar_cliente_para_reserva(db, nombre, telefono)
+                        → ClienteNuevo (validación) → atencion.repository
+                        → clientes (add + flush, sin commit) → id
     → reservas.repository → reservas (misma sesión)
     → commit conjunto o rollback conjunto (responsabilidad de M5)
 
@@ -33,7 +34,7 @@ M4: PUT /clientes/{id} → validación → atencion.service → atencion.reposit
     → commit único → ClienteSalida; datos inválidos: 422 sin mutación
 ```
 
-La interfaz M4-M5 propuesta necesita acuerdo con el responsable de #61: nombre/forma del DTO de entrada, resolución de cliente existente, semántica de errores y dueño de la transacción. M5 sigue siendo dueño del endpoint, la validación de mesa, fecha y estado, la asociación y la persistencia de `Reserva`. Ni una inserción de cliente por separado ni una llamada HTTP M5→M4 con commits separados satisfacen #48 CA1. Probar fallo de reserva y ausencia de cliente huérfano cuando exista la implementación coordinada. El modelo de cliente no lleva una dependencia circular de FK a reservas; la garantía de al menos una reserva nace del flujo atómico de alta, no de un `POST /clientes` aislado.
+La interfaz M4-M5 quedó acordada con el responsable de #61 (sección «Delta»): entrada con tipos primitivos, resolución de cliente existente por `existe_cliente`, errores con `DatosInvalidosError` y transacción a cargo de M5. M5 sigue siendo dueño del endpoint, la validación de mesa, fecha y estado, la asociación y la persistencia de `Reserva`. Ni una inserción de cliente por separado ni una llamada HTTP M5→M4 con commits separados satisfacen #48 CA1. M4 prueba en su servicio que un rollback de la sesión no deja cliente; M5 prueba el fallo de reserva real sin cliente huérfano en su cambio. El modelo de cliente no lleva una dependencia circular de FK a reservas; la garantía de al menos una reserva nace del flujo atómico de alta, no de un `POST /clientes` aislado.
 
 ## Contratos concretos de M4
 
@@ -45,7 +46,7 @@ La interfaz M4-M5 propuesta necesita acuerdo con el responsable de #61: nombre/f
 | `Pagina[ClienteSalida]` | `items`, `total`, `limit`, `offset`; usar `shared/paginacion.py`, 50 por defecto, 100 máximo. |
 | M4 `GET /api/v1/clientes` | 200, incluye búsqueda `q` sobre nombre parcial o teléfono; 422 si paginación inválida. `items: []`/`total: 0` en búsqueda vacía o registro vacío. |
 | M4 `PUT /api/v1/clientes/{id}` | 200 con salida actualizada; 404 inexistente; 422 si faltan datos, son vacíos o el nombre no satisface la regla. Sin cambios persistidos en todo caso de error de validación. |
-| Interfaz M5 #61 | Pendiente de coordinación. Debe distinguir cliente existente vs datos de cliente nuevo, confirmar cliente y reserva en la misma transacción, y usar solo `atencion.service` como interfaz entre módulos (S0-05 §3.3). No se define unilateralmente la ruta o los schemas de M5. |
+| Interfaz M5 #61 | Acordada: `registrar_cliente_para_reserva(db, nombre, telefono) -> int` y `existe_cliente(db, cliente_id) -> bool` en `atencion.service` (S0-05 §3.3). La ruta y los schemas de M5 los define M5 en `HU-M5-01-02-03`. |
 
 Formato de errores HTTP: `{"detalle": "mensaje"}`; `NoEncontradoError` para 404, errores de entrada para 422. No usar 409 para nombres o teléfonos repetidos. Mantener `q` como texto de búsqueda; no transformarlo en restricción de formato telefónico.
 
@@ -59,7 +60,7 @@ Formato de errores HTTP: `{"detalle": "mensaje"}`; `NoEncontradoError` para 404,
 | `backend/tests/modules/atencion/` | Pruebas de esquemas, servicio, repositorio, router y migración según #48-#50. |
 | `frontend/src/modules/atencion/{types.ts,api.ts,pages/AtencionPage.tsx,components/}` | Tipos, llamadas de M4, listado, búsqueda, formulario de edición y estados vacíos; pruebas junto a componentes. |
 | `frontend/src/shared/components/` | Solo lectura para reutilización: `EmptyState`, `PageHeader`, `ui/data-table`, `ui/search-input`, `ui/form-field` y `ui/dialog`. |
-| `backend/app/modules/reservas/` | **Fuera del alcance de edición de M4**: M5 implementará el punto de entrada y la reserva cuando se acuerde el contrato de #61. |
+| `backend/app/modules/reservas/` | **Fuera del alcance de edición de este cambio**: M5 reemplaza el stub `puente.existe_cliente` y agrega el alta conjunta en `HU-M5-01-02-03`. |
 
 ## Pruebas y verificación previstas
 
@@ -67,7 +68,8 @@ Formato de errores HTTP: `{"detalle": "mensaje"}`; `NoEncontradoError` para 404,
 | --- | --- | --- |
 | Esquema y HTTP de M4 | #49 CA1, CA2, CA4; 404; 422; registro sin cambios tras solicitud inválida | `pytest tests/modules/atencion/` con base temporal y `TestClient`. |
 | Consultas y frontend de M4 | #50 CA1-CA5, nombres repetidos, teléfonos compartidos, paginación y estados vacíos diferenciados | Pruebas de repositorio y Vitest/Testing Library para página, formulario y `api.ts`. |
-| Integración M4-M5 | #48 CA1-CA3, fallo de reserva sin cliente huérfano; uso de cliente existente #61 | Pruebas acordadas con M5 sobre sesión compartida y reserva real; no se consideran completadas con mocks de M5. |
+| Interfaz M4 para M5 | #48 CA2-CA3 en el servicio; `flush` sin commit; rollback sin cliente; nombres repetidos; `existe_cliente` | `tests/modules/atencion/test_service.py` con sesión SQLite compartida (detalle en «Delta»). |
+| Integración M4-M5 | #48 CA1-CA3 con reserva real, fallo de reserva sin cliente huérfano; uso de cliente existente #61 | Pruebas del cambio `HU-M5-01-02-03` sobre la interfaz real de M4; no se consideran completadas con el stub de M5. |
 | Criterio telefónico provisional | #49 CA3 | Probar primero en rojo un valor fuera del formato técnico provisional confirmado y comprobar que los datos previos se conservan. |
 | Infraestructura | Creación/reversión de la tabla, contratos de importación y checks de CI | `alembic upgrade`/`downgrade` en base temporal; `ruff`, `lint-imports`, `pytest`, `npm run lint`, `format:check`, `typecheck`, `test:coverage` y `build`. |
 
@@ -80,7 +82,57 @@ El cambio planifica rutas HTTP de FastAPI, pero no cambia enrutamiento de agente
 ## Dependencias y pendientes
 
 1. **Formato definitivo #49 CA3:** el formato técnico provisional confirmado permite implementar el criterio; coordinar su eventual reemplazo funcional con el equipo sin imponer requisitos nuevos ahora.
-2. **Acuerdo M5 #61:** fijar contrato e integración transaccional con su responsable. #61 y las tres HU M4 figuran abiertas; no dar por cerrada su dependencia. No tocar M5 o `shared/` sin coordinación.
+2. **Acuerdo M5 #61 (resuelto):** interfaz y transacción acordadas (sección «Delta»). El cierre de #48 depende de las pruebas de integración del cambio `HU-M5-01-02-03`. No tocar `shared/` sin coordinación.
 3. **Correcciones documentales:** `SPRINT-0/G3 - Diagramas por modulo.drawio` presenta nombre único y teléfono entero; `SPRINT-0/G3 - Diagrama de clases unificado.drawio` presenta teléfono opcional. `SPRINT-1/S1-07-casos-de-prueba.md` presupone teléfono opcional de 7 a 20 caracteres. Registrar y corregir posteriormente; no derivar validaciones de esos documentos contradictorios.
-4. **Nombre compuesto y acentuado:** precisar con el equipo si una implementación concreta necesita distinguir espacios o letras acentuadas; #48 prohíbe números y caracteres especiales, pero no los define para ese caso.
-5. **Rama de implementación:** la rama actual `feat/m4-clientes` difiere del patrón `feature/<ID>-<descripcion>` de `AGENTS.md`; regularizar antes de escribir código.
+4. **Nombre compuesto y acentuado (resuelto):** `Supuesto:` rige la regla vigente de `ClienteNuevo`: letras Unicode (incluye acentos y `ñ`) y espacios; se rechazan dígitos y otros caracteres. El equipo valida el supuesto en la revisión del PR.
+5. **Rama de implementación:** el delta se implementa en `feature/HU-M4-01-HU-M5-01-cliente-en-reserva`, un solo PR junto con `HU-M5-01-02-03`.
+
+## Delta: interfaz acordada con M5
+
+Resolución de la tarea 1.1. Responsables: Juan Ignacio Riquelme (M4) y Federico Cabaña (M5). `Supuesto:` ambos revisan el PR conjunto.
+
+### Interfaz pública en `backend/app/modules/atencion/service.py`
+
+```python
+def registrar_cliente_para_reserva(db: Session, nombre: str, telefono: str) -> int: ...
+def existe_cliente(db: Session, cliente_id: int) -> bool: ...
+```
+
+- `registrar_cliente_para_reserva` valida con `ClienteNuevo`, agrega el cliente mediante `repository.crear_cliente` (`db.add` + `db.flush()`, como `crear_comanda`) y devuelve el `id`. **No hace `commit` ni `rollback`.**
+- `existe_cliente` devuelve `repository.obtener_cliente(db, cliente_id) is not None`.
+- Sin ruta HTTP nueva (no hay `POST /clientes`); sin cambios en `ClienteSalida`, `GET`/`PUT /clientes`, modelos ni migraciones.
+
+### Decisiones
+
+| Tema | Opción elegida | Alternativa descartada y razón |
+| --- | --- | --- |
+| Forma de la entrada | Tipos primitivos (`nombre`, `telefono`) | Recibir `ClienteNuevo`: M5 no puede importar `atencion.schemas` (contrato `lint-imports` de `backend/pyproject.toml`). |
+| Validación | En M4, con `ClienteNuevo` como única fuente de reglas | Validar en M5: duplicaría la regla de nombre y el formato provisional del teléfono, con riesgo de divergencia. |
+| Transacción | El llamador (M5) confirma o revierte; M4 solo hace `flush` | Commit en M4: dejaría clientes sin reserva si la reserva falla (#48 CA1). |
+| Errores | `ValidationError` de pydantic se traduce a `DatosInvalidosError` con un mensaje que nombra el campo (p. ej. «nombre: solo admite letras y espacios»); el manejador global responde 422 `{"detalle": ...}` | Propagar `ValidationError`: el manejador global no lo convierte y filtraría el formato interno de pydantic (500). |
+| Cliente existente | `existe_cliente` reemplaza el stub `puente.existe_cliente` de M5 | Exponer el modelo o el repositorio: prohibido por S0-05 §3.3. |
+
+Si hay varios errores, el mensaje informa el primero, con el nombre del campo; la redacción exacta se fija en las pruebas.
+
+### Pruebas (Strict TDD, `backend/tests/modules/atencion/test_service.py`)
+
+Sesión SQLite compartida, sin `TestClient`:
+
+1. Datos válidos: devuelve un `id`; el cliente es visible en la misma sesión y la transacción sigue abierta (sin commit propio).
+2. `db.rollback()` posterior: el cliente no queda registrado (#48 CA1, límite).
+3. Dos clientes con el mismo nombre: ambos se registran.
+4. `nombre` o `telefono` vacío: `DatosInvalidosError` que nombra el campo, sin cliente agregado (#48 CA2).
+5. Nombre con dígitos o caracteres especiales: `DatosInvalidosError` que nombra `nombre` (#48 CA3).
+6. `existe_cliente`: `True` para un cliente existente, `False` para un `id` inexistente.
+
+### Archivos
+
+| Archivo | Acción |
+| --- | --- |
+| `backend/app/modules/atencion/service.py` | Modificar: agregar las dos funciones públicas. |
+| `backend/app/modules/atencion/repository.py` | Modificar: agregar `crear_cliente` (add + flush). |
+| `backend/tests/modules/atencion/test_service.py` | Modificar: pruebas 1 a 6. |
+
+### Reversión
+
+Quitar las dos funciones, `crear_cliente` y sus pruebas. No hay migración ni datos que revertir; M5 vuelve a su stub `puente.existe_cliente` si su cambio también se revierte.

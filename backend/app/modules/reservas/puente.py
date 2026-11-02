@@ -3,7 +3,8 @@
 El lado Mesa es real (S33): consulta a M3 solo con `app.modules.salon.service.listar_mesas` y
 lee todas sus paginas, porque M3 pagina (100 como maximo), no filtra por estado y no busca por
 `id`. `listar_mesas` y `obtener_mesa` salen de la misma lectura, asi que informan lo mismo de cada
-mesa. El lado Cliente sigue siendo un stub hasta que M4 exponga Cliente (S6, S20).
+mesa. El lado Cliente tambien es real (S39): consulta y registra clientes solo con
+`app.modules.atencion.service.existe_cliente` y `registrar_cliente_para_reserva`.
 
 El `service` llama siempre a `puente.<operacion>(...)` para que las pruebas puedan reemplazarlas.
 La capacidad de la mesa solo se informa para mostrarla en el selector de mesas: la cantidad de
@@ -15,6 +16,7 @@ from typing import Protocol
 
 from sqlalchemy.orm import Session
 
+from app.modules.atencion import service as atencion_service
 from app.modules.salon import service as salon_service
 from app.shared.models.enums import EstadoMesa
 from app.shared.paginacion import LIMIT_MAXIMO, ParametrosPaginacion
@@ -91,5 +93,13 @@ def obtener_mesa(db: Session, mesa_id: int) -> MesaReservable | None:
 
 
 def existe_cliente(db: Session, cliente_id: int) -> bool:
-    """Stub hasta que M4 exponga Cliente (S6): todo cliente positivo existe."""
-    return cliente_id > 0
+    """Un cliente existe si M4 lo tiene (S39)."""
+    return atencion_service.existe_cliente(db, cliente_id)
+
+
+def registrar_cliente(db: Session, nombre: str, telefono: str) -> int:
+    """Registra el cliente en M4 dentro de la sesion de la reserva; M4 no confirma (S41).
+
+    Si M4 rechaza los datos, su `DatosInvalidosError` sube tal cual (S42).
+    """
+    return atencion_service.registrar_cliente_para_reserva(db, nombre, telefono)
