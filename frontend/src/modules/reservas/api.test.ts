@@ -4,12 +4,14 @@ import { clienteHttp } from '../../shared/api/client';
 
 import {
   buscarClientes,
+  cancelarReservaAnticipada,
+  cancelarReservaPorAusencia,
   crearReserva,
   listarMesasDisponibles,
   listarReservas,
   modificarReserva,
 } from './api';
-import type { MesaDisponible, ReservaCrear, ReservaModificar } from './types';
+import type { MesaDisponible, Reserva, ReservaCrear, ReservaModificar } from './types';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -62,6 +64,41 @@ describe('api de reservas', () => {
       hora: '22:00',
       cantidad_personas: 6,
     });
+    expect(resultado).toBe(respuesta);
+  });
+});
+
+describe('api de reservas: cancelaciones (HU-M5-04-05)', () => {
+  const RESERVA_CANCELADA: Reserva = {
+    id: 1,
+    mesa_id: 5,
+    cliente_id: 7,
+    fecha: '2026-11-02',
+    hora: '21:30',
+    cantidad_personas: 4,
+    estado: 'CANCELADA_ANTICIPADA',
+  };
+
+  it('cancela una reserva anticipadamente con POST /reservas/{id}/cancelar-anticipada sin cuerpo', async () => {
+    const respuesta = { datos: RESERVA_CANCELADA, exito: true };
+    const post = vi.spyOn(clienteHttp, 'post').mockResolvedValue(respuesta);
+
+    const resultado = await cancelarReservaAnticipada(1);
+
+    expect(post).toHaveBeenCalledWith('/reservas/1/cancelar-anticipada', {});
+    expect(resultado).toBe(respuesta);
+  });
+
+  it('cancela una reserva por ausencia con POST /reservas/{id}/cancelar-por-ausencia sin cuerpo', async () => {
+    const respuesta = {
+      datos: { ...RESERVA_CANCELADA, id: 2, estado: 'CANCELADA_POR_AUSENCIA' as const },
+      exito: true,
+    };
+    const post = vi.spyOn(clienteHttp, 'post').mockResolvedValue(respuesta);
+
+    const resultado = await cancelarReservaPorAusencia(2);
+
+    expect(post).toHaveBeenCalledWith('/reservas/2/cancelar-por-ausencia', {});
     expect(resultado).toBe(respuesta);
   });
 });

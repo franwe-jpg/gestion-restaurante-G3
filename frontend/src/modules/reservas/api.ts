@@ -44,6 +44,22 @@ export function modificarReserva(
   return clienteHttp.put<Reserva, ReservaModificar>(`/reservas/${id}`, datos);
 }
 
+/** HU-M5-04: `POST /reservas/{id}/cancelar-anticipada`, sin cuerpo. */
+export function cancelarReservaAnticipada(id: number): Promise<RespuestaApi<Reserva>> {
+  return clienteHttp.post<Reserva, Record<string, never>>(
+    `/reservas/${id}/cancelar-anticipada`,
+    {},
+  );
+}
+
+/** HU-M5-05: `POST /reservas/{id}/cancelar-por-ausencia`, sin cuerpo. */
+export function cancelarReservaPorAusencia(id: number): Promise<RespuestaApi<Reserva>> {
+  return clienteHttp.post<Reserva, Record<string, never>>(
+    `/reservas/${id}/cancelar-por-ausencia`,
+    {},
+  );
+}
+
 /** Resultados de la búsqueda de clientes: la primera página, sin paginar en pantalla (S43). */
 export const LIMITE_BUSQUEDA_CLIENTES = 10;
 

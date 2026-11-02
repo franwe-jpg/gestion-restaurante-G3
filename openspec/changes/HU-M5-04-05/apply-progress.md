@@ -134,3 +134,203 @@ la spec listado en las tareas 1.1 a 1.4; los ids de reserva son los que devuelve
 
 Fase 2 (frontend, tareas 2.1 a 2.12): depende de esta fase, ya aplicada y verificada. Fase 3
 (cierre, 3.1 y 3.2) queda para después de la Fase 2.
+
+## Fase 2 · Frontend de cancelaciones
+
+**Estado:** tareas 2.1 a 2.11 completas. 2.12 (el commit) queda para quien orquesta el cambio:
+este lote no toca git en ninguna forma (ni `add`, ni `commit`, ni `restore`; las restauraciones de
+las mutaciones de 2.10 se hicieron con `cp` desde una copia de respaldo en el scratchpad, no con
+`git`).
+
+**Línea base de referencia:** `npx vitest run` (todo el repo, antes de tocar ningún archivo de
+esta fase): **75 archivos de prueba, 896 pruebas, todas en verde**. Al final de la fase (con
+`test:coverage`, que corre la misma suite con cobertura): **76 archivos, 911 pruebas** (+1 archivo
+nuevo, `useCancelarReserva.test.tsx`; +15 pruebas: 2 en `api.test.ts`, 7 en
+`useCancelarReserva.test.tsx`, 3 en `ReservasTabla.test.tsx`, 3 en `ReservasPage.test.tsx`).
+
+### Tareas completadas
+
+- [x] 2.1 (Rojo) `api.test.ts`: dos casos nuevos en un `describe` «cancelaciones (HU-M5-04-05)»,
+  con `vi.spyOn(clienteHttp, 'post')` (mismo patrón que `modificarReserva`):
+  `cancelarReservaAnticipada(1)` llama con `'/reservas/1/cancelar-anticipada'` y `{}`;
+  `cancelarReservaPorAusencia(2)` llama con `'/reservas/2/cancelar-por-ausencia'` y `{}`. Falló
+  con `TypeError: cancelarReservaAnticipada is not a function` (y el equivalente para la otra),
+  confirmado abajo.
+- [x] 2.2 (Rojo) Creado `useCancelarReserva.test.tsx`, patrón de `useBajaMesa.test.tsx`
+  (`renderHook` con `ConfirmContext.Provider` + `ToastContext.Provider`, `confirmar = vi.fn()`,
+  `mostrarToast = vi.fn()`, `vi.mock('../api')`): 7 casos — por cada acción (anticipada y por
+  ausencia), confirmar→llama a su función de `api.ts` con el `id`→toast `success` con su
+  texto→`onCancelada` una vez (2 casos); los textos exactos pasados a `confirmar` por acción (2
+  casos); un 409 con `detalle` muestra el toast `danger` «No se pudo cancelar la reserva» con ese
+  `detalle` y no llama a `onCancelada`, por acción (2 casos); cancelar el diálogo no llama a
+  ninguna API ni a `onCancelada`, para las dos acciones (1 caso). Falló con
+  `Error: Failed to resolve import "./useCancelarReserva"` (el archivo no existe), confirmado
+  abajo.
+- [x] 2.3 (Rojo) `ReservasTabla.test.tsx`: `mostrar(...)` ahora exige `onCancelarAnticipada` y
+  `onCancelarPorAusencia` además de `onModificar` (con `vi.fn()` por defecto); 3 casos nuevos en un
+  `describe` de las dos acciones — se ofrecen solo en la fila `ACTIVA` (con `Modificar reserva`),
+  ninguna de las tres en las demás filas; cada botón nuevo llama a su callback con la reserva de su
+  fila. Falló: el botón `aria-label="Cancelar reserva"` (y el de «Cancelar por ausencia») no existe
+  todavía, confirmado abajo.
+- [x] 2.4 (Rojo) `ReservasPage.test.tsx`: `abrir()` ahora envuelve con un
+  `ConfirmContext.Provider` (`confirmar = vi.fn().mockResolvedValue(aceptado)`, `aceptado = true`
+  por defecto, patrón `renderConConfirmacion` de `SalonPage.test.tsx`) y devuelve el mock; además de
+  `ToastContext.Provider`, sin cambiar las pruebas existentes. Nuevo `describe('ReservasPage:
+  cancelar una reserva (HU-M5-04-05)')` con 3 casos: confirmar «Cancelar reserva» llama a
+  `cancelarReservaAnticipada(1)` y pide el listado otra vez (2 llamadas a `listarReservas`);
+  confirmar «Cancelar por ausencia» llama a `cancelarReservaPorAusencia(1)` e igual; un 409 no
+  vuelve a pedir el listado (`listarReservas` sigue en 1 llamada). Falló con `TypeError: Cannot read
+  properties of undefined (reading 'mockResolvedValue')` (las dos funciones de `api.ts` no
+  existían todavía desde el mock de `vi.mock('../api')`); las 23 pruebas preexistentes del archivo
+  siguieron en verde con el `ConfirmContext.Provider` nuevo, confirmado abajo.
+- [x] 2.5 (Verde) `api.ts`, después de `modificarReserva`: `cancelarReservaAnticipada(id)` y
+  `cancelarReservaPorAusencia(id)`, cada una `clienteHttp.post<Reserva, Record<string,
+  never>>(url, {})`, código idéntico a la Decisión 35 del diseño (copiado del patrón de
+  `salon/api.ts:18` y `atencion/api.ts:50`). Pasa 2.1 (12/12 en `api.test.ts`).
+- [x] 2.6 (Verde) Creado `useCancelarReserva.ts` con el código exacto de la Decisión 36 del
+  diseño: tipo `Cancelacion`, constantes `ANTICIPADA` y `POR_AUSENCIA` con los textos de S52,
+  función privada `cancelar` y el hook `useCancelarReserva({ onCancelada })` que devuelve
+  `{ cancelando, cancelarAnticipada, cancelarPorAusencia }`. Pasa 2.2 (7/7).
+- [x] 2.7 (Verde) `ReservasTabla.tsx` (Decisión 37): `ReservasTablaProps` suma
+  `onCancelarAnticipada` y `onCancelarPorAusencia`, obligatorias; `columnaAcciones` recibe un
+  objeto `AccionesDeFila` (`Pick<ReservasTablaProps, 'onModificar' | 'onCancelarAnticipada' |
+  'onCancelarPorAusencia'>`) y, dentro de la misma condición `r.estado === 'ACTIVA'` que ya ocultaba
+  «Modificar reserva» (sin duplicarla), agrega un `<div className="flex justify-end gap-1">` con
+  los botones `aria-label="Cancelar reserva"` (`CalendarX`) y `aria-label="Cancelar por ausencia"`
+  (`UserX`), ambos con `aria-hidden="true"` en el ícono. Pasa 2.3 (11/11).
+- [x] 2.8 (Verde) `ReservasPage.tsx` (Decisión 38): `ListadoDelDiaProps` suma
+  `onCancelarAnticipada` y `onCancelarPorAusencia` y `ListadoDelDia` las pasa a `ReservasTabla`;
+  `ReservasPage` instancia `useCancelarReserva({ onCancelada: listado.reservas.recargar })` y
+  conecta `onCancelarAnticipada={(reserva) => void cancelarAnticipada(reserva)}` y el equivalente
+  para `cancelarPorAusencia`, mismo patrón que `onEliminar={(mesa) => void eliminar(mesa)}` de
+  `SalonPage.tsx:104`. Pasa 2.4 (26/26, incluidas las 23 preexistentes). Suite completa de
+  `src/modules/reservas`: 12 archivos, 242 pruebas, todas en verde.
+- [x] 2.9 (Refactor) Revisado `useCancelarReserva.ts` y `ReservasTabla.tsx`: los textos de S52
+  están solo en `ANTICIPADA` y `POR_AUSENCIA` (la prueba los repite solo para comparar, como pide
+  la tarea); `r.estado === 'ACTIVA'` aparece una sola vez en `ReservasTabla.tsx`, compartida por las
+  tres acciones (no se duplicó). Sin cambios de comportamiento necesarios: el código ya coincidía
+  con las Decisiones 36 y 37 del diseño. Suite de `src/modules/reservas` reconfirmada en verde
+  (12 archivos, 242 pruebas) después de la revisión.
+- [x] 2.10 Mutaciones, una por vez, restauradas a mano desde una copia de respaldo en el
+  scratchpad (`cp`, no `git restore`): ver evidencia abajo. Las tres hicieron fallar la prueba
+  esperada; los dos archivos quedaron restaurados byte a byte (`diff` contra el respaldo sin
+  salida) después de cada mutación.
+- [x] 2.11 Verificación completa con `V-FRONT` (ver evidencia abajo): `npm run format` reformateó
+  1 archivo (`ReservasTabla.tsx`, cosmético: re-wrap de la línea larga de `columnas={[...]}`);
+  después `npm run lint && npm run format:check && npm run typecheck && npm run test:coverage &&
+  npm run build`, todo en verde.
+
+### Evidencia RED → GREEN
+
+**RED, tarea por tarea** (confirmado arriba, uno por uno con `npx vitest run <archivo>` al crear
+cada prueba, antes de escribir el código de producción correspondiente):
+
+| Tarea | Archivo | Comando | Resultado RED |
+| --- | --- | --- | --- |
+| 2.1 | `api.test.ts` | `npx vitest run src/modules/reservas/api.test.ts` | 2 failed / 10 passed — `TypeError: cancelarReservaAnticipada is not a function` (y el equivalente para `cancelarReservaPorAusencia`) |
+| 2.2 | `useCancelarReserva.test.tsx` | `npx vitest run src/modules/reservas/components/useCancelarReserva.test.tsx` | 1 archivo falló al resolver, `Error: Failed to resolve import "./useCancelarReserva"` (0 pruebas corridas: el archivo no existe) |
+| 2.3 | `ReservasTabla.test.tsx` | `npx vitest run src/modules/reservas/components/ReservasTabla.test.tsx` | 3 failed / 8 passed — los botones `aria-label="Cancelar reserva"` y `"Cancelar por ausencia"` no se encuentran (`TestingLibraryElementError`) |
+| 2.4 | `ReservasPage.test.tsx` | `npx vitest run src/modules/reservas/pages/ReservasPage.test.tsx` | 3 failed / 23 passed — `TypeError: Cannot read properties of undefined (reading 'mockResolvedValue')`; las 23 preexistentes siguieron en verde con el `ConfirmContext.Provider` nuevo |
+
+**GREEN, tarea por tarea** (mismo comando, después de escribir cada pieza de código):
+
+| Tarea | Comando | Resultado GREEN |
+| --- | --- | --- |
+| 2.5 | `npx vitest run src/modules/reservas/api.test.ts` | 12/12 passed |
+| 2.6 | `npx vitest run src/modules/reservas/components/useCancelarReserva.test.tsx` | 7/7 passed |
+| 2.7 | `npx vitest run src/modules/reservas/components/ReservasTabla.test.tsx` | 11/11 passed |
+| 2.8 | `npx vitest run src/modules/reservas/pages/ReservasPage.test.tsx` (implícito en la corrida completa de 2.8) | 26/26 passed |
+| 2.8 (completa) | `npx vitest run src/modules/reservas` | 12 archivos, 242 passed |
+| 2.9 (post-refactor) | `npx vitest run src/modules/reservas` | 12 archivos, 242 passed (sin cambios de resultado) |
+
+### Mutaciones (2.10)
+
+Copias de respaldo: `scratchpad/ReservasTabla.tsx.backup` y `scratchpad/useCancelarReserva.ts.backup`
+(no versionadas, fuera del repositorio).
+
+| Mutación | Archivo | Cambio | Comando enfocado | Resultado |
+| --- | --- | --- | --- | --- |
+| (a) | `ReservasTabla.tsx` | La condición compartida `r.estado === 'ACTIVA'` de la columna de acciones se cambió a `true` (afecta a los tres botones, incluidos los dos nuevos: el diseño comparte una sola condición para las tres acciones, Decisión 37) | `npx vitest run src/modules/reservas/components/ReservasTabla.test.tsx` | **2 failed** (`se ofrecen solo en las filas ACTIVA` del `describe` nuevo y `se ofrece solo en las filas ACTIVA` de «Modificar reserva», que comparten la misma condición mutada) |
+| (b) | `useCancelarReserva.ts` | Se quita `if (!aceptado) return;` de `cancelar` | `npx vitest run src/modules/reservas/components/useCancelarReserva.test.tsx` | **3 failed** (el caso «cancelar el diálogo… no llama a ninguna API», que la tarea pedía cubrir, y dos casos más que la mutación rompió de paso al intentar leer `respuesta.exito` de una llamada nunca simulada) |
+| (c) | `useCancelarReserva.ts` | `ANTICIPADA.llamar` pasa de `cancelarReservaAnticipada` a `cancelarReservaPorAusencia` (intercambio de endpoints) | `npx vitest run src/modules/reservas/components/useCancelarReserva.test.tsx` | **2 failed** (los dos casos de «cancelación anticipada» que esperaban que se llamara a `cancelarReservaAnticipada`) |
+
+Restaurado con `cp scratchpad/<archivo>.backup <archivo>` después de cada mutación; `diff` contra
+el respaldo no mostró diferencias tras cada restauración (confirmado tarea por tarea, no solo al
+final). Suite de `src/modules/reservas` reconfirmada en verde (12 archivos, 242 pruebas) después de
+restaurar la última mutación, antes de seguir a 2.11.
+
+### Verificación completa (2.11)
+
+Línea base del repo completo antes de tocar cualquier archivo de esta fase:
+`npx vitest run` → **75 archivos de prueba, 896 pruebas, todas en verde** (duración 43.44 s).
+
+`V-FRONT`, en orden, desde `frontend/`:
+
+- `npm run format`: reformateó **1 archivo** (`ReservasTabla.tsx`; re-wrap cosmético de la línea
+  larga de `columnas={[...COLUMNAS, columnaAcciones({...})]}`, sin cambio de comportamiento).
+- `npm run lint`: **0 errores, 0 advertencias** (`eslint . --max-warnings=0`, sin salida).
+- `npm run format:check`: **«All matched files use Prettier code style!»**
+- `npm run typecheck`: **`tsc --noEmit` sin errores.**
+- `npm run test:coverage`: **76 archivos de prueba, 911 pruebas, todas en verde** (+1 archivo, +15
+  pruebas sobre la línea base de 75/896). Umbral de cobertura (60 %) cumplido sin fallo (`exit
+  0`); el `include` de `coverage` en `vite.config.ts` (preexistente, no tocado por esta fase) mide
+  solo `src/App.tsx` y `src/shared/**`, así que el reporte de cobertura no incluye
+  `src/modules/reservas/**` por diseño del proyecto — el umbral de 60 % se evalúa sobre ese alcance
+  preexistente, no sobre este módulo.
+- `npm run build`: **`tsc --noEmit && vite build`** — `2114 modules transformed`, build exitoso
+  (`dist/assets/ReservasPage-DJoR0MPJ.js`, 16.80 kB), sin errores.
+
+Ningún comando requerido falló; ninguna prueba conocida falla en la base
+(`Known environmental failures: None` del encargo, confirmado con la línea base de 75/896 antes de
+empezar).
+
+### Archivos tocados
+
+| Archivo | Acción | Qué se hizo | Líneas (`git diff --numstat`, agregadas/quitadas) |
+| --- | --- | --- | --- |
+| `frontend/src/modules/reservas/api.ts` | Modificado | `cancelarReservaAnticipada`, `cancelarReservaPorAusencia` | +16 / -0 |
+| `frontend/src/modules/reservas/api.test.ts` | Modificado | 2 pruebas nuevas de las dos funciones | +38 / -1 |
+| `frontend/src/modules/reservas/components/useCancelarReserva.ts` | Creado | Hook de la Decisión 36 | +72 / -0 |
+| `frontend/src/modules/reservas/components/useCancelarReserva.test.tsx` | Creado | 7 pruebas del hook | +148 / -0 |
+| `frontend/src/modules/reservas/components/ReservasTabla.tsx` | Modificado | Dos props y dos botones en la fila `ACTIVA` | +47 / -11 |
+| `frontend/src/modules/reservas/components/ReservasTabla.test.tsx` | Modificado | 3 pruebas nuevas de visibilidad y callbacks | +52 / -3 |
+| `frontend/src/modules/reservas/pages/ReservasPage.tsx` | Modificado | Hook y conexión con la tabla | +21 / -2 |
+| `frontend/src/modules/reservas/pages/ReservasPage.test.tsx` | Modificado | `ConfirmContext.Provider` en `abrir()` y 3 pruebas de los dos flujos de cancelación | +56 / -7 |
+| `openspec/changes/HU-M5-04-05/tasks.md` | Modificado | Tareas 2.1 a 2.11 marcadas `[x]` |  |
+| `openspec/changes/HU-M5-04-05/apply-progress.md` | Modificado | Esta sección, agregada después de «Fase 1» |  |
+
+**Total autorado (código + pruebas de este módulo, sin los dos archivos de Markdown):** 450
+líneas agregadas, 24 quitadas (`git diff --numstat` sobre los archivos modificados + el conteo de
+líneas de los dos archivos nuevos) = **474 líneas**. Dentro del pronóstico del diseño/tareas (350 a
+490 para este lado); no se pidió `size:exception`.
+
+### No tocado (confirmado)
+
+`types.ts` y `components/index.ts` del módulo `reservas`: sin cambios (Decisión 35 — `Reserva` y
+`EstadoReserva` ya cubren la respuesta; Decisión 36 — `useCancelarReserva` se importa directo de
+`../components/useCancelarReserva`, igual que `SalonPage` importa `useBajaMesa`, sin pasar por
+`components/index.ts`, que solo exporta componentes). Ningún archivo de `salon/`, `atencion/` ni
+`shared/` (frontend). El código de selección de cliente del PR #212 (`SelectorCliente`,
+`useBuscarClientes`) no se tocó: se leyó para no reorganizarlo, y la nueva conexión de cancelación
+se agregó al lado, sin modificar su lógica ni sus props.
+
+### Desviaciones del diseño
+
+Ninguna. El código de `api.ts` y `useCancelarReserva.ts` quedó idéntico al de las Decisiones 35 y
+36 del diseño (textos de S52, endpoints y estructura del hook, tal cual). `ReservasTabla.tsx` y
+`ReservasPage.tsx` siguen exactamente las Decisiones 37 y 38 (misma condición de visibilidad,
+mismo patrón `void cancelarAnticipada(reserva)` que `onEliminar` de `SalonPage.tsx`). Los textos
+exactos de S52 (títulos, descripciones, `textoConfirmar`/`textoCancelar`, avisos de éxito y el
+`Supuesto:` del título del aviso de error) quedan pendientes de validación del equipo en P.3, como
+indica el diseño; no se cambió nada en este lote a la espera de esa validación.
+
+### Trabajo pendiente de esta fase
+
+- [ ] 2.12 Commit 2 (lo hace quien orquesta el cambio; este lote de `apply` no ejecuta git en
+  ninguna forma, ni `add`, ni `commit`, ni `restore`).
+
+### Próximo paso
+
+Fase 3 (cierre, 3.1 y 3.2): verificación completa de punta a punta sobre el árbol final de las dos
+fases y el chequeo de aislamiento (`git diff --name-only` contra la base del PR y `lint-imports`),
+después de que el commit 2 (2.12) quede hecho.

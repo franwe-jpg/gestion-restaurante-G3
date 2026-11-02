@@ -2,10 +2,13 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { ConfirmContext } from '../../../shared/components/ui/confirm-context';
 import { ToastContext } from '../../../shared/components/ui/toast-context';
 import type { Pagina, RespuestaApi } from '../../../shared/types';
 import {
   buscarClientes,
+  cancelarReservaAnticipada,
+  cancelarReservaPorAusencia,
   crearReserva,
   listarMesasDisponibles,
   listarReservas,
@@ -74,15 +77,23 @@ function Ruta() {
   return <p data-testid="ruta">{useLocation().pathname}</p>;
 }
 
-function abrir() {
+/**
+ * `aceptado` por defecto `true`: las pruebas de alta y edición no usan confirmación y no deben
+ * romperse por el nuevo `ConfirmContext.Provider` (Decisión 36 del diseño).
+ */
+function abrir(aceptado = true) {
+  const confirmar = vi.fn().mockResolvedValue(aceptado);
   render(
-    <ToastContext.Provider value={{ mostrarToast: vi.fn() }}>
-      <MemoryRouter initialEntries={['/reservas']}>
-        <ReservasPage />
-        <Ruta />
-      </MemoryRouter>
-    </ToastContext.Provider>,
+    <ConfirmContext.Provider value={confirmar}>
+      <ToastContext.Provider value={{ mostrarToast: vi.fn() }}>
+        <MemoryRouter initialEntries={['/reservas']}>
+          <ReservasPage />
+          <Ruta />
+        </MemoryRouter>
+      </ToastContext.Provider>
+    </ConfirmContext.Provider>,
   );
+  return confirmar;
 }
 
 /** Deja que terminen las respuestas simuladas pendientes antes de seguir. */
@@ -467,6 +478,44 @@ describe('ReservasPage: guardar la edición', () => {
     });
     expect(listarReservas).toHaveBeenCalledTimes(2);
     await asentar();
+  });
+});
+
+describe('ReservasPage: cancelar una reserva (HU-M5-04-05)', () => {
+  it('confirmar «Cancelar reserva» llama a POST .../{id}/cancelar-anticipada y vuelve a pedir el listado', async () => {
+    vi.mocked(cancelarReservaAnticipada).mockResolvedValue({ datos: null, exito: true });
+    abrir();
+    await screen.findByText('Cliente n.º 7');
+
+    await pulsar('Cancelar reserva');
+
+    expect(cancelarReservaAnticipada).toHaveBeenCalledExactlyOnceWith(1);
+    expect(listarReservas).toHaveBeenCalledTimes(2);
+  });
+
+  it('confirmar «Cancelar por ausencia» llama a POST .../{id}/cancelar-por-ausencia y vuelve a pedir el listado', async () => {
+    vi.mocked(cancelarReservaPorAusencia).mockResolvedValue({ datos: null, exito: true });
+    abrir();
+    await screen.findByText('Cliente n.º 7');
+
+    await pulsar('Cancelar por ausencia');
+
+    expect(cancelarReservaPorAusencia).toHaveBeenCalledExactlyOnceWith(1);
+    expect(listarReservas).toHaveBeenCalledTimes(2);
+  });
+
+  it('un 409 muestra el aviso y no vuelve a pedir el listado', async () => {
+    vi.mocked(cancelarReservaAnticipada).mockResolvedValue({
+      datos: null,
+      exito: false,
+      error: 'La reserva 1 ya fue cancelada',
+    });
+    abrir();
+    await screen.findByText('Cliente n.º 7');
+
+    await pulsar('Cancelar reserva');
+
+    expect(listarReservas).toHaveBeenCalledTimes(1);
   });
 });
 

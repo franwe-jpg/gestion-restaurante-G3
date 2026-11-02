@@ -198,12 +198,12 @@ Dos commits, no uno ni cuatro (uno por HU):
 
 ## Fase 2. Frontend: dos acciones nuevas en el listado de reservas (depende de la Fase 1)
 
-- [ ] 2.1 (Rojo) `frontend/src/modules/reservas/api.test.ts`, con `clienteHttp` simulado (mismo
+- [x] 2.1 (Rojo) `frontend/src/modules/reservas/api.test.ts`, con `clienteHttp` simulado (mismo
   patrón que la prueba de `modificarReserva`): `cancelarReservaAnticipada(1)` llama a
   `clienteHttp.post` con `'/reservas/1/cancelar-anticipada'` y `{}`, y devuelve la respuesta;
   `cancelarReservaPorAusencia(2)` llama con `'/reservas/2/cancelar-por-ausencia'` y `{}`. Fallan
   porque las dos funciones no existen en `api.ts`.
-- [ ] 2.2 (Rojo) Crear `frontend/src/modules/reservas/components/useCancelarReserva.test.tsx`, con
+- [x] 2.2 (Rojo) Crear `frontend/src/modules/reservas/components/useCancelarReserva.test.tsx`, con
   el patrón de `useBajaMesa.test.tsx` (`renderHook` con un envoltorio de
   `ConfirmContext.Provider` y `ToastContext.Provider`, `confirmar = vi.fn()`,
   `mostrarToast = vi.fn()`, `vi.mock('../api')`):
@@ -219,7 +219,7 @@ Dos commits, no uno ni cuatro (uno por HU):
     con el título «No se pudo cancelar la reserva» y ese `detalle` como descripción, y no llama a
     `onCancelada` (escenario «Un 409 muestra el aviso y no cambia la fila»).
   Fallan porque el archivo `useCancelarReserva.ts` no existe.
-- [ ] 2.3 (Rojo) `frontend/src/modules/reservas/components/ReservasTabla.test.tsx`, con el patrón de
+- [x] 2.3 (Rojo) `frontend/src/modules/reservas/components/ReservasTabla.test.tsx`, con el patrón de
   `mostrar(...)` ya existente (`vi.fn()` por defecto para las props nuevas, obligatorias como
   `onModificar`):
   - `se ofrecen solo en las filas ACTIVA` (escenario «Las acciones aparecen solo en las filas
@@ -231,7 +231,7 @@ Dos commits, no uno ni cuatro (uno por HU):
     `onCancelarPorAusencia`) con la reserva de la fila, igual que la prueba existente de
     `onModificar`.
   Fallan porque `ReservasTablaProps` no tiene las dos props nuevas y los botones no existen.
-- [ ] 2.4 (Rojo) `frontend/src/modules/reservas/pages/ReservasPage.test.tsx`: agregar un
+- [x] 2.4 (Rojo) `frontend/src/modules/reservas/pages/ReservasPage.test.tsx`: agregar un
   `ConfirmContext.Provider` a `abrir()` con un `confirmar` simulado (hoy el archivo solo envuelve
   con `ToastContext.Provider`; sin ese proveedor, `useConfirm` devuelve siempre `false` y ningún
   flujo de confirmación se puede probar, Decisión 36 del diseño), con el patrón de
@@ -245,39 +245,39 @@ Dos commits, no uno ni cuatro (uno por HU):
     `{ exito: false, error: '...' }`; `listarReservas` no se llama de nuevo).
   Fallan porque `ReservasPage` no pasa `onCancelarAnticipada` ni `onCancelarPorAusencia` a la
   tabla.
-- [ ] 2.5 (Verde) `frontend/src/modules/reservas/api.ts`, después de `modificarReserva` (Decisión
+- [x] 2.5 (Verde) `frontend/src/modules/reservas/api.ts`, después de `modificarReserva` (Decisión
   35): `cancelarReservaAnticipada(id)` y `cancelarReservaPorAusencia(id)`, cada una
   `clienteHttp.post<Reserva, Record<string, never>>(url, {})`, con el mismo patrón que
   `salon/api.ts` (`/sectores/{id}/baja`). Pasa 2.1.
-- [ ] 2.6 (Verde) Crear `frontend/src/modules/reservas/components/useCancelarReserva.ts` con el
+- [x] 2.6 (Verde) Crear `frontend/src/modules/reservas/components/useCancelarReserva.ts` con el
   código exacto de la Decisión 36 del diseño: tipo `Cancelacion`, constantes `ANTICIPADA` y
   `POR_AUSENCIA` con los textos de S52, función privada `cancelar` y el hook
   `useCancelarReserva({ onCancelada })` que devuelve `{ cancelando, cancelarAnticipada,
   cancelarPorAusencia }`. Pasa 2.2.
-- [ ] 2.7 (Verde) `frontend/src/modules/reservas/components/ReservasTabla.tsx` (Decisión 37):
+- [x] 2.7 (Verde) `frontend/src/modules/reservas/components/ReservasTabla.tsx` (Decisión 37):
   `ReservasTablaProps` suma `onCancelarAnticipada` y `onCancelarPorAusencia`, obligatorias;
   `columnaAcciones` recibe las tres funciones y, en la fila `ACTIVA`, agrega los botones
   `aria-label="Cancelar reserva"` y `aria-label="Cancelar por ausencia"` junto al de «Modificar
   reserva», cada uno con su ícono (`CalendarX` y `UserX` de `lucide-react`, ya dependencia) y
   `aria-hidden="true"`. La condición `r.estado === 'ACTIVA'` no cambia. Pasa 2.3.
-- [ ] 2.8 (Verde) `frontend/src/modules/reservas/pages/ReservasPage.tsx` (Decisión 38):
+- [x] 2.8 (Verde) `frontend/src/modules/reservas/pages/ReservasPage.tsx` (Decisión 38):
   `ListadoDelDiaProps` suma `onCancelarAnticipada` y `onCancelarPorAusencia` y las pasa a
   `ReservasTabla`; `ReservasPage` instancia `useCancelarReserva({ onCancelada:
   listado.reservas.recargar })` y conecta los dos callbacks con `void cancelarAnticipada(reserva)`
   y `void cancelarPorAusencia(reserva)`, el mismo patrón que `onEliminar` de `SalonPage.tsx`. Pasa
   2.4.
-- [ ] 2.9 (Refactor) Revisar `useCancelarReserva.ts`: que los textos de S52 estén solo en
+- [x] 2.9 (Refactor) Revisar `useCancelarReserva.ts`: que los textos de S52 estén solo en
   `ANTICIPADA` y `POR_AUSENCIA`, sin duplicarlos en la prueba más que para comparar; que
   `ReservasTabla.tsx` no repita la condición `r.estado === 'ACTIVA'` más de una vez. Sin cambios de
   comportamiento; las pruebas de 2.1 a 2.4 siguen en verde.
-- [ ] 2.10 Mutaciones de las reglas clave, una por vez, restauradas a mano desde una copia de
+- [x] 2.10 Mutaciones de las reglas clave, una por vez, restauradas a mano desde una copia de
   respaldo del archivo (no `git restore`: el frontend de este cambio tampoco tiene commit propio
   todavía) antes de la siguiente: (a) en `ReservasTabla.tsx`, cambiar la condición de alguno de los
   dos botones nuevos de `r.estado === 'ACTIVA'` a `true` y comprobar que
   `se ofrecen solo en las filas ACTIVA` falla; (b) en `useCancelarReserva.ts`, quitar el `if
   (!aceptado) return;` y comprobar que el caso de «cancelar el diálogo no hace nada» falla.
   Restaurar el archivo original después de la segunda mutación.
-- [ ] 2.11 Verificar con `V-FRONT`: `npm run format`, luego
+- [x] 2.11 Verificar con `V-FRONT`: `npm run format`, luego
   `npm run lint && npm run format:check && npm run typecheck && npm run test:coverage && npm run build`
   (cobertura ≥ 60 %).
 - [ ] 2.12 Commit 2: `feat: agrega las acciones de cancelar una reserva en el listado (HU-M5-04-05)`.
