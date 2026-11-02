@@ -3,9 +3,15 @@ import { MemoryRouter, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ToastContext } from '../../../shared/components/ui/toast-context';
-import type { RespuestaApi } from '../../../shared/types';
-import { crearReserva, listarMesasDisponibles, listarReservas, modificarReserva } from '../api';
-import type { MesaDisponible, Reserva } from '../types';
+import type { Pagina, RespuestaApi } from '../../../shared/types';
+import {
+  buscarClientes,
+  crearReserva,
+  listarMesasDisponibles,
+  listarReservas,
+  modificarReserva,
+} from '../api';
+import type { ClienteEncontrado, MesaDisponible, Reserva } from '../types';
 
 import { ReservasPage } from './ReservasPage';
 
@@ -38,6 +44,14 @@ const MESA_5: MesaDisponible = {
   capacidad: 4,
   sector: { id: 1, nombre: 'Salón' },
 };
+
+/** Cliente que ofrece la búsqueda simulada del selector del modal de alta. */
+const ANA: ClienteEncontrado = { id: 7, nombre: 'Ana Pérez', telefono: '+54 280 1234567' };
+const TEXTO_ANA = 'Ana Pérez · +54 280 1234567';
+
+function clientes(items: ClienteEncontrado[]): RespuestaApi<Pagina<ClienteEncontrado>> {
+  return { datos: { items, total: items.length, limit: 10, offset: 0 }, exito: true };
+}
 
 function pagina(items: Reserva[], total = items.length, offset = 0) {
   return { datos: { items, total, limit: 50, offset }, exito: true };
@@ -87,6 +101,12 @@ async function elegirDia(dia: string) {
 }
 
 /** Abre la pantalla con 60 reservas y pasa a la segunda página (`offset` 50). */
+/** Busca «Ana» en el selector del modal de alta y elige a «Ana Pérez» (cliente 7). */
+async function elegirCliente() {
+  fireEvent.change(screen.getByLabelText('Buscar cliente'), { target: { value: 'Ana' } });
+  fireEvent.click(await screen.findByRole('button', { name: TEXTO_ANA }));
+}
+
 async function abrirEnLaSegundaPagina() {
   servirSesentaReservas();
   abrir();
@@ -101,6 +121,7 @@ beforeEach(() => {
   vi.setSystemTime(new Date(2026, 10, 2, 12, 0));
   vi.mocked(listarReservas).mockResolvedValue(pagina([RESERVA]));
   vi.mocked(listarMesasDisponibles).mockResolvedValue({ datos: [MESA_5], exito: true });
+  vi.mocked(buscarClientes).mockResolvedValue(clientes([ANA]));
 });
 
 afterEach(() => {
@@ -217,12 +238,31 @@ describe('ReservasPage: filtro de estado y paginación', () => {
 });
 
 describe('ReservasPage: panel de alta', () => {
+  it('cerrar el modal descarta la elección: al reabrirlo el selector está vacío', async () => {
+    abrir();
+    await screen.findByText('Cliente n.º 7');
+    await pulsar('Nueva reserva');
+    await elegirCliente();
+    expect(screen.getByText(`Cliente elegido: ${TEXTO_ANA}`)).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Cliente nuevo' }));
+    fireEvent.change(screen.getByLabelText(/Nombre/), { target: { value: 'Luis' } });
+
+    await pulsar('Cancelar');
+    await pulsar('Nueva reserva');
+
+    expect(screen.queryByText(/Cliente elegido/)).toBeNull();
+    expect(screen.queryByLabelText(/Nombre/)).toBeNull();
+    expect(screen.queryByLabelText(/Teléfono/)).toBeNull();
+    expect(screen.getByLabelText('Buscar cliente')).toHaveValue('');
+  });
+
   it('guardar cierra el panel y vuelve a pedir la tabla', async () => {
     vi.mocked(crearReserva).mockResolvedValue({ datos: RESERVA, exito: true });
     abrir();
     await screen.findByText('Cliente n.º 7');
     await pulsar('Nueva reserva');
-    const campos = { Cliente: '7', Fecha: '2026-11-03', Hora: '21:30', Cantidad: '4' };
+    await elegirCliente();
+    const campos = { Fecha: '2026-11-03', Hora: '21:30', Cantidad: '4' };
     for (const [etiqueta, valor] of Object.entries(campos)) {
       fireEvent.change(screen.getByLabelText(new RegExp(etiqueta)), { target: { value: valor } });
     }
@@ -384,7 +424,8 @@ describe('ReservasPage: una respuesta de guardado tardía no toca un modal disti
     abrir();
     await screen.findByText('Cliente n.º 9');
     await pulsar('Nueva reserva');
-    const campos = { Cliente: '7', Fecha: '2026-11-03', Hora: '21:30', Cantidad: '4' };
+    await elegirCliente();
+    const campos = { Fecha: '2026-11-03', Hora: '21:30', Cantidad: '4' };
     for (const [etiqueta, valor] of Object.entries(campos)) {
       fireEvent.change(screen.getByLabelText(new RegExp(etiqueta)), { target: { value: valor } });
     }

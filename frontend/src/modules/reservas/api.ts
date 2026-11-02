@@ -1,6 +1,7 @@
 import { clienteHttp } from '../../shared/api/client';
 import type { Pagina, RespuestaApi } from '../../shared/types';
 import type {
+  ClienteEncontrado,
   FiltroEstadoReserva,
   MesaDisponible,
   Reserva,
@@ -41,4 +42,15 @@ export function modificarReserva(
   datos: ReservaModificar,
 ): Promise<RespuestaApi<Reserva>> {
   return clienteHttp.put<Reserva, ReservaModificar>(`/reservas/${id}`, datos);
+}
+
+/** Resultados de la búsqueda de clientes: la primera página, sin paginar en pantalla (S43). */
+export const LIMITE_BUSQUEDA_CLIENTES = 10;
+
+/** Clientes registrados cuyo nombre o teléfono coincide con `q` (`GET /clientes?q=`, M4). */
+export function buscarClientes(q: string): Promise<RespuestaApi<Pagina<ClienteEncontrado>>> {
+  const consulta = new URLSearchParams({ q });
+  consulta.set('limit', String(LIMITE_BUSQUEDA_CLIENTES));
+  consulta.set('offset', '0');
+  return clienteHttp.get<Pagina<ClienteEncontrado>>(`/clientes?${consulta.toString()}`);
 }
