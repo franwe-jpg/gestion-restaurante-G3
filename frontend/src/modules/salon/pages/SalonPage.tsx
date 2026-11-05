@@ -11,13 +11,17 @@ import type { EstadoPaginacion } from '../../../shared/hooks/usePaginacion';
 
 import { MesaFormDialog } from '../components/MesaFormDialog';
 import { MesasTabla } from '../components/MesasTabla';
+import { MozoFormDialog } from '../components/MozoFormDialog';
+import { MozosTabla } from '../components/MozosTabla';
 import { SectorFormDialog } from '../components/SectorFormDialog';
 import { SectoresTabla } from '../components/SectoresTabla';
 import { useBajaMesa } from '../components/useBajaMesa';
+import { useBajaMozo } from '../components/useBajaMozo';
 import { useBajaSector } from '../components/useBajaSector';
 import { useMesasDelSalon } from '../components/useMesasDelSalon';
+import { useMozosDelSalon } from '../components/useMozosDelSalon';
 import { useSectoresDelSalon } from '../components/useSectoresDelSalon';
-import type { Mesa, Sector } from '../types';
+import type { Mesa, Mozo, Sector } from '../types';
 
 const TITULO = 'Salón y Mozos';
 const DESCRIPCION = 'Mapa de mesas, distribución de sectores y asignación de mozos por turno.';
@@ -25,18 +29,24 @@ const DESCRIPCION = 'Mapa de mesas, distribución de sectores y asignación de m
 function AccionesDelSalon({
   onNuevoSector,
   onNuevaMesa,
+  onNuevoMozo,
 }: {
   onNuevoSector: () => void;
   onNuevaMesa: () => void;
+  onNuevoMozo: () => void;
 }) {
   return (
     <>
       <Button variant="outline" onClick={onNuevoSector}>
         Nuevo sector
       </Button>
-      <Button onClick={onNuevaMesa}>
+      <Button variant="outline" onClick={onNuevaMesa}>
         <Plus className="h-4 w-4" aria-hidden="true" />
         Nueva mesa
+      </Button>
+      <Button onClick={onNuevoMozo}>
+        <Plus className="h-4 w-4" aria-hidden="true" />
+        Nuevo mozo
       </Button>
     </>
   );
@@ -107,18 +117,46 @@ function SeccionMesas({
   );
 }
 
+function SeccionMozos({
+  refresco,
+  onEditar,
+}: {
+  refresco: number;
+  onEditar: (mozo: Mozo) => void;
+}) {
+  const { mozos, cargando, error, recargar, paginacion } = useMozosDelSalon(refresco);
+  const { eliminar } = useBajaMozo({ onEliminado: recargar });
+
+  return (
+    <SeccionListado paginacion={paginacion}>
+      <MozosTabla
+        mozos={mozos}
+        cargando={cargando}
+        error={error}
+        onReintentar={recargar}
+        onEditar={onEditar}
+        onEliminar={(mozo) => void eliminar(mozo)}
+      />
+    </SeccionListado>
+  );
+}
+
 interface SeccionesDelSalonProps extends SeccionSectoresProps {
   pestania: string;
   refrescoMesas: number;
+  refrescoMozos: number;
   onCambiarPestania: (id: string) => void;
   onEditarMesa: (mesa: Mesa) => void;
+  onEditarMozo: (mozo: Mozo) => void;
 }
 
 function SeccionesDelSalon({
   pestania,
   onCambiarPestania,
   refrescoMesas,
+  refrescoMozos,
   onEditarMesa,
+  onEditarMozo,
   ...sectores
 }: SeccionesDelSalonProps) {
   return (
@@ -132,6 +170,11 @@ function SeccionesDelSalon({
           etiqueta: 'Mesas',
           contenido: <SeccionMesas refresco={refrescoMesas} onEditar={onEditarMesa} />,
         },
+        {
+          id: 'mozos',
+          etiqueta: 'Mozos',
+          contenido: <SeccionMozos refresco={refrescoMozos} onEditar={onEditarMozo} />,
+        },
       ]}
     />
   );
@@ -142,10 +185,14 @@ interface DialogosSalonProps {
   sectorEnEdicion: Sector | null;
   mesaAbierta: boolean;
   mesaEnEdicion: Mesa | null;
+  mozoAbierto: boolean;
+  mozoEnEdicion: Mozo | null;
   onSectorOpenChange: (abierto: boolean) => void;
   onGuardadoSector: () => void;
   onMesaOpenChange: (abierto: boolean) => void;
   onMesaGuardada: () => void;
+  onMozoOpenChange: (abierto: boolean) => void;
+  onMozoGuardado: () => void;
   onCrearSectorDesdeMesa: () => void;
 }
 
@@ -154,10 +201,14 @@ function DialogosSalon({
   sectorEnEdicion,
   mesaAbierta,
   mesaEnEdicion,
+  mozoAbierto,
+  mozoEnEdicion,
   onSectorOpenChange,
   onGuardadoSector,
   onMesaOpenChange,
   onMesaGuardada,
+  onMozoOpenChange,
+  onMozoGuardado,
   onCrearSectorDesdeMesa,
 }: DialogosSalonProps) {
   return (
@@ -177,54 +228,75 @@ function DialogosSalon({
           onCrearSector={onCrearSectorDesdeMesa}
         />
       )}
+      {mozoAbierto && (
+        <MozoFormDialog
+          mozo={mozoEnEdicion}
+          onGuardado={onMozoGuardado}
+          onOpenChange={onMozoOpenChange}
+        />
+      )}
     </>
   );
 }
 
+function useDialogo<T>() {
+  const [abierto, setAbierto] = useState(false);
+  const [enEdicion, setEnEdicion] = useState<T | null>(null);
+  const abrir = (item: T | null = null) => {
+    setEnEdicion(item);
+    setAbierto(true);
+  };
+  return { abierto, enEdicion, setAbierto, abrir };
+}
+
 function useDialogosDelSalon(recargar: () => void) {
-  const [sectorAbierto, setSectorAbierto] = useState(false);
-  const [sectorEnEdicion, setSectorEnEdicion] = useState<Sector | null>(null);
-  const [mesaAbierta, setMesaAbierta] = useState(false);
-  const [mesaEnEdicion, setMesaEnEdicion] = useState<Mesa | null>(null);
+  const sector = useDialogo<Sector>();
+  const mesa = useDialogo<Mesa>();
+  const mozo = useDialogo<Mozo>();
   const [pestania, setPestania] = useState('sectores');
   const [refrescoMesas, setRefrescoMesas] = useState(0);
-
-  const abrirSector = (sector: Sector | null = null) => {
-    setSectorEnEdicion(sector);
-    setSectorAbierto(true);
-  };
-
-  const abrirMesa = (mesa: Mesa | null = null) => {
-    setMesaEnEdicion(mesa);
-    setMesaAbierta(true);
-  };
+  const [refrescoMozos, setRefrescoMozos] = useState(0);
 
   const alGuardarSector = () => {
-    setSectorAbierto(false);
+    sector.setAbierto(false);
     recargar();
   };
-
   const alGuardarMesa = () => {
-    setMesaAbierta(false);
-    setMesaEnEdicion(null);
+    mesa.setAbierto(false);
     setPestania('mesas');
     setRefrescoMesas((previa) => previa + 1);
   };
+  const alGuardarMozo = () => {
+    mozo.setAbierto(false);
+    setPestania('mozos');
+    setRefrescoMozos((previa) => previa + 1);
+  };
+  const abrirSectorDesdeMesa = () => {
+    mesa.setAbierto(false);
+    sector.abrir();
+  };
 
   return {
-    sectorAbierto,
-    sectorEnEdicion,
-    mesaAbierta,
-    mesaEnEdicion,
-    setSectorAbierto,
-    setMesaAbierta,
-    abrirSector,
-    abrirMesa,
+    sectorAbierto: sector.abierto,
+    sectorEnEdicion: sector.enEdicion,
+    mesaAbierta: mesa.abierto,
+    mesaEnEdicion: mesa.enEdicion,
+    mozoAbierto: mozo.abierto,
+    mozoEnEdicion: mozo.enEdicion,
+    setSectorAbierto: sector.setAbierto,
+    setMesaAbierta: mesa.setAbierto,
+    setMozoAbierto: mozo.setAbierto,
+    abrirSector: sector.abrir,
+    abrirMesa: mesa.abrir,
+    abrirMozo: mozo.abrir,
     alGuardarSector,
     alGuardarMesa,
+    alGuardarMozo,
+    abrirSectorDesdeMesa,
     pestania,
     setPestania,
     refrescoMesas,
+    refrescoMozos,
   };
 }
 
@@ -232,11 +304,6 @@ export function SalonPage() {
   const { sectores, cargando, error, recargar, paginacion } = useSectoresDelSalon();
   const { eliminar } = useBajaSector({ onEliminado: recargar });
   const dialogos = useDialogosDelSalon(recargar);
-
-  const abrirSectorDesdeMesa = () => {
-    dialogos.setMesaAbierta(false);
-    dialogos.abrirSector();
-  };
 
   return (
     <div className="space-y-6">
@@ -247,6 +314,7 @@ export function SalonPage() {
           <AccionesDelSalon
             onNuevoSector={() => dialogos.abrirSector()}
             onNuevaMesa={() => dialogos.abrirMesa()}
+            onNuevoMozo={() => dialogos.abrirMozo()}
           />
         }
       />
@@ -254,6 +322,7 @@ export function SalonPage() {
         pestania={dialogos.pestania}
         onCambiarPestania={dialogos.setPestania}
         refrescoMesas={dialogos.refrescoMesas}
+        refrescoMozos={dialogos.refrescoMozos}
         sectores={sectores}
         cargando={cargando}
         error={error}
@@ -262,6 +331,7 @@ export function SalonPage() {
         onEditar={dialogos.abrirSector}
         onEliminar={(sector) => void eliminar(sector)}
         onEditarMesa={(mesa) => dialogos.abrirMesa(mesa)}
+        onEditarMozo={(mozo) => dialogos.abrirMozo(mozo)}
       />
       <DialogosSalon
         sectorAbierto={dialogos.sectorAbierto}
@@ -272,7 +342,11 @@ export function SalonPage() {
         onGuardadoSector={dialogos.alGuardarSector}
         onMesaOpenChange={dialogos.setMesaAbierta}
         onMesaGuardada={dialogos.alGuardarMesa}
-        onCrearSectorDesdeMesa={abrirSectorDesdeMesa}
+        mozoAbierto={dialogos.mozoAbierto}
+        mozoEnEdicion={dialogos.mozoEnEdicion}
+        onMozoOpenChange={dialogos.setMozoAbierto}
+        onMozoGuardado={dialogos.alGuardarMozo}
+        onCrearSectorDesdeMesa={dialogos.abrirSectorDesdeMesa}
       />
     </div>
   );
