@@ -13,6 +13,7 @@ from app.modules.menus import service
 from app.modules.menus.schemas import (
     FiltroMenusDelDia,
     FiltroMenusEjecutivos,
+    FiltroPromociones,
     MenuDelDiaCrear,
     MenuDelDiaListado,
     MenuDelDiaModificar,
@@ -21,6 +22,10 @@ from app.modules.menus.schemas import (
     MenuEjecutivoCrear,
     MenuEjecutivoListado,
     MenuEjecutivoSalida,
+    PromocionCrear,
+    PromocionListado,
+    PromocionModificar,
+    PromocionSalida,
 )
 from app.modules.productos import imagenes
 from app.shared.paginacion import Pagina
@@ -120,3 +125,27 @@ def modificar_menu_ejecutivo(
 @router.post("/menus-ejecutivos/{menu_id}/baja")
 def dar_de_baja_menu_ejecutivo(menu_id: int, db: Sesion) -> MenuEjecutivoSalida:
     return service.dar_de_baja_menu_ejecutivo(db, menu_id)
+
+
+@router.post("/promociones", status_code=status.HTTP_201_CREATED)
+def crear_promocion(datos: PromocionCrear, db: Sesion) -> PromocionSalida:
+    return service.crear_promocion(db, datos)
+
+
+@router.put("/promociones/{promocion_id}")
+def modificar_promocion(
+    promocion_id: int, datos: PromocionModificar, db: Sesion
+) -> PromocionSalida:
+    return service.modificar_promocion(db, promocion_id, datos)
+
+
+@router.post("/promociones/{promocion_id}/finalizar")
+def finalizar_promocion(promocion_id: int, db: Sesion) -> PromocionSalida:
+    return service.finalizar_promocion(db, promocion_id)
+
+
+@router.get("/promociones")
+def listar_promociones(
+    db: Sesion, filtro: Annotated[FiltroPromociones, Query()]
+) -> Pagina[PromocionListado]:
+    return service.listar_promociones(db, filtro)

@@ -5,16 +5,19 @@ unicidad por categoria y el manejo de imagenes viven en `productos.service`, que
 que otro modulo puede importar (contrato de importaciones, S0-05 seccion 3.3).
 """
 
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Protocol
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.modules.atencion import service as atencion_service
 from app.modules.menus import repository
-from app.modules.menus.models import MenuEjecutivo
+from app.modules.menus.models import DiaSemana, MenuEjecutivo, Promocion
 from app.modules.menus.schemas import (
     FiltroMenusEjecutivos,
+    FiltroPromociones,
     MenuDelDiaCrear,
     MenuDelDiaListado,
     MenuDelDiaModificar,
@@ -24,6 +27,10 @@ from app.modules.menus.schemas import (
     MenuEjecutivoListado,
     MenuEjecutivoSalida,
     ProductoResumen,
+    PromocionCrear,
+    PromocionListado,
+    PromocionModificar,
+    PromocionSalida,
     SeccionResumen,
 )
 from app.modules.productos import service as productos_service
@@ -294,6 +301,141 @@ def listar_menus_ejecutivos(
     menus, total = repository.listar(db, filtro, filtro.estado)
     return Pagina[MenuEjecutivoListado](
         items=[_a_listado_menu_ejecutivo(db, menu) for menu in menus],
+        total=total,
+        limit=filtro.limit,
+        offset=filtro.offset,
+    )
+
+
+MENSAJE_NOMBRE_PROMOCION_REPETIDO = "El nombre de la promoción ya existe"
+
+
+def _validar_nombre_promocion_libre(
+    db: Session, nombre: str, excluir_id: int | None = None
+) -> None:
+    if repository.existe_nombre_promocion(db, normalizar_nombre(nombre), excluir_id):
+        raise ReglaDeNegocioError(MENSAJE_NOMBRE_PROMOCION_REPETIDO)
+
+
+def _validar_productos_promocion(productos: list[Producto]) -> None:
+    for producto in productos:
+        if producto.estado != Estado.HABILITADO:
+            raise ReglaDeNegocioError("Solo se pueden incluir productos habilitados")
+
+
+def _guardar_promocion(db: Session, promocion: Promocion) -> None:
+    try:
+        repository.agregar_promocion(db, promocion)
+        db.commit()
+    except IntegrityError as error:
+        db.rollback()
+        if repository.existe_nombre_promocion(db, promocion.nombre_normalizado):
+            raise ReglaDeNegocioError(MENSAJE_NOMBRE_PROMOCION_REPETIDO) from error
+        raise
+    except Exception:
+        db.rollback()
+        raise
+
+
+def _a_salida_promocion(promocion: Promocion) -> PromocionSalida:
+    return PromocionSalida(
+        id=promocion.id,
+        nombre=promocion.nombre,
+        tipo=promocion.tipo,
+        descripcion=promocion.descripcion,
+        fecha_desde=promocion.fecha_desde,
+        fecha_hasta=promocion.fecha_hasta,
+        dias_semana=[DiaSemana(dia) for dia in promocion.dias_semana],
+        hora_desde=promocion.hora_desde,
+        hora_hasta=promocion.hora_hasta,
+        descuento_porcentaje=promocion.descuento_porcentaje,
+        precio_fijo=promocion.precio_fijo,
+        cant_lleva=promocion.cant_lleva,
+        cant_paga=promocion.cant_paga,
+        estado=promocion.estado,
+        fecha_hora_finalizacion=promocion.fecha_hora_finalizacion,
+        productos=[_resumen_producto(producto) for producto in promocion.productos],
+    )
+
+
+def crear_promocion(db: Session, datos: PromocionCrear) -> PromocionSalida:
+    """Registra una promoción habilitada y la asocia a sus productos (HU-M2-07)."""
+    _validar_nombre_promocion_libre(db, datos.nombre)
+    productos = _cargar_productos(db, datos.producto_ids)
+    _validar_productos_promocion(productos)
+    promocion = Promocion(
+        nombre=datos.nombre,
+        tipo=datos.tipo,
+        descripcion=datos.descripcion,
+        fecha_desde=datos.fecha_desde,
+        fecha_hasta=datos.fecha_hasta,
+        dias_semana=[dia.value for dia in datos.dias_semana],
+        hora_desde=datos.hora_desde,
+        hora_hasta=datos.hora_hasta,
+        descuento_porcentaje=datos.descuento_porcentaje,
+        precio_fijo=datos.precio_fijo,
+        cant_lleva=datos.cant_lleva,
+        cant_paga=datos.cant_paga,
+        estado=Estado.HABILITADO,
+        productos=productos,
+    )
+    _guardar_promocion(db, promocion)
+    return _a_salida_promocion(promocion)
+
+
+def modificar_promocion(
+    db: Session, promocion_id: int, datos: PromocionModificar
+) -> PromocionSalida:
+    """Reemplaza las condiciones de una promoción habilitada y no aplicada (HU-M2-08)."""
+    promocion = repository.obtener_promocion(db, promocion_id)
+    if promocion is None:
+        raise NoEncontradoError(f"La promoción {promocion_id} no existe")
+    if promocion.estado == Estado.DESHABILITADO:
+        raise ReglaDeNegocioError("La promoción está finalizada y no se puede modificar")
+    if atencion_service.promocion_fue_aplicada(db, promocion_id):
+        raise ReglaDeNegocioError(
+            "La promoción ya fue aplicada en una comanda; finalizala y creá una nueva"
+        )
+    _validar_nombre_promocion_libre(db, datos.nombre, promocion.id)
+    productos = _cargar_productos(db, datos.producto_ids)
+    _validar_productos_promocion(productos)
+    promocion.nombre = datos.nombre
+    promocion.tipo = datos.tipo
+    promocion.descripcion = datos.descripcion
+    promocion.fecha_desde = datos.fecha_desde
+    promocion.fecha_hasta = datos.fecha_hasta
+    promocion.dias_semana = [dia.value for dia in datos.dias_semana]
+    promocion.hora_desde = datos.hora_desde
+    promocion.hora_hasta = datos.hora_hasta
+    promocion.descuento_porcentaje = datos.descuento_porcentaje
+    promocion.precio_fijo = datos.precio_fijo
+    promocion.cant_lleva = datos.cant_lleva
+    promocion.cant_paga = datos.cant_paga
+    promocion.productos = productos
+    _guardar_promocion(db, promocion)
+    return _a_salida_promocion(promocion)
+
+
+def finalizar_promocion(db: Session, promocion_id: int) -> PromocionSalida:
+    """Deshabilita una promoción y registra el instante de la interrupción (HU-M2-09)."""
+    promocion = repository.obtener_promocion(db, promocion_id)
+    if promocion is None:
+        raise NoEncontradoError(f"La promoción {promocion_id} no existe")
+    if promocion.estado == Estado.DESHABILITADO:
+        raise ReglaDeNegocioError("La promoción ya está finalizada")
+    promocion.estado = Estado.DESHABILITADO
+    promocion.fecha_hora_finalizacion = datetime.now(UTC)
+    db.commit()
+    return _a_salida_promocion(promocion)
+
+
+def listar_promociones(db: Session, filtro: FiltroPromociones) -> Pagina[PromocionListado]:
+    promociones, total = repository.listar_promociones(db, filtro, filtro.estado)
+    return Pagina[PromocionListado](
+        items=[
+            PromocionListado(**_a_salida_promocion(promocion).model_dump())
+            for promocion in promociones
+        ],
         total=total,
         limit=filtro.limit,
         offset=filtro.offset,

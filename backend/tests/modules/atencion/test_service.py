@@ -603,3 +603,8 @@ def test_existe_cliente_distingue_existente_de_inexistente(db: Session) -> None:
 
     assert service.existe_cliente(db, cliente_id) is True
     assert service.existe_cliente(db, cliente_id + 999) is False
+
+
+def test_promocion_fue_aplicada_detecta_linea_de_comanda(db: Session, comanda: Comanda) -> None:
+    assert service.promocion_fue_aplicada(db, 8) is True
+    assert service.promocion_fue_aplicada(db, 99) is False

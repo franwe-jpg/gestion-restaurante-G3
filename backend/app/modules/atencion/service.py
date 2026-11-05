@@ -273,3 +273,8 @@ def _describir_error(error: ValidationError) -> str:
     campo = str(primero["loc"][0]) if primero["loc"] else "datos"
     mensaje = primero["msg"].removeprefix("Value error, ").removeprefix(f"{campo} ")
     return f"{campo}: {mensaje}"
+
+
+def promocion_fue_aplicada(db: Session, promocion_id: int) -> bool:
+    """Lectura pública para M2: una promoción usada no se puede modificar (HU-M2-08)."""
+    return repository.promocion_fue_aplicada(db, promocion_id)
