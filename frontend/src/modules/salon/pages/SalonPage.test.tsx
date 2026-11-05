@@ -5,16 +5,20 @@ import { ConfirmContext } from '../../../shared/components/ui/confirm-context';
 import { ToastProvider } from '../../../shared/components/ui/toast';
 import {
   crearMesa,
+  crearMozo,
   crearSector,
   eliminarMesa,
+  eliminarMozo,
   eliminarSector,
   listarMesas,
+  listarMozos,
   listarSectores,
   listarSectoresHabilitados,
   modificarMesa,
+  modificarMozo,
   modificarSector,
 } from '../api';
-import type { Mesa, Sector } from '../types';
+import type { Mesa, Mozo, Sector } from '../types';
 
 import { SalonPage } from './SalonPage';
 
@@ -73,6 +77,10 @@ function paginaMesas(items: Mesa[], total = items.length) {
   return { datos: { items, total, limit: 50, offset: 0 }, exito: true };
 }
 
+function paginaMozos(items: Mozo[], total = items.length) {
+  return { datos: { items, total, limit: 50, offset: 0 }, exito: true };
+}
+
 function renderConToasts() {
   return render(
     <ToastProvider>
@@ -119,6 +127,7 @@ function prepararGuardadoExitoso() {
 beforeEach(() => {
   vi.mocked(listarSectores).mockResolvedValue(listado([]));
   vi.mocked(listarMesas).mockResolvedValue(paginaMesas([]));
+  vi.mocked(listarMozos).mockResolvedValue(paginaMozos([]));
 });
 
 afterEach(() => {
@@ -606,5 +615,243 @@ describe('SalonPage: edición de mesa: validaciones', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(modificarMesa).not.toHaveBeenCalled();
     expect(listarMesas).toHaveBeenCalledTimes(1);
+  });
+});
+
+const JUAN: Mozo = {
+  id: 1,
+  dni: '30123456',
+  nombre: 'Juan',
+  apellido: 'Fernández',
+  telefono: '280 412-3456',
+  estado: 'HABILITADO',
+};
+
+const ANA: Mozo = {
+  id: 2,
+  dni: '35987654',
+  nombre: 'Ana',
+  apellido: 'Romero',
+  telefono: null,
+  estado: 'DESHABILITADO',
+};
+
+const MOZO_CREADO: Mozo = {
+  id: 3,
+  dni: '40111222',
+  nombre: 'Luis',
+  apellido: 'Castro',
+  telefono: null,
+  estado: 'HABILITADO',
+};
+
+async function abrirAltaDeMozo() {
+  fireEvent.click(screen.getByRole('button', { name: 'Nuevo mozo' }));
+  return screen.findByRole('heading', { name: 'Nuevo mozo' });
+}
+
+async function abrirEdicionDeMozo(mozo: Mozo = JUAN) {
+  vi.mocked(listarMozos).mockResolvedValue(paginaMozos([mozo]));
+  fireEvent.click(await screen.findByRole('tab', { name: 'Mozos' }));
+  fireEvent.click(await screen.findByRole('button', { name: `Editar el mozo ${mozo.dni}` }));
+  return screen.findByRole('heading', { name: 'Editar mozo' });
+}
+
+function completarMozo(dni = '40111222', nombre = 'Luis', apellido = 'Castro') {
+  fireEvent.change(screen.getByLabelText(/DNI/), { target: { value: dni } });
+  fireEvent.change(screen.getByLabelText(/Nombre/), { target: { value: nombre } });
+  fireEvent.change(screen.getByLabelText(/Apellido/), { target: { value: apellido } });
+}
+
+describe('SalonPage: listado de mozos', () => {
+  it('muestra las pestañas con «Mozos» disponible (CA 1 de #46)', async () => {
+    render(<SalonPage />);
+
+    expect(await screen.findByRole('tab', { name: 'Mozos' })).toHaveAttribute(
+      'aria-selected',
+      'false',
+    );
+  });
+
+  it('en «Mozos» muestra DNI, apellido y nombre, teléfono y estado (CA 1 y 3 de #46)', async () => {
+    vi.mocked(listarMozos).mockResolvedValue(paginaMozos([JUAN, ANA]));
+    render(<SalonPage />);
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Mozos' }));
+    await screen.findByText('Fernández, Juan');
+
+    const filas = screen.getAllByRole('row').slice(1);
+    const celdas = filas.map((fila) =>
+      within(fila)
+        .getAllByRole('cell')
+        .slice(0, 4)
+        .map((celda) => celda.textContent),
+    );
+    expect(celdas).toEqual([
+      ['30123456', 'Fernández, Juan', '280 412-3456', 'Habilitado'],
+      ['35987654', 'Romero, Ana', '—', 'Deshabilitado'],
+    ]);
+  });
+
+  it('sin mozos informa «No hay mozos disponibles» (CA 2 de #46)', async () => {
+    render(<SalonPage />);
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Mozos' }));
+
+    expect(await screen.findByText('No hay mozos disponibles')).toBeInTheDocument();
+  });
+
+  it('pagina los mozos de a 50', async () => {
+    vi.mocked(listarMozos).mockResolvedValue(paginaMozos([JUAN], 120));
+    render(<SalonPage />);
+    fireEvent.click(await screen.findByRole('tab', { name: 'Mozos' }));
+    expect(await screen.findByText('Página 1 de 3')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Página 2' }));
+
+    await waitFor(() => expect(listarMozos).toHaveBeenCalledWith(50, 50));
+  });
+});
+
+describe('SalonPage: alta de mozo', () => {
+  it('abre el diálogo de alta y lo cierra sin crear nada al cancelar (CA 4 de #43)', async () => {
+    render(<SalonPage />);
+
+    await abrirAltaDeMozo();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(crearMozo).not.toHaveBeenCalled();
+  });
+
+  it('cierra el diálogo, avisa y activa «Mozos» cuando el mozo se crea (CA 1 de #43)', async () => {
+    vi.mocked(crearMozo).mockResolvedValue({ datos: MOZO_CREADO, exito: true });
+    renderConToasts();
+
+    await abrirAltaDeMozo();
+    completarMozo();
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar mozo' }));
+
+    expect(await screen.findByText('Mozo creado')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: 'Mozos' })).toHaveAttribute('aria-selected', 'true'),
+    );
+    await waitFor(() => expect(listarMozos).toHaveBeenCalled());
+  });
+});
+
+describe('SalonPage: edición de mozo', () => {
+  it('abre el diálogo precargado desde la fila (CA 1 de #44)', async () => {
+    render(<SalonPage />);
+
+    await abrirEdicionDeMozo();
+
+    expect(screen.getByLabelText(/DNI/)).toHaveValue('30123456');
+    expect(screen.getByLabelText(/Nombre/)).toHaveValue('Juan');
+    expect(screen.getByLabelText(/Apellido/)).toHaveValue('Fernández');
+    expect(modificarMozo).not.toHaveBeenCalled();
+  });
+
+  it('guarda la modificación, avisa y recarga el listado (CA 1 de #44)', async () => {
+    const modificado: Mozo = { ...JUAN, apellido: 'Gómez' };
+    vi.mocked(listarMozos)
+      .mockResolvedValueOnce(paginaMozos([JUAN]))
+      .mockResolvedValue(paginaMozos([modificado]));
+    vi.mocked(modificarMozo).mockResolvedValue({ datos: modificado, exito: true });
+    renderConToasts();
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Mozos' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar el mozo 30123456' }));
+    await screen.findByRole('heading', { name: 'Editar mozo' });
+
+    fireEvent.change(screen.getByLabelText(/Apellido/), { target: { value: 'Gómez' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+    expect(await screen.findByText('Mozo modificado')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(modificarMozo).toHaveBeenCalledWith(1, {
+      dni: '30123456',
+      nombre: 'Juan',
+      apellido: 'Gómez',
+      telefono: '280 412-3456',
+    });
+    await waitFor(() => expect(listarMozos).toHaveBeenCalledTimes(2));
+  });
+
+  it('con un dato obligatorio vacío no guarda y lo informa (CA 2 de #44)', async () => {
+    render(<SalonPage />);
+    await abrirEdicionDeMozo();
+
+    fireEvent.change(screen.getByLabelText(/Nombre/), { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+    expect(screen.getByText('El nombre es obligatorio.')).toBeInTheDocument();
+    expect(modificarMozo).not.toHaveBeenCalled();
+  });
+
+  it('al cancelar no envía la modificación (CA 4 de #44)', async () => {
+    render(<SalonPage />);
+    await abrirEdicionDeMozo();
+
+    fireEvent.change(screen.getByLabelText(/Nombre/), { target: { value: 'Juan Carlos' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(modificarMozo).not.toHaveBeenCalled();
+    expect(listarMozos).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('SalonPage: baja de mozo', () => {
+  it('da de baja el mozo con confirmación y recarga el listado (CA 1 de #45)', async () => {
+    vi.mocked(listarMozos)
+      .mockResolvedValueOnce(paginaMozos([JUAN]))
+      .mockResolvedValue(paginaMozos([{ ...JUAN, estado: 'DESHABILITADO' }]));
+    vi.mocked(eliminarMozo).mockResolvedValue({
+      datos: { ...JUAN, estado: 'DESHABILITADO' },
+      exito: true,
+    });
+    const confirmar = renderConConfirmacion();
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Mozos' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Dar de baja al mozo 30123456' }));
+
+    await waitFor(() => expect(eliminarMozo).toHaveBeenCalledWith(1));
+    expect(confirmar).toHaveBeenCalledWith(
+      expect.objectContaining({
+        titulo: '¿Dar de baja a Fernández, Juan?',
+        variante: 'danger',
+      }),
+    );
+    expect(await screen.findByText('Mozo dado de baja')).toBeInTheDocument();
+    expect(await screen.findByText('Deshabilitado')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Dar de baja al mozo 30123456' })).toBeNull();
+    expect(listarMozos).toHaveBeenCalledTimes(2);
+  });
+
+  it('al cancelar la confirmación no envía la baja (CA 2 de #45)', async () => {
+    vi.mocked(listarMozos).mockResolvedValue(paginaMozos([JUAN]));
+    renderConConfirmacion(false);
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Mozos' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Dar de baja al mozo 30123456' }));
+
+    await waitFor(() => expect(eliminarMozo).not.toHaveBeenCalled());
+    expect(listarMozos).toHaveBeenCalledTimes(1);
+  });
+
+  it('si el mozo ya está dado de baja muestra el mensaje y lo conserva (CA 4 de #45)', async () => {
+    const mensaje = 'El mozo ya está dado de baja';
+    vi.mocked(listarMozos).mockResolvedValue(paginaMozos([JUAN]));
+    vi.mocked(eliminarMozo).mockResolvedValue({ datos: null, exito: false, error: mensaje });
+    renderConConfirmacion();
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Mozos' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Dar de baja al mozo 30123456' }));
+
+    expect(await screen.findByText(mensaje)).toBeInTheDocument();
+    expect(screen.getByText('Habilitado')).toBeInTheDocument();
+    expect(listarMozos).toHaveBeenCalledTimes(1);
   });
 });

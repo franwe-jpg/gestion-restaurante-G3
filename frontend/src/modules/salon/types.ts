@@ -51,7 +51,21 @@ export interface MesaModificar {
 }
 
 export interface Mozo {
-  id: string;
+  id: number;
+  dni: string;
   nombre: string;
-  activo: boolean;
+  apellido: string;
+  telefono: string | null;
+  estado: Estado;
 }
+
+// HU-M3-09: alta de mozos. El estado no se envía: el sistema lo fija en HABILITADO.
+export interface MozoCrear {
+  dni: string;
+  nombre: string;
+  apellido: string;
+  telefono?: string | null;
+}
+
+// HU-M3-10: modificación de mozos. El estado no se envía: lo conserva el mozo.
+export type MozoModificar = MozoCrear;

@@ -1,6 +1,16 @@
 import { clienteHttp } from '../../shared/api/client';
 import type { Pagina, RespuestaApi } from '../../shared/types';
-import type { Mesa, MesaCrear, MesaModificar, Sector, SectorCrear, SectorModificar } from './types';
+import type {
+  Mesa,
+  MesaCrear,
+  MesaModificar,
+  Mozo,
+  MozoCrear,
+  MozoModificar,
+  Sector,
+  SectorCrear,
+  SectorModificar,
+} from './types';
 
 const LIMITE_SELECTOR = 100;
 
@@ -50,4 +60,31 @@ export function listarMesas(limit: number, offset: number): Promise<RespuestaApi
 /** HU-M3-07: borra la mesa; el backend responde 204 sin cuerpo. */
 export function eliminarMesa(id: number): Promise<RespuestaApi<null>> {
   return clienteHttp.delete<null>(`/mesas/${id}`);
+}
+
+/** HU-M3-09: alta de mozo; el backend lo deja en estado Habilitado. */
+export function crearMozo(datos: MozoCrear): Promise<RespuestaApi<Mozo>> {
+  return clienteHttp.post<Mozo, MozoCrear>('/mozos', datos);
+}
+
+/** HU-M3-10: reemplaza los datos de un mozo existente. */
+export function modificarMozo(id: number, datos: MozoModificar): Promise<RespuestaApi<Mozo>> {
+  return clienteHttp.put<Mozo, MozoModificar>(`/mozos/${id}`, datos);
+}
+
+/** HU-M3-11: baja lógica; el mozo queda deshabilitado y conserva sus datos. */
+export function eliminarMozo(id: number): Promise<RespuestaApi<Mozo>> {
+  return clienteHttp.post<Mozo, Record<string, never>>(`/mozos/${id}/baja`, {});
+}
+
+/** HU-M3-12: listado completo, sin filtro de estado (habilitados y deshabilitados). */
+export function listarMozos(limit: number, offset: number): Promise<RespuestaApi<Pagina<Mozo>>> {
+  return clienteHttp.get<Pagina<Mozo>>(`/mozos?limit=${limit}&offset=${offset}`);
+}
+
+/** Lectura de apoyo para asignaciones: solo mozos habilitados. */
+export function listarMozosDisponibles(): Promise<RespuestaApi<Pagina<Mozo>>> {
+  return clienteHttp.get<Pagina<Mozo>>(
+    `/mozos?estado=HABILITADO&limit=${LIMITE_SELECTOR}&offset=0`,
+  );
 }
