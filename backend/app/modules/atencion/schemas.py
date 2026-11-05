@@ -2,7 +2,7 @@
 
 import re
 
-from pydantic import BaseModel, ConfigDict, Field, StrictInt, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, field_validator, model_validator
 
 from app.shared.contratos.comanda import DetalleComandaCrear, EstadoComanda, EstadoEntrega
 from app.shared.paginacion import ParametrosPaginacion
@@ -34,6 +34,26 @@ class EntregasComanda(BaseModel):
     comanda_id: int
     estado: EstadoComanda
     detalles: list[DetalleEntrega]
+
+
+class ComandaModificar(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    agregar: list[DetalleComandaCrear] = Field(default_factory=list)
+    quitar: list[StrictInt] = Field(default_factory=list)
+
+    @field_validator("quitar")
+    @classmethod
+    def validar_quitar(cls, ids: list[int]) -> list[int]:
+        if any(identificador <= 0 for identificador in ids):
+            raise ValueError("quitar solo admite IDs positivos")
+        return ids
+
+    @model_validator(mode="after")
+    def validar_operacion(self) -> "ComandaModificar":
+        if not self.agregar and not self.quitar:
+            raise ValueError("Indique al menos un producto para agregar o quitar")
+        return self
 
 
 class ClienteNuevo(BaseModel):

@@ -19,6 +19,8 @@ interface Props {
   ocupado: boolean;
   onCerrar: (id: number) => void;
   onEntregas: (id: number) => void;
+  onModificar: (id: number) => void;
+  onReabrir: (id: number) => void;
   onPagina: (offset: number) => void;
 }
 
@@ -28,6 +30,8 @@ export function ComandasTabla({
   ocupado,
   onCerrar,
   onEntregas,
+  onModificar,
+  onReabrir,
   onPagina,
 }: Props) {
   return (
@@ -53,6 +57,8 @@ export function ComandasTabla({
                 ocupado={ocupado}
                 onCerrar={onCerrar}
                 onEntregas={onEntregas}
+                onModificar={onModificar}
+                onReabrir={onReabrir}
               />
             ))}
           </TableBody>
@@ -120,40 +126,61 @@ function ComandasVacias({
   );
 }
 
-function ComandaFila({
-  comanda,
-  ocupado,
-  onCerrar,
-  onEntregas,
-}: {
+interface AccionesProps {
   comanda: ComandaResumen;
   ocupado: boolean;
   onCerrar: (id: number) => void;
   onEntregas: (id: number) => void;
-}) {
+  onModificar: (id: number) => void;
+  onReabrir: (id: number) => void;
+}
+
+function AccionesComanda({ comanda, ocupado, ...acciones }: AccionesProps) {
+  return (
+    <TableCell className="space-x-2">
+      <Button
+        variant="outline"
+        aria-label={`Entregas de la comanda #${comanda.id}`}
+        onClick={() => acciones.onEntregas(comanda.id)}
+      >
+        Entregas
+      </Button>
+      <Button
+        variant="outline"
+        disabled={ocupado || comanda.estado !== 'ABIERTA'}
+        aria-label={`Modificar comanda #${comanda.id}`}
+        onClick={() => acciones.onModificar(comanda.id)}
+      >
+        Modificar
+      </Button>
+      <Button
+        variant="outline"
+        disabled={ocupado || comanda.estado !== 'CERRADA'}
+        aria-label={`Reabrir comanda #${comanda.id}`}
+        onClick={() => acciones.onReabrir(comanda.id)}
+      >
+        Reabrir
+      </Button>
+      <Button
+        variant="outline"
+        disabled={ocupado || comanda.estado !== 'ABIERTA'}
+        aria-label={`Cerrar comanda #${comanda.id}`}
+        onClick={() => acciones.onCerrar(comanda.id)}
+      >
+        Cerrar
+      </Button>
+    </TableCell>
+  );
+}
+
+function ComandaFila({ comanda, ...acciones }: AccionesProps) {
   return (
     <TableRow>
       <TableCell>Comanda #{comanda.id}</TableCell>
       <TableCell>{comanda.mesa_id}</TableCell>
       <TableCell>{comanda.estado}</TableCell>
       <TableCell>{new Date(comanda.fecha_hora).toLocaleString()}</TableCell>
-      <TableCell className="space-x-2">
-        <Button
-          variant="outline"
-          aria-label={`Entregas de la comanda #${comanda.id}`}
-          onClick={() => onEntregas(comanda.id)}
-        >
-          Entregas
-        </Button>
-        <Button
-          variant="outline"
-          disabled={ocupado || comanda.estado !== 'ABIERTA'}
-          aria-label={`Cerrar comanda #${comanda.id}`}
-          onClick={() => onCerrar(comanda.id)}
-        >
-          Cerrar
-        </Button>
-      </TableCell>
+      <AccionesComanda comanda={comanda} {...acciones} />
     </TableRow>
   );
 }

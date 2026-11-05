@@ -319,6 +319,7 @@ def test_cerrar_comanda_devuelve_salida_compartida_y_segundo_cierre_conflicto(
     assert salida.observaciones == "Sin sal"
     assert respuesta.json()["detalles"] == [
         {
+            "id": comanda.detalles[0].id,
             "producto_id": 1,
             "menu_ejecutivo_id": None,
             "cantidad": 2,

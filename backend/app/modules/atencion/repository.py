@@ -38,6 +38,19 @@ def obtener_comanda(db: Session, comanda_id: int) -> Comanda | None:
     return db.scalar(consulta)
 
 
+def agregar_detalles(db: Session, comanda: Comanda, detalles: list[DetalleComandaSalida]) -> None:
+    comanda.detalles.extend(DetalleComanda(**detalle.model_dump()) for detalle in detalles)
+    db.flush()
+
+
+def quitar_detalles(db: Session, comanda: Comanda, detalle_ids: set[int]) -> None:
+    for detalle in list(comanda.detalles):
+        if detalle.id in detalle_ids:
+            comanda.detalles.remove(detalle)
+            db.delete(detalle)
+    db.flush()
+
+
 def registrar_entrega(db: Session, comanda_id: int, detalle_id: int, cantidad: int) -> bool:
     """Fija `cantidad_entregada` de un detalle de una comanda ABIERTA; sin commit.
 

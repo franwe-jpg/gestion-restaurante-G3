@@ -37,6 +37,7 @@ class ComandaCrear(BaseModel):
 
 
 class DetalleComandaSalida(DetalleComandaCrear):
+    id: int | None = None
     precio_unitario: Decimal = Field(gt=0, decimal_places=2)
     descuento: Decimal = Field(ge=0, decimal_places=2)
     promocion_id: int | None = None

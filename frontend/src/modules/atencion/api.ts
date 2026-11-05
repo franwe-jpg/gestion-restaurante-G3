@@ -3,6 +3,7 @@ import type { Pagina, RespuestaApi } from '../../shared/types';
 import type {
   Comanda,
   ComandaCrear,
+  ComandaModificar,
   ComandaResumen,
   EntregaDetalle,
   EntregasComanda,
@@ -25,6 +26,21 @@ export function listarComandas(
 
 export function crearComanda(datos: ComandaCrear): Promise<RespuestaApi<Comanda>> {
   return clienteHttp.post<Comanda, ComandaCrear>('/comandas', datos);
+}
+
+export function obtenerComanda(id: number): Promise<RespuestaApi<Comanda>> {
+  return clienteHttp.get<Comanda>(`/comandas/${id}`);
+}
+
+export function modificarComanda(
+  id: number,
+  datos: ComandaModificar,
+): Promise<RespuestaApi<Comanda>> {
+  return clienteHttp.put<Comanda, ComandaModificar>(`/comandas/${id}`, datos);
+}
+
+export function reabrirComanda(id: number): Promise<RespuestaApi<Comanda>> {
+  return clienteHttp.post<Comanda, Record<string, never>>(`/comandas/${id}/reabrir`, {});
 }
 
 export function consultarPendientes(id: number): Promise<RespuestaApi<PendientesComanda>> {
