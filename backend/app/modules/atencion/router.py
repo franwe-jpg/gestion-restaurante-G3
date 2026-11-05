@@ -10,6 +10,7 @@ from app.modules.atencion import adaptadores, service
 from app.modules.atencion.schemas import (
     ClienteModificar,
     ClienteSalida,
+    ComandaModificar,
     EntregaDetalle,
     EntregasComanda,
     FiltroClientes,
@@ -80,6 +81,30 @@ def registrar_entrega(
     db: Sesion,
 ) -> EntregasComanda:
     return service.registrar_entrega(db, comanda_id, detalle_id, datos)
+
+
+@router.put("/comandas/{comanda_id}")
+def modificar_comanda(
+    comanda_id: Annotated[int, Path(gt=0)],
+    datos: ComandaModificar,
+    db: Sesion,
+    catalogo: Annotated[service.CatalogoPort, Depends(obtener_catalogo_port)],
+) -> ComandaSalida:
+    return service.modificar_comanda(db, comanda_id, datos, catalogo)
+
+
+@router.post("/comandas/{comanda_id}/reabrir")
+def reabrir_comanda(
+    comanda_id: Annotated[int, Path(gt=0)],
+    db: Sesion,
+    mesas: Annotated[service.MesasPort, Depends(obtener_mesas_port)],
+) -> ComandaSalida:
+    return service.reabrir_comanda(db, comanda_id, mesas)
+
+
+@router.get("/comandas/{comanda_id}")
+def obtener_comanda(comanda_id: Annotated[int, Path(gt=0)], db: Sesion) -> ComandaSalida:
+    return service.obtener_comanda(db, comanda_id)
 
 
 @router.put("/clientes/{cliente_id}")

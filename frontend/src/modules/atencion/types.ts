@@ -17,10 +17,16 @@ export interface ComandaCrear {
   observaciones: string | null;
 }
 export interface DetalleComandaSalida extends DetalleComandaCrear {
+  id?: number | null;
   precio_unitario: string;
   descuento: string;
   promocion_id: number | null;
   estado_entrega: 'PENDIENTE' | 'ENTREGADO';
+}
+
+export interface ComandaModificar {
+  agregar: DetalleComandaCrear[];
+  quitar: number[];
 }
 export interface Comanda extends ComandaResumen {
   reserva_id?: number | null;
