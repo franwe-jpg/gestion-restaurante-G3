@@ -43,6 +43,15 @@ afterEach(() => {
 });
 
 describe('PagosPage', () => {
+  it('abre el diálogo para facturar una comanda (HU-M6-01)', async () => {
+    mostrar();
+    await screen.findByText('Efectivo', { selector: 'span.font-medium' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Facturar comanda' }));
+
+    expect(screen.getByText('N° de comanda')).toBeInTheDocument();
+  });
+
   it('muestra el encabezado de la maqueta y los medios habilitados (CA 1 de #77)', async () => {
     mostrar();
 
