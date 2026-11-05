@@ -1,11 +1,8 @@
-import { Sparkles } from 'lucide-react';
 import { useState } from 'react';
 
-import { EmptyState } from '../../../shared/components/EmptyState';
 import { PageHeader } from '../../../shared/components/PageHeader';
-import { Card, CardContent } from '../../../shared/components/ui/card';
 import { Tabs } from '../../../shared/components/ui/tabs';
-import { MenuDelDiaTab, MenusEjecutivosTab } from '../components';
+import { MenuDelDiaTab, MenusEjecutivosTab, PromocionesTab } from '../components';
 
 const PESTANAS = [
   { id: 'ejecutivos', etiqueta: 'Menús ejecutivos' },
@@ -19,17 +16,7 @@ export function MenusPage() {
   const contenido = {
     ejecutivos: <MenusEjecutivosTab />,
     dia: <MenuDelDiaTab />,
-    promociones: (
-      <Card>
-        <CardContent className="pt-6">
-          <EmptyState
-            icono={Sparkles}
-            titulo="Promociones"
-            descripcion="Las promociones se implementan en el Sprint 3."
-          />
-        </CardContent>
-      </Card>
-    ),
+    promociones: <PromocionesTab />,
   };
 
   return (
