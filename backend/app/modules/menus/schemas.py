@@ -1,5 +1,6 @@
 """menus: entrada y salida de la API."""
 
+from datetime import date, datetime, time
 from decimal import Decimal
 from enum import StrEnum
 from typing import Annotated
@@ -13,8 +14,10 @@ from pydantic import (
     StringConstraints,
     field_serializer,
     field_validator,
+    model_validator,
 )
 
+from app.modules.menus.models import DiaSemana, TipoPromocion
 from app.shared.models import Categoria, Estado
 from app.shared.paginacion import ParametrosPaginacion
 
@@ -176,6 +179,132 @@ class ProductoResumen(BaseModel):
     nombre: str
     categoria: Categoria
     estado: Estado
+
+
+class PromocionCrear(BaseModel):
+    """Alta de una promocion: el estado lo fija el sistema en HABILITADO (HU-M2-07)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    nombre: NombreMenu
+    tipo: TipoPromocion
+    descripcion: DescripcionMenu | None = None
+    producto_ids: list[IdPositivo] = Field(min_length=1)
+    fecha_desde: date
+    fecha_hasta: date
+    dias_semana: list[DiaSemana] = Field(min_length=1)
+    hora_desde: time | None = None
+    hora_hasta: time | None = None
+    descuento_porcentaje: StrictInt | None = Field(default=None, ge=1, le=100)
+    precio_fijo: Decimal | None = Field(default=None, gt=0, max_digits=10, decimal_places=2)
+    cant_lleva: StrictInt | None = Field(default=None, gt=0)
+    cant_paga: StrictInt | None = Field(default=None, gt=0)
+
+    @field_validator("producto_ids")
+    @classmethod
+    def _rechazar_productos_repetidos(cls, producto_ids: list[int]) -> list[int]:
+        if len(set(producto_ids)) != len(producto_ids):
+            raise ValueError("La lista no puede repetir productos")
+        return producto_ids
+
+    @field_validator("dias_semana")
+    @classmethod
+    def _rechazar_dias_repetidos(cls, dias: list[DiaSemana]) -> list[DiaSemana]:
+        if len(set(dias)) != len(dias):
+            raise ValueError("Los días no pueden repetirse")
+        return dias
+
+    @field_validator("descripcion")
+    @classmethod
+    def _descripcion_vacia_es_none(cls, descripcion: str | None) -> str | None:
+        return descripcion or None
+
+    @model_validator(mode="after")
+    def _validar_reglas(self) -> "PromocionCrear":
+        if self.fecha_hasta < self.fecha_desde:
+            raise ValueError("La fecha hasta no puede ser anterior a la fecha desde")
+        if (self.hora_desde is None) != (self.hora_hasta is None):
+            raise ValueError("La franja horaria debe tener hora desde y hora hasta, o ninguna")
+        if (
+            self.hora_desde is not None
+            and self.hora_hasta is not None
+            and self.hora_hasta <= self.hora_desde
+        ):
+            raise ValueError("La hora hasta debe ser posterior a la hora desde")
+        self._validar_campos_del_tipo()
+        return self
+
+    def _validar_campos_del_tipo(self) -> None:
+        if self.tipo == TipoPromocion.PORCENTAJE:
+            self._validar_porcentaje()
+        elif self.tipo == TipoPromocion.PRECIO_FIJO:
+            self._validar_precio_fijo()
+        else:
+            self._validar_nxm()
+
+    def _validar_porcentaje(self) -> None:
+        if self.descuento_porcentaje is None:
+            raise ValueError("El descuento en porcentaje es obligatorio para el tipo PORCENTAJE")
+        if any(valor is not None for valor in (self.precio_fijo, self.cant_lleva, self.cant_paga)):
+            raise ValueError("El tipo PORCENTAJE no admite precio fijo ni cantidades")
+
+    def _validar_precio_fijo(self) -> None:
+        if self.precio_fijo is None:
+            raise ValueError("El precio fijo es obligatorio para el tipo PRECIO_FIJO")
+        if any(
+            valor is not None
+            for valor in (self.descuento_porcentaje, self.cant_lleva, self.cant_paga)
+        ):
+            raise ValueError("El tipo PRECIO_FIJO no admite descuento ni cantidades")
+
+    def _validar_nxm(self) -> None:
+        if self.cant_lleva is None or self.cant_paga is None:
+            raise ValueError("Las cantidades son obligatorias para el tipo NXM")
+        if self.cant_paga >= self.cant_lleva:
+            raise ValueError("La cantidad que paga debe ser menor que la cantidad que lleva")
+        if any(valor is not None for valor in (self.descuento_porcentaje, self.precio_fijo)):
+            raise ValueError("El tipo NXM no admite descuento ni precio fijo")
+
+
+class PromocionModificar(PromocionCrear):
+    """Reemplazo completo del alta; el estado no se recibe (HU-M2-08)."""
+
+
+class PromocionSalida(BaseModel):
+    id: int
+    nombre: str
+    tipo: TipoPromocion
+    descripcion: str | None
+    fecha_desde: date
+    fecha_hasta: date
+    dias_semana: list[DiaSemana]
+    hora_desde: time | None
+    hora_hasta: time | None
+    descuento_porcentaje: int | None
+    precio_fijo: Decimal | None
+    cant_lleva: int | None
+    cant_paga: int | None
+    estado: Estado
+    fecha_hora_finalizacion: datetime | None
+    productos: list[ProductoResumen]
+
+    @field_serializer("precio_fijo")
+    def _precio_con_dos_decimales(self, precio_fijo: Decimal | None) -> str | None:
+        return None if precio_fijo is None else f"{precio_fijo:.2f}"
+
+    @field_serializer("hora_desde", "hora_hasta")
+    def _hora_sin_segundos(self, hora: time | None) -> str | None:
+        return None if hora is None else hora.strftime("%H:%M")
+
+
+class PromocionListado(PromocionSalida):
+    """Datos que muestra una fila del listado de promociones."""
+
+
+class FiltroPromociones(ParametrosPaginacion):
+    """Paginación y filtro de estado del listado de promociones."""
+
+    estado: Estado | None = None
 
 
 class MenuEjecutivoSalida(BaseModel):

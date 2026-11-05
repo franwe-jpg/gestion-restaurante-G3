@@ -111,3 +111,9 @@ def listar_clientes(
     total = contar(db, consulta)
     items = list(db.scalars(aplicar(consulta.order_by(Cliente.id), parametros)).all())
     return items, total
+
+
+def promocion_fue_aplicada(db: Session, promocion_id: int) -> bool:
+    """Indica si alguna línea de comanda referencia la promoción; solo lectura."""
+    consulta = select(DetalleComanda.id).where(DetalleComanda.promocion_id == promocion_id).limit(1)
+    return db.scalar(consulta) is not None

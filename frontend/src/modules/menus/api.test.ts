@@ -5,18 +5,28 @@ import { clienteHttp } from '../../shared/api/client';
 import {
   crearMenuDelDia,
   crearMenuEjecutivo,
+  crearPromocion,
   darDeBajaMenuDelDia,
   darDeBajaMenuEjecutivo,
+  finalizarPromocion,
   listarMenusDelDia,
   listarMenusEjecutivos,
   listarProductosHabilitados,
+  listarProductosParaPromocion,
+  listarPromociones,
   listarSeccionesHabilitadas,
   modificarMenuDelDia,
   modificarMenuEjecutivo,
+  modificarPromocion,
   obtenerMenuDelDia,
   urlDeImagen,
 } from './api';
-import type { MenuDelDiaCrear, MenuEjecutivoActualizar, MenuEjecutivoCrear } from './types';
+import type {
+  MenuDelDiaCrear,
+  MenuEjecutivoActualizar,
+  MenuEjecutivoCrear,
+  PromocionCrear,
+} from './types';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -219,5 +229,99 @@ describe('listarSeccionesHabilitadas', () => {
 
     expect(get).toHaveBeenCalledWith('/secciones?estado=HABILITADO&limit=100&offset=0');
     expect(respuesta.datos?.items[0]?.id).toBe(2);
+  });
+});
+
+const PROMOCION: PromocionCrear = {
+  nombre: 'Happy hour',
+  tipo: 'PORCENTAJE',
+  descripcion: null,
+  producto_ids: [1, 2],
+  fecha_desde: '2026-11-01',
+  fecha_hasta: '2026-11-30',
+  dias_semana: ['LUNES', 'MARTES'],
+  hora_desde: '17:00',
+  hora_hasta: '20:30',
+  descuento_porcentaje: 15,
+  precio_fijo: null,
+  cant_lleva: null,
+  cant_paga: null,
+};
+
+describe('api de promociones', () => {
+  it('crea una promoción por POST', async () => {
+    const post = vi.spyOn(clienteHttp, 'post').mockResolvedValue({ datos: null, exito: true });
+
+    await crearPromocion(PROMOCION);
+
+    expect(post).toHaveBeenCalledWith('/promociones', PROMOCION);
+  });
+
+  it('lista con estado, límite y desplazamiento', async () => {
+    const get = vi.spyOn(clienteHttp, 'get').mockResolvedValue({ datos: null, exito: true });
+
+    await listarPromociones('HABILITADO', 10, 20);
+
+    expect(get).toHaveBeenCalledWith('/promociones?estado=HABILITADO&limit=10&offset=20');
+  });
+
+  it('omite el estado cuando el filtro es TODOS', async () => {
+    const get = vi.spyOn(clienteHttp, 'get').mockResolvedValue({ datos: null, exito: true });
+
+    await listarPromociones('TODOS', 50, 0);
+
+    expect(get).toHaveBeenCalledWith('/promociones?limit=50&offset=0');
+  });
+
+  it('trae todos los productos habilitados, incluido MENU_DEL_DIA', async () => {
+    const get = vi.spyOn(clienteHttp, 'get').mockResolvedValue({
+      datos: {
+        items: [
+          {
+            id: 1,
+            nombre: 'Plato',
+            categoria: 'PLATO',
+            estado: 'HABILITADO',
+            seccion: { id: 1, nombre: 'Principal' },
+          },
+          {
+            id: 2,
+            nombre: 'Menú del día',
+            categoria: 'MENU_DEL_DIA',
+            estado: 'HABILITADO',
+            seccion: { id: 1, nombre: 'Principal' },
+          },
+        ],
+        total: 2,
+        limit: 100,
+        offset: 0,
+      },
+      exito: true,
+    });
+
+    const respuesta = await listarProductosParaPromocion();
+
+    expect(get).toHaveBeenCalledWith('/productos?estado=HABILITADO&limit=100&offset=0');
+    expect(respuesta.datos?.map(({ id }) => id)).toEqual([1, 2]);
+  });
+});
+
+describe('modificarPromocion', () => {
+  it('envía los datos por PUT a la promoción indicada', async () => {
+    const put = vi.spyOn(clienteHttp, 'put').mockResolvedValue({ datos: null, exito: true });
+
+    await modificarPromocion(7, PROMOCION);
+
+    expect(put).toHaveBeenCalledWith('/promociones/7', PROMOCION);
+  });
+});
+
+describe('finalizarPromocion', () => {
+  it('usa POST sobre el subrecurso finalizar', async () => {
+    const post = vi.spyOn(clienteHttp, 'post').mockResolvedValue({ datos: null, exito: true });
+
+    await finalizarPromocion(7);
+
+    expect(post).toHaveBeenCalledWith('/promociones/7/finalizar', {});
   });
 });

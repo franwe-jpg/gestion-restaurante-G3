@@ -3,6 +3,9 @@ import type { RespuestaApi } from '../../shared/types';
 export type Estado = 'HABILITADO' | 'DESHABILITADO';
 export type Categoria = 'PLATO' | 'POSTRE' | 'BEBIDA' | 'MENU_DEL_DIA';
 export type FiltroEstado = Estado | 'TODOS';
+export type TipoPromocion = 'PORCENTAJE' | 'PRECIO_FIJO' | 'NXM';
+export type DiaSemana =
+  'LUNES' | 'MARTES' | 'MIERCOLES' | 'JUEVES' | 'VIERNES' | 'SABADO' | 'DOMINGO';
 
 export interface SeccionResumen {
   id: number;
@@ -85,3 +88,30 @@ export interface MenuDelDiaModificar extends MenuDelDiaCrear {
 }
 
 export type RespuestaMenu = RespuestaApi<MenuDelDia>;
+
+export interface PromocionCrear {
+  nombre: string;
+  tipo: TipoPromocion;
+  descripcion: string | null;
+  producto_ids: number[];
+  fecha_desde: string;
+  fecha_hasta: string;
+  dias_semana: DiaSemana[];
+  hora_desde: string | null;
+  hora_hasta: string | null;
+  descuento_porcentaje: number | null;
+  precio_fijo: string | null;
+  cant_lleva: number | null;
+  cant_paga: number | null;
+}
+
+export interface Promocion extends Omit<PromocionCrear, 'producto_ids'> {
+  id: number;
+  estado: Estado;
+  fecha_hora_finalizacion: string | null;
+  productos: ProductoMenu[];
+}
+
+export type PromocionListado = Promocion;
+
+export type PromocionModificar = PromocionCrear;

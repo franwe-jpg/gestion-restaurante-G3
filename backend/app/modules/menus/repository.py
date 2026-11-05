@@ -1,13 +1,13 @@
 """menus: acceso a datos.
 
 El menu del dia es un `Producto` y persiste a traves de `productos.service` (D-05).
-Aca viven solo las consultas propias de los menus ejecutivos.
+Aca viven las consultas propias de los menus ejecutivos y de las promociones.
 """
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.modules.menus.models import MenuEjecutivo
+from app.modules.menus.models import MenuEjecutivo, Promocion
 from app.shared.models import Estado, Producto
 from app.shared.paginacion import ParametrosPaginacion, aplicar, contar
 
@@ -53,3 +53,39 @@ def listar(
     )
     filas = db.scalars(aplicar(ordenada, parametros)).all()
     return list(filas), contar(db, consulta)
+
+
+def existe_nombre_promocion(
+    db: Session, nombre_normalizado: str, excluir_id: int | None = None
+) -> bool:
+    consulta = select(Promocion.id).where(Promocion.nombre_normalizado == nombre_normalizado)
+    if excluir_id is not None:
+        consulta = consulta.where(Promocion.id != excluir_id)
+    return db.scalar(consulta.limit(1)) is not None
+
+
+def agregar_promocion(db: Session, promocion: Promocion) -> None:
+    db.add(promocion)
+    db.flush()
+
+
+def listar_promociones(
+    db: Session, parametros: ParametrosPaginacion, estado: Estado | None
+) -> tuple[list[Promocion], int]:
+    consulta = select(Promocion)
+    if estado is not None:
+        consulta = consulta.where(Promocion.estado == estado)
+    ordenada = consulta.options(selectinload(Promocion.productos)).order_by(
+        Promocion.nombre_normalizado, Promocion.id
+    )
+    filas = db.scalars(aplicar(ordenada, parametros)).all()
+    return list(filas), contar(db, consulta)
+
+
+def obtener_promocion(db: Session, promocion_id: int) -> Promocion | None:
+    consulta = (
+        select(Promocion)
+        .where(Promocion.id == promocion_id)
+        .options(selectinload(Promocion.productos))
+    )
+    return db.scalar(consulta)

@@ -10,6 +10,9 @@ import type {
   MenuEjecutivoActualizar,
   MenuEjecutivoCrear,
   ProductoSeleccionable,
+  Promocion,
+  PromocionCrear,
+  PromocionModificar,
   SeccionMenu,
 } from './types';
 
@@ -107,4 +110,42 @@ export function darDeBajaMenuDelDia(id: number): Promise<RespuestaApi<MenuDelDia
 
 export function urlDeImagen(ruta: string | null): string | null {
   return ruta === null ? null : urlDelBackend(ruta);
+}
+
+export function crearPromocion(datos: PromocionCrear): Promise<RespuestaApi<Promocion>> {
+  return clienteHttp.post<Promocion, PromocionCrear>('/promociones', datos);
+}
+
+export function listarPromociones(
+  estado: FiltroEstado,
+  limit: number,
+  offset: number,
+): Promise<RespuestaApi<Pagina<Promocion>>> {
+  const filtro = estado === 'TODOS' ? '' : `estado=${estado}&`;
+  return clienteHttp.get<Pagina<Promocion>>(
+    `/promociones?${filtro}limit=${limit}&offset=${offset}`,
+  );
+}
+
+export async function listarProductosParaPromocion(): Promise<
+  RespuestaApi<ProductoSeleccionable[]>
+> {
+  const respuesta = await clienteHttp.get<Pagina<ProductoSeleccionable>>(
+    `/productos?estado=HABILITADO&limit=${LIMITE_SELECTOR}&offset=0`,
+  );
+  if (!respuesta.exito || respuesta.datos === null) {
+    return { datos: null, exito: false, error: respuesta.error };
+  }
+  return { datos: respuesta.datos.items, exito: true };
+}
+
+export function modificarPromocion(
+  id: number,
+  datos: PromocionModificar,
+): Promise<RespuestaApi<Promocion>> {
+  return clienteHttp.put<Promocion, PromocionModificar>(`/promociones/${id}`, datos);
+}
+
+export function finalizarPromocion(id: number): Promise<RespuestaApi<Promocion>> {
+  return clienteHttp.post<Promocion, Record<string, never>>(`/promociones/${id}/finalizar`, {});
 }

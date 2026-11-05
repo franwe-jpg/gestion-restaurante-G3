@@ -78,10 +78,13 @@ def test_upgrade_head_crea_reservas_con_una_sola_cabeza(
 
     command.upgrade(config, "head")
     tablas, _detalle = _inspeccionar(url)
-    cabezas = ScriptDirectory.from_config(config).get_heads()
+    script = ScriptDirectory.from_config(config)
+    cabezas = script.get_heads()
+    historia = {revision.revision for revision in script.iterate_revisions(cabezas, "base")}
     get_settings.cache_clear()
 
-    assert cabezas == [REVISION_RESERVAS]
+    assert len(cabezas) == 1
+    assert REVISION_RESERVAS in historia
     assert "reservas" in tablas
 
 

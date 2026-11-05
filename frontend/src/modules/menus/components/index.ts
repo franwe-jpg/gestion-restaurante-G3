@@ -16,6 +16,7 @@ export { MenuDelDiaTab } from './MenuDelDiaTab';
 export { MenuDelDiaTabla } from './MenuDelDiaTabla';
 export { MenusEjecutivosTab } from './MenusEjecutivosTab';
 export { MenuEjecutivosTabla } from './MenuEjecutivosTabla';
+export { PromocionesTab } from './PromocionesTab';
 export { normalizarPrecio, validarMenuDelDia } from './validarMenuDelDia';
 export { useBajaMenuDelDia } from './useBajaMenuDelDia';
 export { useBajaMenuEjecutivo } from './useBajaMenuEjecutivo';
