@@ -3,7 +3,7 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.modules.pagos.models import MedioPago
+from app.modules.pagos.models import Factura, MedioPago
 from app.shared.models import Estado
 from app.shared.paginacion import ParametrosPaginacion, aplicar, contar
 
@@ -44,3 +44,18 @@ def listar_medios_pago(
     ordenada = consulta.order_by(MedioPago.nombre_normalizado, MedioPago.id)
     filas = db.scalars(aplicar(ordenada, parametros)).all()
     return list(filas), contar(db, consulta)
+
+
+def existe_factura_de_comanda(db: Session, comanda_id: int) -> bool:
+    return (
+        db.scalar(select(Factura.id).where(Factura.comanda_id == comanda_id).limit(1)) is not None
+    )
+
+
+def obtener_factura(db: Session, factura_id: int) -> Factura | None:
+    return db.get(Factura, factura_id)
+
+
+def agregar_factura(db: Session, factura: Factura) -> None:
+    db.add(factura)
+    db.flush()
