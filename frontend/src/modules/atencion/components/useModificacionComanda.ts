@@ -45,9 +45,7 @@ function useNuevasLineas() {
     setNuevas((actuales) => [...actuales, nuevaLinea(siguiente.current++)]);
   }
   function cambiar(nueva: LineaPedido) {
-    setNuevas((actuales) =>
-      actuales.map((linea) => (linea.clave === nueva.clave ? nueva : linea)),
-    );
+    setNuevas((actuales) => actuales.map((linea) => (linea.clave === nueva.clave ? nueva : linea)));
   }
   function quitarLinea(clave: number) {
     setNuevas((actuales) => actuales.filter((linea) => linea.clave !== clave));
