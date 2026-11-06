@@ -1,7 +1,7 @@
 """pagos: acceso a datos. Nunca confirma la transaccion: lo hace el service (D-10)."""
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.modules.pagos.models import Cobro, Factura, MedioPago
 from app.shared.models import Estado
@@ -79,3 +79,18 @@ def agregar_factura(db: Session, factura: Factura) -> None:
 def agregar_cobro(db: Session, cobro: Cobro) -> None:
     db.add(cobro)
     db.flush()
+
+
+def obtener_cobro_por_comprobante(db: Session, numero_comprobante: int) -> Cobro | None:
+    """Cobro con ese numero de comprobante, con su factura (HU-M6-03)."""
+    consulta = (
+        select(Cobro)
+        .where(Cobro.numero_comprobante == numero_comprobante)
+        .options(selectinload(Cobro.factura))
+    )
+    return db.scalar(consulta)
+
+
+def obtener_medio_pago_aunque_eliminado(db: Session, medio_pago_id: int) -> MedioPago | None:
+    """El comprobante muestra el medio del cobro aunque luego se haya eliminado (S4)."""
+    return db.get(MedioPago, medio_pago_id)

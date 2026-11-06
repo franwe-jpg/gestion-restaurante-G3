@@ -2,13 +2,14 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.modules.pagos import service
 from app.modules.pagos.schemas import (
     CobroCrear,
+    ComprobanteSalida,
     FacturaCrear,
     FacturaPrevia,
     FacturaResumenSalida,
@@ -74,3 +75,18 @@ def registrar_cobro(factura_id: int, datos: CobroCrear, db: Sesion) -> FacturaSa
 @router.get("/facturas/{factura_id}")
 def obtener_factura(factura_id: int, db: Sesion) -> FacturaSalida:
     return service.obtener_factura(db, factura_id)
+
+
+@router.get("/comprobantes/{numero_comprobante}")
+def obtener_comprobante(numero_comprobante: int, db: Sesion) -> ComprobanteSalida:
+    return service.obtener_comprobante(db, numero_comprobante)
+
+
+@router.get("/comprobantes/{numero_comprobante}/pdf")
+def descargar_comprobante_pdf(numero_comprobante: int, db: Sesion) -> Response:
+    archivo = service.generar_pdf_comprobante(db, numero_comprobante)
+    return Response(
+        content=archivo.contenido,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{archivo.nombre}"'},
+    )

@@ -150,3 +150,27 @@ class FacturaResumenSalida(BaseModel):
     total: Importe
     saldo_pendiente: Importe
     estado: EstadoFactura
+
+
+class MedioPagoDelComprobante(BaseModel):
+    """Medio de pago tal como figura en el comprobante (HU-M6-03)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    nombre: str
+    tipo: TipoMedioPago
+
+
+class ComprobanteSalida(BaseModel):
+    """Comprobante de un cobro: sus datos y la factura y comanda a las que pertenece (HU-M6-03)."""
+
+    numero_comprobante: int
+    fecha_hora: InstanteUTC
+    monto: Importe
+    medio_pago: MedioPagoDelComprobante
+    cobro_id: int
+    factura_id: int
+    comanda_id: int
+    total_factura: Importe
+    saldo_pendiente: Importe
