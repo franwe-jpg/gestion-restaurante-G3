@@ -1,4 +1,4 @@
-import { Plus } from 'lucide-react';
+import { Plus, Receipt } from 'lucide-react';
 import { useState } from 'react';
 
 import { PageHeader } from '../../../shared/components/PageHeader';
@@ -7,6 +7,7 @@ import { Card, CardContent } from '../../../shared/components/ui/card';
 import { Checkbox } from '../../../shared/components/ui/checkbox';
 import { Pagination } from '../../../shared/components/ui/pagination';
 
+import { FacturarComandaDialog } from '../components/FacturarComandaDialog';
 import { MedioPagoFormDialog } from '../components/MedioPagoFormDialog';
 import { MediosPagoTabla } from '../components/MediosPagoTabla';
 import { useBajaMedioPago } from '../components/useBajaMedioPago';
@@ -81,6 +82,7 @@ function ListadoMediosPago({
 }
 
 export function PagosPage() {
+  const [facturando, setFacturando] = useState(false);
   const [incluirDeshabilitados, setIncluirDeshabilitados] = useState(false);
   const listado = useMediosPagoDelModulo(incluirDeshabilitados);
   const dialogo = useDialogoMedioPago(listado.recargar);
@@ -91,10 +93,16 @@ export function PagosPage() {
         titulo="Pagos"
         descripcion="Formas de cobro que acepta el local."
         acciones={
-          <Button onClick={() => dialogo.abrir()}>
-            <Plus className="h-4 w-4" aria-hidden="true" />
-            Nuevo medio de pago
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setFacturando(true)}>
+              <Receipt className="h-4 w-4" aria-hidden="true" />
+              Facturar comanda
+            </Button>
+            <Button onClick={() => dialogo.abrir()}>
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Nuevo medio de pago
+            </Button>
+          </div>
         }
       />
       <ListadoMediosPago
@@ -103,6 +111,12 @@ export function PagosPage() {
         onCambiarIncluirDeshabilitados={setIncluirDeshabilitados}
         onEditar={(medioPago) => dialogo.abrir(medioPago)}
       />
+      {facturando && (
+        <FacturarComandaDialog
+          onGenerada={() => setFacturando(false)}
+          onOpenChange={setFacturando}
+        />
+      )}
       {dialogo.abierto && (
         <MedioPagoFormDialog
           medioPago={dialogo.enEdicion}

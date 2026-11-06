@@ -1,6 +1,13 @@
 import { clienteHttp } from '../../shared/api/client';
 import type { Pagina, RespuestaApi } from '../../shared/types';
-import type { MedioPago, MedioPagoCrear, MedioPagoModificar } from './types';
+import type {
+  Factura,
+  FacturaCrear,
+  FacturaPrevia,
+  MedioPago,
+  MedioPagoCrear,
+  MedioPagoModificar,
+} from './types';
 
 const RUTA = '/medios-de-pago';
 
@@ -30,4 +37,16 @@ export function listarMediosPago(
 ): Promise<RespuestaApi<Pagina<MedioPago>>> {
   const filtro = incluirDeshabilitados ? '&incluir_deshabilitados=true' : '';
   return clienteHttp.get<Pagina<MedioPago>>(`${RUTA}?limit=${limit}&offset=${offset}${filtro}`);
+}
+
+const RUTA_FACTURAS = '/facturas';
+
+/** HU-M6-01 CA1: detalle, fecha y total de una comanda cerrada, sin guardar nada. */
+export function previsualizarFactura(comandaId: number): Promise<RespuestaApi<FacturaPrevia>> {
+  return clienteHttp.get<FacturaPrevia>(`${RUTA_FACTURAS}/previsualizar?comanda_id=${comandaId}`);
+}
+
+/** HU-M6-01 CA2: genera la factura junto con su primer cobro. */
+export function generarFactura(datos: FacturaCrear): Promise<RespuestaApi<Factura>> {
+  return clienteHttp.post<Factura, FacturaCrear>(RUTA_FACTURAS, datos);
 }

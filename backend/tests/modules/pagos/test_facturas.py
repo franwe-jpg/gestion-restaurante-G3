@@ -1,0 +1,292 @@
+"""Pruebas de la factura de una comanda (HU-M6-01, issue #70)."""
+
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+
+from app.modules.pagos.models import Cobro, DetalleFactura, Factura, MedioPago
+from app.shared.contratos.comanda import EstadoComanda
+from app.shared.models import Estado
+from tests.modules.pagos.conftest import Catalogo, FabricaComanda, FabricaMedioPago
+
+RUTA = "/api/v1/facturas"
+TOTAL = "7101.00"
+
+
+def _cuerpo(comanda_id: int, medio_pago_id: int, monto: str = TOTAL) -> dict[str, object]:
+    return {"comanda_id": comanda_id, "cobro": {"medio_pago_id": medio_pago_id, "monto": monto}}
+
+
+def _contar(db: Session) -> tuple[int, int, int]:
+    """Cantidad de facturas, lineas de detalle y cobros guardados."""
+    return (
+        db.query(Factura).count(),
+        db.query(DetalleFactura).count(),
+        db.query(Cobro).count(),
+    )
+
+
+# --- Vista previa ---
+
+
+# CA1 de #70
+def test_previsualizar_comanda_cerrada_muestra_detalle_fecha_y_total(
+    cliente: TestClient, db: Session, fabrica_comanda: FabricaComanda
+) -> None:
+    comanda_id = fabrica_comanda()
+
+    respuesta = cliente.get(f"{RUTA}/previsualizar", params={"comanda_id": comanda_id})
+
+    cuerpo = respuesta.json()
+    assert respuesta.status_code == 200
+    assert cuerpo["comanda_id"] == comanda_id
+    assert cuerpo["total"] == TOTAL
+    assert cuerpo["fecha_emision"]
+    assert len(cuerpo["detalles"]) == 2
+    assert _contar(db) == (0, 0, 0)
+
+
+# --- Confirmar con el primer cobro ---
+
+
+# CA2 de #70
+def test_generar_con_monto_igual_al_total_deja_la_factura_pagada(
+    cliente: TestClient, fabrica_comanda: FabricaComanda, fabrica_medio_pago: FabricaMedioPago
+) -> None:
+    medio = fabrica_medio_pago()
+
+    respuesta = cliente.post(RUTA, json=_cuerpo(fabrica_comanda(), medio.id))
+
+    cuerpo = respuesta.json()
+    assert respuesta.status_code == 201
+    assert cuerpo["estado"] == "PAGADA"
+    assert cuerpo["saldo_pendiente"] == "0.00"
+    assert cuerpo["total"] == TOTAL
+    [cobro] = cuerpo["cobros"]
+    assert cobro["numero_comprobante"] == cobro["id"]
+    assert cobro["medio_pago_id"] == medio.id
+    assert cobro["monto"] == TOTAL
+
+
+# S3 del cambio
+def test_generar_con_cobro_parcial_deja_la_factura_adeudada(
+    cliente: TestClient, fabrica_comanda: FabricaComanda, fabrica_medio_pago: FabricaMedioPago
+) -> None:
+    medio = fabrica_medio_pago()
+
+    respuesta = cliente.post(RUTA, json=_cuerpo(fabrica_comanda(), medio.id, "1000.00"))
+
+    cuerpo = respuesta.json()
+    assert respuesta.status_code == 201
+    assert cuerpo["estado"] == "ADEUDADA"
+    assert cuerpo["saldo_pendiente"] == "6101.00"
+
+
+# F04 y F13: el cobro invalido no deja nada guardado
+@pytest.mark.parametrize("monto", ["7101.01", "0.00", "-5.00"])
+def test_generar_con_monto_invalido_responde_422_y_no_guarda_nada(
+    monto: str,
+    cliente: TestClient,
+    db: Session,
+    fabrica_comanda: FabricaComanda,
+    fabrica_medio_pago: FabricaMedioPago,
+) -> None:
+    medio = fabrica_medio_pago()
+
+    respuesta = cliente.post(RUTA, json=_cuerpo(fabrica_comanda(), medio.id, monto))
+
+    assert respuesta.status_code == 422
+    assert _contar(db) == (0, 0, 0)
+
+
+# F05
+@pytest.mark.parametrize(
+    ("preparar", "codigo"),
+    [
+        (lambda medio: None, 404),
+        (lambda medio: setattr(medio, "eliminado", True), 404),
+        (lambda medio: setattr(medio, "estado", Estado.DESHABILITADO), 409),
+    ],
+    ids=["inexistente", "eliminado", "deshabilitado"],
+)
+def test_generar_con_medio_de_pago_no_utilizable_responde_error_y_no_guarda_nada(
+    preparar: object,
+    codigo: int,
+    cliente: TestClient,
+    db: Session,
+    fabrica_comanda: FabricaComanda,
+    fabrica_medio_pago: FabricaMedioPago,
+) -> None:
+    medio = fabrica_medio_pago()
+    medio_id = medio.id
+    if preparar is not None:
+        preparar(medio)  # type: ignore[operator]
+        db.commit()
+    if codigo == 404 and not medio.eliminado:
+        medio_id = 999
+
+    respuesta = cliente.post(RUTA, json=_cuerpo(fabrica_comanda(), medio_id))
+
+    assert respuesta.status_code == codigo
+    assert _contar(db) == (0, 0, 0)
+
+
+# --- Solo comandas cerradas ---
+
+
+# CA3 de #70
+@pytest.mark.parametrize("estado", [EstadoComanda.ABIERTA, EstadoComanda.ANULADA])
+def test_facturar_comanda_no_cerrada_responde_409(
+    estado: EstadoComanda,
+    cliente: TestClient,
+    db: Session,
+    fabrica_comanda: FabricaComanda,
+    fabrica_medio_pago: FabricaMedioPago,
+) -> None:
+    comanda_id = fabrica_comanda(estado)
+    medio = fabrica_medio_pago()
+
+    previa = cliente.get(f"{RUTA}/previsualizar", params={"comanda_id": comanda_id})
+    generada = cliente.post(RUTA, json=_cuerpo(comanda_id, medio.id))
+
+    assert previa.status_code == generada.status_code == 409
+    assert generada.json() == {"detalle": "La comanda no está cerrada"}
+    assert _contar(db) == (0, 0, 0)
+
+
+# F07
+def test_facturar_comanda_inexistente_responde_404(
+    cliente: TestClient, fabrica_medio_pago: FabricaMedioPago
+) -> None:
+    medio = fabrica_medio_pago()
+
+    previa = cliente.get(f"{RUTA}/previsualizar", params={"comanda_id": 999})
+    generada = cliente.post(RUTA, json=_cuerpo(999, medio.id))
+
+    assert previa.status_code == generada.status_code == 404
+
+
+# --- Detalle copiado ---
+
+
+# CA4 de #70
+def test_generar_copia_una_linea_por_cada_linea_de_la_comanda(
+    cliente: TestClient,
+    fabrica_comanda: FabricaComanda,
+    fabrica_medio_pago: FabricaMedioPago,
+    catalogo: Catalogo,
+) -> None:
+    medio = fabrica_medio_pago()
+
+    cuerpo = cliente.post(RUTA, json=_cuerpo(fabrica_comanda(), medio.id)).json()
+
+    plato, menu = cuerpo["detalles"]
+    assert plato == {
+        "producto_id": catalogo.plato_id,
+        "menu_ejecutivo_id": None,
+        "descripcion": "Milanesa",
+        "cantidad": 2,
+        "precio_unitario": "1500.50",
+        "descuento": "100.00",
+        "subtotal": "2901.00",
+    }
+    assert menu["menu_ejecutivo_id"] == catalogo.menu_id
+    assert menu["producto_id"] is None
+    assert menu["descripcion"] == "Ejecutivo del dia"
+    assert menu["subtotal"] == "4200.00"
+
+
+# --- Una sola factura por comanda ---
+
+
+# CA5 de #70
+def test_generar_dos_veces_la_misma_comanda_responde_409_y_no_crea_otra(
+    cliente: TestClient,
+    db: Session,
+    fabrica_comanda: FabricaComanda,
+    fabrica_medio_pago: FabricaMedioPago,
+) -> None:
+    comanda_id = fabrica_comanda()
+    medio = fabrica_medio_pago()
+    cliente.post(RUTA, json=_cuerpo(comanda_id, medio.id, "1000.00"))
+
+    segunda = cliente.post(RUTA, json=_cuerpo(comanda_id, medio.id, "500.00"))
+    previa = cliente.get(f"{RUTA}/previsualizar", params={"comanda_id": comanda_id})
+
+    assert segunda.status_code == previa.status_code == 409
+    assert segunda.json() == {"detalle": "La comanda ya fue facturada"}
+    assert _contar(db) == (1, 2, 1)
+
+
+# --- La factura conserva lo facturado ---
+
+
+# CA6 de #70
+def test_consultar_conserva_el_precio_aunque_el_producto_cambie(
+    cliente: TestClient,
+    db: Session,
+    fabrica_comanda: FabricaComanda,
+    fabrica_medio_pago: FabricaMedioPago,
+    catalogo: Catalogo,
+) -> None:
+    medio = fabrica_medio_pago()
+    factura_id = cliente.post(RUTA, json=_cuerpo(fabrica_comanda(), medio.id)).json()["id"]
+    db.execute(
+        text("UPDATE productos SET precio = 9999.00 WHERE id = :id"), {"id": catalogo.plato_id}
+    )
+    db.commit()
+
+    cuerpo = cliente.get(f"{RUTA}/{factura_id}").json()
+
+    assert cuerpo["detalles"][0]["precio_unitario"] == "1500.50"
+    assert cuerpo["total"] == TOTAL
+
+
+# CA7 de #70
+def test_consultar_mantiene_el_producto_dado_de_baja_en_el_detalle(
+    cliente: TestClient,
+    db: Session,
+    fabrica_comanda: FabricaComanda,
+    fabrica_medio_pago: FabricaMedioPago,
+    catalogo: Catalogo,
+) -> None:
+    medio = fabrica_medio_pago()
+    factura_id = cliente.post(RUTA, json=_cuerpo(fabrica_comanda(), medio.id)).json()["id"]
+    db.execute(
+        text("UPDATE productos SET estado = 'DESHABILITADO' WHERE id = :id"),
+        {"id": catalogo.plato_id},
+    )
+    db.commit()
+
+    linea = cliente.get(f"{RUTA}/{factura_id}").json()["detalles"][0]
+
+    assert linea["descripcion"] == "Milanesa"
+    assert linea["precio_unitario"] == "1500.50"
+
+
+# --- Consulta ---
+
+
+# F12
+def test_consultar_factura_inexistente_responde_404(cliente: TestClient) -> None:
+    respuesta = cliente.get(f"{RUTA}/999")
+
+    assert respuesta.status_code == 404
+    assert "detalle" in respuesta.json()
+
+
+# La referencia a MedioPago evita que el import quede sin uso si cambian las fabricas.
+def test_el_medio_de_pago_del_cobro_es_el_elegido(
+    cliente: TestClient,
+    db: Session,
+    fabrica_comanda: FabricaComanda,
+    fabrica_medio_pago: FabricaMedioPago,
+) -> None:
+    fabrica_medio_pago(nombre="Efectivo")
+    tarjeta = fabrica_medio_pago(nombre="Tarjeta")
+
+    factura_id = cliente.post(RUTA, json=_cuerpo(fabrica_comanda(), tarjeta.id)).json()["id"]
+
+    cobro = cliente.get(f"{RUTA}/{factura_id}").json()["cobros"][0]
+    assert db.get(MedioPago, cobro["medio_pago_id"]).nombre == "Tarjeta"  # type: ignore[union-attr]

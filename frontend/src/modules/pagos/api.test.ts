@@ -2,8 +2,15 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { clienteHttp } from '../../shared/api/client';
 
-import { crearMedioPago, eliminarMedioPago, listarMediosPago, modificarMedioPago } from './api';
-import type { MedioPago, MedioPagoCrear, MedioPagoModificar } from './types';
+import {
+  crearMedioPago,
+  eliminarMedioPago,
+  generarFactura,
+  listarMediosPago,
+  modificarMedioPago,
+  previsualizarFactura,
+} from './api';
+import type { FacturaCrear, MedioPago, MedioPagoCrear, MedioPagoModificar } from './types';
 
 const EFECTIVO: MedioPago = {
   id: 1,
@@ -63,5 +70,24 @@ describe('api de medios de pago', () => {
       2,
       '/medios-de-pago?limit=50&offset=50&incluir_deshabilitados=true',
     );
+  });
+});
+
+describe('api de facturas (HU-M6-01)', () => {
+  it('pide la vista previa por GET con el número de comanda', async () => {
+    const get = vi.spyOn(clienteHttp, 'get').mockResolvedValue({ datos: null, exito: true });
+
+    await previsualizarFactura(12);
+
+    expect(get).toHaveBeenCalledWith('/facturas/previsualizar?comanda_id=12');
+  });
+
+  it('genera la factura por POST a /facturas con el primer cobro', async () => {
+    const datos: FacturaCrear = { comanda_id: 12, cobro: { medio_pago_id: 1, monto: '7101.00' } };
+    const post = vi.spyOn(clienteHttp, 'post').mockResolvedValue({ datos: null, exito: true });
+
+    await generarFactura(datos);
+
+    expect(post).toHaveBeenCalledWith('/facturas', datos);
   });
 });
