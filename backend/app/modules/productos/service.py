@@ -3,13 +3,15 @@
 import contextlib
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Protocol
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.modules.productos import imagenes, repository
+from app.modules.atencion import service as atencion_service
+from app.modules.productos import imagenes, reporte, reporte_pdf, repository
 from app.modules.productos.models import Seccion
 from app.modules.productos.schemas import (
     ProductoCarta,
@@ -18,6 +20,7 @@ from app.modules.productos.schemas import (
     ProductoModificar,
     ProductoResumen,
     ProductoSalida,
+    ReporteProductosMasVendidos,
     SeccionCarta,
     SeccionCrear,
     SeccionListado,
@@ -29,6 +32,7 @@ from app.shared.excepciones import DatosInvalidosError, NoEncontradoError, Regla
 from app.shared.models import Categoria, Estado, Producto
 from app.shared.models.producto import normalizar_nombre
 from app.shared.paginacion import Pagina, ParametrosPaginacion
+from app.shared.pdf import renderizar
 
 MENSAJE_NOMBRE_REPETIDO_POR_DEFECTO = "El producto ya está registrado"
 
@@ -554,3 +558,38 @@ def listar_carta(
     return Pagina[SeccionCarta](
         items=items, total=total, limit=parametros.limit, offset=parametros.offset
     )
+
+
+def generar_reporte_mas_vendidos(
+    db: Session, fecha_desde: date | None, fecha_hasta: date | None
+) -> ReporteProductosMasVendidos:
+    """Productos más pedidos por sección en el período (HU-M1-15). Solo lectura."""
+    desde, hasta = reporte.validar_periodo(fecha_desde, fecha_hasta)
+    inicio, fin = reporte.intervalo_utc(desde, hasta)
+    cantidades = atencion_service.sumar_productos_pedidos(
+        db, inicio, fin, reporte.DESPLAZAMIENTO_HORAS
+    )
+    ids = sorted({fila.producto_id for fila in cantidades})
+    productos = repository.obtener_productos(db, ids) if ids else []
+    secciones = repository.obtener_secciones_por_ids(db, {p.seccion_id for p in productos})
+    return ReporteProductosMasVendidos(
+        fecha_desde=desde,
+        fecha_hasta=hasta,
+        secciones=reporte.armar_secciones(cantidades, productos, secciones),
+    )
+
+
+@dataclass(frozen=True)
+class ArchivoPdf:
+    contenido: bytes
+    nombre: str
+
+
+def generar_pdf(db: Session, fecha_desde: date | None, fecha_hasta: date | None) -> ArchivoPdf:
+    """PDF con los mismos datos y validaciones que el JSON; un período vacío también se genera."""
+    datos = generar_reporte_mas_vendidos(db, fecha_desde, fecha_hasta)
+    generado = datetime.now(reporte.ZONA_DEL_RESTAURANTE).replace(tzinfo=None)
+    documento = reporte_pdf.componer(datos, generado)
+    periodo = f"{datos.fecha_desde.isoformat()}_{datos.fecha_hasta.isoformat()}"
+    nombre = f"productos-mas-vendidos_{periodo}.pdf"
+    return ArchivoPdf(contenido=renderizar(documento), nombre=nombre)
