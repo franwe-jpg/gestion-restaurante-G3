@@ -1,5 +1,6 @@
 """pagos: reglas de negocio y transacciones."""
 
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
 
@@ -8,10 +9,11 @@ from sqlalchemy.orm import Session
 
 from app.modules.atencion import service as atencion_service
 from app.modules.menus import service as menus_service
-from app.modules.pagos import repository
+from app.modules.pagos import comprobante_pdf, repository
 from app.modules.pagos.models import Cobro, DetalleFactura, EstadoFactura, Factura, MedioPago
 from app.modules.pagos.schemas import (
     CobroCrear,
+    ComprobanteSalida,
     DetalleFacturaSalida,
     FacturaCrear,
     FacturaPrevia,
@@ -19,6 +21,7 @@ from app.modules.pagos.schemas import (
     FacturaSalida,
     FiltroMediosPago,
     MedioPagoCrear,
+    MedioPagoDelComprobante,
     MedioPagoModificar,
     MedioPagoSalida,
 )
@@ -27,6 +30,7 @@ from app.shared.contratos.comanda import ComandaSalida, DetalleComandaSalida, Es
 from app.shared.excepciones import DatosInvalidosError, NoEncontradoError, ReglaDeNegocioError
 from app.shared.models import Estado
 from app.shared.paginacion import Pagina, ParametrosPaginacion
+from app.shared.pdf import renderizar
 
 MENSAJE_DUPLICADO = "El medio de pago ya existe"
 MENSAJE_NO_CERRADA = "La comanda no está cerrada"
@@ -252,3 +256,41 @@ def registrar_cobro(db: Session, factura_id: int, datos: CobroCrear) -> FacturaS
         db.rollback()
         raise ReglaDeNegocioError("No se pudo registrar el cobro") from error
     return FacturaSalida.model_validate(factura)
+
+
+@dataclass(frozen=True)
+class ArchivoComprobante:
+    contenido: bytes
+    nombre: str
+
+
+def obtener_comprobante(db: Session, numero_comprobante: int) -> ComprobanteSalida:
+    """HU-M6-03: comprobante de un cobro; solo lee, asi que siempre es el mismo (CA4)."""
+    cobro = repository.obtener_cobro_por_comprobante(db, numero_comprobante)
+    if cobro is None:
+        raise NoEncontradoError(
+            f"No hay un pago registrado con el comprobante {numero_comprobante}"
+        )
+    medio = repository.obtener_medio_pago_aunque_eliminado(db, cobro.medio_pago_id)
+    return ComprobanteSalida(
+        numero_comprobante=numero_comprobante,
+        fecha_hora=cobro.fecha_hora,
+        monto=cobro.monto,
+        medio_pago=MedioPagoDelComprobante.model_validate(medio),
+        cobro_id=cobro.id,
+        factura_id=cobro.factura_id,
+        comanda_id=cobro.factura.comanda_id,
+        total_factura=cobro.factura.total,
+        saldo_pendiente=cobro.factura.saldo_pendiente,
+    )
+
+
+def generar_pdf_comprobante(db: Session, numero_comprobante: int) -> ArchivoComprobante:
+    """HU-M6-03 (S3): el mismo comprobante en PDF, para entregarlo al cliente."""
+    comprobante = obtener_comprobante(db, numero_comprobante)
+    generado = datetime.now(comprobante_pdf.ZONA_DEL_RESTAURANTE).replace(tzinfo=None)
+    documento = comprobante_pdf.componer(comprobante, generado)
+    return ArchivoComprobante(
+        contenido=renderizar(documento),
+        nombre=f"comprobante-{comprobante.numero_comprobante}.pdf",
+    )

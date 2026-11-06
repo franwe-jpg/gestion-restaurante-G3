@@ -13,6 +13,7 @@ export interface FacturasTablaProps {
   error?: string | null;
   onReintentar?: () => void;
   onCobrar: (factura: FacturaResumen) => void;
+  onVerComprobantes: (factura: FacturaResumen) => void;
 }
 
 const MENSAJE_VACIO = 'No hay facturas emitidas.';
@@ -32,7 +33,44 @@ function EstadoFactura({ estado }: { estado: FacturaResumen['estado'] }) {
   );
 }
 
-function columnas(onCobrar: (factura: FacturaResumen) => void): ColumnaTabla<FacturaResumen>[] {
+type AccionFactura = (factura: FacturaResumen) => void;
+
+function Acciones({
+  factura,
+  onCobrar,
+  onVerComprobantes,
+}: {
+  factura: FacturaResumen;
+  onCobrar: AccionFactura;
+  onVerComprobantes: AccionFactura;
+}) {
+  return (
+    <div className="flex justify-end gap-2">
+      <Button
+        size="sm"
+        variant="outline"
+        aria-label={`Ver los comprobantes de la factura ${factura.id}`}
+        onClick={() => onVerComprobantes(factura)}
+      >
+        Comprobantes
+      </Button>
+      {factura.estado === 'ADEUDADA' && (
+        <Button
+          size="sm"
+          aria-label={`Cobrar la factura ${factura.id}`}
+          onClick={() => onCobrar(factura)}
+        >
+          Cobrar
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function columnas(
+  onCobrar: AccionFactura,
+  onVerComprobantes: AccionFactura,
+): ColumnaTabla<FacturaResumen>[] {
   return [
     {
       clave: 'id',
@@ -65,32 +103,26 @@ function columnas(onCobrar: (factura: FacturaResumen) => void): ColumnaTabla<Fac
     {
       clave: 'acciones',
       encabezado: <span className="sr-only">Acciones</span>,
-      className: 'w-28',
-      render: (factura) =>
-        factura.estado === 'ADEUDADA' ? (
-          <Button
-            size="sm"
-            aria-label={`Cobrar la factura ${factura.id}`}
-            onClick={() => onCobrar(factura)}
-          >
-            Cobrar
-          </Button>
-        ) : null,
+      className: 'w-56',
+      render: (factura) => (
+        <Acciones factura={factura} onCobrar={onCobrar} onVerComprobantes={onVerComprobantes} />
+      ),
     },
   ];
 }
 
-/** HU-M6-02: tabla de facturas; solo las adeudadas se pueden cobrar. */
+/** HU-M6-02: tabla de facturas; solo las adeudadas se pueden cobrar. HU-M6-03: comprobantes. */
 export function FacturasTabla({
   facturas,
   cargando = false,
   error = null,
   onReintentar,
   onCobrar,
+  onVerComprobantes,
 }: FacturasTablaProps) {
   return (
     <DataTable
-      columnas={columnas(onCobrar)}
+      columnas={columnas(onCobrar, onVerComprobantes)}
       filas={facturas}
       obtenerClave={(factura) => factura.id}
       cargando={cargando}

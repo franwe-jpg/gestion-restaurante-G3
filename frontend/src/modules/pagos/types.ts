@@ -85,3 +85,23 @@ export interface FacturaCrear {
   comanda_id: number;
   cobro: CobroCrear;
 }
+
+// HU-M6-03: medio de pago tal como figura en el comprobante.
+export interface MedioPagoDelComprobante {
+  id: number;
+  nombre: string;
+  tipo: TipoMedioPago;
+}
+
+// HU-M6-03: comprobante de un cobro, asociado a su factura y a su comanda.
+export interface Comprobante {
+  numero_comprobante: number;
+  fecha_hora: string;
+  monto: string;
+  medio_pago: MedioPagoDelComprobante;
+  cobro_id: number;
+  factura_id: number;
+  comanda_id: number;
+  total_factura: string;
+  saldo_pendiente: string;
+}

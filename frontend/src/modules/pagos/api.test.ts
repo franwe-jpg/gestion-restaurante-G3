@@ -4,11 +4,13 @@ import { clienteHttp } from '../../shared/api/client';
 
 import {
   crearMedioPago,
+  descargarComprobantePdf,
   eliminarMedioPago,
   generarFactura,
   listarFacturas,
   listarMediosPago,
   modificarMedioPago,
+  obtenerComprobante,
   obtenerFactura,
   previsualizarFactura,
   registrarCobro,
@@ -125,5 +127,27 @@ describe('api de cobros (HU-M6-02)', () => {
     await registrarCobro(7, datos);
 
     expect(post).toHaveBeenCalledWith('/facturas/7/cobros', datos);
+  });
+});
+
+describe('api de comprobantes (HU-M6-03)', () => {
+  it('pide el comprobante por GET con su número', async () => {
+    const get = vi.spyOn(clienteHttp, 'get').mockResolvedValue({ datos: null, exito: true });
+
+    await obtenerComprobante(12);
+
+    expect(get).toHaveBeenCalledWith('/comprobantes/12');
+  });
+
+  it('descarga el PDF del comprobante como archivo', async () => {
+    const blob = new Blob(['%PDF'], { type: 'application/pdf' });
+    const obtenerArchivo = vi
+      .spyOn(clienteHttp, 'obtenerArchivo')
+      .mockResolvedValue({ datos: blob, exito: true });
+
+    const respuesta = await descargarComprobantePdf(12);
+
+    expect(obtenerArchivo).toHaveBeenCalledWith('/comprobantes/12/pdf');
+    expect(respuesta.datos).toBe(blob);
   });
 });
