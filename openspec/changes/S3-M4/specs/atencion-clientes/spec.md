@@ -15,6 +15,14 @@ En el alta de una reserva, el formulario de Cliente nuevo DEBE estar contenido d
 - Entonces quedan registrados tanto el cliente como la reserva, asociados entre sí
 - Y el cliente no queda registrado por separado antes de ese guardado.
 
+#### Escenario: Cancelar el borrador de cliente nuevo
+
+- Dado que se cargaron los datos de un cliente nuevo en el formulario de reserva
+- Cuando se cancela el alta del cliente
+- Entonces se ocultan y descartan solo los campos y datos del cliente nuevo
+- Y se conservan los demás datos de la reserva
+- Y se puede seleccionar un cliente existente.
+
 #### Escenario: Falta un dato obligatorio del cliente (#48 CA2)
 
 - Dado que al crear la reserva falta `nombre` o `telefono` del cliente nuevo

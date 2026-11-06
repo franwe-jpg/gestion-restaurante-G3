@@ -4,6 +4,7 @@ import type { KeyboardEvent } from 'react';
 import { Button } from '../../../shared/components/ui/button';
 import { FormField } from '../../../shared/components/ui/form-field';
 import { Input } from '../../../shared/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '../../../shared/components/ui/card';
 import { List, ListItem } from '../../../shared/components/ui/list';
 import { SearchInput } from '../../../shared/components/ui/search-input';
 import type { ClienteEncontrado } from '../types';
@@ -68,22 +69,41 @@ interface CamposClienteNuevoProps {
 
 function CamposClienteNuevo({ nombre, telefono, errores, onCambiar }: CamposClienteNuevoProps) {
   return (
-    <div className="grid grid-cols-2 gap-3">
-      <FormField id="reserva-cliente-nombre" label="Nombre" required error={errores.nombre}>
-        <Input
-          id="reserva-cliente-nombre"
-          value={nombre}
-          onChange={(evento) => onCambiar({ tipo: 'nuevo', nombre: evento.target.value, telefono })}
-        />
-      </FormField>
-      <FormField id="reserva-cliente-telefono" label="Teléfono" required error={errores.telefono}>
-        <Input
-          id="reserva-cliente-telefono"
-          value={telefono}
-          onChange={(evento) => onCambiar({ tipo: 'nuevo', nombre, telefono: evento.target.value })}
-        />
-      </FormField>
-    </div>
+    <Card role="group" aria-label="Datos del cliente nuevo">
+      <CardHeader>
+        <CardTitle>Datos del cliente nuevo</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <FormField id="reserva-cliente-nombre" label="Nombre" required error={errores.nombre}>
+            <Input
+              id="reserva-cliente-nombre"
+              value={nombre}
+              onChange={(evento) =>
+                onCambiar({ tipo: 'nuevo', nombre: evento.target.value, telefono })
+              }
+            />
+          </FormField>
+          <FormField
+            id="reserva-cliente-telefono"
+            label="Teléfono"
+            required
+            error={errores.telefono}
+          >
+            <Input
+              id="reserva-cliente-telefono"
+              value={telefono}
+              onChange={(evento) =>
+                onCambiar({ tipo: 'nuevo', nombre, telefono: evento.target.value })
+              }
+            />
+          </FormField>
+        </div>
+        <Button type="button" variant="outline" onClick={() => onCambiar({ tipo: 'ninguno' })}>
+          Cancelar
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
 

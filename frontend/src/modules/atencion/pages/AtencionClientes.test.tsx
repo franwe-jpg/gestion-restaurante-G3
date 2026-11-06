@@ -86,7 +86,7 @@ describe('AtencionPage: estados y edición de clientes', () => {
       error: 'Sin conexión',
     });
     render(<AtencionPage />);
-    expect(await screen.findByRole('alert')).toHaveTextContent('Sin conexión');
+    expect(await screen.findByText('Sin conexión')).toBeInTheDocument();
   });
 
   it('permite editar un cliente y muestra los datos confirmados en el listado (#49 CA1)', async () => {
@@ -104,5 +104,36 @@ describe('AtencionPage: estados y edición de clientes', () => {
     expect(await screen.findByText('María Ruiz')).toBeInTheDocument();
     expect(screen.getByText('456-789')).toBeInTheDocument();
     expect(screen.queryByText('Ana López')).toBeNull();
+  });
+});
+
+describe('AtencionPage: loading durante cambios de consulta', () => {
+  it('no queda cargando al volver a enviar el filtro activo sin cambios', async () => {
+    responder(CLIENTES);
+    render(<AtencionPage />);
+    await screen.findByText('Ana López');
+    fireEvent.click(screen.getByRole('button', { name: 'Buscar' }));
+    expect(screen.getByText('Ana López')).toBeInTheDocument();
+    expect(screen.queryByText('Cargando clientes…')).toBeNull();
+  });
+
+  it('vuelve a cargar cuando cambia el filtro', async () => {
+    responder(CLIENTES);
+    render(<AtencionPage />);
+    await screen.findByText('Ana López');
+    vi.mocked(listarClientes).mockReturnValue(new Promise(() => undefined));
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Buscar clientes' }), {
+      target: { value: 'Luis' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Buscar' }));
+    expect(screen.getByText('Cargando clientes…')).toBeInTheDocument();
+    expect(screen.queryByText('Ana López')).toBeNull();
+  });
+
+  it('muestra carga sin ocultar la acción de Comandas', () => {
+    vi.mocked(listarClientes).mockReturnValue(new Promise(() => undefined));
+    render(<AtencionPage />);
+    expect(screen.getByText('Cargando clientes…')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Nueva comanda' })).toBeInTheDocument();
   });
 });

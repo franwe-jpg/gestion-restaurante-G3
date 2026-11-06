@@ -89,7 +89,8 @@ it('usa el indicador de carga compartido mientras espera el listado', async () =
       }),
   );
   render(<AtencionPage />);
-  expect(screen.getByRole('status')).toHaveTextContent('Cargando comandas…');
+  const estadoComandas = screen.getByText('Cargando comandas…');
+  expect(estadoComandas.parentElement).toHaveAttribute('role', 'status');
   resolver?.({ exito: true, datos: PAGINA });
   expect(await screen.findByText('Comanda #3')).toBeInTheDocument();
 });
