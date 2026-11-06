@@ -1,9 +1,10 @@
 """Consultas de Cliente y Comanda sobre SQLite temporal."""
 
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
-from sqlalchemy import text
+from sqlalchemy import event, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -312,3 +313,78 @@ def test_crear_cliente_asigna_id_con_flush_y_rollback_lo_descarta(db: Session) -
     db.rollback()
 
     assert repository.obtener_cliente(db, cliente_id) is None
+
+
+def _utc(*partes: int) -> datetime:
+    return datetime(*partes, tzinfo=UTC)
+
+
+def _filas(db: Session, desde: datetime, hasta: datetime, desplazamiento: int = 0) -> set[tuple]:
+    filas = repository.sumar_productos_pedidos(db, desde, hasta, desplazamiento)
+    return {tuple(fila) for fila in filas}
+
+
+def test_sumar_productos_pedidos_suma_cantidades_por_producto_dia_y_hora(
+    db: Session, sembrar_pedidos
+) -> None:
+    sembrar_pedidos(_utc(2026, 11, 2, 13, 5), [(1, 2)])  # lunes
+    sembrar_pedidos(_utc(2026, 11, 2, 13, 50), [(1, 3), (2, 1)])
+
+    filas = _filas(db, _utc(2026, 11, 1), _utc(2026, 11, 8))
+
+    assert filas == {(1, 0, 13, 5), (2, 0, 13, 1)}
+
+
+def test_sumar_productos_pedidos_excluye_anuladas_y_menus(db: Session, sembrar_pedidos) -> None:
+    sembrar_pedidos(_utc(2026, 11, 2, 13), [(1, 1), (None, 4)], "ABIERTA")
+    sembrar_pedidos(_utc(2026, 11, 2, 13), [(1, 2)], "CERRADA")
+    sembrar_pedidos(_utc(2026, 11, 2, 13), [(1, 9)], "ANULADA")
+
+    filas = _filas(db, _utc(2026, 11, 1), _utc(2026, 11, 8))
+
+    assert filas == {(1, 0, 13, 3)}
+
+
+def test_sumar_productos_pedidos_intervalo_semiabierto(db: Session, sembrar_pedidos) -> None:
+    sembrar_pedidos(_utc(2026, 11, 2, 0), [(1, 1)])
+    sembrar_pedidos(_utc(2026, 11, 3, 0), [(1, 7)])
+
+    filas = _filas(db, _utc(2026, 11, 2), _utc(2026, 11, 3))
+
+    assert filas == {(1, 0, 0, 1)}
+
+
+def test_sumar_productos_pedidos_aplica_el_desplazamiento_horario(
+    db: Session, sembrar_pedidos
+) -> None:
+    sembrar_pedidos(_utc(2026, 11, 6, 2), [(1, 1)])  # viernes 02:00 UTC = jueves 23:00 local
+
+    filas = _filas(db, _utc(2026, 11, 1), _utc(2026, 11, 8), -3)
+
+    assert filas == {(1, 3, 23, 1)}
+
+
+def test_consulta_del_reporte_usa_los_indices_sin_recorrer_las_tablas(
+    db: Session, sembrar_pedidos
+) -> None:
+    for dia in range(1, 20):
+        sembrar_pedidos(_utc(2026, 10, dia, 12), [(1, 1), (2, 2)])
+    db.commit()
+    capturado: list[tuple[str, tuple]] = []
+
+    def capturar(conexion, cursor, sentencia, parametros, contexto, varias):
+        capturado.append((sentencia, parametros))
+
+    motor = db.get_bind()
+    event.listen(motor, "before_cursor_execute", capturar)
+    repository.sumar_productos_pedidos(db, _utc(2026, 10, 1), _utc(2026, 10, 5), -3)
+    event.remove(motor, "before_cursor_execute", capturar)
+    sentencia, parametros = capturado[-1]
+
+    plan = db.connection().exec_driver_sql("EXPLAIN QUERY PLAN " + sentencia, parametros)
+    detalle = " | ".join(fila[3] for fila in plan)
+
+    assert "USING INDEX ix_comandas_fecha_hora" in detalle
+    assert "ix_detalles_comanda_comanda_id" in detalle
+    assert "SCAN comandas" not in detalle
+    assert "SCAN detalles_comanda" not in detalle

@@ -42,6 +42,7 @@ class Comanda(Base):
             unique=True,
             sqlite_where=sa.text("estado = 'ABIERTA'"),
         ),
+        sa.Index("ix_comandas_fecha_hora", "fecha_hora"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -69,6 +70,7 @@ def estado_segun_entrega(cantidad: int, cantidad_entregada: int) -> EstadoEntreg
 class DetalleComanda(Base):
     __tablename__ = "detalles_comanda"
     __table_args__ = (
+        sa.Index("ix_detalles_comanda_comanda_id", "comanda_id"),
         sa.CheckConstraint("cantidad > 0", name="ck_detalles_comanda_cantidad_positiva"),
         sa.CheckConstraint(
             "(producto_id IS NOT NULL AND menu_ejecutivo_id IS NULL) OR "
