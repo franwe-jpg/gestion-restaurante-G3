@@ -3,7 +3,7 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.modules.pagos.models import Factura, MedioPago
+from app.modules.pagos.models import Cobro, Factura, MedioPago
 from app.shared.models import Estado
 from app.shared.paginacion import ParametrosPaginacion, aplicar, contar
 
@@ -56,6 +56,26 @@ def obtener_factura(db: Session, factura_id: int) -> Factura | None:
     return db.get(Factura, factura_id)
 
 
+def listar_facturas(db: Session, parametros: ParametrosPaginacion) -> tuple[list[Factura], int]:
+    """Pagina de facturas, de la mas reciente a la mas vieja (HU-M6-02)."""
+    consulta = select(Factura).order_by(Factura.fecha_emision.desc(), Factura.id.desc())
+    filas = db.scalars(aplicar(consulta, parametros)).all()
+    return list(filas), contar(db, consulta)
+
+
+def existe_cobro_con_medio(db: Session, factura_id: int, medio_pago_id: int) -> bool:
+    consulta = select(Cobro.id).where(
+        Cobro.factura_id == factura_id,
+        Cobro.medio_pago_id == medio_pago_id,
+    )
+    return db.scalar(consulta.limit(1)) is not None
+
+
 def agregar_factura(db: Session, factura: Factura) -> None:
     db.add(factura)
+    db.flush()
+
+
+def agregar_cobro(db: Session, cobro: Cobro) -> None:
+    db.add(cobro)
     db.flush()

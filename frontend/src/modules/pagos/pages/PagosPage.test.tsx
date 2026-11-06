@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ConfirmContext } from '../../../shared/components/ui/confirm-context';
 import { ToastProvider } from '../../../shared/components/ui/toast';
-import { eliminarMedioPago, listarMediosPago } from '../api';
-import type { MedioPago } from '../types';
+import { eliminarMedioPago, listarFacturas, listarMediosPago, obtenerFactura } from '../api';
+import type { Factura, FacturaResumen, MedioPago } from '../types';
 
 import { PagosPage } from './PagosPage';
 
@@ -17,6 +17,17 @@ const EFECTIVO: MedioPago = {
   descripcion: null,
   estado: 'HABILITADO',
 };
+
+const FACTURA_RESUMEN: FacturaResumen = {
+  id: 7,
+  comanda_id: 12,
+  fecha_emision: '2026-11-05T15:00:00Z',
+  total: '7101.00',
+  saldo_pendiente: '6101.00',
+  estado: 'ADEUDADA',
+};
+
+const FACTURA: Factura = { ...FACTURA_RESUMEN, detalles: [], cobros: [] };
 
 const confirmar = vi.fn();
 
@@ -105,5 +116,25 @@ describe('PagosPage', () => {
 
     await waitFor(() => expect(eliminarMedioPago).toHaveBeenCalledWith(1));
     await waitFor(() => expect(listarMediosPago).toHaveBeenCalledTimes(2));
+  });
+});
+
+describe('PagosPage · facturas (HU-M6-02)', () => {
+  it('muestra la pestaña Facturas y abre el cobro de una adeudada (HU-M6-02)', async () => {
+    vi.mocked(listarFacturas).mockResolvedValue({
+      datos: { items: [FACTURA_RESUMEN], total: 1, limit: 50, offset: 0 },
+      exito: true,
+    });
+    vi.mocked(obtenerFactura).mockResolvedValue({ datos: FACTURA, exito: true });
+    mostrar();
+    await screen.findByText('Efectivo', { selector: 'span.font-medium' });
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Facturas' }));
+
+    expect(await screen.findByText('Adeudada')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Cobrar la factura 7' }));
+
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByText('Cobrar factura #7')).toBeInTheDocument();
   });
 });

@@ -11,9 +11,11 @@ from app.modules.menus import service as menus_service
 from app.modules.pagos import repository
 from app.modules.pagos.models import Cobro, DetalleFactura, EstadoFactura, Factura, MedioPago
 from app.modules.pagos.schemas import (
+    CobroCrear,
     DetalleFacturaSalida,
     FacturaCrear,
     FacturaPrevia,
+    FacturaResumenSalida,
     FacturaSalida,
     FiltroMediosPago,
     MedioPagoCrear,
@@ -24,11 +26,14 @@ from app.modules.productos import service as productos_service
 from app.shared.contratos.comanda import ComandaSalida, DetalleComandaSalida, EstadoComanda
 from app.shared.excepciones import DatosInvalidosError, NoEncontradoError, ReglaDeNegocioError
 from app.shared.models import Estado
-from app.shared.paginacion import Pagina
+from app.shared.paginacion import Pagina, ParametrosPaginacion
 
 MENSAJE_DUPLICADO = "El medio de pago ya existe"
 MENSAJE_NO_CERRADA = "La comanda no está cerrada"
 MENSAJE_YA_FACTURADA = "La comanda ya fue facturada"
+MENSAJE_FACTURA_PAGADA = "La factura ya está pagada"
+MENSAJE_MONTO_SUPERA_SALDO = "El monto no puede superar el saldo pendiente de la factura"
+MENSAJE_MEDIO_REPETIDO = "El medio de pago ya fue usado en esta factura"
 CENTAVO = Decimal("0.01")
 
 
@@ -191,7 +196,59 @@ def generar_factura(db: Session, datos: FacturaCrear) -> FacturaSalida:
 
 
 def obtener_factura(db: Session, factura_id: int) -> FacturaSalida:
+    return FacturaSalida.model_validate(_obtener_factura_o_404(db, factura_id))
+
+
+def _obtener_factura_o_404(db: Session, factura_id: int) -> Factura:
     factura = repository.obtener_factura(db, factura_id)
     if factura is None:
         raise NoEncontradoError(f"La factura {factura_id} no existe")
+    return factura
+
+
+def listar_facturas(db: Session, filtro: ParametrosPaginacion) -> Pagina[FacturaResumenSalida]:
+    """HU-M6-02: pagina de facturas para elegir cual cobrar, la mas reciente primero."""
+    facturas, total = repository.listar_facturas(db, filtro)
+    return Pagina[FacturaResumenSalida](
+        items=[FacturaResumenSalida.model_validate(factura) for factura in facturas],
+        total=total,
+        limit=filtro.limit,
+        offset=filtro.offset,
+    )
+
+
+def _validar_cobro(db: Session, factura: Factura, datos: CobroCrear) -> None:
+    if factura.estado == EstadoFactura.PAGADA:
+        raise ReglaDeNegocioError(MENSAJE_FACTURA_PAGADA)
+    if datos.monto > factura.saldo_pendiente:
+        raise DatosInvalidosError(MENSAJE_MONTO_SUPERA_SALDO)
+    _validar_medio_utilizable(db, datos.medio_pago_id)
+    if repository.existe_cobro_con_medio(db, factura.id, datos.medio_pago_id):
+        raise ReglaDeNegocioError(MENSAJE_MEDIO_REPETIDO)
+
+
+def _aplicar_cobro(factura: Factura, datos: CobroCrear) -> Cobro:
+    cobro = Cobro(medio_pago_id=datos.medio_pago_id, monto=datos.monto)
+    factura.saldo_pendiente = (factura.saldo_pendiente - datos.monto).quantize(CENTAVO)
+    factura.estado = (
+        EstadoFactura.PAGADA
+        if factura.saldo_pendiente == Decimal("0.00")
+        else EstadoFactura.ADEUDADA
+    )
+    factura.cobros.append(cobro)
+    return cobro
+
+
+def registrar_cobro(db: Session, factura_id: int, datos: CobroCrear) -> FacturaSalida:
+    """HU-M6-02: cobra una factura adeudada y actualiza saldo y estado."""
+    factura = _obtener_factura_o_404(db, factura_id)
+    _validar_cobro(db, factura, datos)
+    cobro = _aplicar_cobro(factura, datos)
+    try:
+        repository.agregar_cobro(db, cobro)
+        cobro.numero_comprobante = cobro.id
+        db.commit()
+    except IntegrityError as error:
+        db.rollback()
+        raise ReglaDeNegocioError("No se pudo registrar el cobro") from error
     return FacturaSalida.model_validate(factura)
