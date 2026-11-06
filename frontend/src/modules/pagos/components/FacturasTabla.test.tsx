@@ -22,8 +22,10 @@ const PAGADA: FacturaResumen = {
   estado: 'PAGADA',
 };
 
-function mostrar(facturas: FacturaResumen[], onCobrar = vi.fn()) {
-  render(<FacturasTabla facturas={facturas} onCobrar={onCobrar} />);
+function mostrar(facturas: FacturaResumen[], onCobrar = vi.fn(), onVerComprobantes = vi.fn()) {
+  render(
+    <FacturasTabla facturas={facturas} onCobrar={onCobrar} onVerComprobantes={onVerComprobantes} />,
+  );
   return onCobrar;
 }
 
@@ -45,6 +47,16 @@ describe('FacturasTabla (HU-M6-02)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cobrar la factura 7' }));
 
     expect(onCobrar).toHaveBeenCalledWith(ADEUDADA);
+  });
+
+  it('permite ver los comprobantes de cualquier factura (HU-M6-03)', () => {
+    const onVerComprobantes = vi.fn();
+    mostrar([ADEUDADA, PAGADA], vi.fn(), onVerComprobantes);
+
+    expect(screen.getAllByRole('button', { name: /Ver los comprobantes/ })).toHaveLength(2);
+    fireEvent.click(screen.getByRole('button', { name: 'Ver los comprobantes de la factura 8' }));
+
+    expect(onVerComprobantes).toHaveBeenCalledWith(PAGADA);
   });
 
   it('avisa cuando no hay facturas', () => {

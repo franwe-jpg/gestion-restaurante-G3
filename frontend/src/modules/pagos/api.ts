@@ -2,6 +2,7 @@ import { clienteHttp } from '../../shared/api/client';
 import type { Pagina, RespuestaApi } from '../../shared/types';
 import type {
   CobroCrear,
+  Comprobante,
   Factura,
   FacturaCrear,
   FacturaPrevia,
@@ -74,4 +75,16 @@ export function registrarCobro(
   datos: CobroCrear,
 ): Promise<RespuestaApi<Factura>> {
   return clienteHttp.post<Factura, CobroCrear>(`${RUTA_FACTURAS}/${facturaId}/cobros`, datos);
+}
+
+const RUTA_COMPROBANTES = '/comprobantes';
+
+/** HU-M6-03: comprobante de un cobro; pedirlo otra vez devuelve el mismo. */
+export function obtenerComprobante(numero: number): Promise<RespuestaApi<Comprobante>> {
+  return clienteHttp.get<Comprobante>(`${RUTA_COMPROBANTES}/${numero}`);
+}
+
+/** HU-M6-03: el mismo comprobante en PDF, para entregarlo al cliente. */
+export function descargarComprobantePdf(numero: number): Promise<RespuestaApi<Blob>> {
+  return clienteHttp.obtenerArchivo(`${RUTA_COMPROBANTES}/${numero}/pdf`);
 }

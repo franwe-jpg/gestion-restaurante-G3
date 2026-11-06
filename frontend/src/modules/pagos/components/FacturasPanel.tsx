@@ -5,13 +5,15 @@ import { Pagination } from '../../../shared/components/ui/pagination';
 import type { FacturaResumen } from '../types';
 
 import { CobrarFacturaDialog } from './CobrarFacturaDialog';
+import { ComprobantesDialog } from './ComprobantesDialog';
 import { FacturasTabla } from './FacturasTabla';
 import { useFacturasDelModulo } from './useFacturasDelModulo';
 
-/** HU-M6-02: pestaña «Facturas» con el listado y el cobro de las adeudadas. */
+/** HU-M6-02: pestaña «Facturas» con el listado y el cobro de las adeudadas; HU-M6-03: comprobantes. */
 export function FacturasPanel() {
   const listado = useFacturasDelModulo();
   const [cobrando, setCobrando] = useState<FacturaResumen | null>(null);
+  const [viendo, setViendo] = useState<FacturaResumen | null>(null);
 
   const alCobrar = () => {
     setCobrando(null);
@@ -28,6 +30,7 @@ export function FacturasPanel() {
             error={listado.error}
             onReintentar={listado.recargar}
             onCobrar={setCobrando}
+            onVerComprobantes={setViendo}
           />
           {listado.paginacion.totalPaginas > 1 && (
             <Pagination
@@ -44,6 +47,14 @@ export function FacturasPanel() {
           onCobrada={alCobrar}
           onOpenChange={(abierto) => {
             if (!abierto) setCobrando(null);
+          }}
+        />
+      )}
+      {viendo && (
+        <ComprobantesDialog
+          factura={viendo}
+          onOpenChange={(abierto) => {
+            if (!abierto) setViendo(null);
           }}
         />
       )}
