@@ -208,3 +208,40 @@ describe('urlDelBackend', () => {
     expect(urlDelBackend('/media/a.jpg')).toBe('http://api.test/media/a.jpg');
   });
 });
+
+describe('ClienteApi.obtenerArchivo', () => {
+  it('devuelve el Blob de la respuesta', async () => {
+    const blob = new Blob(['%PDF'], { type: 'application/pdf' });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      blob: () => Promise.resolve(blob),
+    } as Response);
+    vi.stubGlobal('fetch', fetchMock);
+
+    const respuesta = await new ClienteApi('http://api.test').obtenerArchivo('/x/pdf?a=1');
+
+    expect(respuesta).toEqual({ datos: blob, exito: true });
+    expect(fetchMock).toHaveBeenCalledWith('http://api.test/api/v1/x/pdf?a=1', undefined);
+  });
+
+  it('lee el detalle de un 422', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(respuestaJson({ detalle: 'Falta la fecha desde.' }, 422, 'x')),
+    );
+
+    const respuesta = await new ClienteApi('http://api.test').obtenerArchivo('/x/pdf');
+
+    expect(respuesta).toEqual({ datos: null, exito: false, error: 'Falta la fecha desde.' });
+  });
+
+  it('informa el error de conexion', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('caido')));
+
+    const respuesta = await new ClienteApi('http://api.test').obtenerArchivo('/x/pdf');
+
+    expect(respuesta.error).toBe('No se pudo conectar con el backend');
+  });
+});

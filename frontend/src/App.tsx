@@ -8,6 +8,7 @@ import { ForbiddenPage } from './shared/components/ForbiddenPage';
 import { Inicio } from './shared/components/Inicio';
 import { AppShell } from './shared/components/layout/AppShell';
 import { NotFoundPage } from './shared/components/NotFoundPage';
+import { ReportesPage } from './shared/components/ReportesPage';
 import { ServerErrorPage } from './shared/components/ServerErrorPage';
 import { ServiceUnavailablePage } from './shared/components/ServiceUnavailablePage';
 
@@ -20,6 +21,12 @@ const ProductosPage = lazy(() =>
 const CartaPage = lazy(() =>
   import('./modules/productos/pages/CartaPage').then((modulo) => ({
     default: modulo.CartaPage,
+  })),
+);
+
+const ReporteMasVendidosPage = lazy(() =>
+  import('./modules/productos/pages/ReporteMasVendidosPage').then((modulo) => ({
+    default: modulo.ReporteMasVendidosPage,
   })),
 );
 
@@ -61,11 +68,13 @@ export default function App() {
           <Route index element={<Inicio />} />
           <Route path="productos" element={<ProductosPage />} />
           <Route path="productos/carta" element={<CartaPage />} />
+          <Route path="reportes/productos-mas-vendidos" element={<ReporteMasVendidosPage />} />
           <Route path="menus" element={<MenusPage />} />
           <Route path="salon" element={<SalonPage />} />
           <Route path="atencion" element={<AtencionPage />} />
           <Route path="reservas" element={<ReservasPage />} />
           <Route path="pagos" element={<PagosPage />} />
+          <Route path="reportes" element={<ReportesPage />} />
           <Route path="componentes" element={<ComponentesPage />} />
           <Route path="salud" element={<EstadoBackend />} />
           <Route path="403" element={<ForbiddenPage />} />
