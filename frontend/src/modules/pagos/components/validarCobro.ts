@@ -19,3 +19,15 @@ export function validarImporte(texto: string, total: string): string | undefined
   if (centavos > aCentavos(total)) return 'El importe no puede superar el total de la factura.';
   return undefined;
 }
+
+/** HU-M6-02: cada cobro es mayor a cero y no supera el saldo pendiente de la factura. */
+export function validarMontoCobro(texto: string, saldo: string): string | undefined {
+  const limpio = texto.trim();
+  if (!IMPORTE_VALIDO.test(limpio)) return 'Ingresá un importe válido, con hasta 2 decimales.';
+  const centavos = aCentavos(limpio);
+  if (centavos <= 0) return 'El importe debe ser mayor a cero.';
+  if (centavos > aCentavos(saldo)) {
+    return 'El importe no puede superar el saldo pendiente de la factura.';
+  }
+  return undefined;
+}

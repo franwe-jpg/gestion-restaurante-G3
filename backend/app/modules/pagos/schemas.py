@@ -137,3 +137,16 @@ class FacturaSalida(BaseModel):
     estado: EstadoFactura
     detalles: list[DetalleFacturaSalida]
     cobros: list[CobroSalida]
+
+
+class FacturaResumenSalida(BaseModel):
+    """Fila del listado de facturas para la pantalla de cobro (HU-M6-02)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    comanda_id: int
+    fecha_emision: InstanteUTC
+    total: Importe
+    saldo_pendiente: Importe
+    estado: EstadoFactura

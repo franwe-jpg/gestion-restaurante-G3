@@ -6,8 +6,10 @@ import { Button } from '../../../shared/components/ui/button';
 import { Card, CardContent } from '../../../shared/components/ui/card';
 import { Checkbox } from '../../../shared/components/ui/checkbox';
 import { Pagination } from '../../../shared/components/ui/pagination';
+import { Tabs } from '../../../shared/components/ui/tabs';
 
 import { FacturarComandaDialog } from '../components/FacturarComandaDialog';
+import { FacturasPanel } from '../components/FacturasPanel';
 import { MedioPagoFormDialog } from '../components/MedioPagoFormDialog';
 import { MediosPagoTabla } from '../components/MediosPagoTabla';
 import { useBajaMedioPago } from '../components/useBajaMedioPago';
@@ -16,6 +18,10 @@ import type { MedioPago } from '../types';
 
 const SIN_HABILITADOS = 'No hay medios de pago disponibles para cobrar.';
 const SIN_MEDIOS = 'No hay medios de pago cargados.';
+const DESCRIPCIONES: Record<string, string> = {
+  medios: 'Formas de cobro que acepta el local.',
+  facturas: 'Facturas emitidas y saldo pendiente.',
+};
 
 function useDialogoMedioPago(recargar: () => void) {
   const [abierto, setAbierto] = useState(false);
@@ -81,39 +87,111 @@ function ListadoMediosPago({
   );
 }
 
+interface EncabezadoDePagosProps {
+  pestana: string;
+  onFacturar: () => void;
+  onNuevoMedioPago: () => void;
+}
+
+function EncabezadoDePagos({ pestana, onFacturar, onNuevoMedioPago }: EncabezadoDePagosProps) {
+  return (
+    <PageHeader
+      titulo="Pagos"
+      descripcion={DESCRIPCIONES[pestana] ?? DESCRIPCIONES.medios}
+      acciones={
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={onFacturar}>
+            <Receipt className="h-4 w-4" aria-hidden="true" />
+            Facturar comanda
+          </Button>
+          {pestana === 'medios' && (
+            <Button onClick={onNuevoMedioPago}>
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Nuevo medio de pago
+            </Button>
+          )}
+        </div>
+      }
+    />
+  );
+}
+
+interface PestanasDePagosProps {
+  pestana: string;
+  onCambiarPestana: (id: string) => void;
+  listado: ReturnType<typeof useMediosPagoDelModulo>;
+  incluirDeshabilitados: boolean;
+  onCambiarIncluirDeshabilitados: (incluir: boolean) => void;
+  onEditarMedioPago: (medioPago: MedioPago) => void;
+  refrescoFacturas: number;
+}
+
+function PestanasDePagos({
+  pestana,
+  onCambiarPestana,
+  listado,
+  incluirDeshabilitados,
+  onCambiarIncluirDeshabilitados,
+  onEditarMedioPago,
+  refrescoFacturas,
+}: PestanasDePagosProps) {
+  return (
+    <Tabs
+      valor={pestana}
+      onCambiar={onCambiarPestana}
+      items={[
+        {
+          id: 'medios',
+          etiqueta: 'Medios de pago',
+          contenido: (
+            <ListadoMediosPago
+              listado={listado}
+              incluirDeshabilitados={incluirDeshabilitados}
+              onCambiarIncluirDeshabilitados={onCambiarIncluirDeshabilitados}
+              onEditar={onEditarMedioPago}
+            />
+          ),
+        },
+        {
+          id: 'facturas',
+          etiqueta: 'Facturas',
+          contenido: <FacturasPanel key={refrescoFacturas} />,
+        },
+      ]}
+    />
+  );
+}
+
 export function PagosPage() {
+  const [pestana, setPestana] = useState('medios');
   const [facturando, setFacturando] = useState(false);
+  const [refrescoFacturas, setRefrescoFacturas] = useState(0);
   const [incluirDeshabilitados, setIncluirDeshabilitados] = useState(false);
   const listado = useMediosPagoDelModulo(incluirDeshabilitados);
   const dialogo = useDialogoMedioPago(listado.recargar);
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        titulo="Pagos"
-        descripcion="Formas de cobro que acepta el local."
-        acciones={
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setFacturando(true)}>
-              <Receipt className="h-4 w-4" aria-hidden="true" />
-              Facturar comanda
-            </Button>
-            <Button onClick={() => dialogo.abrir()}>
-              <Plus className="h-4 w-4" aria-hidden="true" />
-              Nuevo medio de pago
-            </Button>
-          </div>
-        }
+      <EncabezadoDePagos
+        pestana={pestana}
+        onFacturar={() => setFacturando(true)}
+        onNuevoMedioPago={() => dialogo.abrir()}
       />
-      <ListadoMediosPago
+      <PestanasDePagos
+        pestana={pestana}
+        onCambiarPestana={setPestana}
         listado={listado}
         incluirDeshabilitados={incluirDeshabilitados}
         onCambiarIncluirDeshabilitados={setIncluirDeshabilitados}
-        onEditar={(medioPago) => dialogo.abrir(medioPago)}
+        onEditarMedioPago={(medioPago) => dialogo.abrir(medioPago)}
+        refrescoFacturas={refrescoFacturas}
       />
       {facturando && (
         <FacturarComandaDialog
-          onGenerada={() => setFacturando(false)}
+          onGenerada={() => {
+            setFacturando(false);
+            setRefrescoFacturas((anterior) => anterior + 1);
+          }}
           onOpenChange={setFacturando}
         />
       )}

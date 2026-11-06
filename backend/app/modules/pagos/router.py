@@ -8,15 +8,17 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.modules.pagos import service
 from app.modules.pagos.schemas import (
+    CobroCrear,
     FacturaCrear,
     FacturaPrevia,
+    FacturaResumenSalida,
     FacturaSalida,
     FiltroMediosPago,
     MedioPagoCrear,
     MedioPagoModificar,
     MedioPagoSalida,
 )
-from app.shared.paginacion import Pagina
+from app.shared.paginacion import Pagina, ParametrosPaginacion
 
 router = APIRouter()
 
@@ -47,6 +49,13 @@ def listar_medios_pago(
     return service.listar_medios_pago(db, filtro)
 
 
+@router.get("/facturas")
+def listar_facturas(
+    db: Sesion, filtro: Annotated[ParametrosPaginacion, Query()]
+) -> Pagina[FacturaResumenSalida]:
+    return service.listar_facturas(db, filtro)
+
+
 @router.get("/facturas/previsualizar")
 def previsualizar_factura(db: Sesion, comanda_id: Annotated[int, Query(gt=0)]) -> FacturaPrevia:
     return service.previsualizar_factura(db, comanda_id)
@@ -55,6 +64,11 @@ def previsualizar_factura(db: Sesion, comanda_id: Annotated[int, Query(gt=0)]) -
 @router.post("/facturas", status_code=status.HTTP_201_CREATED)
 def generar_factura(datos: FacturaCrear, db: Sesion) -> FacturaSalida:
     return service.generar_factura(db, datos)
+
+
+@router.post("/facturas/{factura_id}/cobros", status_code=status.HTTP_201_CREATED)
+def registrar_cobro(factura_id: int, datos: CobroCrear, db: Sesion) -> FacturaSalida:
+    return service.registrar_cobro(db, factura_id, datos)
 
 
 @router.get("/facturas/{factura_id}")
