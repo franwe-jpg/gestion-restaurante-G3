@@ -2,7 +2,8 @@ import { Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { EmptyState } from '../../../shared/components/EmptyState';
-import { Alert } from '../../../shared/components/ui/alert';
+import { ErrorState } from '../../../shared/components/ui/error-state';
+import { Spinner } from '../../../shared/components/ui/spinner';
 import { Button } from '../../../shared/components/ui/button';
 import { Card, CardContent } from '../../../shared/components/ui/card';
 import { Pagination } from '../../../shared/components/ui/pagination';
@@ -89,18 +90,44 @@ function useListadoClientes() {
   const [offset, setOffset] = useState(0);
   const [pagina, setPagina] = useState<PaginaCliente | null>(null);
   const [error, setError] = useState('');
+  const [cargando, setCargando] = useState(true);
+  function iniciarCarga() {
+    setCargando(true);
+    setError('');
+  }
   useEffect(() => {
     let vigente = true;
-    void listarClientes(filtro, LIMITE_PAGINA, offset).then((respuesta) => {
-      if (!vigente) return;
-      setPagina(respuesta.exito ? respuesta.datos : null);
-      setError(respuesta.exito ? '' : (respuesta.error ?? 'No se pudo consultar clientes'));
-    });
+    void listarClientes(filtro, LIMITE_PAGINA, offset)
+      .then((respuesta) => {
+        if (!vigente) return;
+        setPagina(respuesta.exito ? respuesta.datos : null);
+        setError(respuesta.exito ? '' : (respuesta.error ?? 'No se pudo consultar clientes'));
+      })
+      .catch(() => {
+        if (!vigente) return;
+        setPagina(null);
+        setError('No se pudo conectar con el backend');
+      })
+      .finally(() => {
+        if (vigente) setCargando(false);
+      });
     return () => {
       vigente = false;
     };
   }, [filtro, offset]);
-  return { texto, setTexto, filtro, setFiltro, offset, setOffset, pagina, setPagina, error };
+  return {
+    texto,
+    setTexto,
+    filtro,
+    setFiltro,
+    offset,
+    setOffset,
+    pagina,
+    setPagina,
+    error,
+    cargando,
+    iniciarCarga,
+  };
 }
 
 type Listado = ReturnType<typeof useListadoClientes>;
@@ -109,17 +136,24 @@ function PaginacionClientes({
   pagina,
   offset,
   setOffset,
+  iniciarCarga,
 }: {
   pagina: PaginaCliente;
   offset: number;
   setOffset: (offset: number) => void;
+  iniciarCarga: () => void;
 }) {
   if (pagina.total <= LIMITE_PAGINA) return null;
   return (
     <Pagination
       pagina={Math.floor(offset / LIMITE_PAGINA) + 1}
       totalPaginas={Math.ceil(pagina.total / LIMITE_PAGINA)}
-      onCambiarPagina={(numero) => setOffset((numero - 1) * LIMITE_PAGINA)}
+      onCambiarPagina={(numero) => {
+        const nuevoOffset = (numero - 1) * LIMITE_PAGINA;
+        if (nuevoOffset === offset) return;
+        iniciarCarga();
+        setOffset(nuevoOffset);
+      }}
     />
   );
 }
@@ -131,15 +165,21 @@ function ContenidoClientes({
   listado: Listado;
   onEditar: (cliente: Cliente) => void;
 }) {
-  const { pagina, filtro, offset, setOffset, error } = listado;
+  const { pagina, filtro, offset, setOffset, error, cargando } = listado;
   return (
     <>
-      {error && <Alert variant="danger">{error}</Alert>}
-      {pagina && (
+      {cargando && <Spinner etiqueta="Cargando clientes…" />}
+      {!cargando && error && <ErrorState descripcion={error} />}
+      {!cargando && pagina && (
         <>
           <ResultadoClientes pagina={pagina} filtro={filtro} onEditar={onEditar} />
           <p>{pagina.total} clientes</p>
-          <PaginacionClientes pagina={pagina} offset={offset} setOffset={setOffset} />
+          <PaginacionClientes
+            pagina={pagina}
+            offset={offset}
+            setOffset={setOffset}
+            iniciarCarga={listado.iniciarCarga}
+          />
         </>
       )}
     </>
@@ -148,8 +188,11 @@ function ContenidoClientes({
 
 function FiltroClientes({ listado }: { listado: Listado }) {
   const buscar = () => {
+    const nuevoFiltro = listado.texto.trim();
+    if (nuevoFiltro === listado.filtro && listado.offset === 0) return;
+    listado.iniciarCarga();
     listado.setOffset(0);
-    listado.setFiltro(listado.texto.trim());
+    listado.setFiltro(nuevoFiltro);
   };
   return (
     <form
@@ -165,9 +208,12 @@ function FiltroClientes({ listado }: { listado: Listado }) {
         value={listado.texto}
         onChange={(evento) => listado.setTexto(evento.target.value)}
         onLimpiar={() => {
+          if (listado.filtro || listado.offset !== 0) {
+            listado.iniciarCarga();
+            listado.setFiltro('');
+            listado.setOffset(0);
+          }
           listado.setTexto('');
-          listado.setFiltro('');
-          listado.setOffset(0);
         }}
       />
       <Button type="submit">Buscar</Button>

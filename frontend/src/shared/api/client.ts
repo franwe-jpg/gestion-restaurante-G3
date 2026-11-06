@@ -43,7 +43,12 @@ export class ClienteApi {
         return { datos: null, exito: true };
       }
 
-      const datos = (await respuesta.json()) as T;
+      let datos: T;
+      try {
+        datos = (await respuesta.json()) as T;
+      } catch {
+        return { datos: null, exito: false, error: 'La respuesta del backend no es válida' };
+      }
       return { datos, exito: true };
     } catch {
       return { datos: null, exito: false, error: 'No se pudo conectar con el backend' };

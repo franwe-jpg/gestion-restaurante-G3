@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -116,6 +116,25 @@ async function elegirDia(dia: string) {
 async function elegirCliente() {
   fireEvent.change(screen.getByLabelText('Buscar cliente'), { target: { value: 'Ana' } });
   fireEvent.click(await screen.findByRole('button', { name: TEXTO_ANA }));
+}
+
+async function completarDatosReserva() {
+  fireEvent.change(screen.getByLabelText(/Fecha/), { target: { value: '2026-11-03' } });
+  fireEvent.change(screen.getByLabelText(/Hora/), { target: { value: '22:15' } });
+  fireEvent.change(screen.getByLabelText(/Cantidad de personas/), { target: { value: '3' } });
+  await screen.findByRole('option', { name: 'Salón · Mesa 5 (4 personas)' });
+  fireEvent.change(screen.getByLabelText(/Mesa/), { target: { value: '5' } });
+}
+
+async function prepararAltaClienteNuevo() {
+  abrir();
+  await screen.findByText('Cliente n.º 7');
+  await pulsar('Nueva reserva');
+  await completarDatosReserva();
+  await elegirCliente();
+  expect(screen.getByText(`Cliente elegido: ${TEXTO_ANA}`)).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Cliente nuevo' }));
+  fireEvent.change(screen.getByLabelText(/Nombre/), { target: { value: 'Luis' } });
 }
 
 async function abrirEnLaSegundaPagina() {
@@ -250,15 +269,23 @@ describe('ReservasPage: filtro de estado y paginación', () => {
 
 describe('ReservasPage: panel de alta', () => {
   it('cerrar el modal descarta la elección: al reabrirlo el selector está vacío', async () => {
-    abrir();
-    await screen.findByText('Cliente n.º 7');
-    await pulsar('Nueva reserva');
+    await prepararAltaClienteNuevo();
+
+    const dialogo = screen.getByRole('dialog');
+    const tarjetaCliente = within(dialogo).getByRole('group', { name: 'Datos del cliente nuevo' });
+    fireEvent.click(within(tarjetaCliente).getByRole('button', { name: 'Cancelar' }));
+
+    expect(dialogo).toBeInTheDocument();
+    expect(screen.getByLabelText(/Fecha/)).toHaveValue('2026-11-03');
+    expect(screen.getByLabelText(/Hora/)).toHaveValue('22:15');
+    expect(screen.getByLabelText(/Cantidad de personas/)).toHaveValue('3');
+    expect(screen.getByLabelText(/Mesa/)).toHaveValue('5');
+    expect(screen.queryByLabelText(/Nombre/)).toBeNull();
+    expect(crearReserva).not.toHaveBeenCalled();
+
     await elegirCliente();
     expect(screen.getByText(`Cliente elegido: ${TEXTO_ANA}`)).toBeVisible();
-    fireEvent.click(screen.getByRole('button', { name: 'Cliente nuevo' }));
-    fireEvent.change(screen.getByLabelText(/Nombre/), { target: { value: 'Luis' } });
-
-    await pulsar('Cancelar');
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Cancelar' }));
     await pulsar('Nueva reserva');
 
     expect(screen.queryByText(/Cliente elegido/)).toBeNull();

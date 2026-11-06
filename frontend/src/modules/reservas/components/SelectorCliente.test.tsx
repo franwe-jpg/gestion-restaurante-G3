@@ -132,7 +132,7 @@ describe('SelectorCliente: elegir', () => {
   });
 });
 
-describe('SelectorCliente: cliente nuevo', () => {
+describe('SelectorCliente: datos del cliente nuevo', () => {
   it('«Cliente nuevo» muestra Nombre y Teléfono vacíos', () => {
     abrir();
 
@@ -164,6 +164,19 @@ describe('SelectorCliente: cliente nuevo', () => {
     expect(screen.getByText('El teléfono es obligatorio')).toBeVisible();
   });
 
+  it('encapsula los campos nuevos en una tarjeta compartida y cancelar descarta solo el borrador', () => {
+    abrir({ tipo: 'nuevo', nombre: 'Luis', telefono: '123' });
+
+    expect(screen.getByText('Datos del cliente nuevo')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+
+    expect(onCambiar).toHaveBeenLastCalledWith({ tipo: 'ninguno' });
+    expect(screen.queryByLabelText(/Nombre/)).toBeNull();
+    expect(screen.getByRole('button', { name: 'Cliente nuevo' })).toBeVisible();
+  });
+});
+
+describe('SelectorCliente: cambiar selección', () => {
   it('pasar de un cliente elegido a «Cliente nuevo» descarta al elegido', () => {
     abrir({ tipo: 'existente', cliente: ANA });
 

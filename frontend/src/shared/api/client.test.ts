@@ -81,6 +81,25 @@ describe('ClienteApi', () => {
     });
   });
 
+  it('no clasifica una respuesta exitosa con JSON inválido como fallo de conexión', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.reject(new SyntaxError('invalid json')),
+      }),
+    );
+
+    const respuesta = await new ClienteApi().get('/clientes');
+
+    expect(respuesta).toEqual({
+      datos: null,
+      exito: false,
+      error: 'La respuesta del backend no es válida',
+    });
+  });
+
   it('envia JSON en las solicitudes POST', async () => {
     vi.stubEnv('VITE_API_URL', 'http://api.test');
     const fetchMock = vi.fn().mockResolvedValue(respuestaJson({ id: 1 }));
