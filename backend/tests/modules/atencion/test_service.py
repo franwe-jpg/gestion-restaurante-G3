@@ -8,9 +8,9 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.modules.atencion import repository, service
-from app.modules.atencion.adaptadores import MesasDeSalon
+from app.modules.atencion.adaptadores import CatalogoDeCarta, MesasDeSalon
 from app.modules.atencion.models import Cliente, Comanda, DetalleComanda
-from app.modules.atencion.schemas import ClienteModificar, EntregaDetalle
+from app.modules.atencion.schemas import ClienteModificar, ComandaModificar, EntregaDetalle
 from app.shared.contratos.comanda import ComandaSalida, EstadoComanda, EstadoEntrega
 from app.shared.excepciones import DatosInvalidosError, NoEncontradoError, ReglaDeNegocioError
 
@@ -608,3 +608,91 @@ def test_existe_cliente_distingue_existente_de_inexistente(db: Session) -> None:
 def test_promocion_fue_aplicada_detecta_linea_de_comanda(db: Session, comanda: Comanda) -> None:
     assert service.promocion_fue_aplicada(db, 8) is True
     assert service.promocion_fue_aplicada(db, 99) is False
+
+
+def test_modificar_comanda_quita_y_agrega_sin_tocar_los_historicos(
+    db: Session, comanda_con_lineas: Comanda
+) -> None:
+    detalle_id = comanda_con_lineas.detalles[0].id
+
+    salida = service.modificar_comanda(
+        db,
+        comanda_con_lineas.id,
+        ComandaModificar(
+            quitar=[detalle_id],
+            agregar=[{"producto_id": 1, "cantidad": 5}],
+        ),
+        CatalogoDeCarta(),
+    )
+
+    assert salida.estado == EstadoComanda.ABIERTA
+    assert [detalle.cantidad for detalle in salida.detalles] == [10, 5]
+    assert salida.detalles[0].precio_unitario == Decimal("29.90")
+    assert salida.detalles[1].precio_unitario == Decimal("99.90")
+    db.expire_all()
+    guardada = db.get(Comanda, comanda_con_lineas.id)
+    assert [detalle.cantidad for detalle in guardada.detalles] == [10, 5]
+
+
+def test_modificar_comanda_cerrada_rechaza_sin_cambios(db: Session, comanda: Comanda) -> None:
+    comanda.estado = EstadoComanda.CERRADA
+    db.commit()
+
+    with pytest.raises(ReglaDeNegocioError, match="ABIERTA"):
+        service.modificar_comanda(
+            db,
+            comanda.id,
+            ComandaModificar(quitar=[comanda.detalles[0].id]),
+            CatalogoDeCarta(),
+        )
+
+    db.expire_all()
+    assert db.get(Comanda, comanda.id).estado == EstadoComanda.CERRADA
+    assert len(db.get(Comanda, comanda.id).detalles) == 1
+
+
+def test_modificar_comanda_detalle_ajeno_no_cambia_nada(
+    db: Session, comanda_con_lineas: Comanda
+) -> None:
+    with pytest.raises(NoEncontradoError, match="no existe"):
+        service.modificar_comanda(
+            db,
+            comanda_con_lineas.id,
+            ComandaModificar(quitar=[999]),
+            CatalogoDeCarta(),
+        )
+
+    db.expire_all()
+    assert len(db.get(Comanda, comanda_con_lineas.id).detalles) == 2
+
+
+def test_reabrir_comanda_cerrada_vuelve_a_ocupar_su_mesa(db: Session, comanda: Comanda) -> None:
+    comanda.estado = EstadoComanda.CERRADA
+    db.execute(text("UPDATE mesas SET estado='LIBRE' WHERE id=1"))
+    db.commit()
+
+    salida = service.reabrir_comanda(db, comanda.id, MesasDeSalon())
+
+    assert salida.estado == EstadoComanda.ABIERTA
+    assert _estado_mesa(db) == "OCUPADA"
+    db.expire_all()
+    assert db.get(Comanda, comanda.id).estado == EstadoComanda.ABIERTA
+
+
+def test_reabrir_comanda_abierta_rechaza_sin_cambios(db: Session, comanda: Comanda) -> None:
+    with pytest.raises(ReglaDeNegocioError, match="CERRADA"):
+        service.reabrir_comanda(db, comanda.id, MesasDeSalon())
+
+    assert comanda.estado == EstadoComanda.ABIERTA
+
+
+def test_reabrir_comanda_con_otra_abierta_en_la_mesa_rechaza(db: Session, comanda: Comanda) -> None:
+    comanda.estado = EstadoComanda.CERRADA
+    db.add(Comanda(mesa_id=1, estado=EstadoComanda.ABIERTA))
+    db.commit()
+
+    with pytest.raises(ReglaDeNegocioError, match="ABIERTA"):
+        service.reabrir_comanda(db, comanda.id, MesasDeSalon())
+
+    db.expire_all()
+    assert db.get(Comanda, comanda.id).estado == EstadoComanda.CERRADA

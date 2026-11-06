@@ -8,6 +8,9 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.modules.pagos import service
 from app.modules.pagos.schemas import (
+    FacturaCrear,
+    FacturaPrevia,
+    FacturaSalida,
     FiltroMediosPago,
     MedioPagoCrear,
     MedioPagoModificar,
@@ -42,3 +45,18 @@ def listar_medios_pago(
     db: Sesion, filtro: Annotated[FiltroMediosPago, Query()]
 ) -> Pagina[MedioPagoSalida]:
     return service.listar_medios_pago(db, filtro)
+
+
+@router.get("/facturas/previsualizar")
+def previsualizar_factura(db: Sesion, comanda_id: Annotated[int, Query(gt=0)]) -> FacturaPrevia:
+    return service.previsualizar_factura(db, comanda_id)
+
+
+@router.post("/facturas", status_code=status.HTTP_201_CREATED)
+def generar_factura(datos: FacturaCrear, db: Sesion) -> FacturaSalida:
+    return service.generar_factura(db, datos)
+
+
+@router.get("/facturas/{factura_id}")
+def obtener_factura(factura_id: int, db: Sesion) -> FacturaSalida:
+    return service.obtener_factura(db, factura_id)

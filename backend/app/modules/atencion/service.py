@@ -12,6 +12,7 @@ from app.modules.atencion.schemas import (
     ClienteModificar,
     ClienteNuevo,
     ClienteSalida,
+    ComandaModificar,
     DetalleEntrega,
     DetallePendiente,
     EntregaDetalle,
@@ -220,6 +221,63 @@ def cerrar_comanda(db: Session, comanda_id: int, mesas: MesasPort) -> ComandaSal
     try:
         comanda.estado = EstadoComanda.CERRADA
         mesas.liberar(db, comanda.mesa_id)
+        salida = ComandaSalida.model_validate(comanda, from_attributes=True)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    return salida
+
+
+def obtener_comanda(db: Session, comanda_id: int) -> ComandaSalida:
+    comanda = repository.obtener_comanda(db, comanda_id)
+    if comanda is None:
+        raise NoEncontradoError(f"La comanda {comanda_id} no existe")
+    return ComandaSalida.model_validate(comanda, from_attributes=True)
+
+
+def modificar_comanda(
+    db: Session, comanda_id: int, datos: ComandaModificar, catalogo: CatalogoPort
+) -> ComandaSalida:
+    """Agrega y quita líneas de una comanda ABIERTA sin tocar los históricos existentes."""
+    comanda = repository.obtener_comanda(db, comanda_id)
+    if comanda is None:
+        raise NoEncontradoError(f"La comanda {comanda_id} no existe")
+    if comanda.estado != EstadoComanda.ABIERTA:
+        raise ReglaDeNegocioError("Solo se puede modificar una comanda ABIERTA")
+    a_quitar = set(datos.quitar)
+    existentes = {detalle.id for detalle in comanda.detalles}
+    desconocidos = a_quitar - existentes
+    if desconocidos:
+        detalle_id = min(desconocidos)
+        raise NoEncontradoError(f"El detalle {detalle_id} no existe en la comanda {comanda_id}")
+    if len(existentes) - len(a_quitar) + len(datos.agregar) < 1:
+        raise DatosInvalidosError("La comanda debe conservar al menos un detalle")
+    nuevas = [_cotizar(db, detalle, catalogo) for detalle in datos.agregar]
+    try:
+        repository.quitar_detalles(db, comanda, a_quitar)
+        repository.agregar_detalles(db, comanda, nuevas)
+        salida = ComandaSalida.model_validate(comanda, from_attributes=True)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    return salida
+
+
+def reabrir_comanda(db: Session, comanda_id: int, mesas: MesasPort) -> ComandaSalida:
+    """CERRADA -> ABIERTA y vuelve a ocupar su mesa en la misma transacción."""
+    comanda = repository.obtener_comanda(db, comanda_id)
+    if comanda is None:
+        raise NoEncontradoError(f"La comanda {comanda_id} no existe")
+    if comanda.estado != EstadoComanda.CERRADA:
+        raise ReglaDeNegocioError("Solo se puede reabrir una comanda CERRADA")
+    abierta = repository.obtener_abierta_por_mesa(db, comanda.mesa_id)
+    if abierta is not None:
+        raise ReglaDeNegocioError(f"La mesa {comanda.mesa_id} ya tiene una comanda ABIERTA")
+    try:
+        comanda.estado = EstadoComanda.ABIERTA
+        mesas.ocupar(db, comanda.mesa_id)
         salida = ComandaSalida.model_validate(comanda, from_attributes=True)
         db.commit()
     except Exception:
