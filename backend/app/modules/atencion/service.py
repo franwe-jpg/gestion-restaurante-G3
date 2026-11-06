@@ -1,5 +1,7 @@
 """Servicios de Comanda y Cliente del módulo Atención."""
 
+from dataclasses import dataclass
+from datetime import datetime
 from decimal import Decimal
 from typing import Protocol
 
@@ -336,3 +338,25 @@ def _describir_error(error: ValidationError) -> str:
 def promocion_fue_aplicada(db: Session, promocion_id: int) -> bool:
     """Lectura pública para M2: una promoción usada no se puede modificar (HU-M2-08)."""
     return repository.promocion_fue_aplicada(db, promocion_id)
+
+
+@dataclass(frozen=True)
+class CantidadPedidaPorFranja:
+    """Unidades pedidas de un producto en un día de la semana y una hora locales."""
+
+    producto_id: int
+    dia_semana: int  # 0 = lunes ... 6 = domingo
+    hora: int
+    cantidad: int
+
+
+def sumar_productos_pedidos(
+    db: Session, desde: datetime, hasta: datetime, desplazamiento_horas: int
+) -> list[CantidadPedidaPorFranja]:
+    """Lectura pública para M1 (HU-M1-15): unidades pedidas por producto, día y hora locales.
+
+    Cuentan las líneas de producto de comandas ABIERTA y CERRADA con
+    `desde <= fecha_hora < hasta` (UTC). No hace `commit` ni cambia datos.
+    """
+    filas = repository.sumar_productos_pedidos(db, desde, hasta, desplazamiento_horas)
+    return [CantidadPedidaPorFranja(*fila) for fila in filas]

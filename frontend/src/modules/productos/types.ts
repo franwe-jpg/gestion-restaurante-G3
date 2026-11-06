@@ -103,3 +103,35 @@ export interface SeccionCarta {
   estado: Estado;
   productos: ProductoCarta[];
 }
+
+// Reporte de productos más vendidos (HU-M1-15). Nombres de campo del backend.
+
+export type DiaSemana =
+  'LUNES' | 'MARTES' | 'MIERCOLES' | 'JUEVES' | 'VIERNES' | 'SABADO' | 'DOMINGO';
+
+export interface FranjaHoraria {
+  hora_desde: number;
+  hora_hasta: number;
+}
+
+export interface LineaReporteProductos {
+  producto_id: number;
+  nombre: string;
+  estado: Estado;
+  cantidad_pedida: number;
+  dias_mas_pedidos: DiaSemana[];
+  franjas_mas_pedidas: FranjaHoraria[];
+}
+
+export interface SeccionReporte {
+  id: number;
+  nombre: string;
+  orden: number;
+  productos: LineaReporteProductos[];
+}
+
+export interface ReporteProductosMasVendidos {
+  fecha_desde: string;
+  fecha_hasta: string;
+  secciones: SeccionReporte[];
+}

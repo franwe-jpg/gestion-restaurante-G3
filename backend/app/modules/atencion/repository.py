@@ -1,6 +1,8 @@
 """Consultas de clientes y comandas; la transacción pertenece al servicio."""
 
-from sqlalchemy import exists, or_, select, update
+from datetime import datetime
+
+from sqlalchemy import Integer, cast, exists, func, or_, select, update
 from sqlalchemy.orm import Session, selectinload
 
 from app.modules.atencion.models import (
@@ -130,3 +132,28 @@ def promocion_fue_aplicada(db: Session, promocion_id: int) -> bool:
     """Indica si alguna línea de comanda referencia la promoción; solo lectura."""
     consulta = select(DetalleComanda.id).where(DetalleComanda.promocion_id == promocion_id).limit(1)
     return db.scalar(consulta) is not None
+
+
+def sumar_productos_pedidos(
+    db: Session, desde: datetime, hasta: datetime, desplazamiento_horas: int
+) -> list[tuple[int, int, int, int]]:
+    """Suma `cantidad` por producto, día y hora locales; solo lectura, sin commit.
+
+    Cuentan las líneas de producto de comandas ABIERTA y CERRADA con
+    `desde <= fecha_hora < hasta`. `dia_semana` va de 0 (lunes) a 6 (domingo).
+    """
+    modificador = f"{desplazamiento_horas:+d} hours"
+    dia = (cast(func.strftime("%w", Comanda.fecha_hora, modificador), Integer) + 6) % 7
+    hora = cast(func.strftime("%H", Comanda.fecha_hora, modificador), Integer)
+    consulta = (
+        select(DetalleComanda.producto_id, dia, hora, func.sum(DetalleComanda.cantidad))
+        .join(Comanda, Comanda.id == DetalleComanda.comanda_id)
+        .where(
+            Comanda.fecha_hora >= desde,
+            Comanda.fecha_hora < hasta,
+            Comanda.estado.in_([EstadoComanda.ABIERTA, EstadoComanda.CERRADA]),
+            DetalleComanda.producto_id.is_not(None),
+        )
+        .group_by(DetalleComanda.producto_id, dia, hora)
+    )
+    return [tuple(fila) for fila in db.execute(consulta)]

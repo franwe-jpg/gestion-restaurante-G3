@@ -68,6 +68,44 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: 'Carta' })).toBeInTheDocument();
   });
 
+  it('monta la pantalla del reporte de mas vendidos', async () => {
+    render(
+      <MemoryRouter initialEntries={['/reportes/productos-mas-vendidos']}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(
+      await screen.findByRole('heading', { name: 'Productos más vendidos' }),
+    ).toBeInTheDocument();
+  });
+
+  it('en la pantalla del reporte el menu lateral marca Reportes como activo', async () => {
+    render(
+      <MemoryRouter initialEntries={['/reportes/productos-mas-vendidos']}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole('heading', { name: 'Productos más vendidos' });
+    const enlaces = screen.getAllByRole('link', { name: /Reportes/ });
+    expect(enlaces.some((e) => e.getAttribute('aria-current') === 'page')).toBe(true);
+    expect(screen.getByRole('link', { name: /Productos y Carta/ })).not.toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+  });
+
+  it('monta la pagina compartida de reportes', () => {
+    render(
+      <MemoryRouter initialEntries={['/reportes']}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole('heading', { name: 'Reportes' })).toBeInTheDocument();
+  });
+
   it('muestra la guía de componentes', () => {
     render(
       <MemoryRouter initialEntries={['/componentes']}>
