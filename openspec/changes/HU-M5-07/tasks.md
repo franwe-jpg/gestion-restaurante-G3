@@ -309,19 +309,31 @@ pruebas para entrar en ningún número.
 
 ## Fase 3. Cierre
 
-- [ ] 3.1 `git pull origin develop` y resolver los conflictos en la rama, si `develop` avanzó desde
+- [x] 3.1 (`git fetch`: `develop` no avanzó desde que se creó la rama, 0 commits nuevos; sin
+  conflictos que resolver. `alembic heads`: un solo head, `a9c1e3f5b7d9`.)
+  `git pull origin develop` y resolver los conflictos en la rama, si `develop` avanzó desde
   que se creó la rama (riesgo ya anotado en `proposal.md`, sección «Riesgos»: posible conflicto en
   `frontend/src/shared/components/reportes.ts`, `frontend/src/App.tsx` y
   `frontend/src/shared/components/ReportesPage.test.tsx` con reportes de otros módulos integrados
   en paralelo). Si otro módulo ya ajustó `ReportesPage.test.tsx` con su propia tarjeta, conservar su
   versión y sumar solo la prueba de M5. Revisar `alembic heads` otra vez después del `pull` (un
   único head, sin cambios).
-- [ ] 3.2 Correr los dos juegos de chequeos completos de AGENTS.md §7, con la CI en verde: backend
+- [x] 3.2 (Verificado de forma independiente en contenedores Docker limpios. Backend: `ruff check`,
+  `ruff format --check`, `lint-imports` y `pytest` en verde, 1934 passed. Frontend: `lint`,
+  `format:check`, `typecheck` y `build` en verde; `vitest --coverage` 99 archivos y 1116 pruebas
+  en verde, cobertura 77,48 % líneas/sentencias. Nota: `compose.yaml` fija
+  `VITE_API_URL=http://localhost:8000` y eso hace fallar `productos/api.test.ts > urlDeImagen`
+  (espera `127.0.0.1`) solo dentro de `docker compose`; sin esa variable, como en la CI, pasa. Es
+  preexistente y ajeno a este cambio.)
+  Correr los dos juegos de chequeos completos de AGENTS.md §7, con la CI en verde: backend
   desde `backend/` con el entorno virtual activo
   (`ruff check --fix . && ruff format . && ruff check . && ruff format --check . && lint-imports && pytest`)
   y frontend desde `frontend/`
   (`npm run format && npm run lint && npm run format:check && npm run typecheck && npm run test:coverage && npm run build`).
-- [ ] 3.3 Aislamiento: `git diff --name-only origin/develop...HEAD` contra todo el cambio y
+- [x] 3.3 (Observado: fuera de `reservas/` y de `openspec/changes/HU-M5-07/` solo aparecen
+  `frontend/src/App.tsx`, `frontend/src/shared/components/ReportesPage.test.tsx` y
+  `frontend/src/shared/components/reportes.ts`; ninguna migración nueva.)
+  Aislamiento: `git diff --name-only origin/develop...HEAD` contra todo el cambio y
   confirmar que solo aparecen archivos de `backend/app/modules/reservas/`,
   `backend/tests/modules/reservas/`, `frontend/src/modules/reservas/`, las tres rutas compartidas
   ya autorizadas (`frontend/src/shared/components/reportes.ts`, `frontend/src/App.tsx`,
