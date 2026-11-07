@@ -12,4 +12,10 @@ export const REPORTES: ReporteDisponible[] = [
       'Los productos más pedidos de un período, con los días y las franjas horarias de más demanda.',
     ruta: '/reportes/productos-mas-vendidos',
   },
+  {
+    titulo: 'Reservas y ausentismo',
+    descripcion:
+      'Las reservas de un período según cómo terminaron y el porcentaje de clientes que no se presentaron.',
+    ruta: '/reportes/reservas-ausentismo',
+  },
 ];

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
@@ -14,6 +14,7 @@ function renderizar(inicial = '/reportes') {
       <Routes>
         <Route path="/reportes" element={<ReportesPage />} />
         <Route path="/reportes/productos-mas-vendidos" element={<p>Pantalla M1</p>} />
+        <Route path="/reportes/reservas-ausentismo" element={<p>Pantalla M5</p>} />
       </Routes>
     </MemoryRouter>,
   );
@@ -25,15 +26,30 @@ describe('ReportesPage', () => {
 
     expect(screen.getByRole('heading', { name: 'Productos más vendidos' })).toBeInTheDocument();
     expect(screen.getByText(REPORTES[0]?.descripcion ?? '')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Generar' })).toBeInTheDocument();
+    expect(
+      within(screen.getAllByRole('listitem')[0]!).getByRole('link', { name: 'Generar' }),
+    ).toBeInTheDocument();
   });
 
   it('Generar navega a la pantalla del reporte', () => {
     renderizar();
 
-    fireEvent.click(screen.getByRole('link', { name: 'Generar' }));
+    fireEvent.click(
+      within(screen.getAllByRole('listitem')[0]!).getByRole('link', { name: 'Generar' }),
+    );
 
     expect(screen.getByText('Pantalla M1')).toBeInTheDocument();
+  });
+
+  it('muestra la tarjeta de reservas y ausentismo y Generar navega a su pantalla', () => {
+    renderizar();
+
+    const tarjeta = screen.getAllByRole('listitem')[1]!;
+    expect(within(tarjeta).getByText('Reservas y ausentismo')).toBeInTheDocument();
+
+    fireEvent.click(within(tarjeta).getByRole('link', { name: 'Generar' }));
+
+    expect(screen.getByText('Pantalla M5')).toBeInTheDocument();
   });
 
   it('muestra las tarjetas en una fila', () => {
