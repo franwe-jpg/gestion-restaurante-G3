@@ -8,6 +8,7 @@ import type {
   ProductoModificar,
   ProductoSalida,
   ProductoSeleccionable,
+  ReporteProductosMasVendidos,
   Seccion,
   SeccionCarta,
   SeccionCrear,
@@ -130,4 +131,26 @@ export async function obtenerCarta(estado: FiltroEstado): Promise<RespuestaApi<S
     total = respuesta.datos.total;
   }
   return { datos: secciones, exito: true };
+}
+
+function consultaPeriodo(fechaDesde: string, fechaHasta: string): string {
+  return `fecha_desde=${encodeURIComponent(fechaDesde)}&fecha_hasta=${encodeURIComponent(fechaHasta)}`;
+}
+
+export function obtenerReporteMasVendidos(
+  fechaDesde: string,
+  fechaHasta: string,
+): Promise<RespuestaApi<ReporteProductosMasVendidos>> {
+  return clienteHttp.get<ReporteProductosMasVendidos>(
+    `/reportes/productos-mas-vendidos?${consultaPeriodo(fechaDesde, fechaHasta)}`,
+  );
+}
+
+export function descargarReportePdf(
+  fechaDesde: string,
+  fechaHasta: string,
+): Promise<RespuestaApi<Blob>> {
+  return clienteHttp.obtenerArchivo(
+    `/reportes/productos-mas-vendidos/pdf?${consultaPeriodo(fechaDesde, fechaHasta)}`,
+  );
 }

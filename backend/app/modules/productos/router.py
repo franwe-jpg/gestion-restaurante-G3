@@ -1,9 +1,10 @@
 """productos: endpoints HTTP. Solo delega al service (D-02)."""
 
 from collections.abc import Callable
+from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, Query, Response, UploadFile, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
@@ -22,6 +23,7 @@ from app.modules.productos.schemas import (
     PostreModificar,
     ProductoListado,
     ProductoSalida,
+    ReporteProductosMasVendidos,
     SeccionCarta,
     SeccionCrear,
     SeccionListado,
@@ -186,3 +188,22 @@ def listar_productos(
 @router.get("/carta")
 def listar_carta(db: Sesion, filtro: Annotated[FiltroCarta, Query()]) -> Pagina[SeccionCarta]:
     return service.listar_carta(db, filtro, filtro.estado_elegido())
+
+
+@router.get("/reportes/productos-mas-vendidos")
+def reporte_productos_mas_vendidos(
+    db: Sesion, fecha_desde: date | None = None, fecha_hasta: date | None = None
+) -> ReporteProductosMasVendidos:
+    return service.generar_reporte_mas_vendidos(db, fecha_desde, fecha_hasta)
+
+
+@router.get("/reportes/productos-mas-vendidos/pdf")
+def reporte_productos_mas_vendidos_pdf(
+    db: Sesion, fecha_desde: date | None = None, fecha_hasta: date | None = None
+) -> Response:
+    archivo = service.generar_pdf(db, fecha_desde, fecha_hasta)
+    return Response(
+        content=archivo.contenido,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{archivo.nombre}"'},
+    )

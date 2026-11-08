@@ -2,6 +2,7 @@ import type { ComponentType } from 'react';
 import {
   BookOpen,
   CalendarDays,
+  BarChart3,
   ClipboardList,
   CreditCard,
   UtensilsCrossed,
@@ -21,4 +22,5 @@ export const ELEMENTOS_NAVEGACION: ElementoNavegacion[] = [
   { nombre: 'Atención al Público', ruta: '/atencion', icono: ClipboardList },
   { nombre: 'Reservas', ruta: '/reservas', icono: CalendarDays },
   { nombre: 'Pagos', ruta: '/pagos', icono: CreditCard },
+  { nombre: 'Reportes', ruta: '/reportes', icono: BarChart3 },
 ];

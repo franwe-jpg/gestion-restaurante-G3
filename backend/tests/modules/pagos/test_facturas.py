@@ -1,4 +1,6 @@
-"""Pruebas de la factura de una comanda (HU-M6-01, issue #70)."""
+"""Pruebas de la factura de una comanda (HU-M6-01) y de su cobro (HU-M6-02, issue #71)."""
+
+from decimal import Decimal
 
 import pytest
 from fastapi.testclient import TestClient
@@ -290,3 +292,267 @@ def test_el_medio_de_pago_del_cobro_es_el_elegido(
 
     cobro = cliente.get(f"{RUTA}/{factura_id}").json()["cobros"][0]
     assert db.get(MedioPago, cobro["medio_pago_id"]).nombre == "Tarjeta"  # type: ignore[union-attr]
+
+
+# --- Cobrar una factura adeudada (HU-M6-02, issue #71) ---
+
+
+def _cuerpo_cobro(medio_pago_id: int, monto: str) -> dict[str, object]:
+    return {"medio_pago_id": medio_pago_id, "monto": monto}
+
+
+def _crear_factura(
+    cliente: TestClient,
+    comanda_id: int,
+    medio_pago_id: int,
+    monto: str = "1000.00",
+) -> int:
+    respuesta = cliente.post(RUTA, json=_cuerpo(comanda_id, medio_pago_id, monto))
+    assert respuesta.status_code == 201
+    return respuesta.json()["id"]
+
+
+def _cobrar(cliente: TestClient, factura_id: int, medio_pago_id: int, monto: str):
+    return cliente.post(f"{RUTA}/{factura_id}/cobros", json=_cuerpo_cobro(medio_pago_id, monto))
+
+
+# CA1 de #71
+def test_cobrar_factura_adeudada_baja_el_saldo(
+    cliente: TestClient,
+    db: Session,
+    fabrica_comanda: FabricaComanda,
+    fabrica_medio_pago: FabricaMedioPago,
+) -> None:
+    efectivo = fabrica_medio_pago(nombre="Efectivo")
+    tarjeta = fabrica_medio_pago(nombre="Tarjeta")
+    factura_id = _crear_factura(cliente, fabrica_comanda(), efectivo.id, "1000.00")
+
+    respuesta = _cobrar(cliente, factura_id, tarjeta.id, "3000.00")
+
+    cuerpo = respuesta.json()
+    assert respuesta.status_code == 201
+    assert cuerpo["estado"] == "ADEUDADA"
+    assert cuerpo["saldo_pendiente"] == "3101.00"
+    assert [cobro["monto"] for cobro in cuerpo["cobros"]] == ["1000.00", "3000.00"]
+    nuevo = cuerpo["cobros"][1]
+    assert nuevo["numero_comprobante"] == nuevo["id"]
+    assert nuevo["medio_pago_id"] == tarjeta.id
+    assert _contar(db) == (1, 2, 2)
+
+
+# CA1 de #71, limite: el monto iguala el saldo
+def test_cobrar_el_saldo_completo_deja_la_factura_pagada(
+    cliente: TestClient,
+    fabrica_comanda: FabricaComanda,
+    fabrica_medio_pago: FabricaMedioPago,
+) -> None:
+    efectivo = fabrica_medio_pago(nombre="Efectivo")
+    tarjeta = fabrica_medio_pago(nombre="Tarjeta")
+    factura_id = _crear_factura(cliente, fabrica_comanda(), efectivo.id, "1000.00")
+
+    cuerpo = _cobrar(cliente, factura_id, tarjeta.id, "6101.00").json()
+
+    assert cuerpo["estado"] == "PAGADA"
+    assert cuerpo["saldo_pendiente"] == "0.00"
+
+
+# CA2 de #71
+def test_cobrar_una_factura_pagada_responde_409_y_no_crea_cobro(
+    cliente: TestClient,
+    db: Session,
+    fabrica_comanda: FabricaComanda,
+    fabrica_medio_pago: FabricaMedioPago,
+) -> None:
+    efectivo = fabrica_medio_pago(nombre="Efectivo")
+    tarjeta = fabrica_medio_pago(nombre="Tarjeta")
+    factura_id = _crear_factura(cliente, fabrica_comanda(), efectivo.id, TOTAL)
+
+    respuesta = _cobrar(cliente, factura_id, tarjeta.id, "10.00")
+
+    assert respuesta.status_code == 409
+    assert respuesta.json() == {"detalle": "La factura ya está pagada"}
+    assert _contar(db) == (1, 2, 1)
+
+
+# CA3 de #71
+def test_cobrar_mas_que_el_saldo_responde_422_y_no_cambia_nada(
+    cliente: TestClient,
+    db: Session,
+    fabrica_comanda: FabricaComanda,
+    fabrica_medio_pago: FabricaMedioPago,
+) -> None:
+    efectivo = fabrica_medio_pago(nombre="Efectivo")
+    tarjeta = fabrica_medio_pago(nombre="Tarjeta")
+    factura_id = _crear_factura(cliente, fabrica_comanda(), efectivo.id, "1000.00")
+
+    respuesta = _cobrar(cliente, factura_id, tarjeta.id, "6101.01")
+
+    assert respuesta.status_code == 422
+    assert respuesta.json() == {
+        "detalle": "El monto no puede superar el saldo pendiente de la factura"
+    }
+    assert _contar(db) == (1, 2, 1)
+
+
+# CA3 de #71, limite: monto cero o negativo
+@pytest.mark.parametrize("monto", ["0.00", "-5.00"])
+def test_cobrar_con_monto_no_positivo_responde_422(
+    monto: str,
+    cliente: TestClient,
+    db: Session,
+    fabrica_comanda: FabricaComanda,
+    fabrica_medio_pago: FabricaMedioPago,
+) -> None:
+    efectivo = fabrica_medio_pago(nombre="Efectivo")
+    tarjeta = fabrica_medio_pago(nombre="Tarjeta")
+    factura_id = _crear_factura(cliente, fabrica_comanda(), efectivo.id, "1000.00")
+
+    respuesta = _cobrar(cliente, factura_id, tarjeta.id, monto)
+
+    assert respuesta.status_code == 422
+    assert _contar(db) == (1, 2, 1)
+
+
+# CA4 de #71
+def test_cobrar_con_medio_deshabilitado_responde_409(
+    cliente: TestClient,
+    db: Session,
+    fabrica_comanda: FabricaComanda,
+    fabrica_medio_pago: FabricaMedioPago,
+) -> None:
+    efectivo = fabrica_medio_pago(nombre="Efectivo")
+    tarjeta = fabrica_medio_pago(nombre="Tarjeta", estado=Estado.DESHABILITADO)
+    factura_id = _crear_factura(cliente, fabrica_comanda(), efectivo.id, "1000.00")
+
+    respuesta = _cobrar(cliente, factura_id, tarjeta.id, "100.00")
+
+    assert respuesta.status_code == 409
+    assert respuesta.json() == {"detalle": "El medio de pago está deshabilitado"}
+    assert _contar(db) == (1, 2, 1)
+
+
+# F07
+def test_cobrar_con_medio_inexistente_o_eliminado_responde_404(
+    cliente: TestClient,
+    db: Session,
+    fabrica_comanda: FabricaComanda,
+    fabrica_medio_pago: FabricaMedioPago,
+) -> None:
+    efectivo = fabrica_medio_pago(nombre="Efectivo")
+    eliminado = fabrica_medio_pago(nombre="Transferencia", eliminado=True)
+    factura_id = _crear_factura(cliente, fabrica_comanda(), efectivo.id, "1000.00")
+
+    inexistente = _cobrar(cliente, factura_id, 999, "100.00")
+    borrado = _cobrar(cliente, factura_id, eliminado.id, "100.00")
+
+    assert inexistente.status_code == borrado.status_code == 404
+    assert _contar(db) == (1, 2, 1)
+
+
+# CA5 de #71: el primer cobro de la factura tambien cuenta como usado
+def test_cobrar_con_un_medio_ya_usado_en_la_factura_responde_409(
+    cliente: TestClient,
+    db: Session,
+    fabrica_comanda: FabricaComanda,
+    fabrica_medio_pago: FabricaMedioPago,
+) -> None:
+    efectivo = fabrica_medio_pago(nombre="Efectivo")
+    factura_id = _crear_factura(cliente, fabrica_comanda(), efectivo.id, "1000.00")
+
+    respuesta = _cobrar(cliente, factura_id, efectivo.id, "100.00")
+
+    assert respuesta.status_code == 409
+    assert respuesta.json() == {"detalle": "El medio de pago ya fue usado en esta factura"}
+    assert _contar(db) == (1, 2, 1)
+
+
+# CA6 de #71
+@pytest.mark.parametrize(
+    "cuerpo",
+    [{}, {"monto": "100.00"}, {"medio_pago_id": 1}],
+    ids=["vacio", "sin-medio", "sin-monto"],
+)
+def test_cobrar_sin_monto_o_sin_medio_responde_422(
+    cuerpo: dict[str, object],
+    cliente: TestClient,
+    db: Session,
+    fabrica_comanda: FabricaComanda,
+    fabrica_medio_pago: FabricaMedioPago,
+) -> None:
+    efectivo = fabrica_medio_pago(nombre="Efectivo")
+    factura_id = _crear_factura(cliente, fabrica_comanda(), efectivo.id, "1000.00")
+
+    respuesta = cliente.post(f"{RUTA}/{factura_id}/cobros", json=cuerpo)
+
+    assert respuesta.status_code == 422
+    assert _contar(db) == (1, 2, 1)
+
+
+# F10
+def test_cobrar_una_factura_inexistente_responde_404(
+    cliente: TestClient, fabrica_medio_pago: FabricaMedioPago
+) -> None:
+    efectivo = fabrica_medio_pago(nombre="Efectivo")
+
+    respuesta = _cobrar(cliente, 999, efectivo.id, "100.00")
+
+    assert respuesta.status_code == 404
+    assert respuesta.json() == {"detalle": "La factura 999 no existe"}
+
+
+# F14: el saldo es el total menos la suma de los cobros
+def test_el_saldo_es_el_total_menos_la_suma_de_los_cobros(
+    cliente: TestClient,
+    fabrica_comanda: FabricaComanda,
+    fabrica_medio_pago: FabricaMedioPago,
+) -> None:
+    efectivo = fabrica_medio_pago(nombre="Efectivo")
+    tarjeta = fabrica_medio_pago(nombre="Tarjeta")
+    transferencia = fabrica_medio_pago(nombre="Transferencia")
+    factura_id = _crear_factura(cliente, fabrica_comanda(), efectivo.id, "1000.00")
+    _cobrar(cliente, factura_id, tarjeta.id, "2000.50")
+
+    cuerpo = _cobrar(cliente, factura_id, transferencia.id, "1100.50").json()
+
+    sumatoria = sum(Decimal(cobro["monto"]) for cobro in cuerpo["cobros"])
+    assert cuerpo["saldo_pendiente"] == f"{Decimal(TOTAL) - sumatoria:.2f}"
+    assert cuerpo["saldo_pendiente"] == "3000.00"
+    assert cuerpo["estado"] == "ADEUDADA"
+
+
+# --- Listado de facturas (instrumental de HU-M6-02) ---
+
+
+# F11
+def test_listar_facturas_devuelve_la_mas_reciente_primero(
+    cliente: TestClient, fabrica_comanda: FabricaComanda, fabrica_medio_pago: FabricaMedioPago
+) -> None:
+    efectivo = fabrica_medio_pago(nombre="Efectivo")
+    primera = _crear_factura(cliente, fabrica_comanda(), efectivo.id, "1000.00")
+
+    cartera = fabrica_medio_pago(nombre="Cartera")
+    segunda = _crear_factura(cliente, fabrica_comanda(), cartera.id, "2000.00")
+
+    respuesta = cliente.get(RUTA)
+
+    cuerpo = respuesta.json()
+    assert respuesta.status_code == 200
+    assert cuerpo["total"] == 2
+    assert [factura["id"] for factura in cuerpo["items"]] == [segunda, primera]
+    assert cuerpo["items"][0]["comanda_id"] > 0
+    assert set(cuerpo["items"][0]) == {
+        "id",
+        "comanda_id",
+        "fecha_emision",
+        "total",
+        "saldo_pendiente",
+        "estado",
+    }
+
+
+# F12
+def test_listar_facturas_sin_datos_devuelve_pagina_vacia(cliente: TestClient) -> None:
+    respuesta = cliente.get(RUTA, params={"limit": 10, "offset": 0})
+
+    assert respuesta.status_code == 200
+    assert respuesta.json() == {"items": [], "total": 0, "limit": 10, "offset": 0}

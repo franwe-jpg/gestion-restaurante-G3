@@ -1,5 +1,6 @@
 """productos: entrada y salida de la API."""
 
+from datetime import date
 from decimal import Decimal
 from enum import StrEnum
 from typing import Annotated, ClassVar
@@ -248,3 +249,40 @@ class SeccionCarta(BaseModel):
     orden: int
     estado: Estado
     productos: list[ProductoCarta]
+
+
+class DiaSemana(StrEnum):
+    LUNES = "LUNES"
+    MARTES = "MARTES"
+    MIERCOLES = "MIERCOLES"
+    JUEVES = "JUEVES"
+    VIERNES = "VIERNES"
+    SABADO = "SABADO"
+    DOMINGO = "DOMINGO"
+
+
+class FranjaHoraria(BaseModel):
+    hora_desde: int
+    hora_hasta: int
+
+
+class LineaReporteProductos(BaseModel):
+    producto_id: int
+    nombre: str
+    estado: Estado
+    cantidad_pedida: int
+    dias_mas_pedidos: list[DiaSemana]
+    franjas_mas_pedidas: list[FranjaHoraria]
+
+
+class SeccionReporte(BaseModel):
+    id: int
+    nombre: str
+    orden: int
+    productos: list[LineaReporteProductos]
+
+
+class ReporteProductosMasVendidos(BaseModel):
+    fecha_desde: date
+    fecha_hasta: date
+    secciones: list[SeccionReporte]

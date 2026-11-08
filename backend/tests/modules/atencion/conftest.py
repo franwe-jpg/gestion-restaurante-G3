@@ -123,3 +123,66 @@ def salon(db: Session) -> Salon:
         ),
     )
     return Salon(mesa_id=mesa.id, plato_id=plato.id, menu_id=menu.id)
+
+
+@pytest.fixture
+def sembrar_pedidos(db: Session):
+    """Fábrica de comandas con líneas de producto para las pruebas del reporte (HU-M1-15)."""
+    db.execute(
+        text(
+            "INSERT INTO sectores (id, nombre, nombre_normalizado, estado) "
+            "VALUES (1, 'Sala', 'sala', 'HABILITADO')"
+        )
+    )
+    db.execute(
+        text(
+            "INSERT INTO secciones (id, nombre, nombre_normalizado, orden, estado) "
+            "VALUES (1, 'Carta', 'carta', 1, 'HABILITADO')"
+        )
+    )
+    for numero in range(1, 21):
+        db.execute(
+            text(
+                "INSERT INTO mesas (id, numero, capacidad, sector_id, estado) "
+                "VALUES (:n, :n, 4, 1, 'LIBRE')"
+            ),
+            {"n": numero},
+        )
+    for producto_id in (1, 2):
+        db.execute(
+            text(
+                "INSERT INTO productos (id, nombre, nombre_normalizado, categoria, precio, "
+                "ingredientes, etiquetas, estado, seccion_id) "
+                "VALUES (:id, :nombre, :nombre, 'PLATO', 10, '[]', '[]', 'HABILITADO', 1)"
+            ),
+            {"id": producto_id, "nombre": f"Plato {producto_id}"},
+        )
+    db.execute(
+        text(
+            "INSERT INTO menus_ejecutivos (id, nombre, nombre_normalizado, precio_fijo, estado, "
+            "seccion_id) VALUES (1, 'Menu', 'menu', 10, 'HABILITADO', 1)"
+        )
+    )
+    contador = {"mesa": 0}
+
+    def sembrar(
+        fecha_hora: datetime, lineas: list[tuple[int | None, int]], estado: str = "CERRADA"
+    ) -> None:
+        contador["mesa"] += 1
+        registro = Comanda(mesa_id=contador["mesa"], estado=estado, fecha_hora=fecha_hora)
+        db.add(registro)
+        db.flush()
+        for producto_id, cantidad in lineas:
+            db.add(
+                DetalleComanda(
+                    comanda_id=registro.id,
+                    producto_id=producto_id,
+                    menu_ejecutivo_id=None if producto_id else 1,
+                    cantidad=cantidad,
+                    precio_unitario=Decimal("10"),
+                    descuento=Decimal("0"),
+                )
+            )
+        db.flush()
+
+    return sembrar

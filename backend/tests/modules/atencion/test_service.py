@@ -1,5 +1,6 @@
 """Pruebas de cierre de Comanda y modificación de Cliente."""
 
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
@@ -829,3 +830,37 @@ def test_reabrir_comanda_con_otra_abierta_en_la_mesa_rechaza(db: Session, comand
 
     db.expire_all()
     assert db.get(Comanda, comanda.id).estado == EstadoComanda.CERRADA
+
+
+def test_sumar_productos_pedidos_devuelve_franjas_y_no_lineas(db: Session, sembrar_pedidos) -> None:
+    sembrar_pedidos(datetime(2026, 11, 2, 13, 5, tzinfo=UTC), [(1, 2)])
+    sembrar_pedidos(datetime(2026, 11, 2, 13, 50, tzinfo=UTC), [(1, 3)])
+
+    franjas = service.sumar_productos_pedidos(
+        db, datetime(2026, 11, 1, tzinfo=UTC), datetime(2026, 11, 8, tzinfo=UTC), 0
+    )
+
+    assert franjas == [service.CantidadPedidaPorFranja(1, 0, 13, 5)]
+
+
+def test_sumar_productos_pedidos_convierte_a_dia_y_hora_locales(
+    db: Session, sembrar_pedidos
+) -> None:
+    sembrar_pedidos(datetime(2026, 11, 6, 2, tzinfo=UTC), [(1, 1)])
+
+    franjas = service.sumar_productos_pedidos(
+        db, datetime(2026, 11, 1, tzinfo=UTC), datetime(2026, 11, 8, tzinfo=UTC), -3
+    )
+
+    assert franjas == [service.CantidadPedidaPorFranja(1, 3, 23, 1)]
+
+
+def test_sumar_productos_pedidos_no_hace_commit(db: Session, sembrar_pedidos) -> None:
+    sembrar_pedidos(datetime(2026, 11, 2, 13, tzinfo=UTC), [(1, 1)])
+
+    service.sumar_productos_pedidos(
+        db, datetime(2026, 11, 1, tzinfo=UTC), datetime(2026, 11, 8, tzinfo=UTC), 0
+    )
+    db.rollback()
+
+    assert db.execute(text("SELECT COUNT(*) FROM comandas")).scalar_one() == 0

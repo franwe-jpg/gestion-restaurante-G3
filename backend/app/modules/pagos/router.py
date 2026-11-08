@@ -2,21 +2,24 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.modules.pagos import service
 from app.modules.pagos.schemas import (
+    CobroCrear,
+    ComprobanteSalida,
     FacturaCrear,
     FacturaPrevia,
+    FacturaResumenSalida,
     FacturaSalida,
     FiltroMediosPago,
     MedioPagoCrear,
     MedioPagoModificar,
     MedioPagoSalida,
 )
-from app.shared.paginacion import Pagina
+from app.shared.paginacion import Pagina, ParametrosPaginacion
 
 router = APIRouter()
 
@@ -47,6 +50,13 @@ def listar_medios_pago(
     return service.listar_medios_pago(db, filtro)
 
 
+@router.get("/facturas")
+def listar_facturas(
+    db: Sesion, filtro: Annotated[ParametrosPaginacion, Query()]
+) -> Pagina[FacturaResumenSalida]:
+    return service.listar_facturas(db, filtro)
+
+
 @router.get("/facturas/previsualizar")
 def previsualizar_factura(db: Sesion, comanda_id: Annotated[int, Query(gt=0)]) -> FacturaPrevia:
     return service.previsualizar_factura(db, comanda_id)
@@ -57,6 +67,26 @@ def generar_factura(datos: FacturaCrear, db: Sesion) -> FacturaSalida:
     return service.generar_factura(db, datos)
 
 
+@router.post("/facturas/{factura_id}/cobros", status_code=status.HTTP_201_CREATED)
+def registrar_cobro(factura_id: int, datos: CobroCrear, db: Sesion) -> FacturaSalida:
+    return service.registrar_cobro(db, factura_id, datos)
+
+
 @router.get("/facturas/{factura_id}")
 def obtener_factura(factura_id: int, db: Sesion) -> FacturaSalida:
     return service.obtener_factura(db, factura_id)
+
+
+@router.get("/comprobantes/{numero_comprobante}")
+def obtener_comprobante(numero_comprobante: int, db: Sesion) -> ComprobanteSalida:
+    return service.obtener_comprobante(db, numero_comprobante)
+
+
+@router.get("/comprobantes/{numero_comprobante}/pdf")
+def descargar_comprobante_pdf(numero_comprobante: int, db: Sesion) -> Response:
+    archivo = service.generar_pdf_comprobante(db, numero_comprobante)
+    return Response(
+        content=archivo.contenido,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{archivo.nombre}"'},
+    )

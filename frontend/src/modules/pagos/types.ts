@@ -64,8 +64,44 @@ export interface Factura {
   cobros: Cobro[];
 }
 
+// HU-M6-02: fila del listado de facturas para elegir cuál cobrar.
+export interface FacturaResumen {
+  id: number;
+  comanda_id: number;
+  fecha_emision: string;
+  total: string;
+  saldo_pendiente: string;
+  estado: EstadoFactura;
+}
+
+// HU-M6-02: cobro posterior de una factura adeudada.
+export interface CobroCrear {
+  medio_pago_id: number;
+  monto: string;
+}
+
 // HU-M6-01: la factura se genera junto con su primer cobro.
 export interface FacturaCrear {
   comanda_id: number;
-  cobro: { medio_pago_id: number; monto: string };
+  cobro: CobroCrear;
+}
+
+// HU-M6-03: medio de pago tal como figura en el comprobante.
+export interface MedioPagoDelComprobante {
+  id: number;
+  nombre: string;
+  tipo: TipoMedioPago;
+}
+
+// HU-M6-03: comprobante de un cobro, asociado a su factura y a su comanda.
+export interface Comprobante {
+  numero_comprobante: number;
+  fecha_hora: string;
+  monto: string;
+  medio_pago: MedioPagoDelComprobante;
+  cobro_id: number;
+  factura_id: number;
+  comanda_id: number;
+  total_factura: string;
+  saldo_pendiente: string;
 }

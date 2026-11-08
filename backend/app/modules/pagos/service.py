@@ -1,5 +1,6 @@
 """pagos: reglas de negocio y transacciones."""
 
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
 
@@ -8,15 +9,19 @@ from sqlalchemy.orm import Session
 
 from app.modules.atencion import service as atencion_service
 from app.modules.menus import service as menus_service
-from app.modules.pagos import repository
+from app.modules.pagos import comprobante_pdf, repository
 from app.modules.pagos.models import Cobro, DetalleFactura, EstadoFactura, Factura, MedioPago
 from app.modules.pagos.schemas import (
+    CobroCrear,
+    ComprobanteSalida,
     DetalleFacturaSalida,
     FacturaCrear,
     FacturaPrevia,
+    FacturaResumenSalida,
     FacturaSalida,
     FiltroMediosPago,
     MedioPagoCrear,
+    MedioPagoDelComprobante,
     MedioPagoModificar,
     MedioPagoSalida,
 )
@@ -24,11 +29,15 @@ from app.modules.productos import service as productos_service
 from app.shared.contratos.comanda import ComandaSalida, DetalleComandaSalida, EstadoComanda
 from app.shared.excepciones import DatosInvalidosError, NoEncontradoError, ReglaDeNegocioError
 from app.shared.models import Estado
-from app.shared.paginacion import Pagina
+from app.shared.paginacion import Pagina, ParametrosPaginacion
+from app.shared.pdf import renderizar
 
 MENSAJE_DUPLICADO = "El medio de pago ya existe"
 MENSAJE_NO_CERRADA = "La comanda no está cerrada"
 MENSAJE_YA_FACTURADA = "La comanda ya fue facturada"
+MENSAJE_FACTURA_PAGADA = "La factura ya está pagada"
+MENSAJE_MONTO_SUPERA_SALDO = "El monto no puede superar el saldo pendiente de la factura"
+MENSAJE_MEDIO_REPETIDO = "El medio de pago ya fue usado en esta factura"
 CENTAVO = Decimal("0.01")
 
 
@@ -196,7 +205,97 @@ def generar_factura(db: Session, datos: FacturaCrear) -> FacturaSalida:
 
 
 def obtener_factura(db: Session, factura_id: int) -> FacturaSalida:
+    return FacturaSalida.model_validate(_obtener_factura_o_404(db, factura_id))
+
+
+def _obtener_factura_o_404(db: Session, factura_id: int) -> Factura:
     factura = repository.obtener_factura(db, factura_id)
     if factura is None:
         raise NoEncontradoError(f"La factura {factura_id} no existe")
+    return factura
+
+
+def listar_facturas(db: Session, filtro: ParametrosPaginacion) -> Pagina[FacturaResumenSalida]:
+    """HU-M6-02: pagina de facturas para elegir cual cobrar, la mas reciente primero."""
+    facturas, total = repository.listar_facturas(db, filtro)
+    return Pagina[FacturaResumenSalida](
+        items=[FacturaResumenSalida.model_validate(factura) for factura in facturas],
+        total=total,
+        limit=filtro.limit,
+        offset=filtro.offset,
+    )
+
+
+def _validar_cobro(db: Session, factura: Factura, datos: CobroCrear) -> None:
+    if factura.estado == EstadoFactura.PAGADA:
+        raise ReglaDeNegocioError(MENSAJE_FACTURA_PAGADA)
+    if datos.monto > factura.saldo_pendiente:
+        raise DatosInvalidosError(MENSAJE_MONTO_SUPERA_SALDO)
+    _validar_medio_utilizable(db, datos.medio_pago_id)
+    if repository.existe_cobro_con_medio(db, factura.id, datos.medio_pago_id):
+        raise ReglaDeNegocioError(MENSAJE_MEDIO_REPETIDO)
+
+
+def _aplicar_cobro(factura: Factura, datos: CobroCrear) -> Cobro:
+    cobro = Cobro(medio_pago_id=datos.medio_pago_id, monto=datos.monto)
+    factura.saldo_pendiente = (factura.saldo_pendiente - datos.monto).quantize(CENTAVO)
+    factura.estado = (
+        EstadoFactura.PAGADA
+        if factura.saldo_pendiente == Decimal("0.00")
+        else EstadoFactura.ADEUDADA
+    )
+    factura.cobros.append(cobro)
+    return cobro
+
+
+def registrar_cobro(db: Session, factura_id: int, datos: CobroCrear) -> FacturaSalida:
+    """HU-M6-02: cobra una factura adeudada y actualiza saldo y estado."""
+    factura = _obtener_factura_o_404(db, factura_id)
+    _validar_cobro(db, factura, datos)
+    cobro = _aplicar_cobro(factura, datos)
+    try:
+        repository.agregar_cobro(db, cobro)
+        cobro.numero_comprobante = cobro.id
+        db.commit()
+    except IntegrityError as error:
+        db.rollback()
+        raise ReglaDeNegocioError("No se pudo registrar el cobro") from error
     return FacturaSalida.model_validate(factura)
+
+
+@dataclass(frozen=True)
+class ArchivoComprobante:
+    contenido: bytes
+    nombre: str
+
+
+def obtener_comprobante(db: Session, numero_comprobante: int) -> ComprobanteSalida:
+    """HU-M6-03: comprobante de un cobro; solo lee, asi que siempre es el mismo (CA4)."""
+    cobro = repository.obtener_cobro_por_comprobante(db, numero_comprobante)
+    if cobro is None:
+        raise NoEncontradoError(
+            f"No hay un pago registrado con el comprobante {numero_comprobante}"
+        )
+    medio = repository.obtener_medio_pago_aunque_eliminado(db, cobro.medio_pago_id)
+    return ComprobanteSalida(
+        numero_comprobante=numero_comprobante,
+        fecha_hora=cobro.fecha_hora,
+        monto=cobro.monto,
+        medio_pago=MedioPagoDelComprobante.model_validate(medio),
+        cobro_id=cobro.id,
+        factura_id=cobro.factura_id,
+        comanda_id=cobro.factura.comanda_id,
+        total_factura=cobro.factura.total,
+        saldo_pendiente=cobro.factura.saldo_pendiente,
+    )
+
+
+def generar_pdf_comprobante(db: Session, numero_comprobante: int) -> ArchivoComprobante:
+    """HU-M6-03 (S3): el mismo comprobante en PDF, para entregarlo al cliente."""
+    comprobante = obtener_comprobante(db, numero_comprobante)
+    generado = datetime.now(comprobante_pdf.ZONA_DEL_RESTAURANTE).replace(tzinfo=None)
+    documento = comprobante_pdf.componer(comprobante, generado)
+    return ArchivoComprobante(
+        contenido=renderizar(documento),
+        nombre=f"comprobante-{comprobante.numero_comprobante}.pdf",
+    )

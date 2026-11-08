@@ -1,9 +1,12 @@
 import { clienteHttp } from '../../shared/api/client';
 import type { Pagina, RespuestaApi } from '../../shared/types';
 import type {
+  CobroCrear,
+  Comprobante,
   Factura,
   FacturaCrear,
   FacturaPrevia,
+  FacturaResumen,
   MedioPago,
   MedioPagoCrear,
   MedioPagoModificar,
@@ -49,4 +52,39 @@ export function previsualizarFactura(comandaId: number): Promise<RespuestaApi<Fa
 /** HU-M6-01 CA2: genera la factura junto con su primer cobro. */
 export function generarFactura(datos: FacturaCrear): Promise<RespuestaApi<Factura>> {
   return clienteHttp.post<Factura, FacturaCrear>(RUTA_FACTURAS, datos);
+}
+
+/** HU-M6-02: listado paginado de facturas, de la más reciente a la más vieja. */
+export function listarFacturas(
+  limit: number,
+  offset: number,
+): Promise<RespuestaApi<Pagina<FacturaResumen>>> {
+  return clienteHttp.get<Pagina<FacturaResumen>>(
+    `${RUTA_FACTURAS}?limit=${limit}&offset=${offset}`,
+  );
+}
+
+/** HU-M6-02: factura completa con sus cobros, para mostrar el saldo antes de cobrar. */
+export function obtenerFactura(id: number): Promise<RespuestaApi<Factura>> {
+  return clienteHttp.get<Factura>(`${RUTA_FACTURAS}/${id}`);
+}
+
+/** HU-M6-02: registra un cobro sobre una factura adeudada y devuelve la factura actualizada. */
+export function registrarCobro(
+  facturaId: number,
+  datos: CobroCrear,
+): Promise<RespuestaApi<Factura>> {
+  return clienteHttp.post<Factura, CobroCrear>(`${RUTA_FACTURAS}/${facturaId}/cobros`, datos);
+}
+
+const RUTA_COMPROBANTES = '/comprobantes';
+
+/** HU-M6-03: comprobante de un cobro; pedirlo otra vez devuelve el mismo. */
+export function obtenerComprobante(numero: number): Promise<RespuestaApi<Comprobante>> {
+  return clienteHttp.get<Comprobante>(`${RUTA_COMPROBANTES}/${numero}`);
+}
+
+/** HU-M6-03: el mismo comprobante en PDF, para entregarlo al cliente. */
+export function descargarComprobantePdf(numero: number): Promise<RespuestaApi<Blob>> {
+  return clienteHttp.obtenerArchivo(`${RUTA_COMPROBANTES}/${numero}/pdf`);
 }

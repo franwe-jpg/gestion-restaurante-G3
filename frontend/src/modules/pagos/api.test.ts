@@ -4,13 +4,24 @@ import { clienteHttp } from '../../shared/api/client';
 
 import {
   crearMedioPago,
+  descargarComprobantePdf,
   eliminarMedioPago,
   generarFactura,
+  listarFacturas,
   listarMediosPago,
   modificarMedioPago,
+  obtenerComprobante,
+  obtenerFactura,
   previsualizarFactura,
+  registrarCobro,
 } from './api';
-import type { FacturaCrear, MedioPago, MedioPagoCrear, MedioPagoModificar } from './types';
+import type {
+  CobroCrear,
+  FacturaCrear,
+  MedioPago,
+  MedioPagoCrear,
+  MedioPagoModificar,
+} from './types';
 
 const EFECTIVO: MedioPago = {
   id: 1,
@@ -89,5 +100,54 @@ describe('api de facturas (HU-M6-01)', () => {
     await generarFactura(datos);
 
     expect(post).toHaveBeenCalledWith('/facturas', datos);
+  });
+});
+
+describe('api de cobros (HU-M6-02)', () => {
+  it('lista las facturas por GET con la paginación', async () => {
+    const get = vi.spyOn(clienteHttp, 'get').mockResolvedValue({ datos: null, exito: true });
+
+    await listarFacturas(50, 100);
+
+    expect(get).toHaveBeenCalledWith('/facturas?limit=50&offset=100');
+  });
+
+  it('pide una factura por GET con su id', async () => {
+    const get = vi.spyOn(clienteHttp, 'get').mockResolvedValue({ datos: null, exito: true });
+
+    await obtenerFactura(7);
+
+    expect(get).toHaveBeenCalledWith('/facturas/7');
+  });
+
+  it('registra el cobro por POST en la factura elegida', async () => {
+    const datos: CobroCrear = { medio_pago_id: 2, monto: '3000.00' };
+    const post = vi.spyOn(clienteHttp, 'post').mockResolvedValue({ datos: null, exito: true });
+
+    await registrarCobro(7, datos);
+
+    expect(post).toHaveBeenCalledWith('/facturas/7/cobros', datos);
+  });
+});
+
+describe('api de comprobantes (HU-M6-03)', () => {
+  it('pide el comprobante por GET con su número', async () => {
+    const get = vi.spyOn(clienteHttp, 'get').mockResolvedValue({ datos: null, exito: true });
+
+    await obtenerComprobante(12);
+
+    expect(get).toHaveBeenCalledWith('/comprobantes/12');
+  });
+
+  it('descarga el PDF del comprobante como archivo', async () => {
+    const blob = new Blob(['%PDF'], { type: 'application/pdf' });
+    const obtenerArchivo = vi
+      .spyOn(clienteHttp, 'obtenerArchivo')
+      .mockResolvedValue({ datos: blob, exito: true });
+
+    const respuesta = await descargarComprobantePdf(12);
+
+    expect(obtenerArchivo).toHaveBeenCalledWith('/comprobantes/12/pdf');
+    expect(respuesta.datos).toBe(blob);
   });
 });

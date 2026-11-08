@@ -524,3 +524,41 @@ def test_migracion_cantidad_entregada_downgrade_conserva_estado_entrega(
         (2, "PENDIENTE"),
         (3, "ENTREGADO"),
     ]
+
+
+REVISION_INDICES_REPORTE = "f1a3c5e7b9d2"
+INDICES_REPORTE = {"ix_comandas_fecha_hora", "ix_detalles_comanda_comanda_id"}
+
+
+def _indices(conexion, tabla: str) -> set[str]:
+    return {indice["name"] for indice in inspect(conexion).get_indexes(tabla)}
+
+
+def test_upgrade_crea_los_indices_del_reporte(db: Session) -> None:
+    conexion = db.connection()
+
+    assert "ix_comandas_fecha_hora" in _indices(conexion, "comandas")
+    assert "ix_detalles_comanda_comanda_id" in _indices(conexion, "detalles_comanda")
+
+
+def test_downgrade_elimina_los_indices_del_reporte_sin_tocar_los_datos(db: Session) -> None:
+    _crear_mesa(db)
+    db.execute(
+        text(
+            "INSERT INTO comandas (id, mesa_id, estado, fecha_hora) "
+            "VALUES (1, 1, 'CERRADA', '2026-10-31T14:15:00.000000+00:00')"
+        )
+    )
+    db.commit()
+    url = str(db.get_bind().url)
+    db.close()
+
+    command.downgrade(Config(str(ALEMBIC_INI)), REVISION_INDICES_REPORTE)
+
+    motor = crear_motor(url)
+    with motor.connect() as conexion:
+        assert not INDICES_REPORTE & (
+            _indices(conexion, "comandas") | _indices(conexion, "detalles_comanda")
+        )
+        assert conexion.execute(text("SELECT COUNT(*) FROM comandas")).scalar_one() == 1
+    motor.dispose()
