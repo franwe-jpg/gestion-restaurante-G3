@@ -63,6 +63,15 @@ def cerrar_comanda(
     return service.cerrar_comanda(db, comanda_id, mesas)
 
 
+@router.post("/comandas/{comanda_id}/anular")
+def anular_comanda(
+    comanda_id: Annotated[int, Path(gt=0)],
+    db: Sesion,
+    mesas: Annotated[service.MesasPort, Depends(obtener_mesas_port)],
+) -> ComandaSalida:
+    return service.anular_comanda(db, comanda_id, mesas)
+
+
 @router.get("/comandas/{comanda_id}/pendientes")
 def consultar_pendientes(comanda_id: Annotated[int, Path(gt=0)], db: Sesion) -> PendientesComanda:
     return service.consultar_pendientes(db, comanda_id)

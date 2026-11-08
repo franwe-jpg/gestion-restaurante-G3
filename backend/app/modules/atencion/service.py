@@ -1,6 +1,8 @@
 """Servicios de Comanda y Cliente del módulo Atención."""
 
+from collections.abc import Callable
 from decimal import Decimal
+from importlib import import_module
 from typing import Protocol
 
 from pydantic import ValidationError
@@ -227,6 +229,35 @@ def cerrar_comanda(db: Session, comanda_id: int, mesas: MesasPort) -> ComandaSal
         db.rollback()
         raise
     return salida
+
+
+def anular_comanda(db: Session, comanda_id: int, mesas: MesasPort) -> ComandaSalida:
+    """Logically cancel an unbilled open order; M4 owns the shared transaction."""
+    comanda = repository.obtener_comanda(db, comanda_id)
+    if comanda is None:
+        raise NoEncontradoError(f"La comanda {comanda_id} no existe")
+    if comanda.estado != EstadoComanda.ABIERTA:
+        raise ReglaDeNegocioError("Solo se puede anular una comanda ABIERTA")
+    esta_facturada = _obtener_consulta_facturacion()
+    if esta_facturada(db, comanda_id):
+        raise ReglaDeNegocioError("No se puede anular una comanda facturada")
+    try:
+        comanda.estado = EstadoComanda.ANULADA
+        mesas.liberar(db, comanda.mesa_id)
+        salida = ComandaSalida.model_validate(comanda, from_attributes=True)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    return salida
+
+
+def _obtener_consulta_facturacion() -> Callable[[Session, int], bool]:
+    servicio = import_module("app.modules.pagos.service")
+    consulta = getattr(servicio, "esta_facturada", None)
+    if not callable(consulta):
+        raise ReglaDeNegocioError("El servicio de facturación no está disponible")
+    return consulta
 
 
 def obtener_comanda(db: Session, comanda_id: int) -> ComandaSalida:

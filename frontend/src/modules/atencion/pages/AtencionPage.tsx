@@ -7,6 +7,7 @@ import { PanelClientes } from '../components/PanelClientes';
 import { useComandas } from '../components/useComandas';
 import { useEntregasModal } from '../components/useEntregasModal';
 import { useReabrirComanda } from '../components/useReabrirComanda';
+import { useAnularComanda } from '../components/useAnularComanda';
 
 function accionesAtencion(
   recargar: () => void,
@@ -40,6 +41,7 @@ export function AtencionPage() {
   const [aviso, setAviso] = useState('');
   const { entregas, irAEntregas, salirDeEntregas } = useEntregasModal(setCierreId);
   const reabrir = useReabrirComanda(comandas.recargar, setAviso);
+  const anular = useAnularComanda(comandas.recargar, setAviso);
   const acciones = accionesAtencion(comandas.recargar, setAlta, setCierreId, setAviso);
   return (
     <div className="space-y-6">
@@ -56,6 +58,7 @@ export function AtencionPage() {
         onEntregas={(id) => irAEntregas(id, false)}
         onModificar={setModificarId}
         onReabrir={(id) => void reabrir(id)}
+        onAnular={(id) => void anular(id)}
       />
       <AtencionDialogs
         alta={alta}

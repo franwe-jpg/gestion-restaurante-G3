@@ -132,6 +132,11 @@ def _a_detalle_factura(
     )
 
 
+def esta_facturada(db: Session, comanda_id: int) -> bool:
+    """Indica si existe una factura asociada a la Comanda, sin importar su estado."""
+    return repository.existe_factura_de_comanda(db, comanda_id)
+
+
 def _preparar_detalles(db: Session, comanda_id: int) -> list[DetalleFactura]:
     """Valida que la comanda se pueda facturar y devuelve el detalle a copiar."""
     comanda = atencion_service.obtener_comanda(db, comanda_id)
