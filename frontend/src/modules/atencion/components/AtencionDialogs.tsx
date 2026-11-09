@@ -11,6 +11,7 @@ interface EntregasAbiertas {
 
 interface Props {
   alta: boolean;
+  mesaInicial?: string;
   cierreId: number | null;
   modificarId: number | null;
   entregas: EntregasAbiertas | null;
@@ -29,7 +30,7 @@ export function AtencionDialogs(props: Props) {
     <>
       {props.alta && (
         <Dialog open title="Nueva comanda" size="lg" onOpenChange={props.onAlta}>
-          <ComandaForm onCreada={props.onCreada} />
+          <ComandaForm onCreada={props.onCreada} mesaInicial={props.mesaInicial} />
         </Dialog>
       )}
       {props.cierreId !== null && (

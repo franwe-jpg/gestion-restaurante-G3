@@ -1,10 +1,16 @@
 import { Button } from '../../../shared/components/ui/button';
 import { Checkbox } from '../../../shared/components/ui/checkbox';
 import { Dialog } from '../../../shared/components/ui/dialog';
-import type { DetalleComandaSalida } from '../types';
+import type {
+  DetalleComandaCrear,
+  DetalleComandaSalida,
+  MenuEjecutivoSeleccionable,
+  ProductoSeleccionable,
+} from '../types';
 import { DetallePedidoFila } from './DetallePedidoFila';
 import type { LineaPedido } from './DetallePedidoFila';
 import { useComandaParaModificar } from './useComandaParaModificar';
+import { useCatalogoComanda } from './useCatalogoComanda';
 import { useModificacionComanda } from './useModificacionComanda';
 
 interface Props {
@@ -13,23 +19,23 @@ interface Props {
   onModificada: () => void;
 }
 
-function descripcionDetalle(detalle: DetalleComandaSalida): string {
-  const referencia =
-    detalle.producto_id !== null
-      ? `Producto #${detalle.producto_id}`
-      : `Menú #${detalle.menu_ejecutivo_id}`;
-  return `${referencia} — cantidad ${detalle.cantidad}`;
+type NombreDe = (detalle: DetalleComandaCrear) => string;
+
+function descripcionDetalle(detalle: DetalleComandaSalida, nombreDe: NombreDe): string {
+  return `${nombreDe(detalle)} — cantidad ${detalle.cantidad}`;
 }
 
 function DetallesActuales({
   detalles,
   quitar,
   total,
+  nombreDe,
   onAlternar,
 }: {
   detalles: DetalleComandaSalida[];
   quitar: number[];
   total: number;
+  nombreDe: NombreDe;
   onAlternar: (detalleId: number) => void;
 }) {
   return (
@@ -42,14 +48,14 @@ function DetallesActuales({
           return (
             <li key={detalleId ?? `detalle-${indice}`} className="flex items-center gap-3">
               <Checkbox
-                aria-label={`Quitar ${descripcionDetalle(detalle)}`}
+                aria-label={`Quitar ${descripcionDetalle(detalle, nombreDe)}`}
                 checked={typeof detalleId === 'number' && quitar.includes(detalleId)}
                 disabled={typeof detalleId !== 'number'}
                 onChange={() => {
                   if (typeof detalleId === 'number') onAlternar(detalleId);
                 }}
               />
-              <span>{descripcionDetalle(detalle)}</span>
+              <span>{descripcionDetalle(detalle, nombreDe)}</span>
               <span className="text-sm text-slate-500">
                 {detalle.precio_unitario} c/u − descuento {detalle.descuento}
               </span>
@@ -64,11 +70,15 @@ function DetallesActuales({
 
 function NuevasLineas({
   lineas,
+  productos,
+  menus,
   onAgregar,
   onCambiar,
   onQuitar,
 }: {
   lineas: LineaPedido[];
+  productos: ProductoSeleccionable[];
+  menus: MenuEjecutivoSeleccionable[];
   onAgregar: () => void;
   onCambiar: (linea: LineaPedido) => void;
   onQuitar: (clave: number) => void;
@@ -82,6 +92,8 @@ function NuevasLineas({
           linea={linea}
           numero={indice + 1}
           puedeQuitar
+          productos={productos}
+          menus={menus}
           onChange={onCambiar}
           onQuitar={() => onQuitar(linea.clave)}
         />
@@ -93,8 +105,37 @@ function NuevasLineas({
   );
 }
 
+function CuerpoModificar({
+  mod,
+  catalogo,
+}: {
+  mod: ReturnType<typeof useModificacionComanda>;
+  catalogo: ReturnType<typeof useCatalogoComanda>;
+}) {
+  return (
+    <>
+      <DetallesActuales
+        detalles={mod.detalles}
+        quitar={mod.quitar}
+        total={mod.total}
+        nombreDe={catalogo.nombreDe}
+        onAlternar={mod.alternar}
+      />
+      <NuevasLineas
+        lineas={mod.nuevas}
+        productos={catalogo.productos}
+        menus={catalogo.menus}
+        onAgregar={mod.agregar}
+        onCambiar={mod.cambiar}
+        onQuitar={mod.quitarLinea}
+      />
+    </>
+  );
+}
+
 export function ModificarComandaDialog({ id, onSalir, onModificada }: Props) {
   const { comanda, setComanda, error: errorCarga } = useComandaParaModificar(id);
+  const catalogo = useCatalogoComanda();
   const mod = useModificacionComanda(id, comanda, setComanda, onModificada);
   return (
     <Dialog
@@ -108,23 +149,9 @@ export function ModificarComandaDialog({ id, onSalir, onModificada }: Props) {
       <form onSubmit={(evento) => void mod.enviar(evento)} className="space-y-4">
         {!comanda && !errorCarga && <p role="status">Cargando comanda…</p>}
         {errorCarga && <p role="alert">{errorCarga}</p>}
+        {mod.error && <p role="alert">{mod.error}</p>}
         {mod.aviso && <p role="status">{mod.aviso}</p>}
-        {comanda && (
-          <>
-            <DetallesActuales
-              detalles={mod.detalles}
-              quitar={mod.quitar}
-              total={mod.total}
-              onAlternar={mod.alternar}
-            />
-            <NuevasLineas
-              lineas={mod.nuevas}
-              onAgregar={mod.agregar}
-              onCambiar={mod.cambiar}
-              onQuitar={mod.quitarLinea}
-            />
-          </>
-        )}
+        {comanda && <CuerpoModificar mod={mod} catalogo={catalogo} />}
         <div className="flex gap-2">
           <Button
             type="submit"

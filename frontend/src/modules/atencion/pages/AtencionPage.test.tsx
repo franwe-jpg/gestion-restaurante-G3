@@ -1,5 +1,7 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { beforeEach, expect, it, vi } from 'vitest';
+import { fireEvent, render as renderBase, screen, waitFor, within } from '@testing-library/react';
+import type { ReactElement } from 'react';
+import { MemoryRouter, useLocation } from 'react-router-dom';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as api from '../api';
 import { AtencionPage } from './AtencionPage';
 
@@ -13,7 +15,29 @@ vi.mock('../api', () => ({
   registrarEntrega: vi.fn(),
   listarClientes: vi.fn(),
   modificarCliente: vi.fn(),
+  listarMesas: vi.fn(),
+  listarProductos: vi.fn(),
+  listarMenusEjecutivos: vi.fn(),
 }));
+
+// AtencionPage usa useNavigate y useSearchParams: toda prueba necesita un router.
+function render(ui: ReactElement) {
+  return renderBase(ui, { wrapper: MemoryRouter });
+}
+
+function UbicacionActual() {
+  const ubicacion = useLocation();
+  return <p data-testid="ubicacion">{ubicacion.pathname + ubicacion.search}</p>;
+}
+
+function renderEn(ruta: string) {
+  return renderBase(
+    <MemoryRouter initialEntries={[ruta]}>
+      <AtencionPage />
+      <UbicacionActual />
+    </MemoryRouter>,
+  );
+}
 
 const COMANDA = {
   id: 3,
@@ -23,8 +47,27 @@ const COMANDA = {
 };
 const PAGINA = { items: [COMANDA], total: 1, limit: 50, offset: 0 };
 
+const pagina = <T,>(items: T[]) => ({
+  exito: true,
+  datos: { items, total: items.length, limit: 100, offset: 0 },
+});
+
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.mocked(api.listarMesas).mockResolvedValue(
+    pagina([
+      { id: 7, numero: 7, sector: { id: 1, nombre: 'Salón' }, estado: 'LIBRE' as const },
+      { id: 8, numero: 8, sector: { id: 1, nombre: 'Salón' }, estado: 'OCUPADA' as const },
+    ]),
+  );
+  vi.mocked(api.listarProductos).mockResolvedValue(
+    pagina([{ id: 12, nombre: 'Milanesa', precio: '9000.00', estado: 'HABILITADO' as const }]),
+  );
+  vi.mocked(api.listarMenusEjecutivos).mockResolvedValue(
+    pagina([
+      { id: 5, nombre: 'Menú del día', precio_fijo: '12000.00', estado: 'HABILITADO' as const },
+    ]),
+  );
   vi.mocked(api.listarComandas).mockResolvedValue({ exito: true, datos: PAGINA });
   vi.mocked(api.listarClientes).mockResolvedValue({
     exito: true,
@@ -122,15 +165,16 @@ it('distingue una página desplazada vacía del conjunto sin comandas', async ()
   expect(screen.queryByText('No hay comandas para estos filtros.')).not.toBeInTheDocument();
 });
 
-it('crea un pedido usando únicamente referencias, cantidades y observaciones', async () => {
+it('crea un pedido eligiendo mesa y producto de los selectores', async () => {
   vi.mocked(api.crearComanda).mockResolvedValue({
     exito: true,
     datos: { ...COMANDA, detalles: [] },
   });
   render(<AtencionPage />);
   fireEvent.click(screen.getByRole('button', { name: 'Nueva comanda' }));
-  fireEvent.change(screen.getByLabelText('Mesa (ID)'), { target: { value: '7' } });
-  fireEvent.change(screen.getByLabelText('Referencia 1 (ID)'), { target: { value: '12' } });
+  await screen.findByRole('option', { name: 'Mesa 7 · Salón' });
+  fireEvent.change(screen.getByLabelText('Mesa'), { target: { value: '7' } });
+  fireEvent.change(screen.getByLabelText('Producto 1'), { target: { value: '12' } });
   fireEvent.change(screen.getByLabelText('Cantidad 1'), { target: { value: '2' } });
   fireEvent.click(screen.getByRole('button', { name: 'Guardar comanda' }));
   await waitFor(() =>
@@ -151,8 +195,9 @@ it('informa integración no disponible sin simular una creación', async () => {
   });
   render(<AtencionPage />);
   fireEvent.click(screen.getByRole('button', { name: 'Nueva comanda' }));
-  fireEvent.change(screen.getByLabelText('Mesa (ID)'), { target: { value: '7' } });
-  fireEvent.change(screen.getByLabelText('Referencia 1 (ID)'), { target: { value: '12' } });
+  await screen.findByRole('option', { name: 'Mesa 7 · Salón' });
+  fireEvent.change(screen.getByLabelText('Mesa'), { target: { value: '7' } });
+  fireEvent.change(screen.getByLabelText('Producto 1'), { target: { value: '12' } });
   fireEvent.click(screen.getByRole('button', { name: 'Guardar comanda' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('Alta pendiente de integración');
   expect(screen.queryByText('Comanda creada')).not.toBeInTheDocument();
@@ -240,7 +285,7 @@ it('cierra la comanda tras entregar todo desde el modal de entregas', async () =
   render(<AtencionPage />);
   fireEvent.click(await screen.findByRole('button', { name: 'Cerrar comanda #3' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Gestionar entregas' }));
-  fireEvent.click(await screen.findByRole('button', { name: 'Entregar todo de Producto #12' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Entregar todo de Milanesa' }));
   expect(await screen.findByText('No falta servir nada')).toBeInTheDocument();
   expect(api.registrarEntrega).toHaveBeenCalledWith(3, 81, 2);
   fireEvent.click(screen.getByRole('button', { name: 'Volver' }));
@@ -383,15 +428,16 @@ it('impide cantidades fraccionarias y admite varias líneas de producto y menú'
   });
   render(<AtencionPage />);
   fireEvent.click(screen.getByRole('button', { name: 'Nueva comanda' }));
-  fireEvent.change(screen.getByLabelText('Mesa (ID)'), { target: { value: '7' } });
-  fireEvent.change(screen.getByLabelText('Referencia 1 (ID)'), { target: { value: '12' } });
+  await screen.findByRole('option', { name: 'Mesa 7 · Salón' });
+  fireEvent.change(screen.getByLabelText('Mesa'), { target: { value: '7' } });
+  fireEvent.change(screen.getByLabelText('Producto 1'), { target: { value: '12' } });
   fireEvent.change(screen.getByLabelText('Cantidad 1'), { target: { value: '1.5' } });
   fireEvent.click(screen.getByRole('button', { name: 'Guardar comanda' }));
   expect(api.crearComanda).not.toHaveBeenCalled();
   fireEvent.change(screen.getByLabelText('Cantidad 1'), { target: { value: '2' } });
   fireEvent.click(screen.getByRole('button', { name: 'Agregar línea' }));
   fireEvent.change(screen.getByLabelText('Tipo 2'), { target: { value: 'menu' } });
-  fireEvent.change(screen.getByLabelText('Referencia 2 (ID)'), { target: { value: '5' } });
+  fireEvent.change(screen.getByLabelText('Menú 2'), { target: { value: '5' } });
   fireEvent.click(screen.getByRole('button', { name: 'Guardar comanda' }));
   await waitFor(() =>
     expect(api.crearComanda).toHaveBeenCalledWith({
@@ -403,4 +449,80 @@ it('impide cantidades fraccionarias y admite varias líneas de producto y menú'
       ],
     }),
   );
+});
+
+describe('AtencionPage · enlace Mesa → Comanda (S4-03)', () => {
+  it('?mesa=7 abre «Nueva comanda» con la mesa elegida y limpia el parámetro (E02)', async () => {
+    renderEn('/atencion?mesa=7');
+    expect(await screen.findByRole('heading', { name: 'Nueva comanda' })).toBeInTheDocument();
+    await screen.findByRole('option', { name: 'Mesa 7 · Salón' });
+    expect(screen.getByLabelText('Mesa')).toHaveValue('7');
+    expect(screen.getByTestId('ubicacion')).toHaveTextContent(/^\/atencion$/);
+  });
+
+  it('?mesa=8 (ocupada) abre el formulario sin preselección ni error (E04)', async () => {
+    renderEn('/atencion?mesa=8');
+    await screen.findByRole('option', { name: 'Mesa 7 · Salón' });
+    await waitFor(() => expect(screen.getByLabelText('Mesa')).toHaveValue(''));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('?mesa=99 (inexistente) abre el formulario sin preselección ni error (E04)', async () => {
+    renderEn('/atencion?mesa=99');
+    await screen.findByRole('option', { name: 'Mesa 7 · Salón' });
+    expect(screen.getByLabelText('Mesa')).toHaveValue('');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it.each(['abc', '0', '-3'])(
+    '?mesa=%s se ignora y el formulario no se abre (E05)',
+    async (valor) => {
+      renderEn(`/atencion?mesa=${valor}`);
+      await screen.findByText('Comanda #3');
+      expect(screen.queryByRole('heading', { name: 'Nueva comanda' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    },
+  );
+
+  it('sin parámetro el formulario permanece cerrado (E06)', async () => {
+    renderEn('/atencion');
+    await screen.findByText('Comanda #3');
+    expect(screen.queryByRole('heading', { name: 'Nueva comanda' })).not.toBeInTheDocument();
+  });
+});
+
+describe('AtencionPage · enlace Comanda → Factura (S4-03)', () => {
+  const CERRADA = { ...COMANDA, id: 4, estado: 'CERRADA' as const };
+  const ANULADA = { ...COMANDA, id: 5, estado: 'ANULADA' as const };
+
+  it('ofrece «Facturar» solo en comandas CERRADA (E12)', async () => {
+    vi.mocked(api.listarComandas).mockResolvedValue({
+      exito: true,
+      datos: { ...PAGINA, items: [COMANDA, CERRADA, ANULADA], total: 3 },
+    });
+    render(<AtencionPage />);
+    await screen.findByText('Comanda #4');
+    expect(screen.getAllByRole('button', { name: /^Facturar comanda/ })).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Facturar comanda #4' })).toBeInTheDocument();
+  });
+
+  it('«Facturar» navega a /pagos?comanda=<id> (E07)', async () => {
+    vi.mocked(api.listarComandas).mockResolvedValue({
+      exito: true,
+      datos: { ...PAGINA, items: [CERRADA], total: 1 },
+    });
+    renderEn('/atencion');
+    fireEvent.click(await screen.findByRole('button', { name: 'Facturar comanda #4' }));
+    expect(screen.getByTestId('ubicacion')).toHaveTextContent('/pagos?comanda=4');
+  });
+
+  it('sin comandas no hay acciones (E13)', async () => {
+    vi.mocked(api.listarComandas).mockResolvedValue({
+      exito: true,
+      datos: { ...PAGINA, items: [], total: 0 },
+    });
+    render(<AtencionPage />);
+    await screen.findByRole('heading', { name: 'No hay comandas registradas' });
+    expect(screen.queryByRole('button', { name: /Facturar comanda/ })).not.toBeInTheDocument();
+  });
 });
