@@ -50,3 +50,15 @@ export interface MesaDisponible {
   capacidad: number;
   sector: SectorResumenMesa;
 }
+
+/** Reporte de reservas y ausentismo (HU-M5-07). Nombres de campo del backend. */
+export interface ResumenReservas {
+  fecha_desde: string; // YYYY-MM-DD
+  fecha_hasta: string; // YYYY-MM-DD
+  total_reservas: number;
+  atendidas: number;
+  canceladas_anticipada: number;
+  canceladas_por_ausencia: number;
+  /** Texto decimal con punto y 2 decimales ("33.33"); `null` cuando `total_reservas` es 0. */
+  porcentaje_ausentismo: string | null;
+}
