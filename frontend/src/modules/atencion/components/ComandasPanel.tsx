@@ -12,6 +12,7 @@ export function ComandasPanel({
   onEntregas,
   onModificar,
   onReabrir,
+  onAnular,
 }: {
   comandas: ReturnType<typeof useComandas>;
   aviso: string;
@@ -19,6 +20,7 @@ export function ComandasPanel({
   onEntregas: (id: number) => void;
   onModificar: (id: number) => void;
   onReabrir: (id: number) => void;
+  onAnular: (id: number) => void;
 }) {
   return (
     <Card>
@@ -39,6 +41,7 @@ export function ComandasPanel({
               onEntregas={onEntregas}
               onModificar={onModificar}
               onReabrir={onReabrir}
+              onAnular={onAnular}
               onPagina={comandas.cambiarPagina}
             />
           )}

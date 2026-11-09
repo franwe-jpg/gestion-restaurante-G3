@@ -21,6 +21,7 @@ interface Props {
   onEntregas: (id: number) => void;
   onModificar: (id: number) => void;
   onReabrir: (id: number) => void;
+  onAnular: (id: number) => void;
   onPagina: (offset: number) => void;
 }
 
@@ -32,6 +33,7 @@ export function ComandasTabla({
   onEntregas,
   onModificar,
   onReabrir,
+  onAnular,
   onPagina,
 }: Props) {
   return (
@@ -59,6 +61,7 @@ export function ComandasTabla({
                 onEntregas={onEntregas}
                 onModificar={onModificar}
                 onReabrir={onReabrir}
+                onAnular={onAnular}
               />
             ))}
           </TableBody>
@@ -133,6 +136,7 @@ interface AccionesProps {
   onEntregas: (id: number) => void;
   onModificar: (id: number) => void;
   onReabrir: (id: number) => void;
+  onAnular: (id: number) => void;
 }
 
 function AccionesComanda({ comanda, ocupado, ...acciones }: AccionesProps) {
@@ -145,6 +149,16 @@ function AccionesComanda({ comanda, ocupado, ...acciones }: AccionesProps) {
       >
         Entregas
       </Button>
+      {comanda.estado === 'ABIERTA' && (
+        <Button
+          variant="danger"
+          disabled={ocupado}
+          aria-label={`Anular comanda #${comanda.id}`}
+          onClick={() => acciones.onAnular(comanda.id)}
+        >
+          Anular comanda
+        </Button>
+      )}
       <Button
         variant="outline"
         disabled={ocupado || comanda.estado !== 'ABIERTA'}

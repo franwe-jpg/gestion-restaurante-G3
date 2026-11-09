@@ -1,10 +1,12 @@
 """Pruebas del service de medios de pago (HU-M6-04 a HU-M6-07)."""
 
+from decimal import Decimal
+
 import pytest
 from sqlalchemy.orm import Session
 
 from app.modules.pagos import service
-from app.modules.pagos.models import MedioPago, TipoMedioPago
+from app.modules.pagos.models import EstadoFactura, Factura, MedioPago, TipoMedioPago
 from app.modules.pagos.schemas import FiltroMediosPago, MedioPagoCrear, MedioPagoModificar
 from app.shared.excepciones import NoEncontradoError, ReglaDeNegocioError
 from app.shared.models import Estado
@@ -25,6 +27,32 @@ def _cambio(
 def _nombres(db: Session, **filtro: object) -> list[str]:
     pagina = service.listar_medios_pago(db, FiltroMediosPago.model_validate(filtro))
     return [medio.nombre for medio in pagina.items]
+
+
+def test_esta_facturada_de_comanda_sin_factura_devuelve_false(db: Session, fabrica_comanda) -> None:
+    comanda_id = fabrica_comanda()
+
+    assert service.esta_facturada(db, comanda_id) is False
+
+
+@pytest.mark.parametrize("estado", [EstadoFactura.ADEUDADA, EstadoFactura.PAGADA])
+def test_esta_facturada_de_comanda_con_factura_devuelve_true(
+    db: Session, fabrica_comanda, estado: EstadoFactura
+) -> None:
+    comanda_id = fabrica_comanda()
+    db.add(
+        Factura(
+            comanda_id=comanda_id,
+            total=Decimal("100.00"),
+            saldo_pendiente=(
+                Decimal("100.00") if estado == EstadoFactura.ADEUDADA else Decimal("0.00")
+            ),
+            estado=estado,
+        )
+    )
+    db.commit()
+
+    assert service.esta_facturada(db, comanda_id) is True
 
 
 # --- Crear (#74) ---

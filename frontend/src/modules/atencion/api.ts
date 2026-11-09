@@ -66,6 +66,10 @@ export function cerrarComanda(id: number): Promise<RespuestaApi<Comanda>> {
   return clienteHttp.post<Comanda, Record<string, never>>(`/comandas/${id}/cerrar`, {});
 }
 
+export function anularComanda(id: number): Promise<RespuestaApi<Comanda>> {
+  return clienteHttp.post<Comanda, Record<string, never>>(`/comandas/${id}/anular`, {});
+}
+
 export function listarClientes(
   q = '',
   limit = 50,
