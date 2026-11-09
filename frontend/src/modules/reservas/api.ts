@@ -2,6 +2,8 @@ import { clienteHttp } from '../../shared/api/client';
 import type { Pagina, RespuestaApi } from '../../shared/types';
 import type {
   ClienteEncontrado,
+  ComandaCreada,
+  ComandaDesdeReservaCrear,
   FiltroEstadoReserva,
   MesaDisponible,
   Reserva,
@@ -57,6 +59,17 @@ export function cancelarReservaPorAusencia(id: number): Promise<RespuestaApi<Res
   return clienteHttp.post<Reserva, Record<string, never>>(
     `/reservas/${id}/cancelar-por-ausencia`,
     {},
+  );
+}
+
+/** HU-M5-06: `POST /reservas/{id}/comanda` crea la comanda de una reserva y la pasa a `ATENDIDA`. */
+export function crearComandaDesdeReserva(
+  reservaId: number,
+  datos: ComandaDesdeReservaCrear,
+): Promise<RespuestaApi<ComandaCreada>> {
+  return clienteHttp.post<ComandaCreada, ComandaDesdeReservaCrear>(
+    `/reservas/${reservaId}/comanda`,
+    datos,
   );
 }
 
