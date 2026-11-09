@@ -100,6 +100,12 @@ def manejar_error_http(_solicitud: Request, error: StarletteHTTPException) -> JS
     )
 
 
+@app.exception_handler(Exception)
+def manejar_error_inesperado(_solicitud: Request, _error: Exception) -> JSONResponse:
+    """D-26: una falla no controlada responde `detalle` sin trazas ni datos internos."""
+    return JSONResponse(status_code=500, content={"detalle": "Error interno del servidor"})
+
+
 @app.get(f"{API_PREFIX}/salud")
 def salud() -> dict[str, str]:
     return {"estado": "ok"}
