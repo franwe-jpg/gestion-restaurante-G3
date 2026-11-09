@@ -1,10 +1,11 @@
-"""reservas: puente con Mesa (M3) y Cliente (M4).
+"""reservas: puente con Mesa (M3), Cliente y Comanda (M4).
 
 El lado Mesa es real (S33): consulta a M3 solo con `app.modules.salon.service.listar_mesas` y
 lee todas sus paginas, porque M3 pagina (100 como maximo), no filtra por estado y no busca por
 `id`. `listar_mesas` y `obtener_mesa` salen de la misma lectura, asi que informan lo mismo de cada
 mesa. El lado Cliente tambien es real (S39): consulta y registra clientes solo con
-`app.modules.atencion.service.existe_cliente` y `registrar_cliente_para_reserva`.
+`app.modules.atencion.service.existe_cliente` y `registrar_cliente_para_reserva`. El lado Comanda
+(HU-M5-06) crea la comanda de una reserva con `app.modules.atencion.service`, sin confirmarla.
 
 El `service` llama siempre a `puente.<operacion>(...)` para que las pruebas puedan reemplazarlas.
 La capacidad de la mesa solo se informa para mostrarla en el selector de mesas: la cantidad de
@@ -18,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from app.modules.atencion import service as atencion_service
 from app.modules.salon import service as salon_service
+from app.shared.contratos.comanda import ComandaCrear, ComandaSalida, DetalleComandaCrear
 from app.shared.models.enums import EstadoMesa
 from app.shared.paginacion import LIMIT_MAXIMO, ParametrosPaginacion
 
@@ -103,3 +105,21 @@ def registrar_cliente(db: Session, nombre: str, telefono: str) -> int:
     Si M4 rechaza los datos, su `DatosInvalidosError` sube tal cual (S42).
     """
     return atencion_service.registrar_cliente_para_reserva(db, nombre, telefono)
+
+
+def crear_comanda_de_reserva(
+    db: Session,
+    mesa_id: int,
+    reserva_id: int,
+    detalles: list[DetalleComandaCrear],
+    observaciones: str | None,
+) -> ComandaSalida:
+    """Crea en M4 la comanda de la reserva dentro de la sesion de M5; M4 no confirma (HU-M5-06).
+
+    Usa `crear_comanda_sin_confirmar` (B2) con `reserva_id` en `ComandaCrear` (B1). Los errores de
+    M4 suben tal cual; el commit o el rollback los hace `service.crear_comanda`.
+    """
+    datos = ComandaCrear(
+        mesa_id=mesa_id, reserva_id=reserva_id, detalles=detalles, observaciones=observaciones
+    )
+    return atencion_service.crear_comanda_sin_confirmar(db, datos)

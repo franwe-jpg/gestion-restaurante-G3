@@ -4,11 +4,14 @@ from datetime import UTC, date, datetime, time, timedelta
 
 import pytest
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy.orm import Session, sessionmaker
 
+from app.modules.atencion.service import ComandaAbiertaError
 from app.modules.reservas import puente, repository, service
 from app.modules.reservas.models import EstadoReserva, Reserva
 from app.modules.reservas.schemas import (
+    ComandaDesdeReservaCrear,
     FiltroReservas,
     MesaDisponible,
     ReservaCrear,
@@ -16,6 +19,7 @@ from app.modules.reservas.schemas import (
     ReservaSalida,
 )
 from app.modules.reservas.service import ahora as ahora_real
+from app.shared.contratos.comanda import EstadoComanda
 from app.shared.excepciones import DatosInvalidosError, NoEncontradoError, ReglaDeNegocioError
 from app.shared.models.enums import EstadoMesa
 from app.shared.paginacion import Pagina
@@ -1480,3 +1484,507 @@ def test_cancelar_por_ausencia_libera_la_mesa_en_repository(db: Session, fabrica
 
     assert 6 not in repository.ids_de_mesas_con_reserva_activa(db, HOY, time(11, 30))
     assert repository.existe_reserva_activa(db, 6, HOY, time(11, 30)) is False
+
+
+# --- HU-M5-06: crear una comanda a partir de una reserva ---
+# El reloj de las pruebas (conftest.py) marca el 2026-11-02 a las 12:00 (HOY). Los ids de las
+# reservas son los que asigna la base: las pruebas usan `reserva.id`, no un numero fijo.
+
+AYER = date(2026, 11, 1)
+YA_ATENDIDA = "La reserva {id} ya fue atendida"
+NO_ES_DE_HOY = "La reserva {id} no corresponde al día de hoy"
+
+
+def _pedido(*lineas: dict, observaciones: str | None = None) -> ComandaDesdeReservaCrear:
+    """El pedido de referencia (producto 12 por 2) o el de las lineas que se indiquen."""
+    lineas = lineas or ({"producto_id": 12, "cantidad": 2},)
+    return ComandaDesdeReservaCrear(detalles=list(lineas), observaciones=observaciones)
+
+
+def _de_hoy(fabrica_reserva, **cambios) -> Reserva:
+    """La reserva de referencia: ACTIVA, de hoy, en la mesa 5, para el cliente 7."""
+    cuerpo = {"mesa_id": 5, "cliente_id": 7, "fecha": HOY, "hora": time(21, 30)}
+    return fabrica_reserva(**(cuerpo | cambios))
+
+
+# --- guarda para atender (pasos 2 a 5) ---
+
+
+def test_crear_comanda_reserva_inexistente_responde_404(db: Session, puente_doble) -> None:
+    with pytest.raises(NoEncontradoError, match="La reserva 999 no existe"):
+        service.crear_comanda(db, 999, _pedido())
+
+    assert puente_doble.comandas == []
+
+
+@pytest.mark.parametrize(
+    "estado", [EstadoReserva.CANCELADA_ANTICIPADA, EstadoReserva.CANCELADA_POR_AUSENCIA]
+)
+def test_crear_comanda_reserva_cancelada_responde_409(
+    db: Session, fabrica_reserva, puente_doble, estado: EstadoReserva
+) -> None:
+    reserva = _de_hoy(fabrica_reserva, estado=estado)
+
+    with pytest.raises(ReglaDeNegocioError) as error:
+        service.crear_comanda(db, reserva.id, _pedido())
+
+    assert str(error.value) == YA_FUE_CANCELADA.format(id=reserva.id)
+    assert puente_doble.comandas == []
+    assert _reserva_guardada(db, reserva.id).estado == estado
+
+
+def test_crear_comanda_reserva_atendida_responde_409(
+    db: Session, fabrica_reserva, puente_doble
+) -> None:
+    reserva = _de_hoy(fabrica_reserva, estado=EstadoReserva.ATENDIDA)
+
+    with pytest.raises(ReglaDeNegocioError) as error:
+        service.crear_comanda(db, reserva.id, _pedido())
+
+    assert str(error.value) == YA_ATENDIDA.format(id=reserva.id)
+    assert puente_doble.comandas == []
+    assert _reserva_guardada(db, reserva.id).estado == EstadoReserva.ATENDIDA
+
+
+# S57: la fecha de la reserva tiene que ser la de hoy, ni futura ni pasada
+@pytest.mark.parametrize("fecha", [MANANA, AYER], ids=["manana", "ayer"])
+def test_crear_comanda_reserva_de_otra_fecha_responde_409(
+    db: Session, fabrica_reserva, puente_doble, fecha: date
+) -> None:
+    reserva = _de_hoy(fabrica_reserva, fecha=fecha)
+
+    with pytest.raises(ReglaDeNegocioError) as error:
+        service.crear_comanda(db, reserva.id, _pedido())
+
+    assert str(error.value) == NO_ES_DE_HOY.format(id=reserva.id)
+    assert puente_doble.comandas == []
+    assert _reserva_guardada(db, reserva.id).estado == EstadoReserva.ACTIVA
+
+
+# Orden de las verificaciones: cancelada y atendida van antes que la fecha
+def test_crear_comanda_cancelada_de_otra_fecha_responde_ya_fue_cancelada(
+    db: Session, fabrica_reserva, puente_doble
+) -> None:
+    reserva = _de_hoy(fabrica_reserva, fecha=MANANA, estado=EstadoReserva.CANCELADA_ANTICIPADA)
+
+    with pytest.raises(ReglaDeNegocioError) as error:
+        service.crear_comanda(db, reserva.id, _pedido())
+
+    assert str(error.value) == YA_FUE_CANCELADA.format(id=reserva.id)
+    assert puente_doble.comandas == []
+
+
+def test_crear_comanda_atendida_de_otra_fecha_responde_ya_fue_atendida(
+    db: Session, fabrica_reserva, puente_doble
+) -> None:
+    reserva = _de_hoy(fabrica_reserva, fecha=MANANA, estado=EstadoReserva.ATENDIDA)
+
+    with pytest.raises(ReglaDeNegocioError) as error:
+        service.crear_comanda(db, reserva.id, _pedido())
+
+    assert str(error.value) == YA_ATENDIDA.format(id=reserva.id)
+    assert puente_doble.comandas == []
+
+
+# --- el pedido incluye al menos un producto (paso 6, S53) ---
+
+AL_MENOS_UN_PRODUCTO = "La comanda debe incluir al menos un producto"
+MENU_5 = {"menu_ejecutivo_id": 5, "cantidad": 1}
+MENU_6 = {"menu_ejecutivo_id": 6, "cantidad": 2}
+
+
+def test_crear_comanda_solo_menus_responde_422(db: Session, fabrica_reserva, puente_doble) -> None:
+    reserva = _de_hoy(fabrica_reserva)
+
+    with pytest.raises(DatosInvalidosError) as error:
+        service.crear_comanda(db, reserva.id, _pedido(MENU_5))
+
+    assert str(error.value) == AL_MENOS_UN_PRODUCTO
+    assert puente_doble.comandas == []
+    assert _reserva_guardada(db, reserva.id).estado == EstadoReserva.ACTIVA
+
+
+def test_crear_comanda_varias_lineas_de_menu_responde_422(
+    db: Session, fabrica_reserva, puente_doble
+) -> None:
+    reserva = _de_hoy(fabrica_reserva)
+
+    with pytest.raises(DatosInvalidosError, match=AL_MENOS_UN_PRODUCTO):
+        service.crear_comanda(db, reserva.id, _pedido(MENU_5, MENU_6))
+
+    assert puente_doble.comandas == []
+    assert _reserva_guardada(db, reserva.id).estado == EstadoReserva.ACTIVA
+
+
+def test_crear_comanda_solo_menus_gana_a_los_errores_de_m4(
+    db: Session, fabrica_reserva, puente_doble
+) -> None:
+    reserva = _de_hoy(fabrica_reserva)
+    invocaciones = []
+    puente_doble.efecto = invocaciones.append  # queda anotado si se llamo, aunque falle
+    puente_doble.falla = ReglaDeNegocioError("La mesa 5 no está libre")
+
+    with pytest.raises(DatosInvalidosError, match=AL_MENOS_UN_PRODUCTO):
+        service.crear_comanda(db, reserva.id, _pedido(MENU_5))
+
+    assert invocaciones == []
+
+
+# Estas dos protegen el orden y pasan desde el principio: la guarda ya existe
+def test_crear_comanda_cancelada_con_solo_menus_responde_409(
+    db: Session, fabrica_reserva, puente_doble
+) -> None:
+    reserva = _de_hoy(fabrica_reserva, estado=EstadoReserva.CANCELADA_POR_AUSENCIA)
+
+    with pytest.raises(ReglaDeNegocioError) as error:
+        service.crear_comanda(db, reserva.id, _pedido(MENU_5))
+
+    assert str(error.value) == YA_FUE_CANCELADA.format(id=reserva.id)
+    assert puente_doble.comandas == []
+
+
+def test_crear_comanda_otra_fecha_con_solo_menus_responde_409(
+    db: Session, fabrica_reserva, puente_doble
+) -> None:
+    reserva = _de_hoy(fabrica_reserva, fecha=MANANA)
+
+    with pytest.raises(ReglaDeNegocioError) as error:
+        service.crear_comanda(db, reserva.id, _pedido(MENU_5))
+
+    assert str(error.value) == NO_ES_DE_HOY.format(id=reserva.id)
+    assert puente_doble.comandas == []
+
+
+# --- camino feliz y atomicidad (pasos 7 y 8) ---
+
+PRODUCTO_12 = {"producto_id": 12, "cantidad": 2}
+PRODUCTO_13 = {"producto_id": 13, "cantidad": 1}
+
+
+def test_crear_comanda_reserva_activa_de_hoy_queda_atendida_y_devuelve_la_comanda(
+    db: Session, fabrica_reserva, puente_doble
+) -> None:
+    reserva = _de_hoy(fabrica_reserva)
+    pedido = _pedido(PRODUCTO_12, observaciones="Sin sal")
+
+    comanda = service.crear_comanda(db, reserva.id, pedido)
+
+    # D1: el puente recibe argumentos sueltos (mesa, reserva, lineas, observaciones), no un DTO
+    assert puente_doble.comandas == [(5, reserva.id, pedido.detalles, "Sin sal")]
+    assert comanda.estado == EstadoComanda.ABIERTA
+    assert (comanda.mesa_id, comanda.reserva_id) == (5, reserva.id)
+    guardada = _reserva_guardada(db, reserva.id)
+    assert guardada.estado == EstadoReserva.ATENDIDA
+    assert (guardada.mesa_id, guardada.cliente_id, guardada.fecha) == (5, 7, HOY)
+    assert (guardada.hora, guardada.cantidad_personas) == (time(21, 30), 4)
+
+
+def test_crear_comanda_hace_un_unico_commit_despues_del_puente_y_de_atender(
+    db: Session, fabrica_reserva, puente_doble, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    reserva = _de_hoy(fabrica_reserva)
+    eventos: list[object] = []
+    puente_doble.efecto = lambda _db: eventos.append("puente")
+    commit_real = db.commit
+
+    def commit_espiado() -> None:
+        eventos.append(("commit", reserva.estado))
+        commit_real()
+
+    monkeypatch.setattr(db, "commit", commit_espiado)
+
+    service.crear_comanda(db, reserva.id, _pedido())
+
+    assert eventos == ["puente", ("commit", EstadoReserva.ATENDIDA)]
+
+
+def test_crear_comanda_hereda_la_mesa_de_la_reserva(
+    db: Session, fabrica_reserva, puente_doble
+) -> None:
+    reserva = _de_hoy(fabrica_reserva, mesa_id=6)
+
+    comanda = service.crear_comanda(db, reserva.id, _pedido())
+
+    assert comanda.mesa_id == 6
+    assert [llamada[0] for llamada in puente_doble.comandas] == [6]
+
+
+def test_crear_comanda_varias_lineas_con_producto_y_menu_conserva_el_orden(
+    db: Session, fabrica_reserva
+) -> None:
+    reserva = _de_hoy(fabrica_reserva)
+
+    comanda = service.crear_comanda(db, reserva.id, _pedido(PRODUCTO_12, MENU_5, PRODUCTO_13))
+
+    assert [(d.producto_id, d.menu_ejecutivo_id) for d in comanda.detalles] == [
+        (12, None),
+        (None, 5),
+        (13, None),
+    ]
+    assert _reserva_guardada(db, reserva.id).estado == EstadoReserva.ATENDIDA
+
+
+def test_crear_comanda_un_producto_junto_a_menus_alcanza(db: Session, fabrica_reserva) -> None:
+    reserva = _de_hoy(fabrica_reserva)
+
+    pedido = _pedido(MENU_5, {"producto_id": 12, "cantidad": 1})
+
+    comanda = service.crear_comanda(db, reserva.id, pedido)
+
+    assert len(comanda.detalles) == 2
+    assert _reserva_guardada(db, reserva.id).estado == EstadoReserva.ATENDIDA
+
+
+@pytest.mark.parametrize("observaciones", ["Sin sal", None])
+def test_crear_comanda_observaciones_son_opcionales(
+    db: Session, fabrica_reserva, observaciones: str | None
+) -> None:
+    reserva = _de_hoy(fabrica_reserva)
+
+    comanda = service.crear_comanda(db, reserva.id, _pedido(observaciones=observaciones))
+
+    assert comanda.observaciones == observaciones
+
+
+def test_crear_comanda_no_agrega_un_cliente_propio(db: Session, fabrica_reserva) -> None:
+    reserva = _de_hoy(fabrica_reserva)
+
+    comanda = service.crear_comanda(db, reserva.id, _pedido())
+
+    assert not [clave for clave in comanda.model_dump() if "cliente" in clave]
+    assert _reserva_guardada(db, reserva.id).cliente_id == 7  # el cliente se conoce por la reserva
+
+
+def test_crear_reserva_no_crea_ninguna_comanda(db: Session, puente_doble) -> None:
+    service.crear_reserva(db, _datos())
+
+    assert puente_doble.comandas == []
+
+
+# S55: la mesa la verifica M4; M5 no la consulta al puente en este flujo
+def test_crear_comanda_no_consulta_la_mesa_al_puente(
+    db: Session, fabrica_reserva, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    reserva = _de_hoy(fabrica_reserva)
+    consultas: list[str] = []
+    monkeypatch.setattr(puente, "obtener_mesa", lambda *_: consultas.append("obtener_mesa"))
+    monkeypatch.setattr(puente, "listar_mesas", lambda *_: consultas.append("listar_mesas"))
+
+    service.crear_comanda(db, reserva.id, _pedido())
+
+    assert consultas == []
+
+
+# S63: solo cuenta la fecha; la hora de la reserva no se verifica
+@pytest.mark.parametrize("hora", [time(21, 30), time(8, 0)], ids=["no-llego", "ya-paso"])
+def test_crear_comanda_no_verifica_la_hora_de_la_reserva(
+    db: Session, fabrica_reserva, hora: time
+) -> None:
+    reserva = _de_hoy(fabrica_reserva, hora=hora)
+
+    service.crear_comanda(db, reserva.id, _pedido())
+
+    assert _reserva_guardada(db, reserva.id).estado == EstadoReserva.ATENDIDA
+
+
+# S28 y D9: "hoy" es el de la zona del restaurante (el servidor en UTC ya marca el 2 de noviembre)
+def test_crear_comanda_hoy_es_el_de_la_zona_del_restaurante(
+    db: Session, fabrica_reserva, puente_doble, reloj_utc_fijo
+) -> None:
+    de_anoche = _de_hoy(fabrica_reserva, fecha=ANOCHE)
+    de_la_fecha_del_servidor = _de_hoy(fabrica_reserva, fecha=HOY)
+
+    service.crear_comanda(db, de_anoche.id, _pedido())
+    with pytest.raises(ReglaDeNegocioError) as error:
+        service.crear_comanda(db, de_la_fecha_del_servidor.id, _pedido())
+
+    assert _reserva_guardada(db, de_anoche.id).estado == EstadoReserva.ATENDIDA
+    assert str(error.value) == NO_ES_DE_HOY.format(id=de_la_fecha_del_servidor.id)
+    assert _reserva_guardada(db, de_la_fecha_del_servidor.id).estado == EstadoReserva.ACTIVA
+    assert len(puente_doble.comandas) == 1
+
+
+def test_crear_comanda_segundo_envio_responde_ya_fue_atendida(
+    db: Session, fabrica_reserva, puente_doble
+) -> None:
+    reserva = _de_hoy(fabrica_reserva)
+    service.crear_comanda(db, reserva.id, _pedido())
+
+    with pytest.raises(ReglaDeNegocioError) as error:
+        service.crear_comanda(db, reserva.id, _pedido())
+
+    assert str(error.value) == YA_ATENDIDA.format(id=reserva.id)
+    assert len(puente_doble.comandas) == 1
+
+
+ERRORES_DE_M4 = [
+    NoEncontradoError("El producto 99 no existe"),
+    ReglaDeNegocioError("El producto Milanesa está deshabilitado"),
+    ReglaDeNegocioError("La mesa 5 no está libre"),
+    ComandaAbiertaError(31),
+    NoEncontradoError("La mesa 5 no existe"),
+]
+
+
+@pytest.mark.parametrize("falla", ERRORES_DE_M4, ids=lambda falla: str(falla)[:30])
+def test_crear_comanda_error_de_m4_se_propaga_y_deja_la_reserva_activa(
+    db: Session,
+    fabrica_reserva,
+    puente_doble,
+    monkeypatch: pytest.MonkeyPatch,
+    falla: Exception,
+) -> None:
+    reserva = _de_hoy(fabrica_reserva)
+    puente_doble.falla = falla
+    commits: list[str] = []
+    monkeypatch.setattr(db, "commit", lambda: commits.append("commit"))
+
+    with pytest.raises(type(falla)) as error:
+        service.crear_comanda(db, reserva.id, _pedido())
+
+    assert error.value is falla  # sube la misma excepcion, sin reescribirla
+    assert commits == []
+    assert _reserva_guardada(db, reserva.id).estado == EstadoReserva.ACTIVA
+
+
+def test_crear_comanda_error_de_m4_revierte_lo_que_m4_ya_escribio(
+    db: Session, fabrica_reserva, puente_doble
+) -> None:
+    reserva = _de_hoy(fabrica_reserva)
+
+    def escritura_de_m4(sesion: Session) -> None:
+        sesion.add(
+            Reserva(
+                mesa_id=6,
+                cliente_id=7,
+                fecha=MANANA,
+                hora=time(10, 0),
+                cantidad_personas=2,
+                estado=EstadoReserva.ACTIVA,
+            )
+        )
+        sesion.flush()  # M4 hace flush y no confirma
+
+    puente_doble.efecto = escritura_de_m4
+    puente_doble.falla = ReglaDeNegocioError("La mesa 5 no está libre")
+
+    with pytest.raises(ReglaDeNegocioError):
+        service.crear_comanda(db, reserva.id, _pedido())
+
+    # la escritura de M4 no quedo y la sesion sigue sirviendo para consultar
+    assert [fila.id for fila in _reservas(db)] == [reserva.id]
+
+
+def test_crear_comanda_misma_reserva_se_atiende_cuando_la_mesa_se_libera(
+    db: Session, fabrica_reserva, puente_doble
+) -> None:
+    reserva = _de_hoy(fabrica_reserva)
+    puente_doble.falla = ReglaDeNegocioError("La mesa 5 no está libre")
+    with pytest.raises(ReglaDeNegocioError, match="La mesa 5 no está libre"):
+        service.crear_comanda(db, reserva.id, _pedido())
+
+    puente_doble.falla = None
+    comanda = service.crear_comanda(db, reserva.id, _pedido())
+
+    assert comanda.estado == EstadoComanda.ABIERTA
+    assert _reserva_guardada(db, reserva.id).estado == EstadoReserva.ATENDIDA
+
+
+def test_crear_comanda_falla_el_commit_deshace_la_sesion(
+    db: Session, fabrica_reserva, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    reserva = _de_hoy(fabrica_reserva)
+    deshechos: list[str] = []
+    rollback_real = db.rollback
+
+    def commit_roto() -> None:
+        db.flush()  # lo escrito llega a la transaccion, pero el commit falla
+        raise OperationalError("COMMIT", {}, Exception("disk I/O error"))
+
+    def rollback_espiado() -> None:
+        deshechos.append("rollback")
+        rollback_real()
+
+    monkeypatch.setattr(db, "commit", commit_roto)
+    monkeypatch.setattr(db, "rollback", rollback_espiado)
+
+    with pytest.raises(OperationalError):
+        service.crear_comanda(db, reserva.id, _pedido())
+
+    assert deshechos == ["rollback"]
+    assert _reserva_guardada(db, reserva.id).estado == EstadoReserva.ACTIVA
+
+
+# --- carrera sobre la mesa (Decision 52): el indice unico de comanda abierta por mesa de M4 ---
+
+CONFLICTO_DE_MESA = "La mesa 5 ya tiene una comanda abierta"
+
+
+def _indice_de_comandas_abiertas() -> IntegrityError:
+    """El error que M4 deja subir cuando otra comanda ABIERTA tomo la mesa (sin traducir)."""
+    return IntegrityError(
+        "INSERT INTO comandas", {}, Exception("UNIQUE constraint failed: comandas.mesa_id")
+    )
+
+
+def test_crear_comanda_integrity_error_con_la_reserva_activa_responde_conflicto_de_mesa(
+    db: Session, fabrica_reserva, puente_doble, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    reserva = _de_hoy(fabrica_reserva)
+    puente_doble.falla = _indice_de_comandas_abiertas()
+    deshechos: list[str] = []
+    rollback_real = db.rollback
+
+    def rollback_espiado() -> None:
+        deshechos.append("rollback")
+        rollback_real()
+
+    monkeypatch.setattr(db, "rollback", rollback_espiado)
+
+    with pytest.raises(ReglaDeNegocioError) as error:
+        service.crear_comanda(db, reserva.id, _pedido())
+
+    assert str(error.value) == CONFLICTO_DE_MESA
+    assert isinstance(error.value.__cause__, IntegrityError)
+    assert deshechos == ["rollback"]
+    assert _reserva_guardada(db, reserva.id).estado == EstadoReserva.ACTIVA
+
+
+def test_crear_comanda_integrity_error_con_reserva_atendida_por_otra_sesion_responde_ya_atendida(
+    db: Session, fabrica_reserva, puente_doble
+) -> None:
+    reserva = _de_hoy(fabrica_reserva)
+    reserva_id = reserva.id
+
+    def otra_solicitud_atiende_la_reserva(sesion: Session) -> None:
+        # M4 consulta la sesion antes de insertar: eso abre la transaccion y el rollback de
+        # `crear_comanda` expira lo ya leido (sin ella, la reserva seguiria en memoria).
+        sesion.execute(select(Reserva.id))
+        with sessionmaker(bind=db.get_bind())() as otra:
+            otra.get(Reserva, reserva_id).estado = EstadoReserva.ATENDIDA
+            otra.commit()
+
+    puente_doble.efecto = otra_solicitud_atiende_la_reserva
+    puente_doble.falla = _indice_de_comandas_abiertas()
+
+    with pytest.raises(ReglaDeNegocioError) as error:
+        service.crear_comanda(db, reserva_id, _pedido())
+
+    assert str(error.value) == YA_ATENDIDA.format(id=reserva_id)
+    assert _reserva_guardada(db, reserva_id).estado == EstadoReserva.ATENDIDA
+
+
+def test_crear_comanda_integrity_error_deja_la_sesion_usable_y_sin_cambios(
+    db: Session, fabrica_reserva, puente_doble
+) -> None:
+    reserva = _de_hoy(fabrica_reserva)
+    puente_doble.falla = _indice_de_comandas_abiertas()
+    with pytest.raises(ReglaDeNegocioError):
+        service.crear_comanda(db, reserva.id, _pedido())
+
+    assert not db.new
+    assert not db.dirty
+    assert _reserva_guardada(db, reserva.id).estado == EstadoReserva.ACTIVA
+    puente_doble.falla = None
+    service.crear_comanda(db, reserva.id, _pedido())  # la misma sesion sigue sirviendo
+    assert _reserva_guardada(db, reserva.id).estado == EstadoReserva.ATENDIDA

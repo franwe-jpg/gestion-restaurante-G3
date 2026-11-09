@@ -2,6 +2,7 @@
 
 import ast
 import importlib.util
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -12,7 +13,13 @@ from app.modules.atencion import service as atencion_service
 from app.modules.atencion.models import Cliente
 from app.modules.reservas import puente
 from app.modules.salon import service as salon_service
-from app.shared.excepciones import DatosInvalidosError
+from app.shared.contratos.comanda import (
+    ComandaSalida,
+    DetalleComandaCrear,
+    EstadoComanda,
+    EstadoEntrega,
+)
+from app.shared.excepciones import DatosInvalidosError, ReglaDeNegocioError
 from app.shared.models.enums import EstadoMesa
 from app.shared.paginacion import ParametrosPaginacion
 
@@ -135,6 +142,62 @@ def test_doble_puente_informa_el_mismo_estado_en_obtener_mesa_y_listar_mesas(
 
     assert puente.obtener_mesa(db, 6) == listada
     assert listada.estado == EstadoMesa.FUERA_DE_SERVICIO
+
+
+# --- HU-M5-06: contrato del doble de la primitiva que crea la comanda de una reserva ---
+
+LINEAS = [
+    DetalleComandaCrear(producto_id=12, cantidad=2),
+    DetalleComandaCrear(menu_ejecutivo_id=5, cantidad=1),
+]
+
+
+def test_doble_puente_crear_comanda_de_reserva_devuelve_una_comanda_abierta_y_registra_la_llamada(
+    db: Session, puente_doble
+) -> None:
+    primera = puente.crear_comanda_de_reserva(db, 5, 10, LINEAS, "Sin sal")
+    segunda = puente.crear_comanda_de_reserva(db, 6, 11, LINEAS[:1], None)
+
+    assert isinstance(primera, ComandaSalida)
+    assert [primera.id, segunda.id] == [1, 2]  # ids consecutivos desde 1
+    assert primera.estado == EstadoComanda.ABIERTA
+    assert (primera.mesa_id, primera.reserva_id, primera.observaciones) == (5, 10, "Sin sal")
+    assert (segunda.mesa_id, segunda.reserva_id, segunda.observaciones) == (6, 11, None)
+    # un detalle por linea, en el mismo orden, con los importes y el estado del doble (D8)
+    assert [(d.producto_id, d.menu_ejecutivo_id, d.cantidad) for d in primera.detalles] == [
+        (12, None, 2),
+        (None, 5, 1),
+    ]
+    for detalle in primera.detalles:
+        assert detalle.precio_unitario == Decimal("100.00")
+        assert detalle.descuento == Decimal("0.00")
+        assert detalle.estado_entrega == EstadoEntrega.PENDIENTE
+    assert puente_doble.comandas == [(5, 10, LINEAS, "Sin sal"), (6, 11, LINEAS[:1], None)]
+
+
+def test_doble_puente_crear_comanda_de_reserva_lanza_la_falla_y_no_registra_la_llamada(
+    db: Session, puente_doble
+) -> None:
+    puente_doble.falla = ReglaDeNegocioError("La mesa 5 no está libre")
+
+    with pytest.raises(ReglaDeNegocioError, match="La mesa 5 no está libre"):
+        puente.crear_comanda_de_reserva(db, 5, 10, LINEAS, None)
+
+    assert puente_doble.comandas == []
+
+
+def test_doble_puente_crear_comanda_de_reserva_ejecuta_el_efecto_antes_de_fallar(
+    db: Session, puente_doble
+) -> None:
+    sesiones = []
+    puente_doble.efecto = sesiones.append  # el efecto recibe la sesion de quien llama
+    puente_doble.falla = ReglaDeNegocioError("La mesa 5 no está libre")
+
+    with pytest.raises(ReglaDeNegocioError):
+        puente.crear_comanda_de_reserva(db, 5, 10, LINEAS, None)
+
+    assert sesiones == [db]
+    assert puente_doble.comandas == []
 
 
 # S39 y S20: con el puente real, un cliente existe si M4 lo tiene
