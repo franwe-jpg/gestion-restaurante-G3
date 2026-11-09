@@ -9,12 +9,13 @@ import {
   buscarClientes,
   cancelarReservaAnticipada,
   cancelarReservaPorAusencia,
+  crearComandaDesdeReserva,
   crearReserva,
   listarMesasDisponibles,
   listarReservas,
   modificarReserva,
 } from '../api';
-import type { ClienteEncontrado, MesaDisponible, Reserva } from '../types';
+import type { ClienteEncontrado, ComandaCreada, MesaDisponible, Reserva } from '../types';
 
 import { ReservasPage } from './ReservasPage';
 
@@ -77,6 +78,9 @@ function Ruta() {
   return <p data-testid="ruta">{useLocation().pathname}</p>;
 }
 
+/** Aviso compartido por todas las pruebas: `abrir()` lo pasa al proveedor para poder comprobarlo. */
+const mostrarToast = vi.fn();
+
 /**
  * `aceptado` por defecto `true`: las pruebas de alta y edición no usan confirmación y no deben
  * romperse por el nuevo `ConfirmContext.Provider` (Decisión 36 del diseño).
@@ -85,7 +89,7 @@ function abrir(aceptado = true) {
   const confirmar = vi.fn().mockResolvedValue(aceptado);
   render(
     <ConfirmContext.Provider value={confirmar}>
-      <ToastContext.Provider value={{ mostrarToast: vi.fn() }}>
+      <ToastContext.Provider value={{ mostrarToast }}>
         <MemoryRouter initialEntries={['/reservas']}>
           <ReservasPage />
           <Ruta />
@@ -543,6 +547,171 @@ describe('ReservasPage: cancelar una reserva (HU-M5-04-05)', () => {
     await pulsar('Cancelar reserva');
 
     expect(listarReservas).toHaveBeenCalledTimes(1);
+  });
+});
+
+/** Dos filas `ACTIVA` con los `id` de la spec (10 y 11) y mesas distintas (5 y 6). */
+const ACTIVA_10: Reserva = { ...RESERVA, id: 10, mesa_id: 5 };
+const ACTIVA_11: Reserva = { ...RESERVA, id: 11, hora: '22:00', mesa_id: 6 };
+const COMANDA_31: ComandaCreada = { id: 31, mesa_id: 5, reserva_id: 10, estado: 'ABIERTA' };
+
+/** Pulsa «Crear comanda» en la fila que ocupa ese lugar de la tabla (la primera por defecto). */
+async function crearComanda(fila = 0) {
+  fireEvent.click(screen.getAllByRole('button', { name: 'Crear comanda' })[fila]!);
+  await asentar();
+}
+
+function escribirLinea(producto: string, cantidad: string) {
+  fireEvent.change(screen.getByLabelText('Producto 1 (ID)'), { target: { value: producto } });
+  fireEvent.change(screen.getByLabelText('Cantidad 1'), { target: { value: cantidad } });
+}
+
+function servirReservaActiva10() {
+  vi.mocked(listarReservas).mockResolvedValue(pagina([ACTIVA_10]));
+}
+
+describe('ReservasPage: abrir el modal de comanda (HU-M5-06)', () => {
+  beforeEach(servirReservaActiva10);
+
+  it('«Crear comanda» abre el modal de esa fila sin llamar a la API ni cambiar de ruta', async () => {
+    abrir();
+    await screen.findByText('Cliente n.º 7');
+    expect(screen.queryByRole('heading', { name: 'Crear comanda' })).toBeNull();
+
+    await crearComanda();
+
+    expect(screen.getByRole('heading', { name: 'Crear comanda' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Mesa')).toHaveValue('Mesa n.º 5');
+    expect(screen.getByTestId('ruta')).toHaveTextContent('/reservas');
+    expect(crearComandaDesdeReserva).not.toHaveBeenCalled();
+    expect(listarReservas).toHaveBeenCalledTimes(1);
+  });
+
+  it('cerrar el modal de la fila 10 con datos y abrir el de la 11 arranca limpio con la mesa 6', async () => {
+    vi.mocked(listarReservas).mockResolvedValue(pagina([ACTIVA_10, ACTIVA_11]));
+    abrir();
+    await screen.findByText('22:00');
+    await crearComanda(0);
+    escribirLinea('12', '2');
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar producto' }));
+    await pulsar('Cancelar');
+
+    await crearComanda(1);
+
+    expect(screen.getByLabelText('Mesa')).toHaveValue('Mesa n.º 6');
+    expect(screen.getByLabelText('Producto 1 (ID)')).toHaveValue('');
+    expect(screen.getByLabelText('Cantidad 1')).toHaveValue('1');
+    expect(screen.queryByLabelText('Producto 2 (ID)')).toBeNull();
+  });
+});
+
+describe('ReservasPage: guardar la comanda (HU-M5-06)', () => {
+  beforeEach(servirReservaActiva10);
+
+  it('guardar envía el pedido, avisa, cierra el modal, vuelve a pedir el listado y la acción desaparece', async () => {
+    vi.mocked(listarReservas)
+      .mockResolvedValueOnce(pagina([ACTIVA_10]))
+      .mockResolvedValueOnce(pagina([]));
+    vi.mocked(crearComandaDesdeReserva).mockResolvedValue({ datos: COMANDA_31, exito: true });
+    abrir();
+    await screen.findByText('Cliente n.º 7');
+    await crearComanda();
+    escribirLinea('12', '2');
+
+    await pulsar('Guardar comanda');
+
+    expect(crearComandaDesdeReserva).toHaveBeenCalledExactlyOnceWith(10, {
+      detalles: [{ producto_id: 12, cantidad: 2 }],
+    });
+    expect(mostrarToast).toHaveBeenCalledExactlyOnceWith({
+      titulo: 'Comanda n.º 31 creada',
+      variante: 'success',
+    });
+    await waitFor(() =>
+      expect(screen.queryByRole('heading', { name: 'Crear comanda' })).toBeNull(),
+    );
+    expect(listarReservas).toHaveBeenCalledTimes(2);
+    expect(await screen.findByText('No hay reservas para los filtros elegidos.')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Crear comanda' })).toBeNull();
+  });
+
+  it('un 409 deja el modal abierto con el aviso y las líneas, y no vuelve a pedir el listado', async () => {
+    vi.mocked(crearComandaDesdeReserva).mockResolvedValue({
+      datos: null,
+      exito: false,
+      error: 'La reserva 10 ya fue atendida',
+    });
+    abrir();
+    await screen.findByText('Cliente n.º 7');
+    await crearComanda();
+    escribirLinea('12', '2');
+
+    await pulsar('Guardar comanda');
+
+    const aviso = screen.getByRole('alert');
+    expect(within(aviso).getByText('No se pudo crear la comanda')).toBeInTheDocument();
+    expect(within(aviso).getByText('La reserva 10 ya fue atendida')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Crear comanda' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Producto 1 (ID)')).toHaveValue('12');
+    expect(screen.getByLabelText('Cantidad 1')).toHaveValue('2');
+    expect(listarReservas).toHaveBeenCalledTimes(1);
+    expect(mostrarToast).not.toHaveBeenCalled();
+  });
+});
+
+describe('ReservasPage: un solo modal a la vez y cerrar sin guardar (HU-M5-06)', () => {
+  beforeEach(servirReservaActiva10);
+
+  it('«Nueva reserva» se ve deshabilitado con el modal abierto y se habilita al cerrarlo', async () => {
+    abrir();
+    await screen.findByText('Cliente n.º 7');
+    expect(screen.getByRole('button', { name: 'Nueva reserva' })).toBeEnabled();
+
+    await crearComanda();
+    expect(screen.getByRole('button', { name: 'Nueva reserva' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Nueva reserva' })).toBeDisabled();
+
+    await pulsar('Cancelar');
+    expect(screen.getByRole('button', { name: 'Nueva reserva' })).toBeEnabled();
+  });
+
+  it('cerrar con «Cancelar» no llama a la API ni vuelve a pedir el listado', async () => {
+    abrir();
+    await screen.findByText('Cliente n.º 7');
+    await crearComanda();
+    escribirLinea('12', '2');
+
+    await pulsar('Cancelar');
+
+    expect(screen.queryByRole('heading', { name: 'Crear comanda' })).toBeNull();
+    expect(crearComandaDesdeReserva).not.toHaveBeenCalled();
+    expect(listarReservas).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('ReservasPage: doble clic en «Guardar comanda» (HU-M5-06)', () => {
+  beforeEach(servirReservaActiva10);
+
+  it('un doble clic en «Guardar comanda» con la API lenta llama una sola vez', async () => {
+    let resolver: (respuesta: RespuestaApi<ComandaCreada>) => void = () => undefined;
+    vi.mocked(crearComandaDesdeReserva).mockReturnValue(
+      new Promise((resolve) => (resolver = resolve)),
+    );
+    abrir();
+    await screen.findByText('Cliente n.º 7');
+    await crearComanda();
+    escribirLinea('12', '2');
+
+    const guardar = screen.getByRole('button', { name: 'Guardar comanda' });
+    fireEvent.click(guardar);
+    fireEvent.click(guardar);
+    await asentar();
+
+    expect(crearComandaDesdeReserva).toHaveBeenCalledTimes(1);
+    expect(guardar).toBeDisabled();
+
+    await act(async () => resolver({ datos: COMANDA_31, exito: true }));
+    await asentar();
   });
 });
 

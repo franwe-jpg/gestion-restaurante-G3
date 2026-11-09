@@ -23,15 +23,17 @@ const UNA_POR_ESTADO: Reserva[] = [
   { ...ACTIVA, id: 4, hora: '22:00', estado: 'CANCELADA_POR_AUSENCIA' },
 ];
 
-type PropsObligatorias = 'onModificar' | 'onCancelarAnticipada' | 'onCancelarPorAusencia';
+type PropsObligatorias =
+  'onCrearComanda' | 'onModificar' | 'onCancelarAnticipada' | 'onCancelarPorAusencia';
 
-/** Las tres acciones son obligatorias: los casos que no las usan reciben un manejador vacío. */
+/** Las cuatro acciones son obligatorias: los casos que no las usan reciben un manejador vacío. */
 function mostrar(
   props: Omit<ReservasTablaProps, PropsObligatorias> &
     Pick<Partial<ReservasTablaProps>, PropsObligatorias>,
 ) {
   render(
     <ReservasTabla
+      onCrearComanda={vi.fn()}
       onModificar={vi.fn()}
       onCancelarAnticipada={vi.fn()}
       onCancelarPorAusencia={vi.fn()}
@@ -129,10 +131,12 @@ describe('ReservasTabla: acciones «Cancelar reserva» y «Cancelar por ausencia
 
     const filas = screen.getAllByRole('row');
     const activa = within(filas[1]!);
+    expect(activa.getByRole('button', { name: 'Crear comanda' })).toBeInTheDocument();
     expect(activa.getByRole('button', { name: 'Modificar reserva' })).toBeInTheDocument();
     expect(activa.getByRole('button', { name: 'Cancelar reserva' })).toBeInTheDocument();
     expect(activa.getByRole('button', { name: 'Cancelar por ausencia' })).toBeInTheDocument();
     for (const fila of filas.slice(2)) {
+      expect(within(fila).queryByRole('button', { name: 'Crear comanda' })).toBeNull();
       expect(within(fila).queryByRole('button', { name: 'Modificar reserva' })).toBeNull();
       expect(within(fila).queryByRole('button', { name: 'Cancelar reserva' })).toBeNull();
       expect(within(fila).queryByRole('button', { name: 'Cancelar por ausencia' })).toBeNull();
@@ -159,5 +163,43 @@ describe('ReservasTabla: acciones «Cancelar reserva» y «Cancelar por ausencia
     fireEvent.click(segunda.getByRole('button', { name: 'Cancelar por ausencia' }));
 
     expect(onCancelarPorAusencia).toHaveBeenCalledExactlyOnceWith(otra);
+  });
+});
+
+describe('ReservasTabla: acción «Crear comanda» (HU-M5-06)', () => {
+  it('se ofrece solo en las filas ACTIVA y es la primera acción de la fila', () => {
+    mostrar({ reservas: UNA_POR_ESTADO });
+
+    expect(screen.getAllByRole('button', { name: 'Crear comanda' })).toHaveLength(1);
+    const filas = screen.getAllByRole('row');
+    const acciones = within(filas[1]!)
+      .getAllByRole('button')
+      .map((boton) => boton.getAttribute('aria-label'));
+    expect(acciones).toEqual([
+      'Crear comanda',
+      'Modificar reserva',
+      'Cancelar reserva',
+      'Cancelar por ausencia',
+    ]);
+    for (const fila of filas.slice(2)) {
+      expect(within(fila).queryByRole('button', { name: 'Crear comanda' })).toBeNull();
+    }
+  });
+
+  it('una fila ACTIVA de una fecha distinta de hoy también la ofrece: decide el backend (S59)', () => {
+    mostrar({ reservas: [{ ...ACTIVA, id: 5, fecha: '2026-11-03' }] });
+
+    expect(screen.getByRole('button', { name: 'Crear comanda' })).toBeInTheDocument();
+  });
+
+  it('al pulsarla avisa con la reserva de esa fila', () => {
+    const otra: Reserva = { ...ACTIVA, id: 2, hora: '22:00', cantidad_personas: 2 };
+    const onCrearComanda = vi.fn();
+    mostrar({ reservas: [ACTIVA, otra], onCrearComanda });
+
+    const segunda = within(screen.getAllByRole('row')[2]!);
+    fireEvent.click(segunda.getByRole('button', { name: 'Crear comanda' }));
+
+    expect(onCrearComanda).toHaveBeenCalledExactlyOnceWith(otra);
   });
 });
