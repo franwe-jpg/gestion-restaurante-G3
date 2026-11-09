@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.modules.reservas import service
 from app.modules.reservas.schemas import (
+    ComandaDesdeReservaCrear,
     ConsultaMesasDisponibles,
     FiltroReservas,
     MesaDisponible,
@@ -15,6 +16,7 @@ from app.modules.reservas.schemas import (
     ReservaModificar,
     ReservaSalida,
 )
+from app.shared.contratos.comanda import ComandaSalida
 from app.shared.paginacion import Pagina
 
 router = APIRouter()
@@ -60,3 +62,8 @@ def cancelar_anticipada(reserva_id: int, db: Sesion) -> ReservaSalida:
 @router.post("/reservas/{reserva_id}/cancelar-por-ausencia")
 def cancelar_por_ausencia(reserva_id: int, db: Sesion) -> ReservaSalida:
     return service.cancelar_por_ausencia(db, reserva_id)
+
+
+@router.post("/reservas/{reserva_id}/comanda", status_code=status.HTTP_201_CREATED)
+def crear_comanda(reserva_id: int, datos: ComandaDesdeReservaCrear, db: Sesion) -> ComandaSalida:
+    return service.crear_comanda(db, reserva_id, datos)
