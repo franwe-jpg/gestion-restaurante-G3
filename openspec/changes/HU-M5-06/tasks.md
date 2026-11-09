@@ -197,11 +197,12 @@ El diseño avisa que la spec se escribió en paralelo y se reconcilia después. 
   - Evidencia (2026-11-09): se adopta la columna «Se adopta en estas tareas» sin cambios. La confirmación de
     Federico fue la respuesta «si» a la pregunta de arrancar las Fases 1 a 4, después de ver el resumen de
     D1 a D9; no se corrigieron la spec ni el diseño. Si alguna divergencia cambia una prueba, se reabre.
-- [ ] 0.6 Commit 0 de los artefactos de planificación, después de la revisión de la persona: carpeta
+- [x] 0.6 Commit 0 de los artefactos de planificación, después de la revisión de la persona: carpeta
   `openspec/changes/HU-M5-06/` (`proposal.md`, `specs/reservas-gestion/spec.md`, `design.md`, `tasks.md`).
   Mensaje: `docs: agrega la propuesta, la spec, el diseño y las tareas de la comanda desde una reserva (HU-M5-06)`.
   Rollback: revertir el commit (solo documentación).
-  - Evidencia:
+  - Evidencia (2026-11-09): Commit `8a76a75` (docs): `proposal.md`, `specs/reservas-gestion/spec.md`,
+    `design.md` y `tasks.md`.
 
 ## Fase 1. Backend ejecutable ya: puente, esquema y `service.crear_comanda` contra el doble (unidad 1)
 
@@ -211,7 +212,7 @@ requiere B1 ni B2. Allowed edit surfaces de la unidad: `backend/app/modules/rese
 `backend/tests/modules/reservas/conftest.py`, `backend/tests/modules/reservas/test_puente.py`,
 `backend/tests/modules/reservas/test_schemas.py`, `backend/tests/modules/reservas/test_service.py`.
 
-- [ ] 1.1 (Rojo) `backend/tests/modules/reservas/test_puente.py`, pruebas del doble de la primitiva (hay
+- [x] 1.1 (Rojo) `backend/tests/modules/reservas/test_puente.py`, pruebas del doble de la primitiva (hay
   precedente: `test_doble_puente_informa_el_mismo_estado_en_obtener_mesa_y_listar_mesas`). Importan
   `DetalleComandaCrear` y `ComandaSalida` de los contratos compartidos:
   - `test_doble_puente_crear_comanda_de_reserva_devuelve_una_comanda_abierta_y_registra_la_llamada` (ids
@@ -224,8 +225,10 @@ requiere B1 ni B2. Allowed edit surfaces de la unidad: `backend/app/modules/rese
     función que recibe la sesión; permite simular una escritura de M4 con `flush` y una sesión concurrente).
   Fallan por `AttributeError`: el doble y la función del puente todavía no existen. Allowed edit surface:
   `backend/tests/modules/reservas/test_puente.py`.
-  - Evidencia:
-- [ ] 1.2 (Verde) Dos archivos. (1) `backend/app/modules/reservas/puente.py`: `crear_comanda_de_reserva(db,
+  - Evidencia (sdd-apply, 2026-11-09): 3 pruebas del doble en `test_puente.py`: 3 failed con
+    `AttributeError: module 'app.modules.reservas.puente' has no attribute 'crear_comanda_de_reserva'` (Rojo
+    por el motivo correcto).
+- [x] 1.2 (Verde) Dos archivos. (1) `backend/app/modules/reservas/puente.py`: `crear_comanda_de_reserva(db,
   mesa_id, reserva_id, detalles, observaciones) -> ComandaSalida` con el cuerpo definitivo de la Decisión 53
   (arma `ComandaCrear(mesa_id=..., reserva_id=..., detalles=..., observaciones=...)` y delega en
   `atencion_service.crear_comanda_sin_confirmar`); importa `ComandaCrear`, `ComandaSalida` y
@@ -237,8 +240,11 @@ requiere B1 ni B2. Allowed edit surfaces de la unidad: `backend/app/modules/rese
   llama a `crear_comanda_sin_confirmar`, que todavía no existe en M4; ninguna prueba lo ejecuta mientras el
   doble autouse lo reemplace, y su prueba en rojo es la tarea 6.2 (las tres líneas quedan sin cubrir hasta
   entonces; impacto despreciable sobre el 70 %).
-  - Evidencia:
-- [ ] 1.3 (Rojo) `backend/tests/modules/reservas/test_schemas.py`, `ComandaDesdeReservaCrear` (Requisitos
+  - Evidencia (sdd-apply, 2026-11-09): `puente.crear_comanda_de_reserva` y `DoblePuente` ampliado
+    (`comandas`, `falla`, `efecto`; `precio_unitario` 100.00, D8). `test_puente.py` 19 passed; `V-BACK-ENF`
+    356 passed. Excepción de Strict TDD declarada: el cuerpo real queda sin prueba hasta 6.2 y 6.5(a) no se
+    ejecutó.
+- [x] 1.3 (Rojo) `backend/tests/modules/reservas/test_schemas.py`, `ComandaDesdeReservaCrear` (Requisitos
   «Forma del pedido», «Cantidad entera mayor que cero», «La mesa sale de la reserva»):
   - `test_comanda_desde_reserva_acepta_detalles_con_observaciones_opcionales` (`observaciones` por defecto
     nulo; líneas de producto y de menú).
@@ -253,13 +259,15 @@ requiere B1 ni B2. Allowed edit surfaces de la unidad: `backend/app/modules/rese
   - `test_comanda_desde_reserva_no_declara_mesa_id` (no figura entre los campos del esquema).
   Fallan por `ImportError`: `ComandaDesdeReservaCrear` no existe. Allowed edit surface:
   `backend/tests/modules/reservas/test_schemas.py`.
-  - Evidencia:
-- [ ] 1.4 (Verde) `backend/app/modules/reservas/schemas.py`: `ComandaDesdeReservaCrear(BaseModel)` con
+  - Evidencia (sdd-apply, 2026-11-09): 9 funciones en `test_schemas.py`; falla de recolección `ImportError:
+    cannot import name 'ComandaDesdeReservaCrear'`.
+- [x] 1.4 (Verde) `backend/app/modules/reservas/schemas.py`: `ComandaDesdeReservaCrear(BaseModel)` con
   `model_config = ConfigDict(extra="forbid")`, `detalles: list[DetalleComandaCrear] = Field(min_length=1)` y
   `observaciones: str | None = None` (Decisión 54), importando `DetalleComandaCrear` de
   `app.shared.contratos.comanda` (sin editarlo). Pasa 1.3.
-  - Evidencia:
-- [ ] 1.5 (Rojo) `backend/tests/modules/reservas/test_service.py`, guarda para atender (pasos 2 a 5; Requisitos
+  - Evidencia (sdd-apply, 2026-11-09): `ComandaDesdeReservaCrear` (`extra="forbid"`, `detalles` con
+    `min_length=1`); `test_schemas.py` 109 passed.
+- [x] 1.5 (Rojo) `backend/tests/modules/reservas/test_service.py`, guarda para atender (pasos 2 a 5; Requisitos
   «Reserva inexistente», «Una reserva cancelada o ya atendida no se atiende», «Verificación aislada, la
   reserva es del día de hoy», «Orden de las verificaciones»). Todas llaman a `service.crear_comanda(db,
   reserva_id, PEDIDO)` con un pedido de referencia (producto 12 por 2) y comprueban que el doble no recibió
@@ -277,14 +285,16 @@ requiere B1 ni B2. Allowed edit surfaces de la unidad: `backend/app/modules/rese
   Fallan por `AttributeError`: `service.crear_comanda` no existe. Los casos que necesitan el camino feliz
   («hoy» de la zona del restaurante y «la hora no se verifica») van en 1.9. Allowed edit surface:
   `backend/tests/modules/reservas/test_service.py`.
-  - Evidencia:
-- [ ] 1.6 (Verde) `backend/app/modules/reservas/service.py`, después de `cancelar_por_ausencia`:
+  - Evidencia (sdd-apply, 2026-11-09): 8 failed con `AttributeError` por `service.crear_comanda`
+    inexistente.
+- [x] 1.6 (Verde) `backend/app/modules/reservas/service.py`, después de `cancelar_por_ausencia`:
   `_obtener_atendible(db, reserva_id)` con el orden de la Decisión 50 (existencia 404; cancelada, atendida y
   fecha distinta de `ahora().date()`, 409), reutilizando `_obtener`, `_CANCELADAS` y `ahora()`, con los
   mensajes de la spec (D2), y un esqueleto de `crear_comanda(db, reserva_id, datos)` que solo llama a la
   guarda y termina con `raise NotImplementedError` (se completa en 1.8 y 1.10). Pasa 1.5.
-  - Evidencia:
-- [ ] 1.7 (Rojo) `backend/tests/modules/reservas/test_service.py`, regla del paso 6 (S53; Requisito
+  - Evidencia (sdd-apply, 2026-11-09): `_obtener_atendible` (mensajes de la spec, D2) y esqueleto de
+    `crear_comanda` con `NotImplementedError`; 8 passed.
+- [x] 1.7 (Rojo) `backend/tests/modules/reservas/test_service.py`, regla del paso 6 (S53; Requisito
   «Verificación aislada, el pedido incluye al menos un producto»):
   - `test_crear_comanda_solo_menus_responde_422` (`DatosInvalidosError` «La comanda debe incluir al menos un
     producto»; la reserva sigue `ACTIVA`; el doble no se llamó).
@@ -296,12 +306,13 @@ requiere B1 ni B2. Allowed edit surfaces de la unidad: `backend/app/modules/rese
     productos»). Estas dos protegen el orden y **pasan desde el principio**, porque la guarda ya existe; no
     pueden estar en rojo.
   Las tres primeras fallan: el esqueleto de 1.6 lanza `NotImplementedError`, no `DatosInvalidosError`.
-  - Evidencia:
-- [ ] 1.8 (Verde) `backend/app/modules/reservas/service.py`: `_validar_al_menos_un_producto(detalles)`
+  - Evidencia (sdd-apply, 2026-11-09): 3 failed con `NotImplementedError` (motivo anticipado por la tarea);
+    las 2 pruebas de orden pasaron desde el principio, como declara la tarea.
+- [x] 1.8 (Verde) `backend/app/modules/reservas/service.py`: `_validar_al_menos_un_producto(detalles)`
   (Decisión 51: `all(detalle.producto_id is None ...)` lanza `DatosInvalidosError`) y su llamada en
   `crear_comanda` justo después de la guarda. Pasa 1.7.
-  - Evidencia:
-- [ ] 1.9 (Rojo) `backend/tests/modules/reservas/test_service.py`, camino feliz y atomicidad (Requisitos
+  - Evidencia (sdd-apply, 2026-11-09): `_validar_al_menos_un_producto`; 13 passed.
+- [x] 1.9 (Rojo) `backend/tests/modules/reservas/test_service.py`, camino feliz y atomicidad (Requisitos
   «Crear una comanda desde una reserva activa de hoy», «La mesa sale de la reserva», «Errores de M4 sin cambios
   en la reserva ni en la mesa», «Atomicidad», «Una reserva genera a lo sumo una comanda», «M5 consume la interfaz
   de M4 solo a través del puente»):
@@ -337,15 +348,18 @@ requiere B1 ni B2. Allowed edit surfaces de la unidad: `backend/app/modules/rese
   - `test_crear_comanda_falla_el_commit_deshace_la_sesion` (`db.commit` lanza un error de base de datos:
     se llama a `rollback`, se propaga el error y la reserva sigue `ACTIVA`).
   Fallan: el esqueleto lanza `NotImplementedError`.
-  - Evidencia:
-- [ ] 1.10 (Verde) `backend/app/modules/reservas/service.py`: `crear_comanda` completa según la Decisión 51:
+  - Evidencia (sdd-apply, 2026-11-09): 21 failed con `NotImplementedError`;
+    `test_crear_reserva_no_crea_ninguna_comanda` pasa desde el principio porque protege un comportamiento ya
+    existente (no tenía Rojo posible).
+- [x] 1.10 (Verde) `backend/app/modules/reservas/service.py`: `crear_comanda` completa según la Decisión 51:
   lee `mesa_id = reserva.mesa_id` antes del `try`; dentro del `try` llama a
   `puente.crear_comanda_de_reserva(db, mesa_id, reserva.id, datos.detalles, datos.observaciones)`, pasa la
   reserva a `ATENDIDA` y hace un único `db.commit()`; `except Exception: db.rollback(); raise`; devuelve la
   `ComandaSalida` de M4. Importa `ComandaSalida`, `DetalleComandaCrear` y `ComandaDesdeReservaCrear`. Quita
   el `NotImplementedError`. Pasa 1.9. Todavía no traduce el `IntegrityError` (1.12).
-  - Evidencia:
-- [ ] 1.11 (Rojo) `backend/tests/modules/reservas/test_service.py`, carrera sobre la mesa (Decisión 52; Requisito
+  - Evidencia (sdd-apply, 2026-11-09): `crear_comanda` completa (un solo `commit`, `rollback` ante cualquier
+    error); 35 passed a la primera.
+- [x] 1.11 (Rojo) `backend/tests/modules/reservas/test_service.py`, carrera sobre la mesa (Decisión 52; Requisito
   «Una reserva genera a lo sumo una comanda»):
   - `test_crear_comanda_integrity_error_con_la_reserva_activa_responde_conflicto_de_mesa` (el doble lanza un
     `IntegrityError` simulado: `ReglaDeNegocioError` «La mesa 5 ya tiene una comanda abierta»; hubo
@@ -355,19 +369,26 @@ requiere B1 ni B2. Allowed edit surfaces de la unidad: `backend/app/modules/rese
     `ATENDIDA`, confirma y el doble lanza el `IntegrityError`: se responde «La reserva 10 ya fue atendida»).
   - `test_crear_comanda_integrity_error_deja_la_sesion_usable_y_sin_cambios`.
   Fallan: el `IntegrityError` sube sin traducir.
-  - Evidencia:
-- [ ] 1.12 (Verde) `backend/app/modules/reservas/service.py`: `_conflicto_al_atender(db, reserva_id, mesa_id)`
+  - Evidencia (sdd-apply, 2026-11-09): 3 failed con `IntegrityError ... UNIQUE constraint failed:
+    comandas.mesa_id` sin traducir.
+- [x] 1.12 (Verde) `backend/app/modules/reservas/service.py`: `_conflicto_al_atender(db, reserva_id, mesa_id)`
   (Decisión 52: vuelve a evaluar `_obtener_atendible`; si ya no es atendible devuelve ese error, y si lo
   sigue siendo, «La mesa {mesa_id} ya tiene una comanda abierta») y la rama `except IntegrityError` de
   `crear_comanda` con `db.rollback()` y `raise ... from error`, antes de `except Exception`. Pasa 1.11.
-  - Evidencia:
-- [ ] 1.13 (Refactor) Revisar `service.py`, `puente.py` y `schemas.py`: cada función hasta 50 líneas y
+  - Evidencia (sdd-apply, 2026-11-09): `_conflicto_al_atender` y rama `except IntegrityError`. Primer
+    intento: 37 passed y 1 failed por la prueba, no por el código (el doble no emite SQL y con
+    `expire_on_commit=False` el `rollback()` sin transacción abierta no expira nada); se corrigió el
+    `efecto` de esa prueba (un SELECT previo, como haría M4 real) y el código de producción no cambio.
+    Segundo intento: 38 passed.
+- [x] 1.13 (Refactor) Revisar `service.py`, `puente.py` y `schemas.py`: cada función hasta 50 líneas y
   complejidad ciclomática 10 (RNF-MAN-05; el diseño estima ≈ 20 líneas y complejidad 3 para
   `crear_comanda`); `_obtener_atendible` es la única fuente de los mensajes de los pasos 3 a 5;
   `_validar_al_menos_un_producto` es la única fuente del paso 6; el `service` no importa nada de `atencion` ni
   de `salon` (solo el puente). Sin cambios de comportamiento; las pruebas de 1.1 a 1.11 siguen en verde.
-  - Evidencia:
-- [ ] 1.14 Mutaciones de las reglas clave, una por vez, cada una restaurada a mano desde una copia de
+  - Evidencia (sdd-apply, 2026-11-09): `ruff` sin errores de complejidad ni de sentencias; mensajes con
+    fuente única; `service.py` y `schemas.py` no importan `atencion` ni `salon`; se quitaron 7 parámetros
+    `puente_doble` sin uso. `V-BACK-ENF`: 418 passed.
+- [x] 1.14 Mutaciones de las reglas clave, una por vez, cada una restaurada a mano desde una copia de
   respaldo del archivo (no `git restore`: nada de esta unidad está commiteado todavía) antes de la siguiente:
   (a) quitar la comparación de fecha en `_obtener_atendible` y comprobar que
   `test_crear_comanda_reserva_de_otra_fecha_responde_409` falla; (b) poner la fecha antes de la verificación
@@ -377,22 +398,30 @@ requiere B1 ni B2. Allowed edit surfaces de la unidad: `backend/app/modules/rese
   `_validar_al_menos_un_producto` y comprobar que `test_crear_comanda_solo_menus_responde_422` falla;
   (e) quitar la rama `except IntegrityError` y comprobar que las pruebas de 1.11 fallan. Restaurar el
   archivo original después de la quinta mutación.
-  - Evidencia:
-- [ ] 1.15 Verificar con `V-BACK-FIX` y luego `V-BACK` (ruff, formato, `lint-imports` sin cambios en los
+  - Evidencia (sdd-apply, 2026-11-09): Cinco mutaciónes, una por vez, restauradas desde copia (sha256 de
+    `service.py` idéntico antes y después): (a) 4 failed; (b) 1 failed; (c) 2 failed; (d) 3 failed; (e) 3
+    failed. Todas detectadas.
+- [x] 1.15 Verificar con `V-BACK-FIX` y luego `V-BACK` (ruff, formato, `lint-imports` sin cambios en los
   contratos y `pytest` con cobertura >= 70 %), más `V-ALEMBIC` (el mismo head registrado en 0.1: no hay
   migración). El existente `test_solo_el_puente_importa_salon_y_atencion` sigue en verde.
-  - Evidencia:
-- [ ] 1.16 Commit 1 (unidad 1): `feat: agrega la guarda y el servicio para crear una comanda desde una reserva (HU-M5-06)`.
+  - Evidencia (2026-11-09): Verificado por el padre sobre el árbol completo ya commiteado (unidades 1 a 4):
+    `ruff check` All checks passed; `ruff format --check` 136 files already formatted; `lint-imports`
+    Contracts: 10 kept, 0 broken; `pytest` 2002 passed en 9:56, cobertura 98.51 % (umbral 70 %);
+    `test_solo_el_puente_importa_salon_y_atencion` en verde. `V-ALEMBIC`: `a9c1e3f5b7d9 (head)`, igual que
+    en 0.1 (sin migración). Desvío de comando: se agregó `-e RUFF_CACHE_DIR=/tmp/ruff_cache` porque
+    `backend/.ruff_cache` es propiedad de root por corridas previas en Docker.
+- [x] 1.16 Commit 1 (unidad 1): `feat: agrega la guarda y el servicio para crear una comanda desde una reserva (HU-M5-06)`.
   Incluye `puente.py`, `schemas.py`, `service.py`, `conftest.py`, `test_puente.py`, `test_schemas.py` y
   `test_service.py` juntos. Rollback: revertir el commit; no hace falta `alembic downgrade` (sin migración).
-  - Evidencia:
+  - Evidencia (2026-11-09): Commit `d295e59`: `puente.py`, `schemas.py`, `service.py`, `conftest.py`,
+    `test_puente.py`, `test_schemas.py` y `test_service.py`; sin líneas de coautoría.
 
 ## Fase 2. Backend ejecutable ya: `POST /reservas/{reserva_id}/comanda` (unidad 2, depende de la Fase 1)
 
 Allowed edit surfaces de la unidad: `backend/app/modules/reservas/router.py` y
 `backend/tests/modules/reservas/test_router.py`.
 
-- [ ] 2.1 (Rojo) `backend/tests/modules/reservas/test_router.py`, una prueba HTTP por grupo de escenarios, con
+- [x] 2.1 (Rojo) `backend/tests/modules/reservas/test_router.py`, una prueba HTTP por grupo de escenarios, con
   el doble del puente y el cliente de prueba (`cliente`). Cada error comprueba el código y el cuerpo exacto
   `{"detalle": ...}` (D-25, D-26), que la reserva siguió igual y que el doble no fue invocado:
   - **CA1 (Requisito «Crear una comanda desde una reserva activa de hoy»):**
@@ -436,23 +465,32 @@ Allowed edit surfaces de la unidad: `backend/app/modules/reservas/router.py` y
     modificar»; las dos cancelaciones 409 «ya fue atendida y no se puede cancelar»; `GET
     /reservas?fecha=2026-11-02&estado=ATENDIDA` la incluye y `estado=ACTIVA` no).
   Fallan con `404 Not Found` (la ruta no existe).
-  - Evidencia:
-- [ ] 2.2 (Verde) `backend/app/modules/reservas/router.py`, al final del archivo (Decisión 54):
+  - Evidencia (sdd-apply, 2026-11-09): 29 funciones (51 casos) en `test_router.py`: 50 failed con `assert
+    404 == 201/409/422/500` (ruta inexistente) y 1 passed (`test_post_reservas_no_crea_ninguna_comanda`,
+    protege un comportamiento existente). Una prueba pasaba en Rojo por no exigir el 201: se reforzó y
+    volvió a Rojo.
+- [x] 2.2 (Verde) `backend/app/modules/reservas/router.py`, al final del archivo (Decisión 54):
   `@router.post("/reservas/{reserva_id}/comanda", status_code=status.HTTP_201_CREATED)` con
   `crear_comanda(reserva_id: int, datos: ComandaDesdeReservaCrear, db: Sesion) -> ComandaSalida` que solo
   delega en `service.crear_comanda`; importa `ComandaDesdeReservaCrear` y `ComandaSalida`. No captura nada:
   los manejadores globales de `main.py` dan el formato `{"detalle": ...}`. Pasa 2.1.
-  - Evidencia:
-- [ ] 2.3 (Refactor y mutación) Revisar `router.py` (solo delega; ninguna función supera las 50 líneas).
+  - Evidencia (sdd-apply, 2026-11-09): Endpoint `POST /reservas/{reserva_id}/comanda` con `status_code=201`,
+    solo delega; 51 passed a la primera.
+- [x] 2.3 (Refactor y mutación) Revisar `router.py` (solo delega; ninguna función supera las 50 líneas).
   Mutación, restaurada a mano desde una copia de respaldo: quitar `status_code=status.HTTP_201_CREATED` y
   comprobar que la prueba de 201 falla. Sin cambios de comportamiento; las pruebas de 2.1 siguen en verde.
-  - Evidencia:
-- [ ] 2.4 Verificar con `V-BACK-FIX` y luego `V-BACK` (cobertura >= 70 %, `lint-imports` sin cambios) y
+  - Evidencia (sdd-apply, 2026-11-09): Mutación: quitar `status_code=201` da 10 failed (`assert 200 ==
+    201`); restaurado, hash idéntico. `router.py` solo delega.
+- [x] 2.4 Verificar con `V-BACK-FIX` y luego `V-BACK` (cobertura >= 70 %, `lint-imports` sin cambios) y
   `V-ALEMBIC`. Medición parcial del lado backend con `MEDIR` (se registra; el punto de control formal es 4.3).
-  - Evidencia:
-- [ ] 2.5 Commit 2 (unidad 2): `feat: expone POST /reservas/{id}/comanda (HU-M5-06)`. Incluye `router.py` y
+  - Evidencia (2026-11-09): `V-BACK` como en 1.15: 2002 passed, cobertura 98.51 %. Medición parcial del
+    backend con `git diff --shortstat origin/develop...HEAD -- backend/`: 9 files changed, 1291
+    insertions(+), 4 deletions(-), unas 1 295 líneas, de las cuales unas 101 son de producción (`puente` 22,
+    `schemas` 10, `service` 62, `router` 7). Supera el punto de control de 800 y la estimación; solo se
+    anota (P.6).
+- [x] 2.5 Commit 2 (unidad 2): `feat: expone POST /reservas/{id}/comanda (HU-M5-06)`. Incluye `router.py` y
   `test_router.py`. Rollback: revertir el commit (el `service` de la unidad 1 sigue válido y sin ruta).
-  - Evidencia:
+  - Evidencia (2026-11-09): Commit `008a4a7`: `router.py` y `test_router.py`.
 
 ## Fase 3. Frontend ejecutable ya: tipos, API, validación, hook, modal, acción y página
 
@@ -463,30 +501,32 @@ edit surfaces de las unidades 3 y 4: solo archivos de `frontend/src/modules/rese
 
 ### Unidad 3: tipos, `api.ts`, validación local y hook
 
-- [ ] 3.1 (Rojo) `frontend/src/modules/reservas/api.test.ts`, con `clienteHttp` simulado (mismo patrón que la
+- [x] 3.1 (Rojo) `frontend/src/modules/reservas/api.test.ts`, con `clienteHttp` simulado (mismo patrón que la
   prueba de `modificarReserva`): `crearComandaDesdeReserva(10, { detalles: [{ producto_id: 12, cantidad: 2 }] })`
   llama a `clienteHttp.post` con la ruta `POST /reservas/10/comanda` y ese cuerpo, y devuelve la comanda como éxito; si
   la respuesta simulada es un error con `detalle` («La reserva 10 ya fue atendida»), devuelve ese error
   (escenario «Llamada de la API del módulo»). Falla porque la función no existe.
-  - Evidencia:
-- [ ] 3.2 (Verde) `frontend/src/modules/reservas/types.ts` (`LineaComandaDesdeReserva`,
+  - Evidencia (sdd-apply, 2026-11-09): `api.test.ts`: 2 failed con `TypeError: crearComandaDesdeReserva is
+    not a function`.
+- [x] 3.2 (Verde) `frontend/src/modules/reservas/types.ts` (`LineaComandaDesdeReserva`,
   `ComandaDesdeReservaCrear` con `observaciones?` opcional por D3, y `ComandaCreada` con `id`, `mesa_id`,
   `reserva_id` y `estado`; Decisión 57) y `frontend/src/modules/reservas/api.ts` (`crearComandaDesdeReserva(reservaId,
   datos)` con `clienteHttp.post<ComandaCreada, ComandaDesdeReservaCrear>`, después de
   `cancelarReservaPorAusencia`). Pasa 3.1.
-  - Evidencia:
-- [ ] 3.3 (Rojo) Crear `frontend/src/modules/reservas/components/validarComandaDesdeReserva.test.ts`
+  - Evidencia (sdd-apply, 2026-11-09): `types.ts` y `api.ts`; `api.test.ts` 14/14.
+- [x] 3.3 (Rojo) Crear `frontend/src/modules/reservas/components/validarComandaDesdeReserva.test.ts`
   (Requisito «Validación local de las líneas»; patrón de `validarReserva.test.ts`): cantidad `0`, `-2`, `1.5` y
   vacía dan «La cantidad debe ser un número entero mayor que cero»; producto vacío, `0`, `-1`, `2.5` y `abc`
   dan «El producto debe ser un número entero mayor que cero»; enteros positivos no dan error; con la línea 1
   válida y la línea 2 con cantidad `0`, el error aparece solo en la línea 2 y campo cantidad. Falla porque el
   archivo `validarComandaDesdeReserva.ts` no existe.
-  - Evidencia:
-- [ ] 3.4 (Verde) Crear `frontend/src/modules/reservas/components/validarComandaDesdeReserva.ts`: función pura
+  - Evidencia (sdd-apply, 2026-11-09): La suite no carga: `Failed to resolve import
+    "./validarComandaDesdeReserva"`.
+- [x] 3.4 (Verde) Crear `frontend/src/modules/reservas/components/validarComandaDesdeReserva.ts`: función pura
   que recibe las líneas escritas (`{ clave, producto, cantidad }` como texto) y devuelve los errores por línea
   y campo, con los dos textos de S64. Pasa 3.3.
-  - Evidencia:
-- [ ] 3.5 (Rojo) Crear `frontend/src/modules/reservas/components/useComandaDesdeReserva.test.tsx` (patrón de
+  - Evidencia (sdd-apply, 2026-11-09): `validarComandaDesdeReserva.test.ts` 23/23.
+- [x] 3.5 (Rojo) Crear `frontend/src/modules/reservas/components/useComandaDesdeReserva.test.tsx` (patrón de
   `useCancelarReserva.test.tsx`: `renderHook` con `ToastContext.Provider`, `mostrarToast = vi.fn()`,
   `api.ts` simulado con `vi.mock`) para `useComandaDesdeReserva({ reserva, onCreada })` (Requisitos «Envío, avisos y
   recarga» y «Modal “Crear comanda”»):
@@ -502,24 +542,28 @@ edit surfaces de las unidades 3 y 4: solo archivos de `frontend/src/modules/rese
   - Si el modal se desmonta mientras la respuesta viaja, la respuesta no toca el estado (guarda de vigencia
     con `useRef`, como `useFormularioReserva`, S38).
   Fallan porque `useComandaDesdeReserva.ts` no existe.
-  - Evidencia:
-- [ ] 3.6 (Verde) Crear `frontend/src/modules/reservas/components/useComandaDesdeReserva.ts` (Decisión 58,
+  - Evidencia (sdd-apply, 2026-11-09): La suite no carga: el módulo `useComandaDesdeReserva` no existe.
+- [x] 3.6 (Verde) Crear `frontend/src/modules/reservas/components/useComandaDesdeReserva.ts` (Decisión 58,
   ajustada por D3: sin `observaciones`): estado de las líneas, `agregarLinea`, `quitarLinea`, `cambiarLinea`,
   `errores` (por línea y `general`), `enviando` y `enviar()`; valida con `validarComandaDesdeReserva`,
   convierte con `Number(...)`, muestra el toast de éxito con `useToast` y llama a `onCreada`. Pasa 3.5.
-  - Evidencia:
-- [ ] 3.7 (Refactor) Revisar el hook y la validación: funciones de hasta 50 líneas y complejidad 10 (RNF-MAN-05);
+  - Evidencia (sdd-apply, 2026-11-09): `useComandaDesdeReserva.test.tsx` 14/14. Control extra: sin las
+    guardas `enCurso` y `vigente` fallan justo las 2 pruebas que las cubren; restaurado y comprobado con
+    `cmp`.
+- [x] 3.7 (Refactor) Revisar el hook y la validación: funciones de hasta 50 líneas y complejidad 10 (RNF-MAN-05);
   los textos de S64 solo en `validarComandaDesdeReserva.ts` y en el hook, sin duplicarlos en las pruebas más
   que para comparar. Verificar con `V-FRONT-ENF` y luego `V-FRONT`.
-  - Evidencia:
-- [ ] 3.8 Commit 3 (unidad 3): `feat: agrega la llamada, la validación y el hook para crear una comanda desde una reserva (HU-M5-06)`.
+  - Evidencia (sdd-apply, 2026-11-09): ESLint 0 errores y 0 advertencias (50 líneas y complejidad 10
+    incluidos), `tsc` limpio; módulo `reservas`: 14 archivos y 282 pruebas en verde.
+- [x] 3.8 Commit 3 (unidad 3): `feat: agrega la llamada, la validación y el hook para crear una comanda desde una reserva (HU-M5-06)`.
   Incluye `types.ts`, `api.ts`, `api.test.ts`, `validarComandaDesdeReserva.ts` y su prueba,
   `useComandaDesdeReserva.ts` y su prueba. Rollback: revertir el commit.
-  - Evidencia:
+  - Evidencia (2026-11-09): Commit `cc80e82`: `types.ts`, `api.ts`, `api.test.ts`,
+    `validarComandaDesdeReserva` e `useComandaDesdeReserva` con sus pruebas.
 
 ### Unidad 4: modal, acción por fila y conexión en la página (depende de la unidad 3)
 
-- [ ] 3.9 (Rojo) Crear `frontend/src/modules/reservas/components/ComandaDesdeReservaDialog.test.tsx`
+- [x] 3.9 (Rojo) Crear `frontend/src/modules/reservas/components/ComandaDesdeReservaDialog.test.tsx`
   (Requisitos «Modal “Crear comanda”», «Validación local de las líneas» y «Envío, avisos y recarga»; patrón de
   `ReservaFormDialog.test.tsx`): título «Crear comanda»; campo «Mesa» de solo lectura con «Mesa n.º 5»
   (deshabilitado y no editable); una línea con «Producto 1 (ID)» vacío y «Cantidad 1» en `1`; botones
@@ -529,8 +573,9 @@ edit surfaces de las unidades 3 y 4: solo archivos de `frontend/src/modules/rese
   el campo; el error del backend aparece en un `Alert` `danger` con el título «No se pudo crear la comanda»
   (D5) y el modal sigue abierto con las líneas; «Guardar comanda» queda deshabilitado mientras envía.
   Fallan porque el modal no existe.
-  - Evidencia:
-- [ ] 3.10 (Verde) Crear `frontend/src/modules/reservas/components/ComandaDesdeReservaDialog.tsx` (Decisión 58,
+  - Evidencia (sdd-apply, 2026-11-09): La suite `ComandaDesdeReservaDialog.test.tsx` no carga: el modal no
+    existe.
+- [x] 3.10 (Verde) Crear `frontend/src/modules/reservas/components/ComandaDesdeReservaDialog.tsx` (Decisión 58,
   ajustada por D3 a D6): `Dialog` compartido con título «Crear comanda», campo «Mesa» (`Input disabled`,
   valor «Mesa n.º {mesa_id}»), componente local `LineaProducto` (`FormField` + `Input` «Producto {n} (ID)» y
   «Cantidad {n}», botón «Quitar producto {n}» deshabilitado cuando queda una sola línea), «Agregar producto»,
@@ -539,22 +584,23 @@ edit surfaces de las unidades 3 y 4: solo archivos de `frontend/src/modules/rese
   `frontend/src/modules/reservas/components/index.ts`. Reutiliza `Dialog`, `Button`, `FormField`, `Input` y
   `Alert` de la carpeta compartida de componentes de interfaz (solo lectura); no crea componentes compartidos.
   Pasa 3.9.
-  - Evidencia:
-- [ ] 3.11 (Rojo) `frontend/src/modules/reservas/components/ReservasTabla.test.tsx`: la función auxiliar
+  - Evidencia (sdd-apply, 2026-11-09): `ComandaDesdeReservaDialog.test.tsx` 15/15.
+- [x] 3.11 (Rojo) `frontend/src/modules/reservas/components/ReservasTabla.test.tsx`: la función auxiliar
   `mostrar(...)` recibe `onCrearComanda` (`vi.fn()` por defecto, obligatoria como `onModificar`); la prueba
   `se ofrecen solo en las filas ACTIVA` pasa a exigir cuatro acciones («Crear comanda», «Modificar reserva»,
   «Cancelar reserva», «Cancelar por ausencia») solo en la fila `ACTIVA` y ninguna en las otras tres; una fila
   `ACTIVA` de una fecha distinta de hoy también ofrece «Crear comanda» (S59); al pulsar «Crear comanda» se
   llama a `onCrearComanda` con la reserva de esa fila. Fallan porque la prop y el botón no existen (el
   `typecheck` también falla).
-  - Evidencia:
-- [ ] 3.12 (Verde) `frontend/src/modules/reservas/components/ReservasTabla.tsx` (Decisión 59):
+  - Evidencia (sdd-apply, 2026-11-09): `ReservasTabla.test.tsx`: 4 failed con `Unable to find ... button
+    "Crear comanda"` (Rojo medido con Vitest; el `typecheck` fallido que menciona la tarea no se midió).
+- [x] 3.12 (Verde) `frontend/src/modules/reservas/components/ReservasTabla.tsx` (Decisión 59):
   `ReservasTablaProps` suma `onCrearComanda`, obligatoria; `columnaAcciones` la recibe y, dentro de la misma
   condición `r.estado === 'ACTIVA'`, agrega primero un botón `variant="ghost" size="sm"` con
   `aria-label="Crear comanda"` e ícono `ClipboardList` de `lucide-react` con `aria-hidden="true"`. Sin lógica
   de fecha. Pasa 3.11.
-  - Evidencia:
-- [ ] 3.13 (Rojo) `frontend/src/modules/reservas/pages/ReservasPage.test.tsx`: el proveedor de `abrir()`
+  - Evidencia (sdd-apply, 2026-11-09): `ReservasTabla.test.tsx` 14/14.
+- [x] 3.13 (Rojo) `frontend/src/modules/reservas/pages/ReservasPage.test.tsx`: el proveedor de `abrir()`
   comparte un `mostrarToast` simulado para poder comprobar el aviso, y el `vi.mock` de `api.ts` cubre
   `crearComandaDesdeReserva`. Un nuevo `describe('ReservasPage: crear una comanda')`:
   - pulsar «Crear comanda» abre el modal de esa fila (título «Crear comanda», «Mesa n.º 5») sin llamar a la API
@@ -571,44 +617,66 @@ edit surfaces de las unidades 3 y 4: solo archivos de `frontend/src/modules/rese
     línea vacía con cantidad `1`;
   - un doble clic en «Guardar comanda» con la API lenta llama una sola vez.
   Fallan porque la página no pasa `onCrearComanda`.
-  - Evidencia:
-- [ ] 3.14 (Verde) `frontend/src/modules/reservas/pages/ReservasPage.tsx` (Decisión 59): el tipo `Panel` suma
+  - Evidencia (sdd-apply, 2026-11-09): `ReservasPage.test.tsx`: 7 failed de 33 (heading "Crear comanda" no
+    encontrado y `TypeError: onCrearComanda is not a function`).
+- [x] 3.14 (Verde) `frontend/src/modules/reservas/pages/ReservasPage.tsx` (Decisión 59): el tipo `Panel` suma
   `{ comanda: Reserva }`; `ListadoDelDia` recibe `onCrearComanda` y la pasa a `ReservasTabla`;
   `ModalDeReserva` monta `ComandaDesdeReservaDialog` (con `key` por reserva) cuando el panel es `{ comanda }`
   y `ReservaFormDialog` en los demás casos; `onCreada` es el `alGuardar` existente (cierra el panel y llama a
   `listado.reservas.recargar()`); «Nueva reserva» sigue deshabilitado con cualquier panel objeto. Pasa 3.13.
-  - Evidencia:
-- [ ] 3.15 (Refactor) Revisar `ComandaDesdeReservaDialog.tsx`, `ReservasTabla.tsx` y `ReservasPage.tsx`:
+  - Evidencia (sdd-apply, 2026-11-09): `ReservasPage.test.tsx` 33/33.
+- [x] 3.15 (Refactor) Revisar `ComandaDesdeReservaDialog.tsx`, `ReservasTabla.tsx` y `ReservasPage.tsx`:
   funciones de hasta 50 líneas (el modal se divide en `LineaProducto` y el cuerpo); la condición
   `r.estado === 'ACTIVA'` no se repite más de una vez en la tabla. Sin cambios de comportamiento; las
   pruebas de 3.1 a 3.13 siguen en verde.
-  - Evidencia:
-- [ ] 3.16 Mutaciones, una por vez, restauradas a mano desde una copia de respaldo del archivo (el frontend de
+  - Evidencia (sdd-apply, 2026-11-09): ESLint marcó 3 errores `max-lines-per-function` (modal de 55 líneas y
+    dos `describe` de 56 y 112): se dividió el modal en `LineaProducto`, `FormularioComanda` y el cascarón y
+    se partieron los `describe`, sin cambio de comportamiento. Módulo: 15 archivos y 307 pruebas en verde
+    (el padre repitio `npx vitest run src/modules/reservas`: 15 archivos y 307 passed).
+- [x] 3.16 Mutaciones, una por vez, restauradas a mano desde una copia de respaldo del archivo (el frontend de
   esta unidad no tiene commit propio todavía): (a) en `ReservasTabla.tsx`, cambiar la condición del botón
   «Crear comanda» a `true` y comprobar que `se ofrecen solo en las filas ACTIVA` falla; (b) en
   `useComandaDesdeReserva.ts`, quitar la validación local y comprobar que la prueba de «error local no llama
   a la API» falla; (c) en `ReservasPage.tsx`, llamar a `recargar()` también ante el error y comprobar que la
   prueba del 409 falla. Restaurar el archivo original después de la tercera mutación.
-  - Evidencia:
-- [ ] 3.17 Verificar con `V-FRONT` (`npm run format`, luego `npm run lint && npm run format:check && npm run
+  - Evidencia (sdd-apply, 2026-11-09): Mutaciónes, una por vez, restauradas con `cp` y comprobadas con
+    `sha256sum -c`: (a) `r.estado === 'ACTIVA'` por `true` en `ReservasTabla.tsx`: 3 failed; (b) sin
+    validación local en el hook: 5 failed; (c) llamar a `onCreada()` también ante el error, aplicada en la
+    rama de error del hook porque la página solo recibe `onCreada` y nunca ve el error: falla la prueba del
+    409 de la página; (d) extra, `setPanel({ comanda })` por `setPanel({ edicion })`: 6 failed.
+- [x] 3.17 Verificar con `V-FRONT` (`npm run format`, luego `npm run lint && npm run format:check && npm run
   typecheck && npm run test:coverage && npm run build`; cobertura >= 60 %, 0 advertencias). Medición parcial
   del lado frontend con `MEDIR` (se registra; el punto de control formal es 4.3).
-  - Evidencia:
-- [ ] 3.18 Commit 4 (unidad 4): `feat: agrega el modal y la acción Crear comanda en el listado de reservas (HU-M5-06)`.
+  - Evidencia (2026-11-09): Verificado por el padre: `npm run lint` 0 errores y 0 advertencias; `npm run
+    format:check` y `npm run typecheck` sin errores; `npm run test:coverage` en una corrida limpia, sin
+    carga: 99 archivos y 1158 pruebas en verde, cobertura 77.73 % sentencias, 73.45 % ramas, 74.01 %
+    funciones y 79.39 % líneas (umbral 60 %); `build` OK, `ReservasPage` 21.15 kB. Desvíos:
+    `frontend/coverage/` y `frontend/dist/assets` son de root, así que se usaron
+    `--coverage.reportsDirectory` y `vite build --outDir` fuera del repositorio. Una corrida anterior,
+    simultánea con la suite del backend, falló `FacturarComandaDialog.test.tsx` (M6, intermitente por
+    carga): aislado pasa 7/7 y la corrida limpia pasa; la rama no toca `pagos`. Medición parcial: `git diff
+    --shortstat origin/develop...HEAD -- frontend/`: 14 files changed, 1246 insertions(+), 11 deletions(-),
+    unas 1 257 líneas. Supera el punto de control de 800; solo se anota (P.6).
+- [x] 3.18 Commit 4 (unidad 4): `feat: agrega el modal y la acción Crear comanda en el listado de reservas (HU-M5-06)`.
   Incluye `ComandaDesdeReservaDialog.tsx` y su prueba, `index.ts`, `ReservasTabla.tsx` y su prueba,
   `ReservasPage.tsx` y su prueba. Rollback: revertir el commit (la unidad 3 sigue válida, sin pantalla).
-  - Evidencia:
+  - Evidencia (2026-11-09): Commit `07b2bd9`: `ComandaDesdeReservaDialog`, `ReservasTabla`, `ReservasPage` e
+    `index.ts` con sus pruebas.
 
 ## Fase 4. Cierre de lo ejecutable ya
 
 Depende de las Fases 1 a 3. No requiere B1 ni B2.
 
-- [ ] 4.1 Verificación consolidada: `V-BACK` (`ruff check`, `ruff format --check`, `lint-imports` con los
+- [x] 4.1 Verificación consolidada: `V-BACK` (`ruff check`, `ruff format --check`, `lint-imports` con los
   mismos contratos y 0 rotos, `pytest` con cobertura >= 70 %), `V-ALEMBIC` (un único head, el de 0.1) y
   `V-FRONT` (`lint`, `format:check`, `typecheck`, `test:coverage`, `build`). Se registran los conteos de
   pruebas y la cobertura de cada lado.
-  - Evidencia:
-- [ ] 4.2 Aislamiento (Requisitos «Aislamiento del módulo y sin migración» y «Aislamiento del frontend»):
+  - Evidencia (2026-11-09): Backend: ver 1.15 (2002 passed, 98.51 %, `ruff`, formato y `lint-imports`
+    limpios). Frontend: ver 3.17 (1158 passed, 77.73 % sentencias, `lint`, `format:check`, `typecheck` y
+    `build` limpios). `V-ALEMBIC`: un único head, `a9c1e3f5b7d9`, el de 0.1. Pruebas nuevas del backend: 116
+    casos (65 de la unidad 1 y 51 del router, según el informe de sdd-apply); en el frontend, el módulo
+    `reservas` pasó de 243 pruebas en 12 archivos a 307 en 15.
+- [x] 4.2 Aislamiento (Requisitos «Aislamiento del módulo y sin migración» y «Aislamiento del frontend»):
   `git diff --name-only origin/develop...HEAD` contiene solo archivos de `backend/app/modules/reservas/`,
   `backend/tests/modules/reservas/`, `frontend/src/modules/reservas/` y `openspec/changes/HU-M5-06/`. Ningún
   cambio en los módulos salon y atencion, en las carpetas shared (backend ni frontend), en el archivo de
@@ -617,13 +685,24 @@ Depende de las Fases 1 a 3. No requiere B1 ni B2.
   (`backend/tests/shared/test_contrato_comanda.py` (read-only)). La búsqueda `rg "modules/atencion"` sobre
   el código del frontend de reservas no devuelve resultados, y los únicos imports de `atencion` y `salon` en
   el backend de reservas están en `puente.py`.
-  - Evidencia:
-- [ ] 4.3 **Punto de control de revisión (no bloquea ni divide la HU).** Medir con `MEDIR` el lado backend y el
+  - Evidencia (2026-11-09): `git diff --name-only origin/develop...HEAD` filtrado con `rg -v` por las cuatro
+    carpetas permitidas no devuelve nada; `backend/tests/shared`, `backend/app/shared`,
+    `backend/pyproject.toml`, `backend/alembic` y `frontend/src/shared` sin cambios (0 archivos). Los únicos
+    imports de `atencion` y `salon` en el código del backend de reservas están en `puente.py` (líneas 20 y
+    21). `rg "modules/atencion"` sobre el frontend de reservas devuelve un solo resultado: un comentario que
+    ya estaba en `develop` (`components/validarReserva.ts:79`, archivo que este cambio no toca), no un
+    import.
+- [x] 4.3 **Punto de control de revisión (no bloquea ni divide la HU).** Medir con `MEDIR` el lado backend y el
   lado frontend por separado, sin los artefactos de SDD, y compararlos con el pronóstico de esta tarea
   (backend de lo ejecutable ya ≈ 435 a 590; frontend ≈ 620 a 850) y con el límite de 800 por lado. Registrar
   las cifras en `apply-progress.md`. Si algún lado supera 800, solo se anota (tarea P.6): no se recortan
   pruebas, no se divide el cambio y no se desactiva ninguna regla.
-  - Evidencia:
+  - Evidencia (2026-11-09): Medición con `MEDIR` sobre los commits de código (sin artefactos de SDD):
+    backend 9 archivos, +1291/-4 (unas 1 295 líneas); frontend 14 archivos, +1246/-11 (unas 1 257 líneas).
+    Ambos lados superan el límite de 800 y el pronóstico (backend 435 a 590; frontend 620 a 850). Se debe
+    sobre todo a las pruebas: en el backend unas 101 líneas son de producción y en el frontend unas 390. No
+    se recortaron pruebas, no se dividió el cambio y no se desactivo ninguna regla; va a la nota de tamaño
+    del PR (P.6).
 - [ ] 4.4 Escribir `openspec/changes/HU-M5-06/apply-progress.md` con el avance por tarea (evidencia observada,
   comandos y resultados reales, estado de las tareas BLOQUEADAS y cifras de 4.3). Se confirma con la persona
   antes de incluirlo en un commit (se agrega en 6.9 o en el commit de documentación final).
