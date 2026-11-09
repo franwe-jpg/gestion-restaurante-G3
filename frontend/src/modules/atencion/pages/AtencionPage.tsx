@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { PageHeader } from '../../../shared/components/PageHeader';
 import { Button } from '../../../shared/components/ui/button';
+import { useAbrirDesdeUrl } from '../../../shared/hooks/useAbrirDesdeUrl';
 import { AtencionDialogs } from '../components/AtencionDialogs';
 import { ComandasPanel } from '../components/ComandasPanel';
 import { PanelClientes } from '../components/PanelClientes';
@@ -36,6 +37,7 @@ function accionesAtencion(
 export function AtencionPage() {
   const comandas = useComandas();
   const [alta, setAlta] = useState(false);
+  useAbrirDesdeUrl('nueva', () => setAlta(true));
   const [cierreId, setCierreId] = useState<number | null>(null);
   const [modificarId, setModificarId] = useState<number | null>(null);
   const [aviso, setAviso] = useState('');

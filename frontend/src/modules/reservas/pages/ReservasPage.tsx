@@ -5,6 +5,7 @@ import { PageHeader } from '../../../shared/components/PageHeader';
 import { Button } from '../../../shared/components/ui/button';
 import { Card, CardDescription, CardHeader } from '../../../shared/components/ui/card';
 import { Pagination } from '../../../shared/components/ui/pagination';
+import { useAbrirDesdeUrl } from '../../../shared/hooks/useAbrirDesdeUrl';
 import {
   NavegadorFecha,
   ReservaFormDialog,
@@ -93,6 +94,7 @@ function ModalDeReserva({ panel, onOpenChange, onGuardado }: ModalDeReservaProps
 export function ReservasPage() {
   const listado = useListadoReservas();
   const [panel, setPanel] = useState<Panel>('cerrado');
+  useAbrirDesdeUrl('nueva', () => setPanel('alta'));
   const { cancelarAnticipada, cancelarPorAusencia } = useCancelarReserva({
     onCancelada: listado.reservas.recargar,
   });

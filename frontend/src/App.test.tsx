@@ -21,9 +21,28 @@ afterEach(() => {
 });
 
 describe('App', () => {
-  it('muestra el panel de inicio sin consultar el backend', () => {
-    const fetchMock = vi.fn();
-    vi.stubGlobal('fetch', fetchMock);
+  it('muestra el panel de inicio con los accesos rápidos, el mapa y la caja', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url: string) =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          json: () =>
+            Promise.resolve(
+              url.includes('/reportes/caja-del-dia')
+                ? {
+                    fecha: '2026-11-09',
+                    por_medio_pago: [],
+                    total_cobrado: '0.00',
+                    adeudado: { cantidad_facturas: 0, monto: '0.00' },
+                  }
+                : { items: [], total: 0, limit: 100, offset: 0 },
+            ),
+        } as Response),
+      ),
+    );
 
     render(
       <MemoryRouter initialEntries={['/']}>
@@ -32,8 +51,9 @@ describe('App', () => {
     );
 
     expect(screen.getByRole('heading', { name: 'Panel de Administración' })).toBeInTheDocument();
-    expect(screen.getAllByRole('link', { name: /Productos y Carta/ }).length).toBeGreaterThan(0);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(screen.getByRole('link', { name: 'Nueva comanda' })).toBeInTheDocument();
+    expect(await screen.findByText('No hay mesas registradas')).toBeInTheDocument();
+    expect(await screen.findByText('Todavía no hay cobros hoy')).toBeInTheDocument();
   });
 
   it('monta la pantalla de estado en /salud', async () => {

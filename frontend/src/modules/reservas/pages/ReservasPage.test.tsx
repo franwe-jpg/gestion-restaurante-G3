@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -74,19 +74,20 @@ function servirSesentaReservas() {
 }
 
 function Ruta() {
-  return <p data-testid="ruta">{useLocation().pathname}</p>;
+  const ubicacion = useLocation();
+  return <p data-testid="ruta">{`${ubicacion.pathname}${ubicacion.search}`}</p>;
 }
 
 /**
  * `aceptado` por defecto `true`: las pruebas de alta y edición no usan confirmación y no deben
  * romperse por el nuevo `ConfirmContext.Provider` (Decisión 36 del diseño).
  */
-function abrir(aceptado = true) {
+function abrir(aceptado = true, ruta = '/reservas') {
   const confirmar = vi.fn().mockResolvedValue(aceptado);
   render(
     <ConfirmContext.Provider value={confirmar}>
       <ToastContext.Provider value={{ mostrarToast: vi.fn() }}>
-        <MemoryRouter initialEntries={['/reservas']}>
+        <MemoryRouter initialEntries={[ruta]}>
           <ReservasPage />
           <Ruta />
         </MemoryRouter>
@@ -186,6 +187,42 @@ describe('ReservasPage: apertura', () => {
     await screen.findByText('Cliente n.º 7');
 
     expect(screen.queryByRole('navigation', { name: 'Paginación' })).toBeNull();
+  });
+});
+
+describe('ReservasPage: apertura con ?nueva=1 (S4-06)', () => {
+  it('abre el panel de alta con /reservas?nueva=1 y deja la URL sin el parámetro', async () => {
+    abrir(true, '/reservas?nueva=1');
+
+    expect(await screen.findByRole('heading', { name: 'Nueva reserva' })).toBeInTheDocument();
+    expect(screen.getByTestId('ruta')).toHaveTextContent(/^\/reservas$/);
+  });
+
+  it('sin parámetro muestra el listado sin abrir el alta', async () => {
+    abrir();
+    await screen.findByText('Cliente n.º 7');
+
+    expect(screen.queryByRole('heading', { name: 'Nueva reserva' })).toBeNull();
+  });
+
+  it('ignora nueva=abc: no abre el alta ni muestra error', async () => {
+    abrir(true, '/reservas?nueva=abc');
+    await screen.findByText('Cliente n.º 7');
+
+    expect(screen.queryByRole('heading', { name: 'Nueva reserva' })).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('no vuelve a abrir el alta al recargar: la URL ya no tiene el parámetro', async () => {
+    abrir(true, '/reservas?nueva=1');
+    await screen.findByRole('heading', { name: 'Nueva reserva' });
+    const ruta = screen.getByTestId('ruta').textContent ?? '';
+    cleanup();
+
+    abrir(true, ruta);
+    await screen.findByText('Cliente n.º 7');
+
+    expect(screen.queryByRole('heading', { name: 'Nueva reserva' })).toBeNull();
   });
 });
 

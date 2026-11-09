@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, expect, it, vi } from 'vitest';
 import * as api from '../api';
 import { AtencionPage } from './AtencionPage';
@@ -23,6 +24,21 @@ const COMANDA = {
 };
 const PAGINA = { items: [COMANDA], total: 1, limit: 50, offset: 0 };
 
+function Ruta() {
+  const ubicacion = useLocation();
+  return <p data-testid="ruta">{`${ubicacion.pathname}${ubicacion.search}`}</p>;
+}
+
+/** La página usa el router (`?nueva=1`): se monta en una ruta, que por defecto es `/atencion`. */
+function renderizarPagina(ruta = '/atencion') {
+  return render(
+    <MemoryRouter initialEntries={[ruta]}>
+      <AtencionPage />
+      <Ruta />
+    </MemoryRouter>,
+  );
+}
+
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(api.listarComandas).mockResolvedValue({ exito: true, datos: PAGINA });
@@ -41,7 +57,7 @@ it('informa conjunto vacío y no ofrece cerrar comandas ya cerradas', async () =
     exito: true,
     datos: { ...PAGINA, items: [], total: 0 },
   });
-  const vista = render(<AtencionPage />);
+  const vista = renderizarPagina();
   expect(
     await screen.findByRole('heading', { name: 'No hay comandas registradas' }),
   ).toBeInTheDocument();
@@ -50,7 +66,7 @@ it('informa conjunto vacío y no ofrece cerrar comandas ya cerradas', async () =
     exito: true,
     datos: { ...PAGINA, items: [{ ...COMANDA, estado: 'CERRADA' }] },
   });
-  render(<AtencionPage />);
+  renderizarPagina();
   expect(await screen.findByRole('button', { name: 'Cerrar comanda #3' })).toBeDisabled();
 });
 
@@ -58,7 +74,7 @@ it('usa estados vacíos distintos para colección sin registros y filtros sin co
   vi.mocked(api.listarComandas)
     .mockResolvedValueOnce({ exito: true, datos: PAGINA })
     .mockResolvedValueOnce({ exito: true, datos: { ...PAGINA, items: [], total: 0 } });
-  render(<AtencionPage />);
+  renderizarPagina();
   expect(await screen.findByText('Comanda #3')).toBeInTheDocument();
   fireEvent.change(screen.getByLabelText('Estado'), { target: { value: 'CERRADA' } });
   fireEvent.click(screen.getByRole('button', { name: 'Filtrar' }));
@@ -71,7 +87,7 @@ it('muestra error compartido en vez de tratar un fallo HTTP como lista vacía', 
     datos: null,
     error: 'HTTP 500',
   });
-  render(<AtencionPage />);
+  renderizarPagina();
   expect(
     await screen.findByRole('heading', { name: 'No se pudieron cargar los datos' }),
   ).toBeInTheDocument();
@@ -89,7 +105,7 @@ it('usa el indicador de carga compartido mientras espera el listado', async () =
         resolver = resolve;
       }),
   );
-  render(<AtencionPage />);
+  renderizarPagina();
   const estadoComandas = screen.getByText('Cargando comandas…');
   expect(estadoComandas.parentElement).toHaveAttribute('role', 'status');
   resolver?.({ exito: true, datos: PAGINA });
@@ -97,7 +113,7 @@ it('usa el indicador de carga compartido mientras espera el listado', async () =
 });
 
 it('lista, filtra por mesa y estado y reinicia el desplazamiento', async () => {
-  render(<AtencionPage />);
+  renderizarPagina();
   expect(await screen.findByText('Comanda #3')).toBeInTheDocument();
   fireEvent.change(screen.getByLabelText('Filtrar por mesa (ID)'), { target: { value: '7' } });
   fireEvent.change(screen.getByLabelText('Estado'), { target: { value: 'CERRADA' } });
@@ -117,7 +133,7 @@ it('distingue una página desplazada vacía del conjunto sin comandas', async ()
     exito: true,
     datos: { ...PAGINA, items: [], total: 4, offset: 50 },
   });
-  render(<AtencionPage />);
+  renderizarPagina();
   expect(await screen.findByRole('heading', { name: 'Página sin comandas' })).toBeInTheDocument();
   expect(screen.queryByText('No hay comandas para estos filtros.')).not.toBeInTheDocument();
 });
@@ -127,7 +143,7 @@ it('crea un pedido usando únicamente referencias, cantidades y observaciones', 
     exito: true,
     datos: { ...COMANDA, detalles: [] },
   });
-  render(<AtencionPage />);
+  renderizarPagina();
   fireEvent.click(screen.getByRole('button', { name: 'Nueva comanda' }));
   fireEvent.change(screen.getByLabelText('Mesa (ID)'), { target: { value: '7' } });
   fireEvent.change(screen.getByLabelText('Referencia 1 (ID)'), { target: { value: '12' } });
@@ -149,7 +165,7 @@ it('informa integración no disponible sin simular una creación', async () => {
     datos: null,
     error: 'Alta pendiente de integración',
   });
-  render(<AtencionPage />);
+  renderizarPagina();
   fireEvent.click(screen.getByRole('button', { name: 'Nueva comanda' }));
   fireEvent.change(screen.getByLabelText('Mesa (ID)'), { target: { value: '7' } });
   fireEvent.change(screen.getByLabelText('Referencia 1 (ID)'), { target: { value: '12' } });
@@ -179,7 +195,7 @@ it('consulta A02 antes de confirmar, informa detalles y ofrece gestionar entrega
     exito: true,
     datos: { comanda_id: 3, pendientes: [PENDIENTE_81] },
   });
-  render(<AtencionPage />);
+  renderizarPagina();
   fireEvent.click(await screen.findByRole('button', { name: 'Cerrar comanda #3' }));
   const dialogo = await screen.findByRole('dialog');
   expect(within(dialogo).getByText(/Detalle #81/)).toBeInTheDocument();
@@ -200,7 +216,7 @@ it('abre las entregas desde la fila de una comanda en cualquier estado', async (
     exito: true,
     datos: entregas(2, 'CERRADA'),
   });
-  render(<AtencionPage />);
+  renderizarPagina();
   fireEvent.click(await screen.findByRole('button', { name: 'Entregas de la comanda #3' }));
   const dialogo = await screen.findByRole('dialog');
   expect(api.consultarEntregas).toHaveBeenCalledWith(3);
@@ -214,7 +230,7 @@ it('intercambia el cierre y las entregas sin anidar modales y recarga los pendie
     .mockResolvedValueOnce({ exito: true, datos: { comanda_id: 3, pendientes: [PENDIENTE_81] } })
     .mockResolvedValueOnce({ exito: true, datos: { comanda_id: 3, pendientes: [] } });
   vi.mocked(api.consultarEntregas).mockResolvedValue({ exito: true, datos: entregas(0) });
-  render(<AtencionPage />);
+  renderizarPagina();
   fireEvent.click(await screen.findByRole('button', { name: 'Cerrar comanda #3' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Gestionar entregas' }));
   expect(await screen.findByText('Entregas de la comanda #3')).toBeInTheDocument();
@@ -237,7 +253,7 @@ it('cierra la comanda tras entregar todo desde el modal de entregas', async () =
     exito: true,
     datos: { ...COMANDA, estado: 'CERRADA', detalles: [] },
   });
-  render(<AtencionPage />);
+  renderizarPagina();
   fireEvent.click(await screen.findByRole('button', { name: 'Cerrar comanda #3' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Gestionar entregas' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Entregar todo de Producto #12' }));
@@ -254,7 +270,7 @@ it('solo cierra tras confirmar y actualiza el listado', async () => {
     exito: true,
     datos: { ...COMANDA, estado: 'CERRADA', detalles: [] },
   });
-  render(<AtencionPage />);
+  renderizarPagina();
   fireEvent.click(await screen.findByRole('button', { name: 'Cerrar comanda #3' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Confirmar cierre' }));
   await waitFor(() => expect(api.cerrarComanda).toHaveBeenCalledWith(3));
@@ -276,7 +292,7 @@ it('ante conflicto reconsulta pendientes sin anunciar cierre exitoso', async () 
         pendientes: [{ id: 81, producto_id: 12, cantidad: 2, menu_ejecutivo_id: null }],
       },
     });
-  render(<AtencionPage />);
+  renderizarPagina();
   fireEvent.click(await screen.findByRole('button', { name: 'Cerrar comanda #3' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Confirmar cierre' }));
   expect(await screen.findByText(/Detalle #81/)).toBeInTheDocument();
@@ -284,7 +300,7 @@ it('ante conflicto reconsulta pendientes sin anunciar cierre exitoso', async () 
 });
 
 it('cancela el cierre sin llamar a la acción de negocio', async () => {
-  render(<AtencionPage />);
+  renderizarPagina();
   fireEvent.click(await screen.findByRole('button', { name: 'Cerrar comanda #3' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Cancelar' }));
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -294,9 +310,11 @@ it('cancela el cierre sin llamar a la acción de negocio', async () => {
 it('ofrece anular solo para comandas ABIERTA y cancela sin solicitar la operación', async () => {
   const { ConfirmProvider } = await import('../../../shared/components/ui/confirm-dialog');
   render(
-    <ConfirmProvider>
-      <AtencionPage />
-    </ConfirmProvider>,
+    <MemoryRouter>
+      <ConfirmProvider>
+        <AtencionPage />
+      </ConfirmProvider>
+    </MemoryRouter>,
   );
   expect(await screen.findByRole('button', { name: 'Anular comanda #3' })).toBeEnabled();
   fireEvent.click(screen.getByRole('button', { name: 'Anular comanda #3' }));
@@ -315,9 +333,11 @@ it('confirma anulación, informa éxito y recarga conservando la fila histórica
     datos: { ...COMANDA, estado: 'ANULADA', detalles: [] },
   });
   render(
-    <ConfirmProvider>
-      <AtencionPage />
-    </ConfirmProvider>,
+    <MemoryRouter>
+      <ConfirmProvider>
+        <AtencionPage />
+      </ConfirmProvider>
+    </MemoryRouter>,
   );
   fireEvent.click(await screen.findByRole('button', { name: 'Anular comanda #3' }));
   fireEvent.click(screen.getByRole('button', { name: 'Anular comanda' }));
@@ -335,9 +355,11 @@ it('muestra el motivo de rechazo al anular y recarga el estado actual', async ()
     error: 'No se puede anular porque está facturada',
   });
   render(
-    <ConfirmProvider>
-      <AtencionPage />
-    </ConfirmProvider>,
+    <MemoryRouter>
+      <ConfirmProvider>
+        <AtencionPage />
+      </ConfirmProvider>
+    </MemoryRouter>,
   );
   fireEvent.click(await screen.findByRole('button', { name: 'Anular comanda #3' }));
   fireEvent.click(screen.getByRole('button', { name: 'Anular comanda' }));
@@ -352,7 +374,7 @@ it('ante fallo de consulta de entregas no habilita la confirmación', async () =
     datos: null,
     error: 'No se pudieron leer las entregas',
   });
-  render(<AtencionPage />);
+  renderizarPagina();
   fireEvent.click(await screen.findByRole('button', { name: 'Cerrar comanda #3' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('No se pudieron leer las entregas');
   expect(screen.queryByRole('button', { name: 'Confirmar cierre' })).not.toBeInTheDocument();
@@ -363,7 +385,7 @@ it('pagina conservando los filtros y muestra errores de listado con reintento', 
   vi.mocked(api.listarComandas)
     .mockResolvedValueOnce({ exito: false, datos: null, error: 'Sin conexión' })
     .mockResolvedValue({ exito: true, datos: { ...PAGINA, total: 60 } });
-  render(<AtencionPage />);
+  renderizarPagina();
   expect(
     await screen.findByRole('heading', { name: 'No se pudieron cargar los datos' }),
   ).toBeInTheDocument();
@@ -381,7 +403,7 @@ it('impide cantidades fraccionarias y admite varias líneas de producto y menú'
     exito: true,
     datos: { ...COMANDA, detalles: [] },
   });
-  render(<AtencionPage />);
+  renderizarPagina();
   fireEvent.click(screen.getByRole('button', { name: 'Nueva comanda' }));
   fireEvent.change(screen.getByLabelText('Mesa (ID)'), { target: { value: '7' } });
   fireEvent.change(screen.getByLabelText('Referencia 1 (ID)'), { target: { value: '12' } });
@@ -403,4 +425,44 @@ it('impide cantidades fraccionarias y admite varias líneas de producto y menú'
       ],
     }),
   );
+});
+
+// S4-06 (N01 a N05): `?nueva=1` abre el alta de comanda.
+it('abre el alta con /atencion?nueva=1 y deja la URL sin el parámetro', async () => {
+  renderizarPagina('/atencion?nueva=1');
+
+  expect(await screen.findByLabelText('Mesa (ID)')).toBeInTheDocument();
+  expect(screen.getByTestId('ruta')).toHaveTextContent(/^\/atencion$/);
+});
+
+it('no abre el alta sin parámetro', async () => {
+  renderizarPagina('/atencion');
+
+  await screen.findByText('Comanda #3');
+  expect(screen.queryByLabelText('Mesa (ID)')).not.toBeInTheDocument();
+});
+
+it('ignora nueva=abc: no abre el alta ni muestra error', async () => {
+  renderizarPagina('/atencion?nueva=abc');
+
+  await screen.findByText('Comanda #3');
+  expect(screen.queryByLabelText('Mesa (ID)')).not.toBeInTheDocument();
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+});
+
+it('conserva mesa=5 al abrir el alta con nueva=1', async () => {
+  renderizarPagina('/atencion?nueva=1&mesa=5');
+
+  expect(await screen.findByLabelText('Mesa (ID)')).toBeInTheDocument();
+  expect(screen.getByTestId('ruta')).toHaveTextContent('/atencion?mesa=5');
+});
+
+it('no vuelve a abrir el alta una vez cerrada', async () => {
+  renderizarPagina('/atencion?nueva=1');
+  await screen.findByLabelText('Mesa (ID)');
+
+  fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+
+  await waitFor(() => expect(screen.queryByLabelText('Mesa (ID)')).not.toBeInTheDocument());
+  expect(screen.getByTestId('ruta')).toHaveTextContent(/^\/atencion$/);
 });
