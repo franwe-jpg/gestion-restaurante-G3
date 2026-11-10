@@ -36,6 +36,12 @@ const MenusPage = lazy(() =>
   })),
 );
 
+const ReporteImpactoPromocionesPage = lazy(() =>
+  import('./modules/menus/pages/ReporteImpactoPromocionesPage').then((modulo) => ({
+    default: modulo.ReporteImpactoPromocionesPage,
+  })),
+);
+
 const SalonPage = lazy(() =>
   import('./modules/salon/pages/SalonPage').then((modulo) => ({
     default: modulo.SalonPage,
@@ -82,6 +88,7 @@ export default function App() {
           <Route path="productos/carta" element={<CartaPage />} />
           <Route path="reportes/productos-mas-vendidos" element={<ReporteMasVendidosPage />} />
           <Route path="reportes/mesas-ventas-por-mozo" element={<ReporteMozosPage />} />
+          <Route path="reportes/impacto-promociones" element={<ReporteImpactoPromocionesPage />} />
           <Route path="menus" element={<MenusPage />} />
           <Route path="salon" element={<SalonPage />} />
           <Route path="atencion" element={<AtencionPage />} />

@@ -3,7 +3,7 @@
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import Integer, cast, exists, func, or_, select, update
+from sqlalchemy import Integer, case, cast, exists, func, or_, select, update
 from sqlalchemy.orm import Session, selectinload
 
 from app.modules.atencion.models import (
@@ -160,6 +160,43 @@ def sumar_ventas_por_mozo_mesa(
     )
     if mesa_ids is not None:
         consulta = consulta.where(Comanda.mesa_id.in_(mesa_ids))
+    return [tuple(fila) for fila in db.execute(consulta)]
+
+
+def sumar_ventas_de_promocion_por_producto_y_fecha(
+    db: Session,
+    desde: datetime,
+    hasta: datetime,
+    producto_ids: list[int],
+    promocion_id: int,
+    desplazamiento_horas: int,
+) -> list[tuple[int, str, int, int]]:
+    """Suma unidades por producto, fecha local y si la línea usó la promoción consultada.
+
+    Cuentan las comandas ABIERTA y CERRADA con `desde <= fecha_hora < hasta`; las ANULADA
+    quedan fuera. Devuelve `(producto_id, fecha_local, es_promocion, cantidad)`; solo lectura.
+    """
+    if not producto_ids:
+        return []
+    modificador = f"{desplazamiento_horas:+d} hours"
+    fecha_local = func.date(Comanda.fecha_hora, modificador)
+    es_promocion = case((DetalleComanda.promocion_id == promocion_id, 1), else_=0)
+    consulta = (
+        select(
+            DetalleComanda.producto_id,
+            fecha_local,
+            es_promocion,
+            func.sum(DetalleComanda.cantidad),
+        )
+        .join(Comanda, Comanda.id == DetalleComanda.comanda_id)
+        .where(
+            Comanda.fecha_hora >= desde,
+            Comanda.fecha_hora < hasta,
+            Comanda.estado.in_([EstadoComanda.ABIERTA, EstadoComanda.CERRADA]),
+            DetalleComanda.producto_id.in_(producto_ids),
+        )
+        .group_by(DetalleComanda.producto_id, fecha_local, es_promocion)
+    )
     return [tuple(fila) for fila in db.execute(consulta)]
 
 

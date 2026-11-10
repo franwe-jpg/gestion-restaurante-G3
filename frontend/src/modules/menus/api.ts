@@ -13,6 +13,7 @@ import type {
   Promocion,
   PromocionCrear,
   PromocionModificar,
+  ReporteImpactoPromociones,
   SeccionMenu,
 } from './types';
 
@@ -148,4 +149,20 @@ export function modificarPromocion(
 
 export function finalizarPromocion(id: number): Promise<RespuestaApi<Promocion>> {
   return clienteHttp.post<Promocion, Record<string, never>>(`/promociones/${id}/finalizar`, {});
+}
+
+/** HU-M2-10: impacto de una promoción en las ventas diarias de sus productos. */
+export function obtenerReporteImpactoPromociones(
+  fechaDesde: string,
+  fechaHasta: string,
+  promocionId: number,
+): Promise<RespuestaApi<ReporteImpactoPromociones>> {
+  const parametros = new URLSearchParams({
+    fecha_desde: fechaDesde,
+    fecha_hasta: fechaHasta,
+    promocion_id: String(promocionId),
+  });
+  return clienteHttp.get<ReporteImpactoPromociones>(
+    `/reportes/impacto-promociones?${parametros.toString()}`,
+  );
 }
