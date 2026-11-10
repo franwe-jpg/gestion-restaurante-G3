@@ -76,7 +76,7 @@ afterEach(() => {
   vi.resetAllMocks();
 });
 
-describe('ReporteMozosPage', () => {
+describe('ReporteMozosPage - filtros', () => {
   it('al abrir muestra el período, los filtros y Generar, sin consultar el reporte', () => {
     renderizar();
 
@@ -99,7 +99,9 @@ describe('ReporteMozosPage', () => {
     expect(await screen.findByText('Falta la fecha hasta.')).toBeInTheDocument();
     expect(obtenerReporteMozos).not.toHaveBeenCalled();
   });
+});
 
+describe('ReporteMozosPage - resultados', () => {
   it('genera el reporte y muestra totales y la fila de cada mozo (CA 1, 2 y 4)', async () => {
     vi.mocked(obtenerReporteMozos).mockResolvedValue({ datos: reporte(), exito: true });
     renderizar();
@@ -107,12 +109,13 @@ describe('ReporteMozosPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Generar' }));
 
-    expect(await screen.findByText('Pérez, Ana')).toBeInTheDocument();
+    const celda = await screen.findByRole('cell', { name: 'Pérez, Ana' });
+    expect(celda).toBeInTheDocument();
     expect(obtenerReporteMozos).toHaveBeenCalledWith('2026-11-01', '2026-11-05', null, null);
     expect(screen.getAllByText('Mesas atendidas').length).toBeGreaterThan(0);
     expect(screen.getAllByText(/40,00/).length).toBeGreaterThan(0);
     expect(screen.getByText('Promedio general por mesa')).toBeInTheDocument();
-    const fila = screen.getByText('Pérez, Ana').closest('tr');
+    const fila = celda.closest('tr');
     expect(within(fila as HTMLElement).getByText('2')).toBeInTheDocument();
     expect(within(fila as HTMLElement).getByText(/20,00/)).toBeInTheDocument();
   });
@@ -126,10 +129,12 @@ describe('ReporteMozosPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Generar' }));
 
-    expect(await screen.findByText('Pérez, Ana')).toBeInTheDocument();
+    expect(await screen.findByRole('cell', { name: 'Pérez, Ana' })).toBeInTheDocument();
     expect(obtenerReporteMozos).toHaveBeenCalledWith('2026-11-01', '2026-11-05', 1, 1);
   });
+});
 
+describe('ReporteMozosPage - actualización', () => {
   it('sin ventas informa que no hay datos disponibles (CA 6)', async () => {
     vi.mocked(obtenerReporteMozos).mockResolvedValue({
       datos: reporte('0.00'),
