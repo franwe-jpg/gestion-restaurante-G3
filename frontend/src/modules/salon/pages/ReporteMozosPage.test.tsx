@@ -124,6 +124,8 @@ describe('ReporteMozosPage - resultados', () => {
     vi.mocked(obtenerReporteMozos).mockResolvedValue({ datos: reporte(), exito: true });
     renderizar();
     cargarFechas('2026-11-01', '2026-11-05');
+    await screen.findByRole('option', { name: 'Pérez, Ana' });
+    await screen.findByRole('option', { name: 'Salón' });
     fireEvent.change(screen.getByLabelText('Mozo'), { target: { value: '1' } });
     fireEvent.change(screen.getByLabelText('Sector'), { target: { value: '1' } });
 

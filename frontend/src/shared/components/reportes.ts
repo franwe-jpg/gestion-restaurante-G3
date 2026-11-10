@@ -13,15 +13,15 @@ export const REPORTES: ReporteDisponible[] = [
     ruta: '/reportes/productos-mas-vendidos',
   },
   {
-    titulo: 'Mesas atendidas y ventas por mozo',
-    descripcion:
-      'El desempeño de cada mozo en un período: mesas atendidas, ventas y promedio por mesa.',
-    ruta: '/reportes/mesas-ventas-por-mozo',
-  },
-  {
     titulo: 'Reservas y ausentismo',
     descripcion:
       'Las reservas de un período según cómo terminaron y el porcentaje de clientes que no se presentaron.',
     ruta: '/reportes/reservas-ausentismo',
+  },
+  {
+    titulo: 'Mesas atendidas y ventas por mozo',
+    descripcion:
+      'El desempeño de cada mozo en un período: mesas atendidas, ventas y promedio por mesa.',
+    ruta: '/reportes/mesas-ventas-por-mozo',
   },
 ];
