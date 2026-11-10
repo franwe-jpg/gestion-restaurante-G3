@@ -13,7 +13,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.modules.atencion import service as atencion_service
-from app.modules.menus import repository
+from app.modules.menus import promociones, repository
 from app.modules.menus.models import DiaSemana, MenuEjecutivo, Promocion
 from app.modules.menus.schemas import (
     FiltroMenusEjecutivos,
@@ -440,3 +440,24 @@ def listar_promociones(db: Session, filtro: FiltroPromociones) -> Pagina[Promoci
         limit=filtro.limit,
         offset=filtro.offset,
     )
+
+
+def promocion_para_linea(
+    db: Session,
+    *,
+    producto_id: int | None,
+    menu_ejecutivo_id: int | None,
+    precio_unitario: Decimal,
+    cantidad: int,
+    momento: datetime,
+) -> promociones.PromocionAplicable | None:
+    """Promocion vigente de la linea y su descuento absoluto; solo lectura (S4-02).
+
+    Las promociones se asocian solo a Producto (incluye MENU_DEL_DIA): un menu ejecutivo
+    no recibe promocion.
+    """
+    if producto_id is None or menu_ejecutivo_id is not None:
+        return None
+    fecha_local = promociones.momento_local(momento).date()
+    vigentes = repository.promociones_del_producto(db, producto_id, fecha_local)
+    return promociones.elegir_promocion(vigentes, precio_unitario, cantidad, momento)
