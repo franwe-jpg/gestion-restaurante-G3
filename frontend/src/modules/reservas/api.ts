@@ -9,6 +9,7 @@ import type {
   Reserva,
   ReservaCrear,
   ReservaModificar,
+  ResumenReservas,
 } from './types';
 
 /** Reservas de un día. `'TODAS'` no envía `estado`: la API trae los cuatro estados. */
@@ -82,4 +83,28 @@ export function buscarClientes(q: string): Promise<RespuestaApi<Pagina<ClienteEn
   consulta.set('limit', String(LIMITE_BUSQUEDA_CLIENTES));
   consulta.set('offset', '0');
   return clienteHttp.get<Pagina<ClienteEncontrado>>(`/clientes?${consulta.toString()}`);
+}
+
+function consultaPeriodo(fechaDesde: string, fechaHasta: string): string {
+  return new URLSearchParams({ fecha_desde: fechaDesde, fecha_hasta: fechaHasta }).toString();
+}
+
+/** HU-M5-07: `GET /reportes/reservas-ausentismo`. Un 422 llega en `error` con el `detalle`. */
+export function obtenerReporteReservasAusentismo(
+  fechaDesde: string,
+  fechaHasta: string,
+): Promise<RespuestaApi<ResumenReservas>> {
+  return clienteHttp.get<ResumenReservas>(
+    `/reportes/reservas-ausentismo?${consultaPeriodo(fechaDesde, fechaHasta)}`,
+  );
+}
+
+/** HU-M5-07: el mismo reporte en PDF, como `Blob` para `guardarArchivo`. */
+export function descargarReporteReservasAusentismoPdf(
+  fechaDesde: string,
+  fechaHasta: string,
+): Promise<RespuestaApi<Blob>> {
+  return clienteHttp.obtenerArchivo(
+    `/reportes/reservas-ausentismo/pdf?${consultaPeriodo(fechaDesde, fechaHasta)}`,
+  );
 }

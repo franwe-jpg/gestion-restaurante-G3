@@ -4,6 +4,8 @@ Solo usan el `service` de cada módulo (RNF-MAN-09) y nunca confirman: la transa
 la cierran `service.crear_comanda` y `service.cerrar_comanda` (HU-M4-09).
 """
 
+from collections.abc import Callable
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from sqlalchemy.orm import Session
@@ -37,17 +39,27 @@ class MesasDeSalon:
 class CatalogoDeCarta:
     """Implementa `CatalogoPort` con los servicios de productos (M1) y menús (M2)."""
 
+    def __init__(self, ahora: Callable[[], datetime] | None = None) -> None:
+        self._ahora = ahora or (lambda: datetime.now(UTC))
+
     def cotizar(self, db: Session, detalle: DetalleComandaCrear) -> DetalleComandaSalida:
         if detalle.producto_id is not None:
             precio = _precio_de_producto(db, detalle.producto_id)
         else:
             precio = _precio_de_menu_ejecutivo(db, detalle.menu_ejecutivo_id)
-        # Las promociones todavía no existen (HU-M2-07 a HU-M2-09): sin descuento ni promoción.
+        aplicada = menus_service.promocion_para_linea(
+            db,
+            producto_id=detalle.producto_id,
+            menu_ejecutivo_id=detalle.menu_ejecutivo_id,
+            precio_unitario=precio,
+            cantidad=detalle.cantidad,
+            momento=self._ahora(),
+        )
         return DetalleComandaSalida(
             **detalle.model_dump(),
             precio_unitario=precio,
-            descuento=SIN_DESCUENTO,
-            promocion_id=None,
+            descuento=aplicada.descuento if aplicada is not None else SIN_DESCUENTO,
+            promocion_id=aplicada.promocion_id if aplicada is not None else None,
             estado_entrega=EstadoEntrega.PENDIENTE,
         )
 

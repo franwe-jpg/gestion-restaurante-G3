@@ -1988,3 +1988,25 @@ def test_crear_comanda_integrity_error_deja_la_sesion_usable_y_sin_cambios(
     puente_doble.falla = None
     service.crear_comanda(db, reserva.id, _pedido())  # la misma sesion sigue sirviendo
     assert _reserva_guardada(db, reserva.id).estado == EstadoReserva.ATENDIDA
+
+
+# --- HU-M5-07: reporte de reservas y ausentismo, variante PDF ---
+
+
+def test_generar_pdf_reservas_ausentismo_llama_a_componer_con_ahora_y_arma_el_nombre(
+    db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    llamadas: list[datetime] = []
+    original = service.reporte_pdf.componer
+
+    def espia(resumen, generado):
+        llamadas.append(generado)
+        return original(resumen, generado)
+
+    monkeypatch.setattr(service.reporte_pdf, "componer", espia)
+
+    archivo = service.generar_pdf_reservas_ausentismo(db, date(2026, 10, 1), date(2026, 10, 31))
+
+    assert llamadas == [service.ahora()]
+    assert archivo.nombre == "reservas-ausentismo_2026-10-01_2026-10-31.pdf"
+    assert archivo.contenido.startswith(b"%PDF")

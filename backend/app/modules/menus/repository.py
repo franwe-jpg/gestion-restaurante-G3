@@ -4,6 +4,8 @@ El menu del dia es un `Producto` y persiste a traves de `productos.service` (D-0
 Aca viven las consultas propias de los menus ejecutivos y de las promociones.
 """
 
+from datetime import date
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
@@ -89,3 +91,18 @@ def obtener_promocion(db: Session, promocion_id: int) -> Promocion | None:
         .options(selectinload(Promocion.productos))
     )
     return db.scalar(consulta)
+
+
+def promociones_del_producto(db: Session, producto_id: int, fecha: date) -> list[Promocion]:
+    """Promociones habilitadas del producto que cubren la fecha, ordenadas por id (S4-02)."""
+    consulta = (
+        select(Promocion)
+        .where(
+            Promocion.estado == Estado.HABILITADO,
+            Promocion.fecha_desde <= fecha,
+            Promocion.fecha_hasta >= fecha,
+            Promocion.productos.any(Producto.id == producto_id),
+        )
+        .order_by(Promocion.id)
+    )
+    return list(db.scalars(consulta).all())

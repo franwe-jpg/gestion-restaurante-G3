@@ -1,6 +1,7 @@
 """reservas: entrada y salida de la API."""
 
 from datetime import date, time
+from decimal import Decimal
 
 from pydantic import (
     BaseModel,
@@ -119,3 +120,22 @@ class ComandaDesdeReservaCrear(BaseModel):
 
     detalles: list[DetalleComandaCrear] = Field(min_length=1)
     observaciones: str | None = None
+
+
+class ResumenReservas(BaseModel):
+    """Reporte de reservas y ausentismo de un período (HU-M5-07; diagrama, celda `rep-rM5dto`).
+
+    `atendidas` no está en el diagrama: lo pide el issue, que gana (proposal, Decisión `atendidas`).
+    """
+
+    fecha_desde: date
+    fecha_hasta: date
+    total_reservas: int
+    atendidas: int
+    canceladas_anticipada: int
+    canceladas_por_ausencia: int
+    porcentaje_ausentismo: Decimal | None
+
+    @field_serializer("porcentaje_ausentismo")
+    def _porcentaje_con_dos_decimales(self, porcentaje: Decimal | None) -> str | None:
+        return None if porcentaje is None else f"{porcentaje:.2f}"

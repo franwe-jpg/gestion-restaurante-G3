@@ -1,4 +1,4 @@
-import { Armchair, Pencil, Trash2 } from 'lucide-react';
+import { Armchair, ClipboardPlus, Pencil, Trash2 } from 'lucide-react';
 
 import { EmptyState } from '../../../shared/components/EmptyState';
 import { Badge } from '../../../shared/components/ui/badge';
@@ -24,11 +24,23 @@ interface AccionesMesaProps {
   mesa: Mesa;
   onEditar: (mesa: Mesa) => void;
   onEliminar: (mesa: Mesa) => void;
+  onAbrirComanda?: (mesa: Mesa) => void;
 }
 
-function AccionesMesa({ mesa, onEditar, onEliminar }: AccionesMesaProps) {
+function AccionesMesa({ mesa, onEditar, onEliminar, onAbrirComanda }: AccionesMesaProps) {
   return (
     <div className="flex items-center justify-end gap-1">
+      {onAbrirComanda && mesa.estado === 'LIBRE' && (
+        <Button
+          variant="outline"
+          size="sm"
+          aria-label={`Abrir comanda en la mesa ${mesa.numero}`}
+          onClick={() => onAbrirComanda(mesa)}
+        >
+          <ClipboardPlus className="h-4 w-4" aria-hidden="true" />
+          Abrir comanda
+        </Button>
+      )}
       <Button
         variant="ghost"
         size="sm"
@@ -53,10 +65,11 @@ function AccionesMesa({ mesa, onEditar, onEliminar }: AccionesMesaProps) {
   );
 }
 
-function columnas(
-  onEditar: (mesa: Mesa) => void,
-  onEliminar: (mesa: Mesa) => void,
-): ColumnaTabla<Mesa>[] {
+function columnas({
+  onEditar,
+  onEliminar,
+  onAbrirComanda,
+}: Pick<AccionesMesaProps, 'onEditar' | 'onEliminar' | 'onAbrirComanda'>): ColumnaTabla<Mesa>[] {
   return [
     {
       clave: 'numero',
@@ -79,7 +92,14 @@ function columnas(
     {
       clave: 'acciones',
       encabezado: <span className="sr-only">Acciones</span>,
-      render: (mesa) => <AccionesMesa mesa={mesa} onEditar={onEditar} onEliminar={onEliminar} />,
+      render: (mesa) => (
+        <AccionesMesa
+          mesa={mesa}
+          onEditar={onEditar}
+          onEliminar={onEliminar}
+          onAbrirComanda={onAbrirComanda}
+        />
+      ),
       className: 'w-24',
     },
   ];
@@ -92,6 +112,7 @@ export interface MesasTablaProps {
   onReintentar?: () => void;
   onEditar: (mesa: Mesa) => void;
   onEliminar: (mesa: Mesa) => void;
+  onAbrirComanda?: (mesa: Mesa) => void;
 }
 
 export function MesasTabla({
@@ -101,10 +122,11 @@ export function MesasTabla({
   onReintentar,
   onEditar,
   onEliminar,
+  onAbrirComanda,
 }: MesasTablaProps) {
   return (
     <DataTable
-      columnas={columnas(onEditar, onEliminar)}
+      columnas={columnas({ onEditar, onEliminar, onAbrirComanda })}
       filas={mesas}
       obtenerClave={(mesa) => mesa.id}
       cargando={cargando}

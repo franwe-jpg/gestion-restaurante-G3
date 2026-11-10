@@ -562,3 +562,39 @@ def test_downgrade_elimina_los_indices_del_reporte_sin_tocar_los_datos(db: Sessi
         )
         assert conexion.execute(text("SELECT COUNT(*) FROM comandas")).scalar_one() == 1
     motor.dispose()
+
+
+# Migración de la referencia al mozo en la comanda (HU-M3-13)
+
+REVISION_MOZO_COMANDA = "c3e5a7b9d1f2"
+REVISION_PREVIA_MOZO_COMANDA = "a9c1e3f5b7d9"
+
+
+def test_migracion_mozo_id_agrega_la_columna_nullable(
+    base_temporal: tuple[str, Config],
+) -> None:
+    url, config = base_temporal
+    command.upgrade(config, REVISION_MOZO_COMANDA)
+    motor = crear_motor(url)
+    try:
+        columnas = {c["name"]: c for c in inspect(motor).get_columns("comandas")}
+    finally:
+        motor.dispose()
+
+    assert columnas["mozo_id"]["nullable"] is True
+    assert columnas["mozo_id"]["type"].python_type is int
+
+
+def test_migracion_mozo_id_downgrade_elimina_la_columna(
+    base_temporal: tuple[str, Config],
+) -> None:
+    url, config = base_temporal
+    command.upgrade(config, "head")
+    command.downgrade(config, REVISION_PREVIA_MOZO_COMANDA)
+    motor = crear_motor(url)
+    try:
+        columnas = {c["name"] for c in inspect(motor).get_columns("comandas")}
+    finally:
+        motor.dispose()
+
+    assert "mozo_id" not in columnas

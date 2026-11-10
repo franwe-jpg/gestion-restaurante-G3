@@ -307,6 +307,73 @@ class FiltroPromociones(ParametrosPaginacion):
     estado: Estado | None = None
 
 
+class UnidadPromedio(StrEnum):
+    """Base del promedio: por día o por hora de exposición a la promoción."""
+
+    DIA = "DIA"
+    HORA = "HORA"
+
+
+class PromocionReporte(BaseModel):
+    """Promoción evaluada por el reporte de impacto (HU-M2-10)."""
+
+    id: int
+    nombre: str
+    estado: Estado
+    fecha_desde: date
+    fecha_hasta: date
+    hora_desde: time | None
+    hora_hasta: time | None
+
+    @field_serializer("hora_desde", "hora_hasta")
+    def _hora_sin_segundos(self, hora: time | None) -> str | None:
+        return None if hora is None else hora.strftime("%H:%M")
+
+
+class LineaImpactoPromocion(BaseModel):
+    """Fila del reporte: promedios, diferencia e impacto de un producto."""
+
+    producto_id: int
+    nombre: str
+    estado: Estado
+    promedio_durante: Decimal | None
+    promedio_fuera: Decimal | None
+    diferencia_promedio: Decimal | None
+    impacto_estimado: Decimal | None
+    variacion_porcentual: Decimal | None
+    cantidad_durante: int
+    cantidad_fuera: int
+    dias_con_ventas_promocion: int
+
+    @field_serializer(
+        "promedio_durante",
+        "promedio_fuera",
+        "diferencia_promedio",
+        "impacto_estimado",
+        "variacion_porcentual",
+    )
+    def _numero_con_dos_decimales(self, valor: Decimal | None) -> str | None:
+        return None if valor is None else f"{valor:.2f}"
+
+
+class ReporteImpactoPromociones(BaseModel):
+    """Reporte de impacto de una promoción en sus productos (HU-M2-10)."""
+
+    promocion: PromocionReporte
+    fecha_desde: date
+    fecha_hasta: date
+    dias_promocion: int
+    dias_fuera: int
+    horas_promocion_por_dia: Decimal | None
+    unidad_promedio: UnidadPromedio
+    hay_datos: bool
+    lineas: list[LineaImpactoPromocion]
+
+    @field_serializer("horas_promocion_por_dia")
+    def _horas_con_dos_decimales(self, valor: Decimal | None) -> str | None:
+        return None if valor is None else f"{valor:.2f}"
+
+
 class MenuEjecutivoSalida(BaseModel):
     id: int
     nombre: str

@@ -5,7 +5,7 @@ unicidad por categoria y el manejo de imagenes viven en `productos.service`, que
 que otro modulo puede importar (contrato de importaciones, S0-05 seccion 3.3).
 """
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Protocol
 
@@ -13,7 +13,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.modules.atencion import service as atencion_service
-from app.modules.menus import repository
+from app.modules.menus import promociones, reporte, repository
 from app.modules.menus.models import DiaSemana, MenuEjecutivo, Promocion
 from app.modules.menus.schemas import (
     FiltroMenusEjecutivos,
@@ -31,6 +31,7 @@ from app.modules.menus.schemas import (
     PromocionListado,
     PromocionModificar,
     PromocionSalida,
+    ReporteImpactoPromociones,
     SeccionResumen,
 )
 from app.modules.productos import service as productos_service
@@ -440,3 +441,47 @@ def listar_promociones(db: Session, filtro: FiltroPromociones) -> Pagina[Promoci
         limit=filtro.limit,
         offset=filtro.offset,
     )
+
+
+def promocion_para_linea(
+    db: Session,
+    *,
+    producto_id: int | None,
+    menu_ejecutivo_id: int | None,
+    precio_unitario: Decimal,
+    cantidad: int,
+    momento: datetime,
+) -> promociones.PromocionAplicable | None:
+    """Promocion vigente de la linea y su descuento absoluto; solo lectura (S4-02).
+
+    Las promociones se asocian solo a Producto (incluye MENU_DEL_DIA): un menu ejecutivo
+    no recibe promocion.
+    """
+    if producto_id is None or menu_ejecutivo_id is not None:
+        return None
+    fecha_local = promociones.momento_local(momento).date()
+    vigentes = repository.promociones_del_producto(db, producto_id, fecha_local)
+    return promociones.elegir_promocion(vigentes, precio_unitario, cantidad, momento)
+
+
+def generar_reporte_impacto_promociones(
+    db: Session,
+    fecha_desde: date | None,
+    fecha_hasta: date | None,
+    promocion_id: int | None,
+) -> ReporteImpactoPromociones:
+    """Impacto de una promoción en las ventas diarias de sus productos (HU-M2-10)."""
+    desde, hasta = reporte.validar_periodo(fecha_desde, fecha_hasta)
+    promocion = repository.obtener_promocion(db, reporte.validar_promocion(promocion_id))
+    if promocion is None:
+        raise NoEncontradoError(f"La promoción {promocion_id} no existe")
+    inicio, fin = reporte.intervalo_utc(desde, hasta)
+    ventas = atencion_service.sumar_ventas_de_promocion_por_producto_y_fecha(
+        db,
+        inicio,
+        fin,
+        [producto.id for producto in promocion.productos],
+        promocion.id,
+        reporte.DESPLAZAMIENTO_HORAS,
+    )
+    return reporte.armar_reporte(promocion, desde, hasta, ventas)

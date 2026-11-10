@@ -1,9 +1,16 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ConfirmContext } from '../../../shared/components/ui/confirm-context';
 import { ToastProvider } from '../../../shared/components/ui/toast';
-import { eliminarMedioPago, listarFacturas, listarMediosPago, obtenerFactura } from '../api';
+import {
+  eliminarMedioPago,
+  listarFacturas,
+  listarMediosPago,
+  obtenerFactura,
+  previsualizarFactura,
+} from '../api';
 import type { Factura, FacturaResumen, MedioPago } from '../types';
 
 import { PagosPage } from './PagosPage';
@@ -35,13 +42,21 @@ function pagina(items: MedioPago[]) {
   return { datos: { items, total: items.length, limit: 50, offset: 0 }, exito: true };
 }
 
-function mostrar() {
+function UbicacionActual() {
+  const ubicacion = useLocation();
+  return <p data-testid="ubicacion">{ubicacion.pathname + ubicacion.search}</p>;
+}
+
+function mostrar(ruta = '/pagos') {
   render(
-    <ConfirmContext.Provider value={confirmar}>
-      <ToastProvider>
-        <PagosPage />
-      </ToastProvider>
-    </ConfirmContext.Provider>,
+    <MemoryRouter initialEntries={[ruta]}>
+      <ConfirmContext.Provider value={confirmar}>
+        <ToastProvider>
+          <PagosPage />
+          <UbicacionActual />
+        </ToastProvider>
+      </ConfirmContext.Provider>
+    </MemoryRouter>,
   );
 }
 
@@ -49,7 +64,10 @@ beforeEach(() => {
   vi.mocked(listarMediosPago).mockResolvedValue(pagina([EFECTIVO]));
 });
 
+// Desmonta antes de resetear: un efecto pendiente (por ejemplo, el diálogo abierto con
+// `?comanda=`) no debe llamar a un mock ya reseteado, que devuelve `undefined`.
 afterEach(() => {
+  cleanup();
   vi.resetAllMocks();
 });
 
@@ -136,5 +154,37 @@ describe('PagosPage · facturas (HU-M6-02)', () => {
 
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
     expect(screen.getByText('Cobrar factura #7')).toBeInTheDocument();
+  });
+});
+
+describe('PagosPage · enlace desde Atención (S4-03)', () => {
+  it('?comanda=12 abre «Facturar» con la vista previa y limpia el parámetro (E08)', async () => {
+    vi.mocked(previsualizarFactura).mockResolvedValue({
+      exito: true,
+      datos: {
+        comanda_id: 12,
+        fecha_emision: '2026-11-05T15:00:00Z',
+        total: '7101.00',
+        detalles: [],
+      },
+    });
+    mostrar('/pagos?comanda=12');
+    expect(await screen.findByText(/Total a pagar/)).toBeInTheDocument();
+    expect(previsualizarFactura).toHaveBeenCalledWith(12);
+    expect(screen.getByTestId('ubicacion')).toHaveTextContent(/^\/pagos$/);
+  });
+
+  it('?comanda=abc se ignora: sin diálogo ni error (E10)', async () => {
+    mostrar('/pagos?comanda=abc');
+    await screen.findByText('Efectivo', { selector: 'span.font-medium' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(previsualizarFactura).not.toHaveBeenCalled();
+  });
+
+  it('el botón de Pagos sin parámetro mantiene el campo «N° de comanda» (E14)', async () => {
+    mostrar();
+    await screen.findByText('Efectivo', { selector: 'span.font-medium' });
+    fireEvent.click(screen.getByRole('button', { name: 'Facturar comanda' }));
+    expect(screen.getByLabelText(/N° de comanda/)).toHaveValue('');
   });
 });

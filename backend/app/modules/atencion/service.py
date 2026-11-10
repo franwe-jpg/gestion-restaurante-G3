@@ -1,8 +1,10 @@
 """Servicios de Comanda y Cliente del módulo Atención."""
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
+from importlib import import_module
 from typing import Protocol
 
 from pydantic import ValidationError
@@ -42,7 +44,7 @@ class MesasPort(Protocol):
     def ocupar(self, db: Session, mesa_id: int) -> None: ...
 
     def liberar(self, db: Session, mesa_id: int) -> None:
-        """OCUPADA -> LIBRE when the comanda closes; no commit, the caller owns it."""
+        """OCUPADA -> LIBRE when a comanda closes or is annulled; caller owns commit."""
         ...
 
 
@@ -143,15 +145,7 @@ def crear_comanda(
 ) -> ComandaSalida:
     """Own the transaction; callers must supply real providers before HTTP wiring."""
     try:
-        datos = ComandaCrear.model_validate(datos.model_dump(warnings=False))
-        existente = repository.obtener_abierta_por_mesa(db, datos.mesa_id)
-        if existente is not None:
-            raise ComandaAbiertaError(existente.id)
-        mesas.validar_disponibilidad(db, datos.mesa_id)
-        detalles = [_cotizar(db, detalle, catalogo) for detalle in datos.detalles]
-        comanda = repository.crear_comanda(db, datos, detalles)
-        mesas.ocupar(db, datos.mesa_id)
-        salida = ComandaSalida.model_validate(comanda, from_attributes=True)
+        salida = _registrar_comanda(db, datos, mesas, catalogo)
         db.commit()
     except IntegrityError as error:
         db.rollback()
@@ -164,6 +158,41 @@ def crear_comanda(
         db.rollback()
         raise
     return salida
+
+
+def crear_comanda_para_reserva(db: Session, datos: ComandaCrear, reserva_id: int) -> ComandaSalida:
+    """Interfaz para M5 (HU-M5-06): crea la comanda de la reserva en la sesión del llamador.
+
+    Valida y ocupa la mesa como `crear_comanda`, pero no hace `commit` ni `rollback`: M5
+    confirma o revierte junto con el cambio de estado de la reserva. M5 valida la reserva
+    (activa y del día) antes de llamar; acá solo se exige un `id` positivo.
+    """
+    if reserva_id <= 0:
+        raise DatosInvalidosError("reserva_id: debe ser mayor que 0")
+    # Import diferido: productos y menús importan este service y los adaptadores a ellos.
+    adaptadores = import_module("app.modules.atencion.adaptadores")
+    return _registrar_comanda(
+        db, datos, adaptadores.MesasDeSalon(), adaptadores.CatalogoDeCarta(), reserva_id
+    )
+
+
+def _registrar_comanda(
+    db: Session,
+    datos: ComandaCrear,
+    mesas: MesasPort,
+    catalogo: CatalogoPort,
+    reserva_id: int | None = None,
+) -> ComandaSalida:
+    """Valida, cotiza, inserta y ocupa la mesa sin confirmar; el llamador cierra la transacción."""
+    datos = ComandaCrear.model_validate(datos.model_dump(warnings=False))
+    existente = repository.obtener_abierta_por_mesa(db, datos.mesa_id)
+    if existente is not None:
+        raise ComandaAbiertaError(existente.id)
+    mesas.validar_disponibilidad(db, datos.mesa_id)
+    detalles = [_cotizar(db, detalle, catalogo) for detalle in datos.detalles]
+    comanda = repository.crear_comanda(db, datos, detalles, reserva_id)
+    mesas.ocupar(db, datos.mesa_id)
+    return ComandaSalida.model_validate(comanda, from_attributes=True)
 
 
 def _cotizar(
@@ -229,6 +258,35 @@ def cerrar_comanda(db: Session, comanda_id: int, mesas: MesasPort) -> ComandaSal
         db.rollback()
         raise
     return salida
+
+
+def anular_comanda(db: Session, comanda_id: int, mesas: MesasPort) -> ComandaSalida:
+    """Logically cancel an unbilled open order; M4 owns the shared transaction."""
+    comanda = repository.obtener_comanda(db, comanda_id)
+    if comanda is None:
+        raise NoEncontradoError(f"La comanda {comanda_id} no existe")
+    if comanda.estado != EstadoComanda.ABIERTA:
+        raise ReglaDeNegocioError("Solo se puede anular una comanda ABIERTA")
+    esta_facturada = _obtener_consulta_facturacion()
+    if esta_facturada(db, comanda_id):
+        raise ReglaDeNegocioError("No se puede anular una comanda facturada")
+    try:
+        comanda.estado = EstadoComanda.ANULADA
+        mesas.liberar(db, comanda.mesa_id)
+        salida = ComandaSalida.model_validate(comanda, from_attributes=True)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    return salida
+
+
+def _obtener_consulta_facturacion() -> Callable[[Session, int], bool]:
+    servicio = import_module("app.modules.pagos.service")
+    consulta = getattr(servicio, "esta_facturada", None)
+    if not callable(consulta):
+        raise ReglaDeNegocioError("El servicio de facturación no está disponible")
+    return consulta
 
 
 def obtener_comanda(db: Session, comanda_id: int) -> ComandaSalida:
@@ -348,6 +406,64 @@ class CantidadPedidaPorFranja:
     dia_semana: int  # 0 = lunes ... 6 = domingo
     hora: int
     cantidad: int
+
+
+@dataclass(frozen=True)
+class VentaPorMozoMesa:
+    """Total vendido por un mozo en una mesa durante el período."""
+
+    mozo_id: int | None
+    mesa_id: int
+    total: Decimal
+
+
+@dataclass(frozen=True)
+class VentaProductoFecha:
+    """Unidades de un producto en una fecha local, con o sin la promoción consultada."""
+
+    producto_id: int
+    fecha: date
+    cantidad: int
+    es_promocion: bool
+
+
+def sumar_ventas_de_promocion_por_producto_y_fecha(
+    db: Session,
+    desde: datetime,
+    hasta: datetime,
+    producto_ids: list[int],
+    promocion_id: int,
+    desplazamiento_horas: int,
+) -> list[VentaProductoFecha]:
+    """Lectura pública para M2 (HU-M2-10): ventas por producto y fecha local.
+
+    Cuentan las líneas de comandas ABIERTA y CERRADA con `desde <= fecha_hora < hasta` (UTC).
+    `es_promocion` indica si la línea usó la promoción consultada. No hace `commit`.
+    """
+    filas = repository.sumar_ventas_de_promocion_por_producto_y_fecha(
+        db, desde, hasta, producto_ids, promocion_id, desplazamiento_horas
+    )
+    return [
+        VentaProductoFecha(
+            producto_id=producto_id,
+            fecha=date.fromisoformat(fecha),
+            cantidad=cantidad,
+            es_promocion=bool(es_promocion),
+        )
+        for producto_id, fecha, es_promocion, cantidad in filas
+    ]
+
+
+def sumar_ventas_por_mozo_mesa(
+    db: Session, desde: datetime, hasta: datetime, mesa_ids: list[int] | None = None
+) -> list[VentaPorMozoMesa]:
+    """Lectura pública para M3 (HU-M3-13): total vendido por mozo y mesa.
+
+    Cuentan las líneas de comandas ABIERTA y CERRADA con `desde <= fecha_hora < hasta` (UTC).
+    No hace `commit` ni cambia datos.
+    """
+    filas = repository.sumar_ventas_por_mozo_mesa(db, desde, hasta, mesa_ids)
+    return [VentaPorMozoMesa(*fila) for fila in filas]
 
 
 def sumar_productos_pedidos(

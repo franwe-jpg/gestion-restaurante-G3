@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ToastProvider } from '../../../shared/components/ui/toast';
@@ -36,12 +36,16 @@ const PREVIA: FacturaPrevia = {
 
 const FACTURA = { id: 1, comanda_id: 12, total: '7101.00' } as Factura;
 
-function abrir() {
+function abrir(comandaInicial?: string) {
   const onGenerada = vi.fn();
   const onOpenChange = vi.fn();
   render(
     <ToastProvider>
-      <FacturarComandaDialog onGenerada={onGenerada} onOpenChange={onOpenChange} />
+      <FacturarComandaDialog
+        onGenerada={onGenerada}
+        onOpenChange={onOpenChange}
+        comandaInicial={comandaInicial}
+      />
     </ToastProvider>,
   );
   return { onGenerada, onOpenChange };
@@ -61,7 +65,10 @@ beforeEach(() => {
   vi.mocked(previsualizarFactura).mockResolvedValue({ datos: PREVIA, exito: true });
 });
 
+// Desmonta antes de resetear: con una comanda inicial, el selector de medios se monta al llegar
+// la vista previa y su efecto no debe llamar a un mock ya reseteado (`undefined`).
 afterEach(() => {
+  cleanup();
   vi.resetAllMocks();
 });
 
@@ -159,5 +166,42 @@ describe('FacturarComandaDialog: avisos y validaciones (HU-M6-01)', () => {
       screen.getByText('El importe no puede superar el total de la factura.'),
     ).toBeInTheDocument();
     expect(generarFactura).not.toHaveBeenCalled();
+  });
+});
+
+describe('FacturarComandaDialog desde el enlace de Atención (S4-03)', () => {
+  it('carga la vista previa de la comanda inicial sin pedir el número (E08)', async () => {
+    abrir('12');
+    expect(await screen.findByText(/Total a pagar/)).toBeInTheDocument();
+    expect(previsualizarFactura).toHaveBeenCalledWith(12);
+    expect(screen.queryByLabelText(/N° de comanda/)).not.toBeInTheDocument();
+  });
+
+  it('una comanda inexistente muestra el 404 y permite corregir el número (E09)', async () => {
+    vi.mocked(previsualizarFactura).mockResolvedValue({
+      datos: null,
+      exito: false,
+      error: 'Comanda no encontrada',
+    });
+    abrir('99');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Comanda no encontrada');
+    expect(screen.getByLabelText(/N° de comanda/)).toHaveValue('99');
+  });
+
+  it('una comanda ya facturada muestra el error y no genera otra factura (E11)', async () => {
+    vi.mocked(previsualizarFactura).mockResolvedValue({
+      datos: null,
+      exito: false,
+      error: 'La comanda ya tiene factura',
+    });
+    abrir('12');
+    expect(await screen.findByRole('alert')).toHaveTextContent('La comanda ya tiene factura');
+    expect(generarFactura).not.toHaveBeenCalled();
+  });
+
+  it('sin comanda inicial sigue pidiendo el número (E14)', () => {
+    abrir();
+    expect(screen.getByLabelText(/N° de comanda/)).toHaveValue('');
+    expect(previsualizarFactura).not.toHaveBeenCalled();
   });
 });

@@ -1,6 +1,6 @@
 """Pruebas del service de promociones (HU-M2-07)."""
 
-from datetime import date, time
+from datetime import UTC, date, datetime, time
 from decimal import Decimal
 
 import pytest
@@ -346,3 +346,94 @@ def test_finalizar_promocion_no_toca_importes_historicos(
         text("SELECT precio_unitario, descuento FROM detalles_comanda WHERE id = 1")
     ).one()
     assert fila == (Decimal("100.00"), Decimal("20.00"))
+
+
+# --- Promoción aplicable a una línea de comanda (S4-02) ---
+
+MOMENTO = datetime(2026, 11, 9, 18, 0, tzinfo=UTC)  # lunes 15:00 en UTC-3
+
+
+def _vigente(producto_id: int, **cambios: object) -> PromocionCrear:
+    return _datos([producto_id], hora_desde=None, hora_hasta=None, **cambios)
+
+
+def test_promocion_para_linea_devuelve_la_vigente(
+    db: Session, fabrica_seccion, fabrica_producto
+) -> None:
+    seccion = fabrica_seccion()
+    producto = fabrica_producto(seccion, precio=Decimal("1500.50"))
+    creada = service.crear_promocion(db, _vigente(producto.id))
+
+    aplicada = service.promocion_para_linea(
+        db,
+        producto_id=producto.id,
+        menu_ejecutivo_id=None,
+        precio_unitario=Decimal("1500.50"),
+        cantidad=2,
+        momento=MOMENTO,
+    )
+
+    assert aplicada is not None
+    assert aplicada.promocion_id == creada.id
+    assert aplicada.descuento == Decimal("450.15")
+
+
+def test_promocion_para_linea_elige_la_de_mayor_descuento(
+    db: Session, fabrica_seccion, fabrica_producto
+) -> None:
+    seccion = fabrica_seccion()
+    producto = fabrica_producto(seccion, precio=Decimal("100.00"))
+    service.crear_promocion(db, _vigente(producto.id, nombre="Menor", descuento_porcentaje=10))
+    mayor = service.crear_promocion(
+        db, _vigente(producto.id, nombre="Mayor", descuento_porcentaje=25)
+    )
+
+    aplicada = service.promocion_para_linea(
+        db,
+        producto_id=producto.id,
+        menu_ejecutivo_id=None,
+        precio_unitario=Decimal("100.00"),
+        cantidad=1,
+        momento=MOMENTO,
+    )
+
+    assert aplicada is not None
+    assert aplicada.promocion_id == mayor.id
+    assert aplicada.descuento == Decimal("25.00")
+
+
+def test_promocion_para_linea_sin_promocion_devuelve_none(
+    db: Session, fabrica_seccion, fabrica_producto
+) -> None:
+    seccion = fabrica_seccion()
+    producto = fabrica_producto(seccion)
+
+    aplicada = service.promocion_para_linea(
+        db,
+        producto_id=producto.id,
+        menu_ejecutivo_id=None,
+        precio_unitario=Decimal("100.00"),
+        cantidad=1,
+        momento=MOMENTO,
+    )
+
+    assert aplicada is None
+
+
+def test_promocion_para_linea_de_menu_ejecutivo_devuelve_none(
+    db: Session, fabrica_seccion, fabrica_producto
+) -> None:
+    seccion = fabrica_seccion()
+    producto = fabrica_producto(seccion)
+    service.crear_promocion(db, _vigente(producto.id))
+
+    aplicada = service.promocion_para_linea(
+        db,
+        producto_id=None,
+        menu_ejecutivo_id=1,
+        precio_unitario=Decimal("4200.00"),
+        cantidad=1,
+        momento=MOMENTO,
+    )
+
+    assert aplicada is None

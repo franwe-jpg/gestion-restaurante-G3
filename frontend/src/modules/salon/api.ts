@@ -7,6 +7,7 @@ import type {
   Mozo,
   MozoCrear,
   MozoModificar,
+  ReporteMesasVentasPorMozo,
   Sector,
   SectorCrear,
   SectorModificar,
@@ -86,5 +87,32 @@ export function listarMozos(limit: number, offset: number): Promise<RespuestaApi
 export function listarMozosDisponibles(): Promise<RespuestaApi<Pagina<Mozo>>> {
   return clienteHttp.get<Pagina<Mozo>>(
     `/mozos?estado=HABILITADO&limit=${LIMITE_SELECTOR}&offset=0`,
+  );
+}
+
+function consultaReporte(
+  fechaDesde: string,
+  fechaHasta: string,
+  mozoId: number | null,
+  sectorId: number | null,
+): string {
+  const parametros = new URLSearchParams({
+    fecha_desde: fechaDesde,
+    fecha_hasta: fechaHasta,
+  });
+  if (mozoId !== null) parametros.set('mozo_id', String(mozoId));
+  if (sectorId !== null) parametros.set('sector_id', String(sectorId));
+  return parametros.toString();
+}
+
+/** HU-M3-13: mesas atendidas y ventas por mozo; mozo y sector son opcionales. */
+export function obtenerReporteMozos(
+  fechaDesde: string,
+  fechaHasta: string,
+  mozoId: number | null = null,
+  sectorId: number | null = null,
+): Promise<RespuestaApi<ReporteMesasVentasPorMozo>> {
+  return clienteHttp.get<ReporteMesasVentasPorMozo>(
+    `/reportes/mesas-ventas-por-mozo?${consultaReporte(fechaDesde, fechaHasta, mozoId, sectorId)}`,
   );
 }

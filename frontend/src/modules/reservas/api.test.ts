@@ -8,9 +8,11 @@ import {
   cancelarReservaPorAusencia,
   crearComandaDesdeReserva,
   crearReserva,
+  descargarReporteReservasAusentismoPdf,
   listarMesasDisponibles,
   listarReservas,
   modificarReserva,
+  obtenerReporteReservasAusentismo,
 } from './api';
 import type {
   ComandaCreada,
@@ -216,5 +218,43 @@ describe('api de reservas: cliente de la reserva', () => {
     await buscarClientes('Ana & Luis');
 
     expect(get).toHaveBeenCalledWith('/clientes?q=Ana+%26+Luis&limit=10&offset=0');
+  });
+});
+
+describe('api de reservas: reporte de reservas y ausentismo (HU-M5-07)', () => {
+  it('pide el reporte con GET /reportes/reservas-ausentismo y el período en el query', async () => {
+    const respuesta = {
+      datos: {
+        fecha_desde: '2026-10-01',
+        fecha_hasta: '2026-10-31',
+        total_reservas: 6,
+        atendidas: 1,
+        canceladas_anticipada: 2,
+        canceladas_por_ausencia: 1,
+        porcentaje_ausentismo: '16.67',
+      },
+      exito: true,
+    };
+    const get = vi.spyOn(clienteHttp, 'get').mockResolvedValue(respuesta);
+
+    const resultado = await obtenerReporteReservasAusentismo('2026-10-01', '2026-10-31');
+
+    expect(get).toHaveBeenCalledWith(
+      '/reportes/reservas-ausentismo?fecha_desde=2026-10-01&fecha_hasta=2026-10-31',
+    );
+    expect(resultado).toBe(respuesta);
+  });
+
+  it('descarga el PDF con GET /reportes/reservas-ausentismo/pdf y el período en el query', async () => {
+    const blob = new Blob(['%PDF']);
+    const respuesta = { datos: blob, exito: true };
+    const obtenerArchivo = vi.spyOn(clienteHttp, 'obtenerArchivo').mockResolvedValue(respuesta);
+
+    const resultado = await descargarReporteReservasAusentismoPdf('2026-10-01', '2026-10-31');
+
+    expect(obtenerArchivo).toHaveBeenCalledWith(
+      '/reportes/reservas-ausentismo/pdf?fecha_desde=2026-10-01&fecha_hasta=2026-10-31',
+    );
+    expect(resultado).toBe(respuesta);
   });
 });

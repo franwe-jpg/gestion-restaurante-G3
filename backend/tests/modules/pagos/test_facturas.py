@@ -1,5 +1,6 @@
 """Pruebas de la factura de una comanda (HU-M6-01) y de su cobro (HU-M6-02, issue #71)."""
 
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 import pytest
@@ -7,8 +8,13 @@ from fastapi.testclient import TestClient
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.modules.atencion import service as atencion_service
+from app.modules.atencion.adaptadores import CatalogoDeCarta, MesasDeSalon
+from app.modules.atencion.schemas import EntregaDetalle
+from app.modules.menus import service as menus_service
+from app.modules.menus.schemas import PromocionCrear
 from app.modules.pagos.models import Cobro, DetalleFactura, Factura, MedioPago
-from app.shared.contratos.comanda import EstadoComanda
+from app.shared.contratos.comanda import ComandaCrear, DetalleComandaCrear, EstadoComanda
 from app.shared.models import Estado
 from tests.modules.pagos.conftest import Catalogo, FabricaComanda, FabricaMedioPago
 
@@ -556,3 +562,48 @@ def test_listar_facturas_sin_datos_devuelve_pagina_vacia(cliente: TestClient) ->
 
     assert respuesta.status_code == 200
     assert respuesta.json() == {"items": [], "total": 0, "limit": 10, "offset": 0}
+
+
+# --- Promoción aplicada en la comanda (S4-02, issue #223) ---
+
+
+def test_previsualizar_factura_de_comanda_con_promocion_conserva_el_descuento(
+    cliente: TestClient, db: Session, catalogo: Catalogo
+) -> None:
+    momento = datetime(2026, 11, 9, 18, 0, tzinfo=UTC)  # lunes 15:00 en UTC-3
+    menus_service.crear_promocion(
+        db,
+        PromocionCrear.model_validate(
+            {
+                "nombre": "Promo S4-02",
+                "tipo": "PORCENTAJE",
+                "producto_ids": [catalogo.plato_id],
+                "fecha_desde": date(2026, 11, 1),
+                "fecha_hasta": date(2026, 11, 30),
+                "dias_semana": ["LUNES"],
+                "descuento_porcentaje": 10,
+            }
+        ),
+    )
+    comanda = atencion_service.crear_comanda(
+        db,
+        ComandaCrear(
+            mesa_id=catalogo.mesa_id,
+            detalles=[DetalleComandaCrear(producto_id=catalogo.plato_id, cantidad=2)],
+        ),
+        MesasDeSalon(),
+        CatalogoDeCarta(ahora=lambda: momento),
+    )
+    [detalle] = comanda.detalles
+    atencion_service.registrar_entrega(
+        db, comanda.id, detalle.id, EntregaDetalle(cantidad_entregada=2)
+    )
+    atencion_service.cerrar_comanda(db, comanda.id, MesasDeSalon())
+
+    respuesta = cliente.get(f"{RUTA}/previsualizar", params={"comanda_id": comanda.id})
+
+    cuerpo = respuesta.json()
+    assert respuesta.status_code == 200
+    assert cuerpo["detalles"][0]["descuento"] == "300.10"
+    assert cuerpo["detalles"][0]["subtotal"] == "2700.90"
+    assert cuerpo["total"] == "2700.90"

@@ -1,7 +1,7 @@
 """pagos: reglas de negocio y transacciones."""
 
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from sqlalchemy.exc import IntegrityError
@@ -12,6 +12,9 @@ from app.modules.menus import service as menus_service
 from app.modules.pagos import comprobante_pdf, repository
 from app.modules.pagos.models import Cobro, DetalleFactura, EstadoFactura, Factura, MedioPago
 from app.modules.pagos.schemas import (
+    AdeudadoSalida,
+    CajaDelDiaSalida,
+    CobradoPorMedio,
     CobroCrear,
     ComprobanteSalida,
     DetalleFacturaSalida,
@@ -139,6 +142,11 @@ def _a_detalle_factura(
         descuento=linea.descuento,
         subtotal=subtotal,
     )
+
+
+def esta_facturada(db: Session, comanda_id: int) -> bool:
+    """Indica si existe una factura asociada a la Comanda, sin importar su estado."""
+    return repository.existe_factura_de_comanda(db, comanda_id)
 
 
 def _preparar_detalles(db: Session, comanda_id: int) -> list[DetalleFactura]:
@@ -293,4 +301,38 @@ def generar_pdf_comprobante(db: Session, numero_comprobante: int) -> ArchivoComp
     return ArchivoComprobante(
         contenido=renderizar(documento),
         nombre=f"comprobante-{comprobante.numero_comprobante}.pdf",
+    )
+
+
+def _ahora() -> datetime:
+    return datetime.now(UTC)
+
+
+def _redondear(valor: object) -> Decimal:
+    """SQLite suma en coma flotante: se vuelve a 2 decimales."""
+    return Decimal(str(valor)).quantize(CENTAVO)
+
+
+def obtener_caja_del_dia(db: Session, ahora: datetime | None = None) -> CajaDelDiaSalida:
+    """S4-06: lo cobrado hoy por medio de pago y lo adeudado; el dia es el del restaurante."""
+    zona = comprobante_pdf.ZONA_DEL_RESTAURANTE
+    hoy = (ahora or _ahora()).astimezone(zona).date()
+    desde = datetime(hoy.year, hoy.month, hoy.day, tzinfo=zona).astimezone(UTC)
+    filas = repository.sumar_cobros_por_medio(db, desde, desde + timedelta(days=1))
+    por_medio = [
+        CobradoPorMedio(
+            medio_pago_id=fila.medio_pago_id,
+            nombre=fila.nombre,
+            tipo=fila.tipo,
+            cantidad_cobros=fila.cantidad_cobros,
+            monto=_redondear(fila.monto),
+        )
+        for fila in filas
+    ]
+    cantidad, saldo = repository.resumir_facturas_adeudadas(db)
+    return CajaDelDiaSalida(
+        fecha=hoy,
+        por_medio_pago=por_medio,
+        total_cobrado=sum((medio.monto for medio in por_medio), Decimal("0.00")),
+        adeudado=AdeudadoSalida(cantidad_facturas=cantidad, monto=_redondear(saldo)),
     )

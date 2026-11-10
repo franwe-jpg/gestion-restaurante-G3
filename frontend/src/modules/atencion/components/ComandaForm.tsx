@@ -1,13 +1,17 @@
+import { Alert } from '../../../shared/components/ui/alert';
 import { Button } from '../../../shared/components/ui/button';
 import { FormField } from '../../../shared/components/ui/form-field';
-import { Input } from '../../../shared/components/ui/input';
+import { Select } from '../../../shared/components/ui/select';
 import { Textarea } from '../../../shared/components/ui/textarea';
+import { etiquetaMesa } from './catalogoComanda';
 import { DetallePedidoFila } from './DetallePedidoFila';
+import { useCatalogoComanda } from './useCatalogoComanda';
 import { usePedido } from './usePedido';
 
 type Pedido = ReturnType<typeof usePedido>;
+type Catalogo = ReturnType<typeof useCatalogoComanda>;
 
-function LineasPedido({ pedido }: { pedido: Pedido }) {
+function LineasPedido({ pedido, catalogo }: { pedido: Pedido; catalogo: Catalogo }) {
   return (
     <>
       {pedido.lineas.map((linea, i) => (
@@ -16,6 +20,8 @@ function LineasPedido({ pedido }: { pedido: Pedido }) {
           linea={linea}
           numero={i + 1}
           puedeQuitar={pedido.lineas.length > 1}
+          productos={catalogo.productos}
+          menus={catalogo.menus}
           onChange={pedido.cambiar}
           onQuitar={() => pedido.quitar(linea.clave)}
         />
@@ -27,21 +33,37 @@ function LineasPedido({ pedido }: { pedido: Pedido }) {
   );
 }
 
-function CamposPedido({ pedido }: { pedido: Pedido }) {
+function CampoMesa({ pedido, catalogo }: { pedido: Pedido; catalogo: Catalogo }) {
+  const { mesasLibres } = catalogo;
+  return (
+    <FormField id="comanda-mesa" label="Mesa">
+      <Select
+        id="comanda-mesa"
+        value={pedido.mesa}
+        onChange={(e) => pedido.setMesa(e.target.value)}
+      >
+        {mesasLibres.length === 0 ? (
+          <option value="">{catalogo.cargando ? 'Cargando mesas…' : 'No hay mesas libres'}</option>
+        ) : (
+          <>
+            <option value="">Seleccioná una mesa</option>
+            {mesasLibres.map((m) => (
+              <option key={m.id} value={String(m.id)}>
+                {etiquetaMesa(m)}
+              </option>
+            ))}
+          </>
+        )}
+      </Select>
+    </FormField>
+  );
+}
+
+function CamposPedido({ pedido, catalogo }: { pedido: Pedido; catalogo: Catalogo }) {
   return (
     <fieldset disabled={pedido.guardando} className="space-y-3">
-      <FormField id="comanda-mesa" label="Mesa (ID)">
-        <Input
-          id="comanda-mesa"
-          required
-          type="number"
-          min="1"
-          step="1"
-          value={pedido.mesa}
-          onChange={(e) => pedido.setMesa(e.target.value)}
-        />
-      </FormField>
-      <LineasPedido pedido={pedido} />
+      <CampoMesa pedido={pedido} catalogo={catalogo} />
+      <LineasPedido pedido={pedido} catalogo={catalogo} />
       <FormField id="comanda-observaciones" label="Observaciones">
         <Textarea
           id="comanda-observaciones"
@@ -54,17 +76,27 @@ function CamposPedido({ pedido }: { pedido: Pedido }) {
   );
 }
 
-export function ComandaForm({ onCreada }: { onCreada: () => void }) {
-  const pedido = usePedido(onCreada);
+export function ComandaForm({
+  onCreada,
+  mesaInicial,
+}: {
+  onCreada: () => void;
+  mesaInicial?: string;
+}) {
+  const catalogo = useCatalogoComanda({ conMesas: true });
+  const pedido = usePedido(onCreada, mesaInicial, catalogo.mesasLibres);
+  const bloqueado =
+    pedido.guardando ||
+    catalogo.cargando ||
+    catalogo.error !== null ||
+    catalogo.mesasLibres.length === 0;
   return (
     <form onSubmit={(e) => void pedido.enviar(e)} className="space-y-4">
-      <p>
-        Las referencias se ingresan por ID hasta integrar los selectores de Mesa y catálogo. El
-        precio se calcula en el servidor.
-      </p>
-      <CamposPedido pedido={pedido} />
+      <p>El precio se calcula en el servidor.</p>
+      {catalogo.error && <Alert variant="danger">{catalogo.error}</Alert>}
+      <CamposPedido pedido={pedido} catalogo={catalogo} />
       {pedido.error && <p role="alert">{pedido.error}</p>}
-      <Button type="submit" disabled={pedido.guardando}>
+      <Button type="submit" disabled={bloqueado}>
         Guardar comanda
       </Button>
     </form>

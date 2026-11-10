@@ -1,8 +1,9 @@
 """reservas: endpoints HTTP. Solo delega al service (D-02)."""
 
+from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -15,6 +16,7 @@ from app.modules.reservas.schemas import (
     ReservaCrear,
     ReservaModificar,
     ReservaSalida,
+    ResumenReservas,
 )
 from app.shared.contratos.comanda import ComandaSalida
 from app.shared.paginacion import Pagina
@@ -67,3 +69,22 @@ def cancelar_por_ausencia(reserva_id: int, db: Sesion) -> ReservaSalida:
 @router.post("/reservas/{reserva_id}/comanda", status_code=status.HTTP_201_CREATED)
 def crear_comanda(reserva_id: int, datos: ComandaDesdeReservaCrear, db: Sesion) -> ComandaSalida:
     return service.crear_comanda(db, reserva_id, datos)
+
+
+@router.get("/reportes/reservas-ausentismo")
+def reporte_reservas_ausentismo(
+    db: Sesion, fecha_desde: date | None = None, fecha_hasta: date | None = None
+) -> ResumenReservas:
+    return service.generar_reporte_reservas_ausentismo(db, fecha_desde, fecha_hasta)
+
+
+@router.get("/reportes/reservas-ausentismo/pdf")
+def reporte_reservas_ausentismo_pdf(
+    db: Sesion, fecha_desde: date | None = None, fecha_hasta: date | None = None
+) -> Response:
+    archivo = service.generar_pdf_reservas_ausentismo(db, fecha_desde, fecha_hasta)
+    return Response(
+        content=archivo.contenido,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{archivo.nombre}"'},
+    )

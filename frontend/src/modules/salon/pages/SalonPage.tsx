@@ -1,6 +1,7 @@
 import { Plus } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { PageHeader } from '../../../shared/components/PageHeader';
 import { Button } from '../../../shared/components/ui/button';
@@ -102,6 +103,7 @@ function SeccionMesas({
 }) {
   const { mesas, cargando, error, recargar, paginacion } = useMesasDelSalon(refresco);
   const { eliminar } = useBajaMesa({ onEliminada: recargar });
+  const navegar = useNavigate();
 
   return (
     <SeccionListado paginacion={paginacion}>
@@ -112,6 +114,7 @@ function SeccionMesas({
         onReintentar={recargar}
         onEditar={onEditar}
         onEliminar={(mesa) => void eliminar(mesa)}
+        onAbrirComanda={(mesa) => navegar(`/atencion?mesa=${mesa.id}`)}
       />
     </SeccionListado>
   );
