@@ -10,7 +10,7 @@ import { DetalleDeMesaDialog } from './DetalleDeMesaDialog';
 import { ErrorDelBloque } from './ErrorDelBloque';
 import { FiltrosDelMapa } from './FiltrosDelMapa';
 import { LeyendaDelMapa } from './LeyendaDelMapa';
-import { agruparPorSector, contarPorEstado, filtrarMesas } from './mapaDelLocal';
+import { agruparPorSector, contarPorEstado, filtrarMesas } from './logicaMapaDelLocal';
 import { PlanoDelLocal } from './PlanoDelLocal';
 import type { FiltroDelMapa, MesaDelMapa } from './types';
 

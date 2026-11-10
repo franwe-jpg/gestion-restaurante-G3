@@ -1,7 +1,7 @@
-import { cumpleEstado } from './mapaDelLocal';
+import { cumpleEstado } from './logicaMapaDelLocal';
 import { ContornoDelPlano } from './ContornoDelPlano';
 import { MesaDelMapa } from './MesaDelMapa';
-import { ANCHO_POR_DEFECTO, asignarTipos, escalaDelPlano, generarPlano } from './planoDelLocal';
+import { ANCHO_POR_DEFECTO, asignarTipos, escalaDelPlano, generarPlano } from './logicaPlanoDelLocal';
 import type { Ambiente, FiltroEstado, MesaDelMapa as Mesa, SectorDelMapa } from './types';
 import { useAnchoDelElemento } from './useAnchoDelElemento';
 

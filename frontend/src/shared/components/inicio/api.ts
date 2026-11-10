@@ -2,7 +2,7 @@ import { clienteHttp } from '../../api/client';
 import type { Pagina, RespuestaApi } from '../../types';
 
 import { armarComanda } from './detalleDeMesa';
-import { clasificarMesas } from './mapaDelLocal';
+import { clasificarMesas } from './logicaMapaDelLocal';
 import type {
   CajaDelDia,
   ClienteApi,

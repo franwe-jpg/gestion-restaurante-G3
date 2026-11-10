@@ -1,7 +1,7 @@
 // Plano generado del local (S4-06). `Mesa` no guarda posición ni el local tiene geometría, así que
 // el contorno se arma con reglas fijas: salón con entrada, cocina y barra; salas rectangulares
 // que alternan de lado; terraza con baranda curva. Todo en px del plano.
-import { formaDeMesa } from './mapaDelLocal';
+import { formaDeMesa } from './logicaMapaDelLocal';
 import type {
   Abertura,
   Ambiente,

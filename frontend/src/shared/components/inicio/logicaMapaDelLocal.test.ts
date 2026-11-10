@@ -8,7 +8,7 @@ import {
   describirMesa,
   filtrarMesas,
   formaDeMesa,
-} from './mapaDelLocal';
+} from './logicaMapaDelLocal';
 import type { MesaApi, ReservaActiva } from './types';
 
 function reserva(mesa_id: number, hora: string): ReservaActiva {
