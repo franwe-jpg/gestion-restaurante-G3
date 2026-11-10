@@ -1,6 +1,7 @@
 """Consultas de clientes y comandas; la transacción pertenece al servicio."""
 
 from datetime import datetime
+from decimal import Decimal
 
 from sqlalchemy import Integer, cast, exists, func, or_, select, update
 from sqlalchemy.orm import Session, selectinload
@@ -136,6 +137,34 @@ def promocion_fue_aplicada(db: Session, promocion_id: int) -> bool:
     """Indica si alguna línea de comanda referencia la promoción; solo lectura."""
     consulta = select(DetalleComanda.id).where(DetalleComanda.promocion_id == promocion_id).limit(1)
     return db.scalar(consulta) is not None
+
+
+def sumar_ventas_por_mozo_mesa(
+    db: Session, desde: datetime, hasta: datetime, mesa_ids: list[int] | None = None
+) -> list[tuple[int | None, int, Decimal]]:
+    """Suma el total de cada comanda por mozo y mesa; solo lectura, sin commit.
+
+    Cuentan las comandas ABIERTA y CERRADA con `desde <= fecha_hora < hasta` (UTC).
+    El total de una comanda es `cantidad * precio_unitario - descuento` por línea.
+    Con `mesa_ids`, solo se consideran las comandas de esas mesas.
+    """
+    total = func.sum(
+        DetalleComanda.cantidad * DetalleComanda.precio_unitario - DetalleComanda.descuento
+    )
+    consulta = (
+        select(Comanda.mozo_id, Comanda.mesa_id, total)
+        .join(DetalleComanda, DetalleComanda.comanda_id == Comanda.id)
+        .where(
+            Comanda.fecha_hora >= desde,
+            Comanda.fecha_hora < hasta,
+            Comanda.estado.in_([EstadoComanda.ABIERTA, EstadoComanda.CERRADA]),
+            Comanda.mozo_id.is_not(None),
+        )
+        .group_by(Comanda.mozo_id, Comanda.mesa_id)
+    )
+    if mesa_ids is not None:
+        consulta = consulta.where(Comanda.mesa_id.in_(mesa_ids))
+    return [tuple(fila) for fila in db.execute(consulta)]
 
 
 def sumar_productos_pedidos(

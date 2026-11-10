@@ -69,3 +69,22 @@ export interface MozoCrear {
 
 // HU-M3-10: modificación de mozos. El estado no se envía: lo conserva el mozo.
 export type MozoModificar = MozoCrear;
+
+// HU-M3-13: reporte de mesas atendidas y ventas por mozo. Los importes son texto decimal.
+export interface LineaReporteMozo {
+  mozo_id: number;
+  nombre: string;
+  apellido: string;
+  mesas_atendidas: number;
+  total_ventas: string;
+  promedio_por_mesa: string;
+}
+
+export interface ReporteMesasVentasPorMozo {
+  fecha_desde: string;
+  fecha_hasta: string;
+  lineas: LineaReporteMozo[];
+  total_mesas_atendidas: number;
+  total_ventas: string;
+  promedio_general: string;
+}

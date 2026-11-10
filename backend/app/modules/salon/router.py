@@ -1,5 +1,6 @@
 """salon: endpoints HTTP. Solo delega al service (D-02)."""
 
+from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, status
@@ -16,6 +17,7 @@ from app.modules.salon.schemas import (
     MozoCrear,
     MozoModificar,
     MozoSalida,
+    ReporteMesasVentasPorMozo,
     SectorCrear,
     SectorModificar,
     SectorSalida,
@@ -87,3 +89,14 @@ def modificar_mozo(mozo_id: int, datos: MozoModificar, db: Sesion) -> MozoSalida
 @router.post("/mozos/{mozo_id}/baja")
 def dar_de_baja_mozo(mozo_id: int, db: Sesion) -> MozoSalida:
     return service.dar_de_baja_mozo(db, mozo_id)
+
+
+@router.get("/reportes/mesas-ventas-por-mozo")
+def reporte_mesas_ventas_por_mozo(
+    db: Sesion,
+    fecha_desde: date | None = None,
+    fecha_hasta: date | None = None,
+    mozo_id: Annotated[int | None, Query(gt=0)] = None,
+    sector_id: Annotated[int | None, Query(gt=0)] = None,
+) -> ReporteMesasVentasPorMozo:
+    return service.generar_reporte_mozos(db, fecha_desde, fecha_hasta, mozo_id, sector_id)

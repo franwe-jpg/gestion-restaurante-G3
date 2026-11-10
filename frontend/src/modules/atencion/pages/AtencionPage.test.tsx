@@ -451,6 +451,47 @@ it('impide cantidades fraccionarias y admite varias líneas de producto y menú'
   );
 });
 
+describe('AtencionPage · alta desde la página de inicio (S4-06)', () => {
+  it('?nueva=1 abre el alta y deja la URL sin el parámetro (N01)', async () => {
+    renderEn('/atencion?nueva=1');
+    expect(await screen.findByRole('heading', { name: 'Nueva comanda' })).toBeInTheDocument();
+    expect(screen.getByTestId('ubicacion')).toHaveTextContent(/^\/atencion$/);
+  });
+
+  it('sin parámetro no abre el alta (N02)', async () => {
+    renderEn('/atencion');
+    await screen.findByText('Comanda #3');
+    expect(screen.queryByRole('heading', { name: 'Nueva comanda' })).not.toBeInTheDocument();
+  });
+
+  it('ignora nueva=abc: no abre el alta ni muestra error (N03)', async () => {
+    renderEn('/atencion?nueva=abc');
+    await screen.findByText('Comanda #3');
+    expect(screen.queryByRole('heading', { name: 'Nueva comanda' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('?nueva=1&mesa=7 abre el alta con la mesa elegida y limpia la URL (N04)', async () => {
+    renderEn('/atencion?nueva=1&mesa=7');
+    expect(await screen.findByRole('heading', { name: 'Nueva comanda' })).toBeInTheDocument();
+    await screen.findByRole('option', { name: 'Mesa 7 · Salón' });
+    expect(screen.getByLabelText('Mesa')).toHaveValue('7');
+    await waitFor(() => expect(screen.getByTestId('ubicacion')).toHaveTextContent(/^\/atencion$/));
+  });
+
+  it('no vuelve a abrir el alta una vez cerrada (N05)', async () => {
+    renderEn('/atencion?nueva=1');
+    await screen.findByRole('heading', { name: 'Nueva comanda' });
+
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+
+    await waitFor(() =>
+      expect(screen.queryByRole('heading', { name: 'Nueva comanda' })).not.toBeInTheDocument(),
+    );
+    expect(screen.getByTestId('ubicacion')).toHaveTextContent(/^\/atencion$/);
+  });
+});
+
 describe('AtencionPage · enlace Mesa → Comanda (S4-03)', () => {
   it('?mesa=7 abre «Nueva comanda» con la mesa elegida y limpia el parámetro (E02)', async () => {
     renderEn('/atencion?mesa=7');

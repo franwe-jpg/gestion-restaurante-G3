@@ -1,8 +1,18 @@
 """salon: entrada y salida de la API."""
 
+from datetime import date
+from decimal import Decimal
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field, StrictInt, StringConstraints, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StrictInt,
+    StringConstraints,
+    field_serializer,
+    field_validator,
+)
 
 from app.shared.models import Estado
 from app.shared.models.enums import EstadoMesa
@@ -133,3 +143,33 @@ class FiltroMozos(ParametrosPaginacion):
     """Paginación y filtro de GET /mozos: `estado` viaja dentro del mismo modelo."""
 
     estado: Estado | None = None
+
+
+class LineaReporteMozo(BaseModel):
+    """Fila del reporte de HU-M3-13 para un mozo."""
+
+    mozo_id: int
+    nombre: str
+    apellido: str
+    mesas_atendidas: int
+    total_ventas: Decimal
+    promedio_por_mesa: Decimal
+
+    @field_serializer("total_ventas", "promedio_por_mesa")
+    def _importe(self, valor: Decimal) -> str:
+        return f"{valor:.2f}"
+
+
+class ReporteMesasVentasPorMozo(BaseModel):
+    """Reporte de mesas atendidas y ventas por mozo (HU-M3-13)."""
+
+    fecha_desde: date
+    fecha_hasta: date
+    lineas: list[LineaReporteMozo]
+    total_mesas_atendidas: int
+    total_ventas: Decimal
+    promedio_general: Decimal
+
+    @field_serializer("total_ventas", "promedio_general")
+    def _importe(self, valor: Decimal) -> str:
+        return f"{valor:.2f}"

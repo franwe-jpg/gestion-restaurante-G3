@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -64,7 +64,10 @@ beforeEach(() => {
   vi.mocked(listarMediosPago).mockResolvedValue(pagina([EFECTIVO]));
 });
 
+// Desmonta antes de resetear: un efecto pendiente (por ejemplo, el diálogo abierto con
+// `?comanda=`) no debe llamar a un mock ya reseteado, que devuelve `undefined`.
 afterEach(() => {
+  cleanup();
   vi.resetAllMocks();
 });
 

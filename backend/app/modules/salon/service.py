@@ -1,9 +1,12 @@
 """salon: reglas de negocio y transacciones."""
 
+from datetime import date
+
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.modules.salon import repository
+from app.modules.atencion import service as atencion_service
+from app.modules.salon import reporte, repository
 from app.modules.salon.models import Mesa, Mozo, Sector
 from app.modules.salon.schemas import (
     MesaCrear,
@@ -12,6 +15,7 @@ from app.modules.salon.schemas import (
     MozoCrear,
     MozoModificar,
     MozoSalida,
+    ReporteMesasVentasPorMozo,
     SectorCrear,
     SectorModificar,
     SectorResumen,
@@ -287,3 +291,19 @@ def listar_mozos(
         limit=parametros.limit,
         offset=parametros.offset,
     )
+
+
+def generar_reporte_mozos(
+    db: Session,
+    fecha_desde: date | None,
+    fecha_hasta: date | None,
+    mozo_id: int | None = None,
+    sector_id: int | None = None,
+) -> ReporteMesasVentasPorMozo:
+    """Mesas atendidas y ventas por mozo en el período (HU-M3-13). Solo lectura."""
+    desde, hasta = reporte.validar_periodo(fecha_desde, fecha_hasta)
+    mozos = repository.mozos_para_reporte(db, mozo_id)
+    mesas = repository.ids_mesas_del_sector(db, sector_id) if sector_id is not None else None
+    inicio, fin = reporte.intervalo_utc(desde, hasta)
+    ventas = atencion_service.sumar_ventas_por_mozo_mesa(db, inicio, fin, mesas)
+    return reporte.armar_reporte(desde, hasta, reporte.armar_lineas(mozos, ventas))
