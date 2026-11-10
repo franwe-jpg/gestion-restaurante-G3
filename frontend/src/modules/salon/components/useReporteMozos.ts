@@ -6,17 +6,9 @@ import { validarPeriodo } from '../validarPeriodo';
 
 const LIMITE_OPCIONES = 100;
 
-/** Estado del reporte de mesas atendidas y ventas por mozo (HU-M3-13). */
-export function useReporteMozos() {
-  const [desde, setDesde] = useState('');
-  const [hasta, setHasta] = useState('');
-  const [mozoId, setMozoId] = useState('');
-  const [sectorId, setSectorId] = useState('');
+function useOpcionesDelReporte() {
   const [mozos, setMozos] = useState<Mozo[]>([]);
   const [sectores, setSectores] = useState<Sector[]>([]);
-  const [resultado, setResultado] = useState<ReporteMesasVentasPorMozo | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [cargando, setCargando] = useState(false);
 
   useEffect(() => {
     let activo = true;
@@ -33,6 +25,20 @@ export function useReporteMozos() {
       activo = false;
     };
   }, []);
+
+  return { mozos, sectores };
+}
+
+/** Estado del reporte de mesas atendidas y ventas por mozo (HU-M3-13). */
+export function useReporteMozos() {
+  const { mozos, sectores } = useOpcionesDelReporte();
+  const [desde, setDesde] = useState('');
+  const [hasta, setHasta] = useState('');
+  const [mozoId, setMozoId] = useState('');
+  const [sectorId, setSectorId] = useState('');
+  const [resultado, setResultado] = useState<ReporteMesasVentasPorMozo | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [cargando, setCargando] = useState(false);
 
   const generar = async () => {
     setResultado(null);

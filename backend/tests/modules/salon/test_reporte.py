@@ -31,7 +31,7 @@ def _sembrar_producto(db: Session, precio: Decimal = Decimal("10.00")) -> None:
             "ingredientes, etiquetas, estado, seccion_id) "
             "VALUES (1, 'Plato', 'plato', 'PLATO', :precio, '[]', '[]', 'HABILITADO', 1)"
         ),
-        {"precio": precio},
+        {"precio": str(precio)},
     )
 
 

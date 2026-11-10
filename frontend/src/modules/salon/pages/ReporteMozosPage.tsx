@@ -12,8 +12,94 @@ import { StatCard } from '../../../shared/components/ui/stat-card';
 import { formatearMoneda } from '../../../shared/lib/format';
 import { ReporteMozosTabla } from '../components/ReporteMozosTabla';
 import { useReporteMozos } from '../components/useReporteMozos';
+import type { ReporteMesasVentasPorMozo } from '../types';
 
 const SIN_DATOS = 'No hay datos disponibles para el período seleccionado.';
+
+type EstadoReporte = ReturnType<typeof useReporteMozos>;
+
+function FiltrosReporteMozos({ reporte }: { reporte: EstadoReporte }) {
+  return (
+    <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+      <DateRangePicker
+        desde={reporte.desde}
+        hasta={reporte.hasta}
+        onCambiarDesde={reporte.setDesde}
+        onCambiarHasta={reporte.setHasta}
+        etiquetaDesde="Fecha desde"
+        etiquetaHasta="Fecha hasta"
+      />
+      <div className="space-y-1.5">
+        <Label htmlFor="reporte-mozo">Mozo</Label>
+        <Select
+          id="reporte-mozo"
+          value={reporte.mozoId}
+          onChange={(event) => reporte.setMozoId(event.target.value)}
+        >
+          <option value="">Todos los mozos</option>
+          {reporte.mozos.map((mozo) => (
+            <option key={mozo.id} value={mozo.id}>
+              {mozo.apellido}, {mozo.nombre}
+            </option>
+          ))}
+        </Select>
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="reporte-sector">Sector</Label>
+        <Select
+          id="reporte-sector"
+          value={reporte.sectorId}
+          onChange={(event) => reporte.setSectorId(event.target.value)}
+        >
+          <option value="">Todos los sectores</option>
+          {reporte.sectores.map((sector) => (
+            <option key={sector.id} value={sector.id}>
+              {sector.nombre}
+            </option>
+          ))}
+        </Select>
+      </div>
+      <Button onClick={() => void reporte.generar()} disabled={reporte.cargando}>
+        {reporte.cargando ? 'Generando…' : 'Generar'}
+      </Button>
+    </div>
+  );
+}
+
+function ResultadoReporteMozos({
+  resultado,
+  cargando,
+}: {
+  resultado: ReporteMesasVentasPorMozo;
+  cargando: boolean;
+}) {
+  return (
+    <>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatCard
+          titulo="Mesas atendidas"
+          valor={resultado.total_mesas_atendidas}
+          icono={Armchair}
+        />
+        <StatCard
+          titulo="Total vendido"
+          valor={formatearMoneda(Number(resultado.total_ventas))}
+          icono={DollarSign}
+        />
+        <StatCard
+          titulo="Promedio general por mesa"
+          valor={formatearMoneda(Number(resultado.promedio_general))}
+          icono={TrendingUp}
+        />
+      </div>
+      <Card>
+        <CardContent className="pt-6">
+          <ReporteMozosTabla lineas={resultado.lineas} cargando={cargando} />
+        </CardContent>
+      </Card>
+    </>
+  );
+}
 
 export function ReporteMozosPage() {
   const reporte = useReporteMozos();
@@ -32,76 +118,11 @@ export function ReporteMozosPage() {
         titulo="Mesas atendidas y ventas por mozo"
         descripcion="Desempeño del personal de salón en un período."
       />
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
-        <DateRangePicker
-          desde={reporte.desde}
-          hasta={reporte.hasta}
-          onCambiarDesde={reporte.setDesde}
-          onCambiarHasta={reporte.setHasta}
-          etiquetaDesde="Fecha desde"
-          etiquetaHasta="Fecha hasta"
-        />
-        <div className="space-y-1.5">
-          <Label htmlFor="reporte-mozo">Mozo</Label>
-          <Select
-            id="reporte-mozo"
-            value={reporte.mozoId}
-            onChange={(event) => reporte.setMozoId(event.target.value)}
-          >
-            <option value="">Todos los mozos</option>
-            {reporte.mozos.map((mozo) => (
-              <option key={mozo.id} value={mozo.id}>
-                {mozo.apellido}, {mozo.nombre}
-              </option>
-            ))}
-          </Select>
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="reporte-sector">Sector</Label>
-          <Select
-            id="reporte-sector"
-            value={reporte.sectorId}
-            onChange={(event) => reporte.setSectorId(event.target.value)}
-          >
-            <option value="">Todos los sectores</option>
-            {reporte.sectores.map((sector) => (
-              <option key={sector.id} value={sector.id}>
-                {sector.nombre}
-              </option>
-            ))}
-          </Select>
-        </div>
-        <Button onClick={() => void reporte.generar()} disabled={reporte.cargando}>
-          {reporte.cargando ? 'Generando…' : 'Generar'}
-        </Button>
-      </div>
+      <FiltrosReporteMozos reporte={reporte} />
       {reporte.error && <Alert variant="warning">{reporte.error}</Alert>}
       {sinDatos && <Alert variant="info">{SIN_DATOS}</Alert>}
       {resultado && !sinDatos && (
-        <>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <StatCard
-              titulo="Mesas atendidas"
-              valor={resultado.total_mesas_atendidas}
-              icono={Armchair}
-            />
-            <StatCard
-              titulo="Total vendido"
-              valor={formatearMoneda(Number(resultado.total_ventas))}
-              icono={DollarSign}
-            />
-            <StatCard
-              titulo="Promedio general por mesa"
-              valor={formatearMoneda(Number(resultado.promedio_general))}
-              icono={TrendingUp}
-            />
-          </div>
-          <Card>
-            <CardContent className="pt-6">
-              <ReporteMozosTabla lineas={resultado.lineas} cargando={reporte.cargando} />
-            </CardContent>
-          </Card>
-        </>
+        <ResultadoReporteMozos resultado={resultado} cargando={reporte.cargando} />
       )}
     </div>
   );
