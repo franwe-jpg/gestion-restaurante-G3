@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../../../shared/components/PageHeader';
 import { Button } from '../../../shared/components/ui/button';
 import { useAbrirDesdeUrl } from '../../../shared/hooks/useAbrirDesdeUrl';
@@ -34,23 +35,54 @@ function accionesAtencion(
   };
 }
 
+/** S4-03: `/atencion?mesa=<id>` abre «Nueva comanda»; se lee una vez y se quita de la URL. */
+function useEnlacesAtencion() {
+  const [parametros, setParametros] = useSearchParams();
+  const navegar = useNavigate();
+  const [mesaInicial, setMesaInicial] = useState(() => {
+    const id = Number(parametros.get('mesa'));
+    return Number.isInteger(id) && id > 0 ? String(id) : undefined;
+  });
+  useEffect(() => {
+    if (!parametros.has('mesa')) return;
+    setParametros(
+      (anteriores) => {
+        anteriores.delete('mesa');
+        return anteriores;
+      },
+      { replace: true },
+    );
+  }, [parametros, setParametros]);
+  const [alta, setAlta] = useState(mesaInicial !== undefined);
+  return {
+    alta,
+    setAlta,
+    mesaInicial,
+    abrirAlta: () => {
+      setMesaInicial(undefined);
+      setAlta(true);
+    },
+    irAFacturar: (id: number) => navegar(`/pagos?comanda=${id}`),
+  };
+}
+
 export function AtencionPage() {
   const comandas = useComandas();
-  const [alta, setAlta] = useState(false);
-  useAbrirDesdeUrl('nueva', () => setAlta(true));
+  const enlaces = useEnlacesAtencion();
+  useAbrirDesdeUrl('nueva', () => enlaces.setAlta(true));
   const [cierreId, setCierreId] = useState<number | null>(null);
   const [modificarId, setModificarId] = useState<number | null>(null);
   const [aviso, setAviso] = useState('');
   const { entregas, irAEntregas, salirDeEntregas } = useEntregasModal(setCierreId);
   const reabrir = useReabrirComanda(comandas.recargar, setAviso);
   const anular = useAnularComanda(comandas.recargar, setAviso);
-  const acciones = accionesAtencion(comandas.recargar, setAlta, setCierreId, setAviso);
+  const acciones = accionesAtencion(comandas.recargar, enlaces.setAlta, setCierreId, setAviso);
   return (
     <div className="space-y-6">
       <PageHeader
         titulo="Atención al Público"
         descripcion="Toma de pedidos, seguimiento de comandas y estado de servicio en cocina."
-        acciones={<Button onClick={() => setAlta(true)}>Nueva comanda</Button>}
+        acciones={<Button onClick={enlaces.abrirAlta}>Nueva comanda</Button>}
       />
       <PanelClientes />
       <ComandasPanel
@@ -61,13 +93,15 @@ export function AtencionPage() {
         onModificar={setModificarId}
         onReabrir={(id) => void reabrir(id)}
         onAnular={(id) => void anular(id)}
+        onFacturar={enlaces.irAFacturar}
       />
       <AtencionDialogs
-        alta={alta}
+        alta={enlaces.alta}
+        mesaInicial={enlaces.mesaInicial}
         cierreId={cierreId}
         modificarId={modificarId}
         entregas={entregas}
-        onAlta={setAlta}
+        onAlta={enlaces.setAlta}
         onCreada={acciones.creada}
         onSalirCierre={() => setCierreId(null)}
         onCerrada={acciones.cerrada}

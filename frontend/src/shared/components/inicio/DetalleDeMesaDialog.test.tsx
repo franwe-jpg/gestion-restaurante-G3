@@ -126,7 +126,7 @@ describe('DetalleDeMesaDialog', () => {
     expect(dialogo).toHaveTextContent('Mientras tanto la mesa se puede usar.');
     expect(within(dialogo).getByRole('link', { name: 'Nueva comanda' })).toHaveAttribute(
       'href',
-      '/atencion?nueva=1',
+      '/atencion?mesa=2',
     );
   });
 
@@ -150,7 +150,7 @@ describe('DetalleDeMesaDialog', () => {
     expect(dialogo).toHaveTextContent('La mesa está libre y no tiene una comanda abierta.');
     expect(within(dialogo).getByRole('link', { name: 'Nueva comanda' })).toHaveAttribute(
       'href',
-      '/atencion?nueva=1',
+      '/atencion?mesa=2',
     );
     expect(api.obtenerComandaAbierta).not.toHaveBeenCalled();
   });

@@ -84,3 +84,13 @@ describe('API de clientes', () => {
     expect(put).toHaveBeenCalledWith('/clientes/7', datos);
   });
 });
+
+it('lista mesas, productos (todos) y menús con límite 100 para los selectores', async () => {
+  const get = vi.spyOn(clienteHttp, 'get').mockResolvedValue({ exito: true, datos: null });
+  await api.listarMesas();
+  await api.listarProductos();
+  await api.listarMenusEjecutivos();
+  expect(get).toHaveBeenCalledWith('/mesas?limit=100');
+  expect(get).toHaveBeenCalledWith('/productos?estado=TODOS&limit=100');
+  expect(get).toHaveBeenCalledWith('/menus-ejecutivos?limit=100');
+});

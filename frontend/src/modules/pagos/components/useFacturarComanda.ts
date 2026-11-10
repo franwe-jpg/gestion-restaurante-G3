@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { useToast } from '../../../shared/hooks/useToast';
 import { generarFactura, previsualizarFactura } from '../api';
@@ -42,14 +42,55 @@ function enviarCobro(previa: FacturaPrevia, medioPagoId: string, importe: string
   });
 }
 
-/** HU-M6-01: primero la vista previa de la comanda; luego medio de pago, importe y confirmar. */
-export function useFacturarComanda({ onGenerada }: { onGenerada: () => void }) {
-  const { mostrarToast } = useToast();
-  const [comanda, setComanda] = useState('');
+interface Destinos {
+  setErrores: (errores: ErroresFacturar) => void;
+  setPrevia: (previa: FacturaPrevia) => void;
+  setImporte: (importe: string) => void;
+}
+
+/** S4-03: al llegar por el enlace desde Atención, pide la vista previa sin pasar por el campo. */
+function usePreviaInicial(comandaInicial: string | undefined, destinos: Destinos) {
+  const { setErrores, setPrevia, setImporte } = destinos;
+  useEffect(() => {
+    if (!comandaInicial) return;
+    let vigente = true;
+    void pedirPrevia(comandaInicial).then((resultado) => {
+      if (!vigente) return;
+      setErrores(resultado.errores);
+      if (!resultado.previa) return;
+      setPrevia(resultado.previa);
+      setImporte(resultado.previa.total);
+    });
+    return () => {
+      vigente = false;
+    };
+  }, [comandaInicial, setErrores, setPrevia, setImporte]);
+}
+
+function useEstadoFactura(comandaInicial: string | undefined) {
+  const [comanda, setComanda] = useState(comandaInicial ?? '');
   const [previa, setPrevia] = useState<FacturaPrevia | null>(null);
   const [medioPagoId, setMedioPagoId] = useState('');
   const [importe, setImporte] = useState('');
   const [errores, setErrores] = useState<ErroresFacturar>({});
+  usePreviaInicial(comandaInicial, { setErrores, setPrevia, setImporte });
+  return {
+    ...{ comanda, setComanda, previa, setPrevia, medioPagoId, setMedioPagoId },
+    ...{ importe, setImporte, errores, setErrores },
+  };
+}
+
+/** HU-M6-01: primero la vista previa de la comanda; luego medio de pago, importe y confirmar. */
+export function useFacturarComanda({
+  onGenerada,
+  comandaInicial,
+}: {
+  onGenerada: () => void;
+  comandaInicial?: string;
+}) {
+  const { mostrarToast } = useToast();
+  const estado = useEstadoFactura(comandaInicial);
+  const { comanda, previa, medioPagoId, importe, setErrores, setPrevia, setImporte } = estado;
   const [enviando, setEnviando] = useState(false);
 
   const verFactura = async () => {
@@ -80,17 +121,5 @@ export function useFacturarComanda({ onGenerada }: { onGenerada: () => void }) {
     onGenerada();
   };
 
-  return {
-    comanda,
-    setComanda,
-    previa,
-    medioPagoId,
-    setMedioPagoId,
-    importe,
-    setImporte,
-    errores,
-    enviando,
-    verFactura,
-    confirmar,
-  };
+  return { ...estado, enviando, verFactura, confirmar };
 }

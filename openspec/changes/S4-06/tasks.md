@@ -63,7 +63,7 @@ El schema del elemento se llama `CobradoPorMedio` (nombre del diseño; la spec n
 - [x] 4c.1 Rojo: `detalleDeMesa.test.ts` (`armarComanda`, `horaDelDia`), `api.test.ts` (`obtenerComandaAbierta`, `obtenerCliente`), `DetalleDeMesaDialog.test.tsx` (un caso por estado, carga, error y reintento, cliente no encontrado, cerrar) y `MapaDelLocal.test.tsx` (mesas como botones; elegir marca y abre, cerrar desmarca). Fixtures de reservas con `id`, `cliente_id` y `cantidad_personas`. (I29–I36)
 - [x] 4c.2 Verde: `ReservaActiva` completa y `MesaDelMapa.reserva`; `detalleDeMesa.ts`; `obtenerComandaAbierta` y `obtenerCliente` en `api.ts`; `DetalleDeMesaDialog.tsx`, `ComandaDeLaMesa.tsx`, `ReservaDeLaMesa.tsx`; `MesaDelMapa` como `button` con contorno de selección; `estilos.ts` (enlace con aspecto de botón, compartido con `AccesosRapidos`). (decisión Detalle de la mesa)
 - [x] 4c.3 Comprobación visual con datos reales: detalle de mesa ocupada y con reserva (escritorio y 375 px), apertura con teclado (Enter) y cierre con Escape.
-- [ ] 4c.4 Seguimiento: cuando S4-03 permita preseleccionar la mesa en el alta, «Nueva comanda» del detalle debe pasarla.
+- [x] 4c.4 Seguimiento: con S4-03 integrado, «Nueva comanda» del detalle lleva a `/atencion?mesa=<id>` y abre el alta con la mesa elegida.
 
 ## 5. Frontend: apertura de altas en M4 y M5 (avisar a sus responsables)
 

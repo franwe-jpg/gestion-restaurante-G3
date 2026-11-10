@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render as renderBase, screen, waitFor } from '@testing-library/react';
+import type { ReactElement } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -7,6 +8,11 @@ import type { Cliente } from '../types';
 import { AtencionPage } from './AtencionPage';
 
 vi.mock('../api');
+
+// AtencionPage usa el router (enlaces S4-03).
+function render(ui: ReactElement) {
+  return renderBase(ui, { wrapper: MemoryRouter });
+}
 afterEach(() => vi.resetAllMocks());
 beforeEach(() => {
   vi.mocked(listarComandas).mockResolvedValue({
@@ -21,11 +27,7 @@ const CLIENTES: Cliente[] = [
 ];
 
 function renderizarPagina() {
-  return render(
-    <MemoryRouter initialEntries={['/atencion']}>
-      <AtencionPage />
-    </MemoryRouter>,
-  );
+  return render(<AtencionPage />);
 }
 
 function responder(items: Cliente[], total = items.length, offset = 0) {

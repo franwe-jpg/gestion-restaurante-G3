@@ -107,3 +107,20 @@ describe('MesasTabla: acciones', () => {
     expect(onEditar).toHaveBeenCalledWith(SALON_2);
   });
 });
+
+describe('MesasTabla: abrir comanda', () => {
+  it('ofrece «Abrir comanda» solo en mesas LIBRE y llama a onAbrirComanda (E01, E03)', () => {
+    const onAbrirComanda = vi.fn();
+    render(
+      <MesasTabla
+        mesas={[SALON_1, SALON_2, TERRAZA_1]}
+        onEditar={vi.fn()}
+        onEliminar={vi.fn()}
+        onAbrirComanda={onAbrirComanda}
+      />,
+    );
+    expect(screen.getAllByRole('button', { name: /^Abrir comanda en la mesa/ })).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir comanda en la mesa 1' }));
+    expect(onAbrirComanda).toHaveBeenCalledWith(SALON_1);
+  });
+});

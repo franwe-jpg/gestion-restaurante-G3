@@ -1,4 +1,6 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render as renderBase, screen, waitFor, within } from '@testing-library/react';
+import type { ReactElement } from 'react';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ConfirmContext } from '../../../shared/components/ui/confirm-context';
@@ -23,6 +25,16 @@ import type { Mesa, Mozo, Sector } from '../types';
 import { SalonPage } from './SalonPage';
 
 vi.mock('../api');
+
+// SalonPage usa useNavigate (enlace Mesa → Comanda): toda prueba necesita un router.
+function render(ui: ReactElement) {
+  return renderBase(ui, { wrapper: MemoryRouter });
+}
+
+function UbicacionActual() {
+  const ubicacion = useLocation();
+  return <p data-testid="ubicacion">{ubicacion.pathname + ubicacion.search}</p>;
+}
 
 const SALON: Sector = {
   id: 1,
@@ -853,5 +865,20 @@ describe('SalonPage: baja de mozo', () => {
     expect(await screen.findByText(mensaje)).toBeInTheDocument();
     expect(screen.getByText('Habilitado')).toBeInTheDocument();
     expect(listarMozos).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('SalonPage: enlace Mesa → Comanda', () => {
+  it('«Abrir comanda» navega a /atencion?mesa=<id> (E01)', async () => {
+    vi.mocked(listarMesas).mockResolvedValue(paginaMesas([MESA_SALON]));
+    renderBase(
+      <MemoryRouter initialEntries={['/salon']}>
+        <SalonPage />
+        <UbicacionActual />
+      </MemoryRouter>,
+    );
+    fireEvent.click(await screen.findByRole('tab', { name: 'Mesas' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Abrir comanda en la mesa 1' }));
+    expect(screen.getByTestId('ubicacion')).toHaveTextContent('/atencion?mesa=1');
   });
 });

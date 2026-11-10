@@ -33,7 +33,7 @@ Red de seguridad previa: no hubo pruebas rotas previas (el worktree parte de `cc
 - `app/main.py` (compartido): se agregó el manejador de `Exception` para cumplir K10 (`{"detalle": ...}` sin trazas). Avisar al equipo.
 - Formato de importes: `formatearMoneda` compartido (`$ 1.500,00`), no el `$ <monto>` de Pagos.
 - Plano generado con contorno irregular (decisión en `design.md`): ni `Mesa` ni el local tienen geometría; salón en L con entrada, cocina y barra, salas alternadas, terraza curva; grilla por ambiente, forma por capacidad, el filtro de estado atenúa en lugar de ocultar (I06 cambió); cada mesa es un botón que abre su detalle (R4). El tipo de ambiente sale del nombre y de la cantidad de mesas (`Supuesto:` en la spec).
-- Detalle de la mesa (R4): carga perezosa por `inicio/api.ts`; sin `GET /clientes/{id}` en M4 se recorren las páginas de `/clientes`; número de comanda = `id`; importe con descuento como Atención al Público; sin «Cerrar y cobrar»; «Nueva comanda» no preselecciona la mesa (seguimiento con S4-03, tarea 4c.4).
+- Detalle de la mesa (R4): carga perezosa por `inicio/api.ts`; sin `GET /clientes/{id}` en M4 se recorren las páginas de `/clientes`; número de comanda = `id`; importe con descuento como Atención al Público; sin «Cerrar y cobrar»; «Nueva comanda» lleva a `/atencion?mesa=<id>` y preselecciona la mesa (tarea 4c.4, hecha al integrar S4-03).
 - Tablas del mapa: «Todas (n)» se agregó como pestaña para quitar el filtro de estado.
 - Sin migración de Alembic.
 - Pendiente para el PR (tareas 7.1-7.4): diferencias con la maqueta, aviso a responsables de M4, M5 y M6 y posible conflicto con S4-03 en `AtencionPage`/sus pruebas; supuestos 1, 4 y 5, hora de reserva más temprana y UTC-3.

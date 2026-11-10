@@ -67,6 +67,11 @@ function useEnvioModificacion(
   async function enviar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault();
     if (!puedeEnviar() || guardando) return;
+    const sinElegir = nuevas.findIndex((linea) => !linea.referencia);
+    if (sinElegir >= 0) {
+      setError(`Elegí un producto o menú en la línea ${sinElegir + 1}`);
+      return;
+    }
     setGuardando(true);
     setError('');
     setAviso('');

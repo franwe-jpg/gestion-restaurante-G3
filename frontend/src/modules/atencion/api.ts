@@ -8,6 +8,9 @@ import type {
   EntregaDetalle,
   EntregasComanda,
   FiltroComandas,
+  MenuEjecutivoSeleccionable,
+  MesaSeleccionable,
+  ProductoSeleccionable,
   PendientesComanda,
 } from './types';
 import type { Cliente, ClienteModificar, PaginaCliente } from './types';
@@ -87,4 +90,22 @@ export function modificarCliente(
   datos: ClienteModificar,
 ): Promise<RespuestaApi<Cliente>> {
   return clienteHttp.put<Cliente, ClienteModificar>(`/clientes/${id}`, datos);
+}
+
+const LIMITE_CATALOGO = 100;
+
+export function listarMesas(): Promise<RespuestaApi<Pagina<MesaSeleccionable>>> {
+  return clienteHttp.get<Pagina<MesaSeleccionable>>(`/mesas?limit=${LIMITE_CATALOGO}`);
+}
+
+export function listarProductos(): Promise<RespuestaApi<Pagina<ProductoSeleccionable>>> {
+  return clienteHttp.get<Pagina<ProductoSeleccionable>>(
+    `/productos?estado=TODOS&limit=${LIMITE_CATALOGO}`,
+  );
+}
+
+export function listarMenusEjecutivos(): Promise<RespuestaApi<Pagina<MenuEjecutivoSeleccionable>>> {
+  return clienteHttp.get<Pagina<MenuEjecutivoSeleccionable>>(
+    `/menus-ejecutivos?limit=${LIMITE_CATALOGO}`,
+  );
 }

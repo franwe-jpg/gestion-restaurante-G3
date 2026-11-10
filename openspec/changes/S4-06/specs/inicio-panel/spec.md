@@ -92,7 +92,7 @@
 - `Supuesto:` el número de la comanda es su `id` (no hay otro número) y la hora de inicio es `fecha_hora` en hora local de 24 horas.
 - `Supuesto:` importe de una línea = `precio_unitario × cantidad − descuento` (como Atención al Público); una línea está entregada si `estado_entrega` es `ENTREGADO`. Si un producto o menú ya no figura, la línea se nombra «Producto n.º N» o «Menú n.º N».
 - `Supuesto:` M4 no ofrece `GET /clientes/{id}`: se recorren las páginas de `GET /clientes` y se busca el id; si no aparece se muestra «Cliente n.º N» (como Reservas).
-- `Supuesto:` «Nueva comanda» abre el alta vacía (`/atencion?nueva=1`); preseleccionar la mesa queda para cuando S4-03 lo permita.
+- «Nueva comanda» lleva a `/atencion?mesa=<id>` (el enlace de S4-03), que abre el alta con la mesa elegida.
 - `Supuesto:` el detalle no incluye «Cerrar y cobrar» de la maqueta; «Ver comanda» lleva a Atención al Público.
 
 #### Escenario I29 (abrir y cerrar)
@@ -108,7 +108,7 @@
 #### Escenario I34 (límite, cliente no encontrado o error)
 - **Dado** que el cliente de la reserva no aparece **Cuando** abro el detalle **Entonces** se muestra «Cliente n.º N · N personas»; si la consulta falla, el error con «Reintentar».
 #### Escenario I35 (libre)
-- **Dado** una mesa libre sin reserva **Cuando** abro su detalle **Entonces** dice «La mesa está libre y no tiene una comanda abierta.» y «Nueva comanda» lleva a `/atencion?nueva=1`, sin pedir datos.
+- **Dado** una mesa libre sin reserva **Cuando** abro su detalle **Entonces** dice «La mesa está libre y no tiene una comanda abierta.» y «Nueva comanda» lleva a `/atencion?mesa=<id>` de esa mesa, sin pedir datos.
 #### Escenario I36 (fuera de servicio)
 - **Dado** una mesa fuera de servicio **Cuando** abro su detalle **Entonces** dice «La mesa está fuera de servicio. Se habilita desde Salón y Mozos.».
 
@@ -127,6 +127,6 @@
 - **Dado** un importe `"1500.00"` **Cuando** se muestra **Entonces** se formatea como moneda local con el mismo formateador que usa Pagos.
 
 ## Fuera de alcance
-«Cerrar y cobrar» desde el detalle de la mesa, preselección de la mesa en «Nueva comanda» (pendiente de S4-03), posición real de las mesas y forma real del local, actualización automática, otro día que no sea hoy, y cambios en los endpoints de M3 y M5.
+«Cerrar y cobrar» desde el detalle de la mesa, posición real de las mesas y forma real del local, actualización automática, otro día que no sea hoy, y cambios en los endpoints de M3 y M5.
 
-**Diferencias con la maqueta (a anotar en el PR):** el detalle de la mesa no tiene «Cerrar y cobrar» y «Nueva comanda» no preselecciona la mesa; el contorno del local (salón en L, cocina, barra, salas, terraza curva) y la ubicación de las mesas se generan con reglas fijas, no son un dibujo a mano; el filtro de estado usa pestañas con cantidades en lugar de un selector; la caja se agrupa por medio de pago (nombre) y no por tipo.
+**Diferencias con la maqueta (a anotar en el PR):** el detalle de la mesa no tiene «Cerrar y cobrar»; el contorno del local (salón en L, cocina, barra, salas, terraza curva) y la ubicación de las mesas se generan con reglas fijas, no son un dibujo a mano; el filtro de estado usa pestañas con cantidades en lugar de un selector; la caja se agrupa por medio de pago (nombre) y no por tipo.

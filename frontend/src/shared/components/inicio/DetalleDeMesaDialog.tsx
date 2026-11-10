@@ -17,12 +17,15 @@ const ETIQUETAS: Record<EstadoVisibleMesa, { texto: string; variante: BadgeVaria
   FUERA_DE_SERVICIO: { texto: 'Fuera de servicio', variante: 'neutral' },
 };
 
-/** `Supuesto:` S4-03 permitirá preseleccionar la mesa en el alta; por ahora abre el alta vacía. */
-function MesaLibre() {
+/** Abre el alta con la mesa elegida, con el mismo enlace que Salón (`?mesa=`, S4-03). */
+function MesaLibre({ mesaId }: { mesaId: number }) {
   return (
     <div className="space-y-3">
       <p className="text-sm text-slate-600">La mesa está libre y no tiene una comanda abierta.</p>
-      <Link to="/atencion?nueva=1" className={`${ESTILO_ENLACE_BOTON} ${ENLACE_PRIMARIO} w-full`}>
+      <Link
+        to={`/atencion?mesa=${mesaId}`}
+        className={`${ESTILO_ENLACE_BOTON} ${ENLACE_PRIMARIO} w-full`}
+      >
         Nueva comanda
       </Link>
     </div>
@@ -37,7 +40,7 @@ function ContenidoDeMesa({ mesa }: { mesa: MesaDelMapa }) {
       <Badge variant={variante}>{texto}</Badge>
       {mesa.estadoVisible === 'OCUPADA' && <ComandaDeLaMesa mesaId={mesa.id} />}
       {mesa.reserva !== undefined && <ReservaDeLaMesa reserva={mesa.reserva} />}
-      {libre && <MesaLibre />}
+      {libre && <MesaLibre mesaId={mesa.id} />}
       {mesa.estadoVisible === 'FUERA_DE_SERVICIO' && (
         <p className="text-sm text-slate-600">
           La mesa está fuera de servicio. Se habilita desde Salón y Mozos.
