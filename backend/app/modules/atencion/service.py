@@ -381,6 +381,27 @@ class CantidadPedidaPorFranja:
     cantidad: int
 
 
+@dataclass(frozen=True)
+class VentaPorMozoMesa:
+    """Total vendido por un mozo en una mesa durante el período."""
+
+    mozo_id: int | None
+    mesa_id: int
+    total: Decimal
+
+
+def sumar_ventas_por_mozo_mesa(
+    db: Session, desde: datetime, hasta: datetime, mesa_ids: list[int] | None = None
+) -> list[VentaPorMozoMesa]:
+    """Lectura pública para M3 (HU-M3-13): total vendido por mozo y mesa.
+
+    Cuentan las líneas de comandas ABIERTA y CERRADA con `desde <= fecha_hora < hasta` (UTC).
+    No hace `commit` ni cambia datos.
+    """
+    filas = repository.sumar_ventas_por_mozo_mesa(db, desde, hasta, mesa_ids)
+    return [VentaPorMozoMesa(*fila) for fila in filas]
+
+
 def sumar_productos_pedidos(
     db: Session, desde: datetime, hasta: datetime, desplazamiento_horas: int
 ) -> list[CantidadPedidaPorFranja]:
