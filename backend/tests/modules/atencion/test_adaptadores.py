@@ -1,16 +1,23 @@
 """Adaptadores de M4 sobre los servicios reales de salón, productos y menús (HU-M4-04)."""
 
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 import pytest
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.modules.atencion import service as atencion_service
 from app.modules.atencion.adaptadores import CatalogoDeCarta, MesasDeSalon
 from app.modules.menus import service as menus_service
+from app.modules.menus.schemas import PromocionCrear
 from app.modules.productos import service as productos_service
 from app.modules.salon import service as salon_service
-from app.shared.contratos.comanda import DetalleComandaCrear, EstadoEntrega
+from app.shared.contratos.comanda import (
+    ComandaCrear,
+    DetalleComandaCrear,
+    EstadoEntrega,
+)
 from app.shared.excepciones import NoEncontradoError, ReglaDeNegocioError
 from app.shared.models import Categoria
 from app.shared.models.enums import EstadoMesa
@@ -125,3 +132,93 @@ def test_cotizar_menu_deshabilitado_lanza_regla(db: Session, salon) -> None:
         CatalogoDeCarta().cotizar(
             db, DetalleComandaCrear(menu_ejecutivo_id=salon.menu_id, cantidad=1)
         )
+
+
+# --- Promociones en la cotización (S4-02, issue #223) ---
+
+MOMENTO = datetime(2026, 11, 9, 18, 0, tzinfo=UTC)  # lunes 15:00 en UTC-3
+
+
+def _crear_promocion(db: Session, producto_id: int, **cambios: object):
+    datos: dict[str, object] = {
+        "nombre": "Promo S4-02",
+        "tipo": "PORCENTAJE",
+        "producto_ids": [producto_id],
+        "fecha_desde": date(2026, 11, 1),
+        "fecha_hasta": date(2026, 11, 30),
+        "dias_semana": ["LUNES"],
+        "descuento_porcentaje": 10,
+    }
+    datos.update(cambios)
+    return menus_service.crear_promocion(db, PromocionCrear.model_validate(datos))
+
+
+def test_cotizar_producto_con_promocion_vigente_aplica_descuento(db: Session, salon) -> None:
+    promocion = _crear_promocion(db, salon.plato_id)
+
+    cotizacion = CatalogoDeCarta(ahora=lambda: MOMENTO).cotizar(
+        db, DetalleComandaCrear(producto_id=salon.plato_id, cantidad=2)
+    )
+
+    assert cotizacion.precio_unitario == Decimal("1500.50")
+    assert cotizacion.descuento == Decimal("300.10")
+    assert cotizacion.promocion_id == promocion.id
+
+
+def test_cotizar_producto_con_promocion_finalizada_no_aplica(db: Session, salon) -> None:
+    promocion = _crear_promocion(db, salon.plato_id)
+    menus_service.finalizar_promocion(db, promocion.id)
+
+    cotizacion = CatalogoDeCarta(ahora=lambda: MOMENTO).cotizar(
+        db, DetalleComandaCrear(producto_id=salon.plato_id, cantidad=2)
+    )
+
+    assert cotizacion.descuento == Decimal("0.00")
+    assert cotizacion.promocion_id is None
+
+
+def test_cotizar_producto_con_promocion_fuera_de_vigencia_no_aplica(db: Session, salon) -> None:
+    _crear_promocion(
+        db,
+        salon.plato_id,
+        fecha_desde=date(2026, 12, 1),
+        fecha_hasta=date(2026, 12, 31),
+    )
+
+    cotizacion = CatalogoDeCarta(ahora=lambda: MOMENTO).cotizar(
+        db, DetalleComandaCrear(producto_id=salon.plato_id, cantidad=2)
+    )
+
+    assert cotizacion.descuento == Decimal("0.00")
+    assert cotizacion.promocion_id is None
+
+
+def test_cotizar_menu_ejecutivo_no_aplica_promocion(db: Session, salon) -> None:
+    _crear_promocion(db, salon.plato_id)
+
+    cotizacion = CatalogoDeCarta(ahora=lambda: MOMENTO).cotizar(
+        db, DetalleComandaCrear(menu_ejecutivo_id=salon.menu_id, cantidad=1)
+    )
+
+    assert cotizacion.descuento == Decimal("0.00")
+    assert cotizacion.promocion_id is None
+
+
+def test_finalizar_promocion_no_cambia_la_comanda_ya_cotizada(db: Session, salon) -> None:
+    promocion = _crear_promocion(db, salon.plato_id)
+    comanda = atencion_service.crear_comanda(
+        db,
+        ComandaCrear(
+            mesa_id=salon.mesa_id,
+            detalles=[DetalleComandaCrear(producto_id=salon.plato_id, cantidad=2)],
+        ),
+        MesasDeSalon(),
+        CatalogoDeCarta(ahora=lambda: MOMENTO),
+    )
+
+    menus_service.finalizar_promocion(db, promocion.id)
+
+    guardada = atencion_service.obtener_comanda(db, comanda.id)
+    [detalle] = guardada.detalles
+    assert detalle.descuento == Decimal("300.10")
+    assert detalle.promocion_id == promocion.id
