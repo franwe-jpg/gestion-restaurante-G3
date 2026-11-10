@@ -145,15 +145,7 @@ def crear_comanda(
 ) -> ComandaSalida:
     """Own the transaction; callers must supply real providers before HTTP wiring."""
     try:
-        datos = ComandaCrear.model_validate(datos.model_dump(warnings=False))
-        existente = repository.obtener_abierta_por_mesa(db, datos.mesa_id)
-        if existente is not None:
-            raise ComandaAbiertaError(existente.id)
-        mesas.validar_disponibilidad(db, datos.mesa_id)
-        detalles = [_cotizar(db, detalle, catalogo) for detalle in datos.detalles]
-        comanda = repository.crear_comanda(db, datos, detalles)
-        mesas.ocupar(db, datos.mesa_id)
-        salida = ComandaSalida.model_validate(comanda, from_attributes=True)
+        salida = _registrar_comanda(db, datos, mesas, catalogo)
         db.commit()
     except IntegrityError as error:
         db.rollback()
@@ -166,6 +158,41 @@ def crear_comanda(
         db.rollback()
         raise
     return salida
+
+
+def crear_comanda_para_reserva(db: Session, datos: ComandaCrear, reserva_id: int) -> ComandaSalida:
+    """Interfaz para M5 (HU-M5-06): crea la comanda de la reserva en la sesión del llamador.
+
+    Valida y ocupa la mesa como `crear_comanda`, pero no hace `commit` ni `rollback`: M5
+    confirma o revierte junto con el cambio de estado de la reserva. M5 valida la reserva
+    (activa y del día) antes de llamar; acá solo se exige un `id` positivo.
+    """
+    if reserva_id <= 0:
+        raise DatosInvalidosError("reserva_id: debe ser mayor que 0")
+    # Import diferido: productos y menús importan este service y los adaptadores a ellos.
+    adaptadores = import_module("app.modules.atencion.adaptadores")
+    return _registrar_comanda(
+        db, datos, adaptadores.MesasDeSalon(), adaptadores.CatalogoDeCarta(), reserva_id
+    )
+
+
+def _registrar_comanda(
+    db: Session,
+    datos: ComandaCrear,
+    mesas: MesasPort,
+    catalogo: CatalogoPort,
+    reserva_id: int | None = None,
+) -> ComandaSalida:
+    """Valida, cotiza, inserta y ocupa la mesa sin confirmar; el llamador cierra la transacción."""
+    datos = ComandaCrear.model_validate(datos.model_dump(warnings=False))
+    existente = repository.obtener_abierta_por_mesa(db, datos.mesa_id)
+    if existente is not None:
+        raise ComandaAbiertaError(existente.id)
+    mesas.validar_disponibilidad(db, datos.mesa_id)
+    detalles = [_cotizar(db, detalle, catalogo) for detalle in datos.detalles]
+    comanda = repository.crear_comanda(db, datos, detalles, reserva_id)
+    mesas.ocupar(db, datos.mesa_id)
+    return ComandaSalida.model_validate(comanda, from_attributes=True)
 
 
 def _cotizar(

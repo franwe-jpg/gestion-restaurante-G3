@@ -16,10 +16,14 @@ from app.shared.paginacion import ParametrosPaginacion, aplicar, contar
 
 
 def crear_comanda(
-    db: Session, datos: ComandaCrear, detalles: list[DetalleComandaSalida]
+    db: Session,
+    datos: ComandaCrear,
+    detalles: list[DetalleComandaSalida],
+    reserva_id: int | None = None,
 ) -> Comanda:
     comanda = Comanda(
         mesa_id=datos.mesa_id,
+        reserva_id=reserva_id,
         observaciones=datos.observaciones,
         estado=EstadoComanda.ABIERTA,
         detalles=[DetalleComanda(**detalle.model_dump()) for detalle in detalles],
