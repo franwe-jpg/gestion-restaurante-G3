@@ -2,7 +2,7 @@ import { Clock } from 'lucide-react';
 
 import { cn } from '../../lib/utils';
 
-import { describirMesa, formaDeMesa } from './mapaDelLocal';
+import { describirMesa, formaDeMesa } from './logicaMapaDelLocal';
 import type { EstadoVisibleMesa, FormaMesa, PosicionEnPlano } from './types';
 
 const MEDIDAS: Record<FormaMesa, string> = {

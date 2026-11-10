@@ -1,6 +1,7 @@
 """menus: endpoints HTTP. Solo delega al service (D-02)."""
 
 from collections.abc import Callable
+from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
@@ -26,6 +27,7 @@ from app.modules.menus.schemas import (
     PromocionListado,
     PromocionModificar,
     PromocionSalida,
+    ReporteImpactoPromociones,
 )
 from app.modules.productos import imagenes
 from app.shared.paginacion import Pagina
@@ -149,3 +151,13 @@ def listar_promociones(
     db: Sesion, filtro: Annotated[FiltroPromociones, Query()]
 ) -> Pagina[PromocionListado]:
     return service.listar_promociones(db, filtro)
+
+
+@router.get("/reportes/impacto-promociones")
+def reporte_impacto_promociones(
+    db: Sesion,
+    fecha_desde: date | None = None,
+    fecha_hasta: date | None = None,
+    promocion_id: Annotated[int | None, Query(gt=0)] = None,
+) -> ReporteImpactoPromociones:
+    return service.generar_reporte_impacto_promociones(db, fecha_desde, fecha_hasta, promocion_id)

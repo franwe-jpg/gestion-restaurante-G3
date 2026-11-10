@@ -24,4 +24,10 @@ export const REPORTES: ReporteDisponible[] = [
       'El desempeño de cada mozo en un período: mesas atendidas, ventas y promedio por mesa.',
     ruta: '/reportes/mesas-ventas-por-mozo',
   },
+  {
+    titulo: 'Impacto de promociones',
+    descripcion:
+      'Las ventas diarias de cada producto durante una promoción comparadas con las ventas fuera de ella.',
+    ruta: '/reportes/impacto-promociones',
+  },
 ];

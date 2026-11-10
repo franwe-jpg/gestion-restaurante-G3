@@ -115,3 +115,41 @@ export interface Promocion extends Omit<PromocionCrear, 'producto_ids'> {
 export type PromocionListado = Promocion;
 
 export type PromocionModificar = PromocionCrear;
+
+export type UnidadPromedio = 'DIA' | 'HORA';
+
+export interface PromocionReporte {
+  id: number;
+  nombre: string;
+  estado: Estado;
+  fecha_desde: string;
+  fecha_hasta: string;
+  hora_desde: string | null;
+  hora_hasta: string | null;
+}
+
+export interface LineaImpactoPromocion {
+  producto_id: number;
+  nombre: string;
+  estado: Estado;
+  promedio_durante: string | null;
+  promedio_fuera: string | null;
+  diferencia_promedio: string | null;
+  impacto_estimado: string | null;
+  variacion_porcentual: string | null;
+  cantidad_durante: number;
+  cantidad_fuera: number;
+  dias_con_ventas_promocion: number;
+}
+
+export interface ReporteImpactoPromociones {
+  promocion: PromocionReporte;
+  fecha_desde: string;
+  fecha_hasta: string;
+  dias_promocion: number;
+  dias_fuera: number;
+  horas_promocion_por_dia: string | null;
+  unidad_promedio: UnidadPromedio;
+  hay_datos: boolean;
+  lineas: LineaImpactoPromocion[];
+}

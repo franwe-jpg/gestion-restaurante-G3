@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { clasificarMesas, agruparPorSector } from './mapaDelLocal';
+import { clasificarMesas, agruparPorSector } from './logicaMapaDelLocal';
 import {
   ANCHO_POR_DEFECTO,
   asignarTipos,
@@ -9,7 +9,7 @@ import {
   escalaDelPlano,
   generarPlano,
   partirPared,
-} from './planoDelLocal';
+} from './logicaPlanoDelLocal';
 import type { Ambiente, MesaApi, Rect, SectorDelMapa } from './types';
 
 function sector(id: number, nombre: string, cantidad: number, capacidad = 4): SectorDelMapa {

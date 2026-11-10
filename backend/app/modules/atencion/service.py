@@ -2,7 +2,7 @@
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from importlib import import_module
 from typing import Protocol
@@ -388,6 +388,43 @@ class VentaPorMozoMesa:
     mozo_id: int | None
     mesa_id: int
     total: Decimal
+
+
+@dataclass(frozen=True)
+class VentaProductoFecha:
+    """Unidades de un producto en una fecha local, con o sin la promoción consultada."""
+
+    producto_id: int
+    fecha: date
+    cantidad: int
+    es_promocion: bool
+
+
+def sumar_ventas_de_promocion_por_producto_y_fecha(
+    db: Session,
+    desde: datetime,
+    hasta: datetime,
+    producto_ids: list[int],
+    promocion_id: int,
+    desplazamiento_horas: int,
+) -> list[VentaProductoFecha]:
+    """Lectura pública para M2 (HU-M2-10): ventas por producto y fecha local.
+
+    Cuentan las líneas de comandas ABIERTA y CERRADA con `desde <= fecha_hora < hasta` (UTC).
+    `es_promocion` indica si la línea usó la promoción consultada. No hace `commit`.
+    """
+    filas = repository.sumar_ventas_de_promocion_por_producto_y_fecha(
+        db, desde, hasta, producto_ids, promocion_id, desplazamiento_horas
+    )
+    return [
+        VentaProductoFecha(
+            producto_id=producto_id,
+            fecha=date.fromisoformat(fecha),
+            cantidad=cantidad,
+            es_promocion=bool(es_promocion),
+        )
+        for producto_id, fecha, es_promocion, cantidad in filas
+    ]
 
 
 def sumar_ventas_por_mozo_mesa(
