@@ -1,6 +1,6 @@
 # Exploración: HU-M3-13 (reporte de mesas atendidas y ventas por mozo)
 
-- **Issue:** por confirmar · **Épica:** #82 · **Responsable:** Giuliano Giannoncelli (M3)
+- **Issue:** #83 · **Épica:** #82 · **Responsable:** Joaquín Cardoso Díaz (JotaDiaz)
 - **Rama:** `feature/HU-M3-13-reporte-mesas-ventas-mozo`, creada desde `develop`.
 - **Cambio de una sola HU:** el reporte no comparte entidad ni flujo con las HU de ABM del salón.
 

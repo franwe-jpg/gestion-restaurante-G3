@@ -1,6 +1,6 @@
 # Propuesta: HU-M3-13 (reporte de mesas atendidas y ventas por mozo)
 
-- **Issue:** por confirmar · **Épica:** #82 · **Responsable:** Giuliano Giannoncelli
+- **Issue:** #83 · **Épica:** #82 · **Responsable:** Joaquín Cardoso Díaz (JotaDiaz)
 - **Rama:** `feature/HU-M3-13-reporte-mesas-ventas-mozo`
 
 ## Intención

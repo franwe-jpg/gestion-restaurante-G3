@@ -22,17 +22,6 @@ uvicorn app.main:app --reload     # arranca la API en http://127.0.0.1:8000
 
 Para comprobar que funciona: abrir http://127.0.0.1:8000/api/v1/salud (responde `{"estado": "ok"}`). La documentación interactiva está en http://127.0.0.1:8000/docs.
 
-## Datos de demostración
-
-Con la base migrada, desde `backend/`:
-
-```bash
-python -m scripts.poblar_base            # exige una base vacía
-python -m scripts.poblar_base --reset    # borra los datos y vuelve a poblar
-```
-
-Carga sectores, mesas, mozos, la carta completa, menús del día, menús ejecutivos, promociones, clientes, reservas, medios de pago y un histórico de comandas y facturas. Usa los `service` de cada módulo para respetar sus reglas de negocio.
-
 ## Lint y formato
 
 ```bash

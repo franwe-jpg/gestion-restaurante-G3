@@ -57,4 +57,4 @@ Chain strategy: none
   - Requiere coordinar con el responsable de M4 por la lectura agregada en `atencion.service` y por `mozo_id` en `Comanda`.
   - Sin flujo de asignación de mozo, el reporte muestra ceros.
   - Sin exportación a PDF: no está pedida por la HU.
-  - `Closes #<número del issue>` (confirmar).
+  - `Closes #83` (confirmar en el PR).
