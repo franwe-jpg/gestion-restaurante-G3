@@ -2,7 +2,7 @@
 
 from datetime import date, time
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.modules.reservas.models import EstadoReserva, Reserva
@@ -69,3 +69,18 @@ def listar_reservas(
     consulta_ordenada = consulta.order_by(Reserva.fecha, Reserva.hora, Reserva.id)
     filas = db.scalars(aplicar(consulta_ordenada, parametros)).all()
     return list(filas), contar(db, consulta)
+
+
+def contar_reservas_por_estado(db: Session, desde: date, hasta: date) -> dict[EstadoReserva, int]:
+    """Cuántas reservas hay en cada estado con `fecha` en [desde, hasta], ambos incluidos
+    (HU-M5-07).
+
+    Una sola consulta agregada, resuelta con el índice `ix_reservas_fecha_hora`. Los estados sin
+    reservas en el período no aparecen en el resultado: el que lo lee los toma como 0.
+    """
+    consulta = (
+        select(Reserva.estado, func.count(Reserva.id))
+        .where(Reserva.fecha.between(desde, hasta))
+        .group_by(Reserva.estado)
+    )
+    return dict(db.execute(consulta).all())

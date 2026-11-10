@@ -19,6 +19,13 @@ it('consulta los pendientes antes de confirmar y cierra por una acción separada
   expect(post).toHaveBeenCalledWith('/comandas/3/cerrar', {});
 });
 
+it('anula por POST de acción y conserva la respuesta HTTP', async () => {
+  const respuesta = { exito: false, datos: null, error: 'Comanda facturada' };
+  const post = vi.spyOn(clienteHttp, 'post').mockResolvedValue(respuesta);
+  expect(await api.anularComanda(3)).toBe(respuesta);
+  expect(post).toHaveBeenCalledWith('/comandas/3/anular', {});
+});
+
 it('crea usando el cuerpo de entrada S2-01 sin importes ni fecha arbitrarios', async () => {
   const post = vi.spyOn(clienteHttp, 'post').mockResolvedValue({ exito: true, datos: null });
   const datos = {
@@ -76,4 +83,14 @@ describe('API de clientes', () => {
     });
     expect(put).toHaveBeenCalledWith('/clientes/7', datos);
   });
+});
+
+it('lista mesas, productos (todos) y menús con límite 100 para los selectores', async () => {
+  const get = vi.spyOn(clienteHttp, 'get').mockResolvedValue({ exito: true, datos: null });
+  await api.listarMesas();
+  await api.listarProductos();
+  await api.listarMenusEjecutivos();
+  expect(get).toHaveBeenCalledWith('/mesas?limit=100');
+  expect(get).toHaveBeenCalledWith('/productos?estado=TODOS&limit=100');
+  expect(get).toHaveBeenCalledWith('/menus-ejecutivos?limit=100');
 });

@@ -21,6 +21,8 @@ import { useFacturarComanda } from './useFacturarComanda';
 export interface FacturarComandaDialogProps {
   onGenerada: () => void;
   onOpenChange: (abierto: boolean) => void;
+  /** Número de comanda recibido por el enlace desde Atención (S4-03). */
+  comandaInicial?: string;
 }
 
 type Formulario = ReturnType<typeof useFacturarComanda>;
@@ -130,8 +132,12 @@ function Contenido({ formulario }: { formulario: Formulario }) {
 }
 
 /** Se monta solo mientras está abierto: cada apertura empieza pidiendo la comanda. */
-export function FacturarComandaDialog({ onGenerada, onOpenChange }: FacturarComandaDialogProps) {
-  const formulario = useFacturarComanda({ onGenerada });
+export function FacturarComandaDialog({
+  onGenerada,
+  onOpenChange,
+  comandaInicial,
+}: FacturarComandaDialogProps) {
+  const formulario = useFacturarComanda({ onGenerada, comandaInicial });
   const enVistaPrevia = formulario.previa === null;
 
   return (

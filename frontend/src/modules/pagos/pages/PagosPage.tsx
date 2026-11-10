@@ -1,5 +1,6 @@
 import { Plus, Receipt } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import { PageHeader } from '../../../shared/components/PageHeader';
 import { Button } from '../../../shared/components/ui/button';
@@ -162,9 +163,31 @@ function PestanasDePagos({
   );
 }
 
+/** S4-03: `/pagos?comanda=<id>` abre «Facturar»; se lee una vez y se quita de la URL. */
+function useComandaDelEnlace() {
+  const [parametros, setParametros] = useSearchParams();
+  const [inicial] = useState(() => {
+    const id = Number(parametros.get('comanda'));
+    return Number.isInteger(id) && id > 0 ? String(id) : undefined;
+  });
+  useEffect(() => {
+    if (!parametros.has('comanda')) return;
+    setParametros(
+      (anteriores) => {
+        anteriores.delete('comanda');
+        return anteriores;
+      },
+      { replace: true },
+    );
+  }, [parametros, setParametros]);
+  return inicial;
+}
+
 export function PagosPage() {
+  const enlace = useComandaDelEnlace();
+  const [comandaInicial, setComandaInicial] = useState(enlace);
   const [pestana, setPestana] = useState('medios');
-  const [facturando, setFacturando] = useState(false);
+  const [facturando, setFacturando] = useState(enlace !== undefined);
   const [refrescoFacturas, setRefrescoFacturas] = useState(0);
   const [incluirDeshabilitados, setIncluirDeshabilitados] = useState(false);
   const listado = useMediosPagoDelModulo(incluirDeshabilitados);
@@ -174,7 +197,10 @@ export function PagosPage() {
     <div className="space-y-6">
       <EncabezadoDePagos
         pestana={pestana}
-        onFacturar={() => setFacturando(true)}
+        onFacturar={() => {
+          setComandaInicial(undefined);
+          setFacturando(true);
+        }}
         onNuevoMedioPago={() => dialogo.abrir()}
       />
       <PestanasDePagos
@@ -193,6 +219,7 @@ export function PagosPage() {
             setRefrescoFacturas((anterior) => anterior + 1);
           }}
           onOpenChange={setFacturando}
+          comandaInicial={comandaInicial}
         />
       )}
       {dialogo.abierto && (

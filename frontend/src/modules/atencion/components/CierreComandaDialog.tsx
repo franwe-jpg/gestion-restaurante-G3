@@ -3,6 +3,7 @@ import { Button } from '../../../shared/components/ui/button';
 import { Dialog } from '../../../shared/components/ui/dialog';
 import { cerrarComanda, consultarPendientes } from '../api';
 import type { PendientesComanda } from '../types';
+import { useCatalogoComanda } from './useCatalogoComanda';
 
 interface Props {
   id: number;
@@ -46,6 +47,7 @@ function useCierre(id: number, onCerrada: () => void) {
 
 export function CierreComandaDialog({ id, onSalir, onCerrada, onEntregas }: Props) {
   const cierre = useCierre(id, onCerrada);
+  const { nombreDe } = useCatalogoComanda();
   const pendientes = cierre.datos?.pendientes ?? [];
   return (
     <Dialog
@@ -64,11 +66,7 @@ export function CierreComandaDialog({ id, onSalir, onCerrada, onEntregas }: Prop
             <ul>
               {pendientes.map((p) => (
                 <li key={p.id}>
-                  Detalle #{p.id}:{' '}
-                  {p.producto_id !== null
-                    ? `Producto #${p.producto_id}`
-                    : `Menú #${p.menu_ejecutivo_id}`}{' '}
-                  — cantidad {p.cantidad}
+                  Detalle #{p.id}: {nombreDe(p)} — cantidad {p.cantidad}
                 </li>
               ))}
             </ul>

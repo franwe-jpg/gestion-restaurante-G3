@@ -21,6 +21,8 @@ interface Props {
   onEntregas: (id: number) => void;
   onModificar: (id: number) => void;
   onReabrir: (id: number) => void;
+  onAnular: (id: number) => void;
+  onFacturar: (id: number) => void;
   onPagina: (offset: number) => void;
 }
 
@@ -32,6 +34,8 @@ export function ComandasTabla({
   onEntregas,
   onModificar,
   onReabrir,
+  onAnular,
+  onFacturar,
   onPagina,
 }: Props) {
   return (
@@ -59,6 +63,8 @@ export function ComandasTabla({
                 onEntregas={onEntregas}
                 onModificar={onModificar}
                 onReabrir={onReabrir}
+                onAnular={onAnular}
+                onFacturar={onFacturar}
               />
             ))}
           </TableBody>
@@ -133,6 +139,29 @@ interface AccionesProps {
   onEntregas: (id: number) => void;
   onModificar: (id: number) => void;
   onReabrir: (id: number) => void;
+  onAnular: (id: number) => void;
+  onFacturar: (id: number) => void;
+}
+
+function AccionFacturar({
+  id,
+  ocupado,
+  onFacturar,
+}: {
+  id: number;
+  ocupado: boolean;
+  onFacturar: (id: number) => void;
+}) {
+  return (
+    <Button
+      variant="outline"
+      disabled={ocupado}
+      aria-label={`Facturar comanda #${id}`}
+      onClick={() => onFacturar(id)}
+    >
+      Facturar
+    </Button>
+  );
 }
 
 function AccionesComanda({ comanda, ocupado, ...acciones }: AccionesProps) {
@@ -145,6 +174,16 @@ function AccionesComanda({ comanda, ocupado, ...acciones }: AccionesProps) {
       >
         Entregas
       </Button>
+      {comanda.estado === 'ABIERTA' && (
+        <Button
+          variant="danger"
+          disabled={ocupado}
+          aria-label={`Anular comanda #${comanda.id}`}
+          onClick={() => acciones.onAnular(comanda.id)}
+        >
+          Anular comanda
+        </Button>
+      )}
       <Button
         variant="outline"
         disabled={ocupado || comanda.estado !== 'ABIERTA'}
@@ -169,6 +208,9 @@ function AccionesComanda({ comanda, ocupado, ...acciones }: AccionesProps) {
       >
         Cerrar
       </Button>
+      {comanda.estado === 'CERRADA' && (
+        <AccionFacturar id={comanda.id} ocupado={ocupado} onFacturar={acciones.onFacturar} />
+      )}
     </TableCell>
   );
 }

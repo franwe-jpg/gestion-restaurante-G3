@@ -12,6 +12,7 @@ from app.modules.atencion import repository, service
 from app.modules.atencion.adaptadores import CatalogoDeCarta, MesasDeSalon
 from app.modules.atencion.models import Cliente, Comanda, DetalleComanda
 from app.modules.atencion.schemas import ClienteModificar, ComandaModificar, EntregaDetalle
+from app.modules.pagos.models import EstadoFactura, Factura
 from app.shared.contratos.comanda import ComandaSalida, EstadoComanda, EstadoEntrega
 from app.shared.excepciones import DatosInvalidosError, NoEncontradoError, ReglaDeNegocioError
 
@@ -66,6 +67,138 @@ def test_cerrar_comanda_entregada_persiste_solo_estado_y_devuelve_dto(
     assert db.get(Comanda, comanda.id).estado == "CERRADA"
     assert _estado_mesa(db) == "LIBRE"
     assert db.execute(text("SELECT precio FROM productos WHERE id=1")).scalar_one() == 99.90
+
+
+def test_anular_comanda_no_facturada_conserva_historial_y_libera_mesa(
+    db: Session, comanda: Comanda, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.modules.pagos import service as pagos_service
+
+    monkeypatch.setattr(pagos_service, "esta_facturada", lambda _db, _id: False, raising=False)
+
+    salida = service.anular_comanda(db, comanda.id, MesasDeSalon())
+
+    assert salida.estado == EstadoComanda.ANULADA
+    assert len(salida.detalles) == 1
+    assert salida.detalles[0].precio_unitario == Decimal("29.90")
+    with Session(db.get_bind()) as otra:
+        assert otra.get(Comanda, comanda.id).estado == EstadoComanda.ANULADA
+        assert _estado_mesa(otra) == "LIBRE"
+
+
+def test_anular_comanda_consulta_servicio_m6_real_y_libera_mesa(
+    db: Session, comanda: Comanda
+) -> None:
+    salida = service.anular_comanda(db, comanda.id, MesasDeSalon())
+
+    assert salida.estado == EstadoComanda.ANULADA
+    assert len(salida.detalles) == 1
+    with Session(db.get_bind()) as otra:
+        assert otra.get(Comanda, comanda.id).estado == EstadoComanda.ANULADA
+        assert _estado_mesa(otra, comanda.mesa_id) == "LIBRE"
+
+
+@pytest.mark.parametrize("estado_factura", [EstadoFactura.ADEUDADA, EstadoFactura.PAGADA])
+def test_anular_comanda_con_factura_real_m6_rechaza_sin_efectos(
+    db: Session, comanda: Comanda, estado_factura: EstadoFactura
+) -> None:
+    db.add(
+        Factura(
+            comanda_id=comanda.id,
+            total=Decimal("100.00"),
+            saldo_pendiente=(
+                Decimal("100.00") if estado_factura == EstadoFactura.ADEUDADA else Decimal("0.00")
+            ),
+            estado=estado_factura,
+        )
+    )
+    db.commit()
+
+    with pytest.raises(ReglaDeNegocioError, match="facturada"):
+        service.anular_comanda(db, comanda.id, MesasDeSalon())
+
+    db.expire_all()
+    assert db.get(Comanda, comanda.id).estado == EstadoComanda.ABIERTA
+    assert _estado_mesa(db, comanda.mesa_id) == "OCUPADA"
+
+
+def test_anular_comanda_falla_cerrado_si_servicio_m6_no_disponible(
+    db: Session, comanda: Comanda, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.modules.pagos import service as pagos_service
+
+    monkeypatch.delattr(pagos_service, "esta_facturada", raising=False)
+    mesas = MesasEspia()
+
+    with pytest.raises(ReglaDeNegocioError, match="El servicio de facturación.*no está disponible"):
+        service.anular_comanda(db, comanda.id, mesas)
+
+    db.expire_all()
+    assert db.get(Comanda, comanda.id).estado == EstadoComanda.ABIERTA
+    assert _estado_mesa(db) == "OCUPADA"
+    assert mesas.liberadas == []
+
+
+def test_anular_comanda_facturada_rechaza_sin_efectos(
+    db: Session, comanda: Comanda, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.modules.pagos import service as pagos_service
+
+    monkeypatch.setattr(pagos_service, "esta_facturada", lambda _db, _id: True, raising=False)
+    mesas = MesasEspia()
+
+    with pytest.raises(ReglaDeNegocioError, match="facturada"):
+        service.anular_comanda(db, comanda.id, mesas)
+
+    db.expire_all()
+    assert db.get(Comanda, comanda.id).estado == EstadoComanda.ABIERTA
+    assert _estado_mesa(db) == "OCUPADA"
+    assert mesas.liberadas == []
+
+
+@pytest.mark.parametrize("estado", [EstadoComanda.CERRADA, EstadoComanda.ANULADA])
+def test_anular_comanda_no_abierta_rechaza_antes_de_consultar_m6(
+    db: Session, comanda: Comanda, estado: EstadoComanda, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.modules.pagos import service as pagos_service
+
+    comanda.estado = estado
+    db.commit()
+    consultas: list[int] = []
+    monkeypatch.setattr(
+        pagos_service,
+        "esta_facturada",
+        lambda _db, comanda_id: consultas.append(comanda_id) or False,
+        raising=False,
+    )
+    mesas = MesasEspia()
+
+    with pytest.raises(ReglaDeNegocioError, match="ABIERTA"):
+        service.anular_comanda(db, comanda.id, mesas)
+
+    assert consultas == []
+    assert db.get(Comanda, comanda.id).estado == estado
+    assert mesas.liberadas == []
+
+
+def test_anular_comanda_fallo_al_liberar_revierte_estado_y_mesa(
+    db: Session, comanda: Comanda, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.modules.pagos import service as pagos_service
+
+    monkeypatch.setattr(pagos_service, "esta_facturada", lambda _db, _id: False, raising=False)
+
+    class FallaLiberacion(MesasDeSalon):
+        def liberar(self, db: Session, mesa_id: int) -> None:
+            super().liberar(db, mesa_id)
+            raise RuntimeError("Fallo de liberación")
+
+    with pytest.raises(RuntimeError, match="Fallo de liberación"):
+        service.anular_comanda(db, comanda.id, FallaLiberacion())
+
+    db.expire_all()
+    assert db.get(Comanda, comanda.id).estado == EstadoComanda.ABIERTA
+    assert _estado_mesa(db) == "OCUPADA"
 
 
 def test_cerrar_comanda_inexistente_no_cambia_otras(
