@@ -12,4 +12,10 @@ export const REPORTES: ReporteDisponible[] = [
       'Los productos más pedidos de un período, con los días y las franjas horarias de más demanda.',
     ruta: '/reportes/productos-mas-vendidos',
   },
+  {
+    titulo: 'Mesas atendidas y ventas por mozo',
+    descripcion:
+      'El desempeño de cada mozo en un período: mesas atendidas, ventas y promedio por mesa.',
+    ruta: '/reportes/mesas-ventas-por-mozo',
+  },
 ];

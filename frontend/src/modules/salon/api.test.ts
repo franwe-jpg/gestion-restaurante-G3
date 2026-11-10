@@ -17,6 +17,7 @@ import {
   modificarMesa,
   modificarMozo,
   modificarSector,
+  obtenerReporteMozos,
 } from './api';
 import type {
   MesaCrear,
@@ -323,5 +324,27 @@ describe('eliminarMozo', () => {
 
     expect(post).toHaveBeenCalledWith('/mozos/1/baja', {});
     expect(resultado).toBe(respuesta);
+  });
+});
+
+describe('obtenerReporteMozos', () => {
+  it('arma la consulta con el período y los dos filtros opcionales (HU-M3-13)', async () => {
+    const get = vi.spyOn(clienteHttp, 'get').mockResolvedValue({ datos: null, exito: false });
+
+    await obtenerReporteMozos('2026-11-01', '2026-11-05', 3, 2);
+
+    expect(get).toHaveBeenCalledWith(
+      '/reportes/mesas-ventas-por-mozo?fecha_desde=2026-11-01&fecha_hasta=2026-11-05&mozo_id=3&sector_id=2',
+    );
+  });
+
+  it('omite mozo y sector cuando no se eligen (HU-M3-13)', async () => {
+    const get = vi.spyOn(clienteHttp, 'get').mockResolvedValue({ datos: null, exito: false });
+
+    await obtenerReporteMozos('2026-11-01', '2026-11-05');
+
+    expect(get).toHaveBeenCalledWith(
+      '/reportes/mesas-ventas-por-mozo?fecha_desde=2026-11-01&fecha_hasta=2026-11-05',
+    );
   });
 });

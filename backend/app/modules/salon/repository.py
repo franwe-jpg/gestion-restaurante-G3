@@ -98,3 +98,16 @@ def listar_mozos(
     consulta_ordenada = consulta.order_by(Mozo.apellido, Mozo.nombre, Mozo.id)
     filas = db.scalars(aplicar(consulta_ordenada, parametros)).all()
     return list(filas), contar(db, consulta)
+
+
+def mozos_para_reporte(db: Session, mozo_id: int | None = None) -> list[Mozo]:
+    """Mozos del reporte, ordenados por apellido y nombre; con `mozo_id`, solo ese."""
+    consulta = select(Mozo)
+    if mozo_id is not None:
+        consulta = consulta.where(Mozo.id == mozo_id)
+    return list(db.scalars(consulta.order_by(Mozo.apellido, Mozo.nombre, Mozo.id)).all())
+
+
+def ids_mesas_del_sector(db: Session, sector_id: int) -> list[int]:
+    """Ids de las mesas del sector para acotar el reporte (HU-M3-13)."""
+    return list(db.scalars(select(Mesa.id).where(Mesa.sector_id == sector_id)).all())

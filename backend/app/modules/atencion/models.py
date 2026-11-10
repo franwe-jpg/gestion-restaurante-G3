@@ -47,6 +47,8 @@ class Comanda(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     mesa_id: Mapped[int] = mapped_column(sa.ForeignKey("mesas.id", ondelete="RESTRICT"))
+    # Mozo que la atiende (M3). Referencia por id, sin FK entre módulos (HU-M3-13).
+    mozo_id: Mapped[int | None] = mapped_column(sa.Integer, nullable=True)
     reserva_id: Mapped[int | None] = mapped_column(nullable=True)
     observaciones: Mapped[str | None] = mapped_column(sa.String(500), nullable=True)
     estado: Mapped[str] = mapped_column(sa.String(20), default="ABIERTA")
