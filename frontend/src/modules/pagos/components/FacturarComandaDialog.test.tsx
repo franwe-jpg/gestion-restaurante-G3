@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ToastProvider } from '../../../shared/components/ui/toast';
@@ -65,7 +65,10 @@ beforeEach(() => {
   vi.mocked(previsualizarFactura).mockResolvedValue({ datos: PREVIA, exito: true });
 });
 
+// Desmonta antes de resetear: con una comanda inicial, el selector de medios se monta al llegar
+// la vista previa y su efecto no debe llamar a un mock ya reseteado (`undefined`).
 afterEach(() => {
+  cleanup();
   vi.resetAllMocks();
 });
 
