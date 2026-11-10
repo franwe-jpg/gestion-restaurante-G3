@@ -1,6 +1,6 @@
 """pagos: entrada y salida de la API."""
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Annotated
 
@@ -174,3 +174,27 @@ class ComprobanteSalida(BaseModel):
     comanda_id: int
     total_factura: Importe
     saldo_pendiente: Importe
+
+
+class CobradoPorMedio(BaseModel):
+    """Cobros de hoy de un medio de pago (S4-06)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    medio_pago_id: int
+    nombre: str
+    tipo: TipoMedioPago
+    cantidad_cobros: int
+    monto: Importe
+
+
+class AdeudadoSalida(BaseModel):
+    cantidad_facturas: int
+    monto: Importe
+
+
+class CajaDelDiaSalida(BaseModel):
+    fecha: date
+    por_medio_pago: list[CobradoPorMedio]
+    total_cobrado: Importe
+    adeudado: AdeudadoSalida

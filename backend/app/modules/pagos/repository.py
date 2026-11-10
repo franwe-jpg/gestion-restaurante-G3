@@ -1,9 +1,12 @@
 """pagos: acceso a datos. Nunca confirma la transaccion: lo hace el service (D-10)."""
 
-from sqlalchemy import select
+from datetime import datetime
+from decimal import Decimal
+
+from sqlalchemy import Row, func, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.modules.pagos.models import Cobro, Factura, MedioPago
+from app.modules.pagos.models import Cobro, EstadoFactura, Factura, MedioPago
 from app.shared.models import Estado
 from app.shared.paginacion import ParametrosPaginacion, aplicar, contar
 
@@ -94,3 +97,30 @@ def obtener_cobro_por_comprobante(db: Session, numero_comprobante: int) -> Cobro
 def obtener_medio_pago_aunque_eliminado(db: Session, medio_pago_id: int) -> MedioPago | None:
     """El comprobante muestra el medio del cobro aunque luego se haya eliminado (S4)."""
     return db.get(MedioPago, medio_pago_id)
+
+
+def sumar_cobros_por_medio(db: Session, desde: datetime, hasta: datetime) -> list[Row]:
+    """Cobros del intervalo [desde, hasta) por medio de pago, tambien los dados de baja (S4-06)."""
+    consulta = (
+        select(
+            MedioPago.id.label("medio_pago_id"),
+            MedioPago.nombre,
+            MedioPago.tipo,
+            func.count(Cobro.id).label("cantidad_cobros"),
+            func.coalesce(func.sum(Cobro.monto), 0).label("monto"),
+        )
+        .join(MedioPago, Cobro.medio_pago_id == MedioPago.id)
+        .where(Cobro.fecha_hora >= desde, Cobro.fecha_hora < hasta)
+        .group_by(MedioPago.id, MedioPago.nombre, MedioPago.tipo)
+        .order_by(MedioPago.nombre, MedioPago.id)
+    )
+    return list(db.execute(consulta).all())
+
+
+def resumir_facturas_adeudadas(db: Session) -> tuple[int, Decimal]:
+    """Cantidad de facturas ADEUDADA de cualquier fecha y suma de su saldo pendiente."""
+    consulta = select(
+        func.count(Factura.id), func.coalesce(func.sum(Factura.saldo_pendiente), 0)
+    ).where(Factura.estado == EstadoFactura.ADEUDADA)
+    cantidad, saldo = db.execute(consulta).one()
+    return cantidad, Decimal(str(saldo))

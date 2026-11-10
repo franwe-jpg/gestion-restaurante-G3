@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../../../shared/components/PageHeader';
 import { Button } from '../../../shared/components/ui/button';
+import { useAbrirDesdeUrl } from '../../../shared/hooks/useAbrirDesdeUrl';
 import { AtencionDialogs } from '../components/AtencionDialogs';
 import { ComandasPanel } from '../components/ComandasPanel';
 import { PanelClientes } from '../components/PanelClientes';
@@ -68,6 +69,7 @@ function useEnlacesAtencion() {
 export function AtencionPage() {
   const comandas = useComandas();
   const enlaces = useEnlacesAtencion();
+  useAbrirDesdeUrl('nueva', () => enlaces.setAlta(true));
   const [cierreId, setCierreId] = useState<number | null>(null);
   const [modificarId, setModificarId] = useState<number | null>(null);
   const [aviso, setAviso] = useState('');

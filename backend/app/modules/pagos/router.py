@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.modules.pagos import service
 from app.modules.pagos.schemas import (
+    CajaDelDiaSalida,
     CobroCrear,
     ComprobanteSalida,
     FacturaCrear,
@@ -90,3 +91,8 @@ def descargar_comprobante_pdf(numero_comprobante: int, db: Sesion) -> Response:
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{archivo.nombre}"'},
     )
+
+
+@router.get("/reportes/caja-del-dia")
+def obtener_caja_del_dia(db: Sesion) -> CajaDelDiaSalida:
+    return service.obtener_caja_del_dia(db)
