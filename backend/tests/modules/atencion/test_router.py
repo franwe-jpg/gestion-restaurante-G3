@@ -14,6 +14,7 @@ from app.main import app as app_principal
 from app.modules.atencion.models import Cliente, Comanda
 from app.modules.atencion.router import router
 from app.modules.menus import service as menus_service
+from app.modules.pagos import service as pagos_service
 from app.modules.productos import service as productos_service
 from app.modules.salon import service as salon_service
 from app.shared.contratos.comanda import ComandaSalida, EstadoComanda, EstadoEntrega
@@ -343,6 +344,50 @@ def test_cerrar_comanda_inexistente_devuelve_404(cliente: TestClient, comanda: C
 
     assert respuesta.status_code == 404
     assert respuesta.json() == {"detalle": "La comanda 999 no existe"}
+
+
+def test_anular_comanda_no_facturada_devuelve_salida_y_libera_mesa(
+    cliente: TestClient, db: Session, comanda: Comanda, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(pagos_service, "esta_facturada", lambda _db, _id: False, raising=False)
+
+    respuesta = cliente.post(f"/api/v1/comandas/{comanda.id}/anular")
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["estado"] == "ANULADA"
+    assert len(respuesta.json()["detalles"]) == 1
+    assert _estado_mesa(db, comanda.mesa_id) == "LIBRE"
+    historial = cliente.get("/api/v1/comandas?estado=ANULADA")
+    assert historial.status_code == 200
+    assert [item["id"] for item in historial.json()["items"]] == [comanda.id]
+
+
+def test_anular_comanda_servicio_m6_ausente_devuelve_conflicto_sin_efectos(
+    cliente: TestClient, db: Session, comanda: Comanda, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delattr(pagos_service, "esta_facturada", raising=False)
+
+    respuesta = cliente.post(f"/api/v1/comandas/{comanda.id}/anular")
+
+    assert respuesta.status_code == 409
+    assert "servicio de facturación" in respuesta.json()["detalle"]
+    db.expire_all()
+    assert db.get(Comanda, comanda.id).estado == EstadoComanda.ABIERTA
+    assert _estado_mesa(db, comanda.mesa_id) == "OCUPADA"
+
+
+def test_anular_comanda_facturada_devuelve_conflicto_sin_efectos(
+    cliente: TestClient, db: Session, comanda: Comanda, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(pagos_service, "esta_facturada", lambda _db, _id: True, raising=False)
+
+    respuesta = cliente.post(f"/api/v1/comandas/{comanda.id}/anular")
+
+    assert respuesta.status_code == 409
+    assert "facturada" in respuesta.json()["detalle"]
+    db.expire_all()
+    assert db.get(Comanda, comanda.id).estado == EstadoComanda.ABIERTA
+    assert _estado_mesa(db, comanda.mesa_id) == "OCUPADA"
 
 
 @pytest.mark.parametrize("estado", [EstadoComanda.CERRADA, EstadoComanda.ANULADA])

@@ -1,11 +1,12 @@
 """reservas: reglas de negocio y transacciones."""
 
+from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.modules.reservas import puente, repository
+from app.modules.reservas import puente, reporte, reporte_pdf, repository
 from app.modules.reservas.models import EstadoReserva, Reserva
 from app.modules.reservas.schemas import (
     FiltroReservas,
@@ -13,10 +14,12 @@ from app.modules.reservas.schemas import (
     ReservaCrear,
     ReservaModificar,
     ReservaSalida,
+    ResumenReservas,
 )
 from app.shared.excepciones import DatosInvalidosError, NoEncontradoError, ReglaDeNegocioError
 from app.shared.models.enums import EstadoMesa
 from app.shared.paginacion import Pagina
+from app.shared.pdf import renderizar
 
 # S28: el restaurante esta en UTC-3 todo el ano (Argentina no usa horario de verano desde 2009).
 # Es un desplazamiento fijo y no `zoneinfo`, para no depender de la base de zonas del sistema.
@@ -224,3 +227,32 @@ def listar_mesas_disponibles(db: Session, fecha: date, hora: time) -> list[MesaD
     ]
     disponibles.sort(key=lambda mesa: (mesa.sector.nombre, mesa.numero, mesa.id))
     return [MesaDisponible.model_validate(mesa) for mesa in disponibles]
+
+
+def generar_reporte_reservas_ausentismo(
+    db: Session, fecha_desde: date | None, fecha_hasta: date | None
+) -> ResumenReservas:
+    """`generar()` del servicio `ReporteReservasAusentismo` del diagrama (HU-M5-07).
+
+    Solo lectura.
+    """
+    desde, hasta = reporte.validar_periodo(fecha_desde, fecha_hasta)
+    conteos = repository.contar_reservas_por_estado(db, desde, hasta)
+    return reporte.armar_resumen(desde, hasta, conteos)
+
+
+@dataclass(frozen=True)
+class ArchivoPdf:
+    contenido: bytes
+    nombre: str
+
+
+def generar_pdf_reservas_ausentismo(
+    db: Session, fecha_desde: date | None, fecha_hasta: date | None
+) -> ArchivoPdf:
+    """PDF con los mismos datos y validaciones que el JSON; un período sin reservas también se
+    genera."""
+    resumen = generar_reporte_reservas_ausentismo(db, fecha_desde, fecha_hasta)
+    documento = reporte_pdf.componer(resumen, ahora())
+    periodo = f"{resumen.fecha_desde.isoformat()}_{resumen.fecha_hasta.isoformat()}"
+    return ArchivoPdf(contenido=renderizar(documento), nombre=f"reservas-ausentismo_{periodo}.pdf")

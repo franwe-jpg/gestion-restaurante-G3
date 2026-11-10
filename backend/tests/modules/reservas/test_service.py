@@ -1480,3 +1480,25 @@ def test_cancelar_por_ausencia_libera_la_mesa_en_repository(db: Session, fabrica
 
     assert 6 not in repository.ids_de_mesas_con_reserva_activa(db, HOY, time(11, 30))
     assert repository.existe_reserva_activa(db, 6, HOY, time(11, 30)) is False
+
+
+# --- HU-M5-07: reporte de reservas y ausentismo, variante PDF ---
+
+
+def test_generar_pdf_reservas_ausentismo_llama_a_componer_con_ahora_y_arma_el_nombre(
+    db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    llamadas: list[datetime] = []
+    original = service.reporte_pdf.componer
+
+    def espia(resumen, generado):
+        llamadas.append(generado)
+        return original(resumen, generado)
+
+    monkeypatch.setattr(service.reporte_pdf, "componer", espia)
+
+    archivo = service.generar_pdf_reservas_ausentismo(db, date(2026, 10, 1), date(2026, 10, 31))
+
+    assert llamadas == [service.ahora()]
+    assert archivo.nombre == "reservas-ausentismo_2026-10-01_2026-10-31.pdf"
+    assert archivo.contenido.startswith(b"%PDF")

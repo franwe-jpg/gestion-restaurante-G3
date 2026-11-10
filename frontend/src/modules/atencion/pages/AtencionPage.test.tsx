@@ -7,6 +7,7 @@ vi.mock('../api', () => ({
   listarComandas: vi.fn(),
   crearComanda: vi.fn(),
   cerrarComanda: vi.fn(),
+  anularComanda: vi.fn(),
   consultarPendientes: vi.fn(),
   consultarEntregas: vi.fn(),
   registrarEntrega: vi.fn(),
@@ -288,6 +289,61 @@ it('cancela el cierre sin llamar a la acción de negocio', async () => {
   fireEvent.click(await screen.findByRole('button', { name: 'Cancelar' }));
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   expect(api.cerrarComanda).not.toHaveBeenCalled();
+});
+
+it('ofrece anular solo para comandas ABIERTA y cancela sin solicitar la operación', async () => {
+  const { ConfirmProvider } = await import('../../../shared/components/ui/confirm-dialog');
+  render(
+    <ConfirmProvider>
+      <AtencionPage />
+    </ConfirmProvider>,
+  );
+  expect(await screen.findByRole('button', { name: 'Anular comanda #3' })).toBeEnabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Anular comanda #3' }));
+  expect(await screen.findByRole('dialog')).toHaveTextContent(
+    '¿Confirmás que querés anular la comanda #3?',
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  expect(api.anularComanda).not.toHaveBeenCalled();
+});
+
+it('confirma anulación, informa éxito y recarga conservando la fila histórica', async () => {
+  const { ConfirmProvider } = await import('../../../shared/components/ui/confirm-dialog');
+  vi.mocked(api.anularComanda).mockResolvedValue({
+    exito: true,
+    datos: { ...COMANDA, estado: 'ANULADA', detalles: [] },
+  });
+  render(
+    <ConfirmProvider>
+      <AtencionPage />
+    </ConfirmProvider>,
+  );
+  fireEvent.click(await screen.findByRole('button', { name: 'Anular comanda #3' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Anular comanda' }));
+  await waitFor(() => expect(api.anularComanda).toHaveBeenCalledWith(3));
+  expect(await screen.findByText('Comanda anulada')).toBeInTheDocument();
+  expect(await screen.findByText('Comanda #3')).toBeInTheDocument();
+  expect(api.listarComandas).toHaveBeenCalledTimes(2);
+});
+
+it('muestra el motivo de rechazo al anular y recarga el estado actual', async () => {
+  const { ConfirmProvider } = await import('../../../shared/components/ui/confirm-dialog');
+  vi.mocked(api.anularComanda).mockResolvedValue({
+    exito: false,
+    datos: null,
+    error: 'No se puede anular porque está facturada',
+  });
+  render(
+    <ConfirmProvider>
+      <AtencionPage />
+    </ConfirmProvider>,
+  );
+  fireEvent.click(await screen.findByRole('button', { name: 'Anular comanda #3' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Anular comanda' }));
+  expect(await screen.findByText('No se puede anular porque está facturada')).toBeInTheDocument();
+  expect(screen.queryByText('Comanda anulada')).not.toBeInTheDocument();
+  expect(api.listarComandas).toHaveBeenCalledTimes(2);
 });
 
 it('ante fallo de consulta de entregas no habilita la confirmación', async () => {
