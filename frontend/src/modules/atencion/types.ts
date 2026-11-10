@@ -78,3 +78,33 @@ export interface PaginaCliente {
   limit: number;
   offset: number;
 }
+
+/** Catálogo de solo lectura para los selectores de la comanda (S4-03). */
+export interface MesaSeleccionable {
+  id: number;
+  numero: number;
+  sector: { id: number; nombre: string };
+  estado: 'LIBRE' | 'OCUPADA' | 'FUERA_DE_SERVICIO';
+}
+export interface ProductoSeleccionable {
+  id: number;
+  nombre: string;
+  precio: string;
+  estado: 'HABILITADO' | 'DESHABILITADO';
+}
+export interface MenuEjecutivoSeleccionable {
+  id: number;
+  nombre: string;
+  precio_fijo: string;
+  estado: 'HABILITADO' | 'DESHABILITADO';
+}
+export interface NombresCatalogo {
+  productos: Record<number, string>;
+  menus: Record<number, string>;
+}
+export interface CatalogoComanda {
+  mesasLibres: MesaSeleccionable[];
+  productos: ProductoSeleccionable[];
+  menus: MenuEjecutivoSeleccionable[];
+  nombres: NombresCatalogo;
+}

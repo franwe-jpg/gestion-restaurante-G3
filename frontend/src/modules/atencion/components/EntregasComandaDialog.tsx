@@ -2,6 +2,7 @@ import { Badge } from '../../../shared/components/ui/badge';
 import { Button } from '../../../shared/components/ui/button';
 import { Dialog } from '../../../shared/components/ui/dialog';
 import type { DetalleEntrega, EntregasComanda } from '../types';
+import { useCatalogoComanda } from './useCatalogoComanda';
 import { useEntregas } from './useEntregas';
 
 interface Props {
@@ -9,33 +10,33 @@ interface Props {
   onSalir: () => void;
 }
 
-function referencia(detalle: DetalleEntrega): string {
-  return detalle.producto_id !== null
-    ? `Producto #${detalle.producto_id}`
-    : `Menú ejecutivo #${detalle.menu_ejecutivo_id}`;
+function InsigniaEntrega({ entregado }: { entregado: boolean }) {
+  return (
+    <Badge variant={entregado ? 'success' : 'warning'}>
+      {entregado ? 'Entregado' : 'Pendiente'}
+    </Badge>
+  );
 }
 
 function EntregaFila({
   detalle,
+  nombre,
   bloqueado,
   onCambiar,
 }: {
   detalle: DetalleEntrega;
+  nombre: string;
   bloqueado: boolean;
   onCambiar: (valor: number) => void;
 }) {
-  const nombre = referencia(detalle);
   const { cantidad, cantidad_entregada: entregadas } = detalle;
-  const entregado = detalle.estado_entrega === 'ENTREGADO';
   return (
     <li className="flex flex-wrap items-center justify-between gap-3 rounded border p-3">
       <span className="font-medium">{nombre}</span>
       <span>
         {entregadas} de {cantidad}
       </span>
-      <Badge variant={entregado ? 'success' : 'warning'}>
-        {entregado ? 'Entregado' : 'Pendiente'}
-      </Badge>
+      <InsigniaEntrega entregado={detalle.estado_entrega === 'ENTREGADO'} />
       <span className="flex items-center gap-2">
         <Button
           variant="outline"
@@ -82,6 +83,7 @@ function Avisos({ datos, error }: { datos: EntregasComanda | null; error: string
 
 export function EntregasComandaDialog({ id, onSalir }: Props) {
   const { datos, error, enviando, registrar } = useEntregas(id);
+  const { nombreDe } = useCatalogoComanda();
   const bloqueado = enviando || datos?.estado !== 'ABIERTA';
   return (
     <Dialog
@@ -100,6 +102,7 @@ export function EntregasComandaDialog({ id, onSalir }: Props) {
               <EntregaFila
                 key={detalle.id}
                 detalle={detalle}
+                nombre={nombreDe(detalle)}
                 bloqueado={bloqueado}
                 onCambiar={(valor) => void registrar(detalle.id, valor)}
               />

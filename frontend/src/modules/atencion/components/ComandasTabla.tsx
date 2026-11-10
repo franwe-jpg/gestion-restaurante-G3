@@ -22,6 +22,7 @@ interface Props {
   onModificar: (id: number) => void;
   onReabrir: (id: number) => void;
   onAnular: (id: number) => void;
+  onFacturar: (id: number) => void;
   onPagina: (offset: number) => void;
 }
 
@@ -34,6 +35,7 @@ export function ComandasTabla({
   onModificar,
   onReabrir,
   onAnular,
+  onFacturar,
   onPagina,
 }: Props) {
   return (
@@ -62,6 +64,7 @@ export function ComandasTabla({
                 onModificar={onModificar}
                 onReabrir={onReabrir}
                 onAnular={onAnular}
+                onFacturar={onFacturar}
               />
             ))}
           </TableBody>
@@ -137,6 +140,28 @@ interface AccionesProps {
   onModificar: (id: number) => void;
   onReabrir: (id: number) => void;
   onAnular: (id: number) => void;
+  onFacturar: (id: number) => void;
+}
+
+function AccionFacturar({
+  id,
+  ocupado,
+  onFacturar,
+}: {
+  id: number;
+  ocupado: boolean;
+  onFacturar: (id: number) => void;
+}) {
+  return (
+    <Button
+      variant="outline"
+      disabled={ocupado}
+      aria-label={`Facturar comanda #${id}`}
+      onClick={() => onFacturar(id)}
+    >
+      Facturar
+    </Button>
+  );
 }
 
 function AccionesComanda({ comanda, ocupado, ...acciones }: AccionesProps) {
@@ -183,6 +208,9 @@ function AccionesComanda({ comanda, ocupado, ...acciones }: AccionesProps) {
       >
         Cerrar
       </Button>
+      {comanda.estado === 'CERRADA' && (
+        <AccionFacturar id={comanda.id} ocupado={ocupado} onFacturar={acciones.onFacturar} />
+      )}
     </TableCell>
   );
 }

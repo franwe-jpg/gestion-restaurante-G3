@@ -7,7 +7,11 @@ import { EntregasComandaDialog } from './EntregasComandaDialog';
 vi.mock('../api', () => ({
   consultarEntregas: vi.fn(),
   registrarEntrega: vi.fn(),
+  listarProductos: vi.fn(),
+  listarMenusEjecutivos: vi.fn(),
 }));
+
+const VACIA = { exito: true, datos: { items: [], total: 0, limit: 100, offset: 0 } };
 
 function linea(id: number, cantidad: number, entregada: number, menu = false): DetalleEntrega {
   return {
@@ -37,7 +41,35 @@ async function abrir() {
   return await screen.findByRole('dialog');
 }
 
-beforeEach(() => vi.resetAllMocks());
+beforeEach(() => {
+  vi.resetAllMocks();
+  vi.mocked(api.listarProductos).mockResolvedValue(VACIA);
+  vi.mocked(api.listarMenusEjecutivos).mockResolvedValue(VACIA);
+});
+
+function conNombres() {
+  vi.mocked(api.listarProductos).mockResolvedValue({
+    exito: true,
+    datos: {
+      items: [
+        { id: 11, nombre: 'Milanesa', precio: '9000.00', estado: 'HABILITADO' },
+        { id: 12, nombre: 'Flan', precio: '3000.00', estado: 'DESHABILITADO' },
+      ],
+      total: 2,
+      limit: 100,
+      offset: 0,
+    },
+  });
+  vi.mocked(api.listarMenusEjecutivos).mockResolvedValue({
+    exito: true,
+    datos: {
+      items: [{ id: 22, nombre: 'Menú del día', precio_fijo: '12000.00', estado: 'HABILITADO' }],
+      total: 1,
+      limit: 100,
+      offset: 0,
+    },
+  });
+}
 
 it('muestra la referencia, las unidades entregadas y la insignia de cada línea', async () => {
   cargar(comanda([linea(1, 10, 2), linea(2, 3, 3, true)]));
@@ -46,7 +78,7 @@ it('muestra la referencia, las unidades entregadas y la insignia de cada línea'
   expect(within(dialogo).getByText('Producto #11')).toBeInTheDocument();
   expect(within(dialogo).getByText('2 de 10')).toBeInTheDocument();
   expect(within(dialogo).getByText('Pendiente')).toBeInTheDocument();
-  expect(within(dialogo).getByText('Menú ejecutivo #22')).toBeInTheDocument();
+  expect(within(dialogo).getByText('Menú #22')).toBeInTheDocument();
   expect(within(dialogo).getByText('3 de 3')).toBeInTheDocument();
   expect(within(dialogo).getByText('Entregado')).toBeInTheDocument();
 });
@@ -184,3 +216,36 @@ function cargarTrasConflicto() {
     datos: comanda([linea(1, 10, 2)], 'CERRADA'),
   });
 }
+
+it('muestra el nombre del producto y del menú, incluso deshabilitado, en lugar del ID', async () => {
+  conNombres();
+  cargar(comanda([linea(1, 10, 2), linea(2, 3, 3, true)]));
+  const dialogo = await abrir();
+  expect(await within(dialogo).findByText('Milanesa')).toBeInTheDocument();
+  expect(within(dialogo).getByText('Menú del día')).toBeInTheDocument();
+  expect(within(dialogo).queryByText('Producto #11')).not.toBeInTheDocument();
+  expect(
+    within(dialogo).getByRole('button', { name: 'Sumar una unidad de Milanesa' }),
+  ).toBeInTheDocument();
+});
+
+it('nombra el producto deshabilitado y conserva el respaldo para un ID desconocido', async () => {
+  conNombres();
+  cargar(comanda([linea(2, 3, 0), linea(5, 1, 0)]));
+  const dialogo = await abrir();
+  expect(await within(dialogo).findByText('Flan')).toBeInTheDocument();
+  expect(within(dialogo).getByText('Producto #15')).toBeInTheDocument();
+});
+
+it('si falla la carga de nombres usa el respaldo y no bloquea la acción', async () => {
+  vi.mocked(api.listarProductos).mockResolvedValue({
+    exito: false,
+    datos: null,
+    error: 'HTTP 500',
+  });
+  cargar(comanda([linea(1, 10, 2)]));
+  responder(comanda([linea(1, 10, 3)]));
+  await abrir();
+  fireEvent.click(await screen.findByRole('button', { name: 'Sumar una unidad de Producto #11' }));
+  expect(api.registrarEntrega).toHaveBeenCalledWith(3, 1, 3);
+});
