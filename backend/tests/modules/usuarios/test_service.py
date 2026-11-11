@@ -13,7 +13,7 @@ from app.modules.usuarios.models import Sesion, Usuario
 from app.shared.excepciones import NoAutenticadoError, ReglaDeNegocioError
 from app.shared.models import Estado
 from app.shared.models.enums import Rol
-from tests.modules.usuarios.conftest import FabricaUsuario
+from tests.conftest import FabricaUsuario
 
 MENSAJE_CREDENCIALES = "Correo o contraseña incorrectos"
 

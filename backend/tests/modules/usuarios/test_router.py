@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.modules.salon.models import Chef, Mozo
 from app.modules.usuarios.models import Sesion
 from app.shared.models.enums import Rol
-from tests.modules.usuarios.conftest import FabricaUsuario
+from tests.conftest import FabricaUsuario
 
 RUTA = "/api/v1/sesion"
 CREDENCIALES = {"correo": "ana@resto.com", "contrasena": "Clave1234"}

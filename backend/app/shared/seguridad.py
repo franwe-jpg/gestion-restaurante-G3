@@ -2,16 +2,18 @@
 
 from typing import Annotated
 
-from fastapi import Depends
+from fastapi import Depends, params
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.modules.usuarios import service as usuarios_service
 from app.shared.contratos.usuario import UsuarioSesion
-from app.shared.excepciones import NoAutenticadoError
+from app.shared.excepciones import NoAutenticadoError, SinPermisoError
+from app.shared.permisos import Permiso
 
 MENSAJE_SESION_INVALIDA = "Sesión no válida o vencida"
+MENSAJE_SIN_PERMISO = "No tiene permiso para realizar esta acción"
 
 # `auto_error=False`: un encabezado ausente o con otro esquema lo resolvemos con nuestro 401.
 esquema_bearer = HTTPBearer(auto_error=False)
@@ -28,3 +30,18 @@ def usuario_actual(
     if usuario is None:
         raise NoAutenticadoError(MENSAJE_SESION_INVALIDA)
     return usuario
+
+
+def requiere(permiso: Permiso) -> params.Depends:
+    """Dependencia de router: exige sesion y el permiso, antes de validar el cuerpo (A4).
+
+    El verificador expone `.permiso` para el test de completitud de la matriz.
+    """
+
+    def verificador(usuario: Annotated[UsuarioSesion, Depends(usuario_actual)]) -> UsuarioSesion:
+        if permiso not in usuario.permisos:
+            raise SinPermisoError(MENSAJE_SIN_PERMISO)
+        return usuario
+
+    verificador.permiso = permiso  # type: ignore[attr-defined]
+    return Depends(verificador)
