@@ -176,6 +176,47 @@ describe('SelectorCliente: datos del cliente nuevo', () => {
   });
 });
 
+// Supuesto S66 (corrección 2026-11-11, pendiente de validación del equipo)
+describe('SelectorCliente: campo Teléfono', () => {
+  it('el campo Teléfono es de tipo tel, abre el teclado numérico y admite hasta 20 caracteres', () => {
+    abrir({ tipo: 'nuevo', nombre: '', telefono: '' });
+
+    const telefono = screen.getByLabelText(/Teléfono/);
+
+    expect(telefono).toHaveAttribute('type', 'tel');
+    expect(telefono).toHaveAttribute('inputmode', 'tel');
+    expect(telefono).toHaveAttribute('maxlength', '20');
+    expect(screen.getByLabelText(/Nombre/)).not.toHaveAttribute('maxlength');
+  });
+
+  it.each([
+    ['2804abc123', '2804123'],
+    ['(280) 123.456', '280 123456'],
+    ['+54 280-123', '+54 280-123'],
+    ['54+280', '54280'],
+    ['abc', ''],
+  ])('escribir «%s» en Teléfono deja solo «%s»', (escrito, esperado) => {
+    abrir({ tipo: 'nuevo', nombre: 'Luis', telefono: '' });
+
+    fireEvent.change(screen.getByLabelText(/Teléfono/), { target: { value: escrito } });
+
+    expect(screen.getByLabelText(/Teléfono/)).toHaveValue(esperado);
+    expect(onCambiar).toHaveBeenLastCalledWith({
+      tipo: 'nuevo',
+      nombre: 'Luis',
+      telefono: esperado,
+    });
+  });
+
+  it('el Nombre no se filtra: lo valida el formulario al guardar', () => {
+    abrir({ tipo: 'nuevo', nombre: '', telefono: '' });
+
+    fireEvent.change(screen.getByLabelText(/Nombre/), { target: { value: 'Luis3' } });
+
+    expect(screen.getByLabelText(/Nombre/)).toHaveValue('Luis3');
+  });
+});
+
 describe('SelectorCliente: cambiar selección', () => {
   it('pasar de un cliente elegido a «Cliente nuevo» descarta al elegido', () => {
     abrir({ tipo: 'existente', cliente: ANA });

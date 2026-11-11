@@ -232,7 +232,6 @@ describe('ReservaFormDialog: validación local', () => {
     ['Luis3', '280-4556677', 'El nombre debe contener solo letras'],
     ['', '280-4556677', 'El nombre es obligatorio'],
     ['Luis', '', 'El teléfono es obligatorio'],
-    ['Luis', '280+456', 'El teléfono solo admite dígitos, espacios, guiones y + al inicio'],
   ])('con cliente nuevo «%s» y «%s» muestra «%s» y no envía', async (nombre, telefono, texto) => {
     abrir();
     await completar({ cliente: 'ninguno' });
@@ -253,6 +252,96 @@ describe('ReservaFormDialog: validación local', () => {
 
     expect(screen.getByText('La mesa es obligatoria.')).toBeVisible();
     expect(crearReserva).not.toHaveBeenCalled();
+  });
+});
+
+// Supuesto S66 (corrección 2026-11-11, pendiente de validación del equipo)
+describe('ReservaFormDialog: validación local del teléfono', () => {
+  it.each([
+    ['12345', 'El teléfono debe tener entre 6 y 15 dígitos'],
+    ['- - -', 'El teléfono debe tener entre 6 y 15 dígitos'],
+    ['1234567890123456', 'El teléfono debe tener entre 6 y 15 dígitos'],
+    ['1'.repeat(300), 'El teléfono admite hasta 20 caracteres'],
+  ])('con el teléfono «%s» muestra «%s» y no envía', async (telefono, texto) => {
+    abrir();
+    await completar({ cliente: 'ninguno' });
+    cargarClienteNuevo('Luis', telefono);
+
+    guardar();
+
+    expect(screen.getByText(texto)).toBeVisible();
+    expect(crearReserva).not.toHaveBeenCalled();
+  });
+
+  // Antes un caso de la validación local escribía «280+456» y esperaba «solo admite dígitos…».
+  // Ahora el campo Teléfono descarta lo no permitido al escribir, así que ese texto ya no llega a la
+  // validación (la regla de caracteres sigue cubierta en validarReserva.test.ts).
+  it('lo que no es dígito, espacio, guion o + inicial se descarta al escribir el teléfono', async () => {
+    abrir();
+    await completar({ cliente: 'ninguno' });
+
+    cargarClienteNuevo('Luis', 'abc280+456');
+
+    expect(screen.getByLabelText(/Teléfono/)).toHaveValue('280456');
+    expect(screen.getByLabelText(/Teléfono/)).toHaveAttribute('maxlength', '20');
+  });
+});
+
+/**
+ * Decisión (corrección 2026-11-11): el alta valida la capacidad en el formulario porque el selector
+ * ya conoce la de cada mesa; la edición no (la fila no trae la capacidad) y muestra el 409.
+ */
+describe('ReservaFormDialog: capacidad de la mesa (S67)', () => {
+  it.each([
+    ['5', '5', 'La mesa elegida admite hasta 4 personas.'],
+    ['12', '3', 'La mesa elegida admite hasta 2 personas.'],
+    ['12', '500', 'La mesa elegida admite hasta 2 personas.'],
+  ])('en la mesa %s, %s personas advierten «%s» y no envía', async (mesa, cantidad, aviso) => {
+    abrir();
+    await completar({ mesa, cantidad });
+
+    guardar();
+
+    expect(screen.getByText(aviso)).toBeVisible();
+    expect(crearReserva).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['5', '4'],
+    ['12', '2'],
+  ])('en la mesa %s, %s personas (capacidad exacta) sí envía', async (mesa, cantidad) => {
+    vi.mocked(crearReserva).mockResolvedValue({ datos: CREADA, exito: true });
+    abrir();
+    await completar({ mesa, cantidad });
+
+    guardar();
+
+    await waitFor(() => expect(crearReserva).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText(/admite hasta/)).toBeNull();
+  });
+
+  it('con la mesa sin elegir no compara la cantidad: solo pide la mesa', async () => {
+    abrir();
+    await completar({ mesa: '', cantidad: '500' });
+    await esperarLista();
+
+    guardar();
+
+    expect(screen.getByText('La mesa es obligatoria.')).toBeVisible();
+    expect(screen.queryByText(/admite hasta/)).toBeNull();
+  });
+
+  it('el 409 de la API por capacidad se muestra como error general y conserva los datos', async () => {
+    const detalle = 'La mesa 5 admite hasta 4 personas';
+    vi.mocked(crearReserva).mockResolvedValue({ datos: null, exito: false, error: detalle });
+    abrir();
+    await completar();
+
+    guardar();
+
+    expect(await screen.findByText(detalle)).toBeVisible();
+    expect(screen.getByLabelText(ETIQUETAS.cantidad)).toHaveValue('4');
+    expect(screen.getByRole('dialog', { name: 'Nueva reserva' })).toBeInTheDocument();
   });
 });
 
@@ -445,7 +534,8 @@ describe('ReservaFormDialog: envío', () => {
   it.each(['5', '12'])('elegir la mesa %s y guardar envía su id como mesa_id', async (id) => {
     vi.mocked(crearReserva).mockResolvedValue({ datos: CREADA, exito: true });
     const { onGuardado } = abrir();
-    await completar({ mesa: id });
+    // S67: la mesa 12 es de capacidad 2; 2 personas entran en las dos mesas del caso
+    await completar({ mesa: id, cantidad: '2' });
 
     guardar();
 
@@ -577,6 +667,20 @@ describe('ReservaFormDialog: errores de la API con un cliente nuevo', () => {
     expect(screen.getByLabelText(/Nombre/)).toHaveValue('Luis Gómez');
     expect(screen.getByLabelText(/Teléfono/)).toHaveValue('280-4556677');
     expect(screen.getByRole('dialog', { name: 'Nueva reserva' })).toBeInTheDocument();
+  });
+
+  it('el 422 por largo o cantidad de dígitos del teléfono se muestra junto al campo Teléfono', async () => {
+    const detalle =
+      'Datos invalidos. cliente_nuevo.telefono: telefono debe tener entre 6 y 15 dígitos';
+    vi.mocked(crearReserva).mockResolvedValue({ datos: null, exito: false, error: detalle });
+    abrir();
+    await completar({ cliente: 'nuevo' });
+
+    guardar();
+
+    const mensaje = await screen.findByText(detalle);
+    expect(mensaje.id).toBe('reserva-cliente-telefono-error');
+    expect(screen.getByLabelText(/Teléfono/)).toHaveValue('280-4556677');
   });
 
   it('el 409 con un cliente nuevo es un error general y conserva Nombre y Teléfono', async () => {
@@ -778,6 +882,26 @@ describe('ReservaFormDialog: errores de la edición', () => {
     expect(onGuardado).not.toHaveBeenCalled();
     expect(screen.getByLabelText(ETIQUETAS.cantidad)).toHaveValue('6');
     expect(screen.getByLabelText(/Cliente \(número\)/)).toBeDisabled();
+    expect(screen.getByRole('dialog', { name: 'Modificar reserva' })).toBeInTheDocument();
+  });
+
+  // S67: la edición no conoce la capacidad de la mesa; el 409 de la API se ve dentro del formulario
+  it('muestra el 409 por capacidad dentro del formulario y conserva la cantidad escrita', async () => {
+    const detalle = 'La mesa 5 admite hasta 4 personas';
+    vi.mocked(modificarReserva).mockResolvedValue({ datos: null, exito: false, error: detalle });
+    const { onGuardado } = abrir(EXISTENTE);
+    escribir({ cantidad: '9' });
+
+    guardar();
+
+    expect(await screen.findByText(detalle)).toBeVisible();
+    expect(modificarReserva).toHaveBeenCalledExactlyOnceWith(12, {
+      fecha: '2026-11-03',
+      hora: '21:30',
+      cantidad_personas: 9,
+    });
+    expect(onGuardado).not.toHaveBeenCalled();
+    expect(screen.getByLabelText(ETIQUETAS.cantidad)).toHaveValue('9');
     expect(screen.getByRole('dialog', { name: 'Modificar reserva' })).toBeInTheDocument();
   });
 

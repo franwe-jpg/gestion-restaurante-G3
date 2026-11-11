@@ -549,6 +549,45 @@ describe('ReservasPage: guardar la edición', () => {
   });
 });
 
+// S67 (corrección 2026-11-11, pendiente de validación del equipo): la cantidad de personas no puede
+// superar la capacidad de la mesa. El alta lo avisa en el formulario; la edición muestra el 409.
+describe('ReservasPage: capacidad de la mesa (S67)', () => {
+  it('el alta con más personas que la capacidad de la mesa elegida avisa y no envía el POST', async () => {
+    abrir();
+    await screen.findByText('Cliente n.º 7');
+    await pulsar('Nueva reserva');
+    await elegirCliente();
+    const campos = { Fecha: '2026-11-03', Hora: '21:30', Cantidad: '5' };
+    for (const [etiqueta, valor] of Object.entries(campos)) {
+      fireEvent.change(screen.getByLabelText(new RegExp(etiqueta)), { target: { value: valor } });
+    }
+    await screen.findByRole('option', { name: 'Salón · Mesa 5 (4 personas)' });
+    fireEvent.change(screen.getByLabelText(/Mesa/), { target: { value: '5' } });
+
+    await pulsar('Guardar reserva');
+
+    expect(screen.getByText('La mesa elegida admite hasta 4 personas.')).toBeVisible();
+    expect(crearReserva).not.toHaveBeenCalled();
+    expect(screen.getByRole('heading', { name: 'Nueva reserva' })).toBeInTheDocument();
+  });
+
+  it('la edición con más personas que la capacidad muestra el 409 en el formulario y no la cierra', async () => {
+    const detalle = 'La mesa 5 admite hasta 4 personas';
+    vi.mocked(modificarReserva).mockResolvedValue({ datos: null, exito: false, error: detalle });
+    abrir();
+    await screen.findByText('Cliente n.º 7');
+    await modificar();
+    fireEvent.change(screen.getByLabelText(/Cantidad de personas/), { target: { value: '9' } });
+
+    await pulsar('Guardar reserva');
+
+    expect(screen.getByText(detalle)).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Modificar reserva' })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Cantidad de personas/)).toHaveValue('9');
+    expect(listarReservas).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('ReservasPage: cancelar una reserva (HU-M5-04-05)', () => {
   it('confirmar «Cancelar reserva» llama a POST .../{id}/cancelar-anticipada y vuelve a pedir el listado', async () => {
     vi.mocked(cancelarReservaAnticipada).mockResolvedValue({ datos: null, exito: true });
