@@ -600,3 +600,28 @@ Probabilidades a estimar por el equipo (AGENTS.md §9.9).
 - [ ] Acuerdo de M4 (Juan Ignacio Riquelme y Franco Martín Soler) sobre B1 a B3, incluido el punto 2 de la Decisión 55 (dejar subir el `IntegrityError`), y sobre quién los implementa.
 - [ ] Validación del equipo de S1 (lectura literal) y S5 (rechazo con 409), y de la regla «solo fecha, cualquier hora».
 - [ ] Numeración de decisiones frente a un futuro diseño de HU-M5-07.
+
+## Adenda 2026-11-11: M4 resolvió B1 a B3 con otra forma
+
+Franco Martín Soler mergeó en `develop` el PR #236 (2026-11-10T11:38:29Z, merge `760dfce`), ya incorporado en esta rama (merge `ae68602`). Entregó la interfaz de M4 con otra forma que la asumida en la Decisión 55, así que el diseño original se conserva y esta adenda registra qué cambió. No hay un acuerdo escrito previo con Juan Ignacio Riquelme: queda pendiente su revisión, pedida en el PR. La firma real, leída en `backend/app/modules/atencion/service.py:163` y en `backend/app/shared/contratos/comanda.py`:
+
+```python
+def crear_comanda_para_reserva(db: Session, datos: ComandaCrear, reserva_id: int) -> ComandaSalida:
+    """Valida, cotiza y ocupa la mesa como crear_comanda; no hace commit ni rollback."""
+```
+
+| Punto | Lo asumido (Decisión 55) | Lo que entregó M4 (#236) | Efecto en M5 |
+| --- | --- | --- | --- |
+| B1: vínculo con la reserva | `reserva_id: StrictInt \| None` dentro de `ComandaCrear` | No se agregó: `ComandaCrear` sigue con `mesa_id`, `detalles` y `observaciones`, sin `extra="forbid"`, así que ignora en silencio un `reserva_id` que se le pase. El vínculo entra como **argumento aparte** de la primitiva (que rechaza `reserva_id <= 0` con `DatosInvalidosError`), y `ComandaSalida` ya trae `reserva_id` | El puente deja de pasar `reserva_id` dentro de `ComandaCrear`. `POST /comandas` no cambia |
+| B2: primitiva sin confirmar | `crear_comanda_sin_confirmar(db, datos: ComandaCrear)` | `crear_comanda_para_reserva(db, datos: ComandaCrear, reserva_id: int)`. Cumple lo que M5 necesita: no hace `commit` ni `rollback`, deja subir el `IntegrityError` sin traducir y devuelve la `ComandaSalida` con `reserva_id` | Solo cambia el cuerpo de `puente.crear_comanda_de_reserva` |
+| B3: proveedores internos | `MesasDeSalon()` y `CatalogoDeCarta()` construidos dentro de M4 | Resuelto con un import diferido de `app.modules.atencion.adaptadores` dentro de la función | Sin cambios: M5 sigue sin importar `adaptadores` (el puente importa solo `app.modules.atencion.service`) |
+
+Decisiones afectadas:
+
+| Decisión | Qué cambia | Qué sigue igual |
+| --- | --- | --- |
+| 53 (el puente) | El cuerpo: arma `ComandaCrear(mesa_id=..., detalles=..., observaciones=...)` sin `reserva_id` y llama a `atencion_service.crear_comanda_para_reserva(db, datos, reserva_id)`. Ya no aplica el párrafo «Antes de B2» (el atributo existe y no hay `AttributeError`) | El nombre `crear_comanda_de_reserva`, su firma con argumentos sueltos `(db, mesa_id, reserva_id, detalles, observaciones)`, que no haga `commit` ni `rollback` y las importaciones del puente. El `service`, el doble y sus pruebas no cambian. El vínculo sigue sin poder perderse en silencio, ahora porque viaja como argumento y porque la prueba del puente real y la de integración comprueban el `reserva_id` persistido |
+| 55 (contrato asumido) | La forma de B1 y B2 (no hay B1; B2 tiene otro nombre y recibe `reserva_id` aparte). «Dónde entra B»: ya no entra en este PR, porque lo hizo M4; la Fase 5 de las tareas no aplica | Los cuatro puntos de lo que M5 necesita de B2: sin `commit` ni `rollback`, `IntegrityError` sin traducir (lo comprueba la prueba de integración de la comanda duplicada), proveedores internos y `ComandaSalida` con `reserva_id` |
+| 61 (estrategia de pruebas) | Las filas «Bloqueada hasta B» (puente real e integración) se escriben y pasan: `test_puente.py` (3 pruebas) y `test_integracion_comanda.py` (8 pruebas). Los dos entrelazados de la carrera se reproducen de forma determinista con una función que corre dentro de la solicitud, entre la verificación previa de M4 y su insert | Strict TDD, sin `skipif`, el doble `DoblePuente` y las pruebas con doble de las Fases 1 y 2 |
+
+Siguen igual las Decisiones 50 a 52, 54 y 56 a 60. La Decisión 52 queda confirmada contra M4 real: la primitiva deja subir el `IntegrityError` y M5 lo traduce a 409. Pendiente fuera de este diseño: la spec (requisito «M5 consume la interfaz de M4 solo a través del puente», y su escenario con `crear_comanda_sin_confirmar`) y la divergencia D1 de `tasks.md` todavía nombran la forma anterior; no se reescriben aquí.

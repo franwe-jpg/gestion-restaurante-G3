@@ -145,7 +145,7 @@ El diseño avisa que la spec se escribió en paralelo y se reconcilia después. 
     `origin/develop` y `develop` sin cambios tras `git fetch`; issue #52 (HU-M4-04 Crear una comanda) en estado
     CLOSED; `git status --short` solo muestra `?? openspec/changes/HU-M5-06/`; `V-ALEMBIC` ejecutó en Docker (la
     imagen del backend arma) y devolvió un único head, `a9c1e3f5b7d9 (head)`.
-- [ ] 0.2 **Coordinación con M4** (persona; no es código). Confirmar por escrito con Juan Ignacio Riquelme
+- [x] 0.2 **Coordinación con M4** (persona; no es código). Confirmar por escrito con Juan Ignacio Riquelme
   (responsable de M4) y Franco Martín Soler (a quien el plan reasignó HU-M4-04 y que también modificó
   `atencion/service.py` (read-only)); un pulgar arriba en el grupo no cuenta como acuerdo sobre quién lo hace
   (propuesta, «Excluido»):
@@ -171,7 +171,16 @@ El diseño avisa que la spec se escribió en paralelo y se reconcilia después. 
     doble de S2-01 (`backend/tests/shared/fakes/comanda.py` (read-only)) modela `comanda_id`, superado por S54.
   - Salida: el acuerdo queda escrito (mensaje o comentario) y se cita en el PR (tarea P.2). Bloquea las Fases
     5 y 6 y la apertura del PR; **no bloquea** las Fases 1 a 4.
-  - Evidencia:
+  - Evidencia (2026-11-11): **cumplida de hecho por el PR #236**, no por un acuerdo escrito previo. Franco
+    Martín Soler lo mergeó en `develop` (2026-11-10T11:38:29Z, merge `760dfce`; ya está en esta rama por el
+    merge `ae68602`) con la interfaz de M4 `atencion.service.crear_comanda_para_reserva(db, datos:
+    ComandaCrear, reserva_id: int) -> ComandaSalida`. Frente a los puntos de arriba: (a) lo implementó M4, así
+    que la Fase 5 no aplica; (b) la forma es otra (nombre `crear_comanda_para_reserva` y `reserva_id` como
+    argumento aparte, no dentro de `ComandaCrear`) y solo cambia el cuerpo del puente (6.3); (c) cumple: no
+    hace `commit` ni `rollback` y deja subir el `IntegrityError` sin traducir (lo comprueba la prueba de
+    integración de la comanda duplicada, 6.4); (e) B1 no se hizo, así que `POST /comandas` no cambia. **Salvedad:
+    no hay un acuerdo escrito de Juan Ignacio Riquelme; «queda pendiente la revisión de Juan, pedida en el
+    PR».** Se cita en el PR (P.2). Ver la adenda 2026-11-11 de `design.md`.
 - [x] 0.3 **Validación del equipo de S53 (S1 de la propuesta) y S57 (S5 de la propuesta)** (persona), antes de
   empezar apply. S53: «al menos un producto» se lee en forma literal (un pedido solo de menús responde 422).
   S57: «se advierte» una reserva de otra fecha significa rechazar con 409. Cada regla vive aislada
@@ -706,9 +715,16 @@ Depende de las Fases 1 a 3. No requiere B1 ni B2.
 - [ ] 4.4 Escribir `openspec/changes/HU-M5-06/apply-progress.md` con el avance por tarea (evidencia observada,
   comandos y resultados reales, estado de las tareas BLOQUEADAS y cifras de 4.3). Se confirma con la persona
   antes de incluirlo en un commit (se agrega en 6.9 o en el commit de documentación final).
-  - Evidencia:
+  - Evidencia (2026-11-11): escrito en `openspec/changes/HU-M5-06/apply-progress.md`. **Sigue abierta:** falta
+    la confirmación de la persona para incluirlo en un commit; hasta entonces queda sin commitear.
 
 ## Fase 5. CONDICIONADA a la tarea 0.2: B1 y B2/B3 dentro de este PR
+
+**No aplica: resuelta por Franco en #236 con `crear_comanda_para_reserva`; esta rama no toca atencion ni
+shared.** (2026-11-11.) M4 entregó la interfaz con otra forma que la de las tareas de abajo: no agregó
+`reserva_id` a `ComandaCrear` (B1) y el nombre y la firma de B2 son `crear_comanda_para_reserva(db, datos,
+reserva_id)`; B3 lo resolvió M4 con un import diferido. Las tareas 5.1 a 5.6 quedan **sin tildar** porque no
+se hicieron en esta rama; el texto de abajo se conserva como historia. Ver la adenda 2026-11-11 de `design.md`.
 
 **Solo se ejecuta si M4 acuerda por escrito que esta persona implementa B1 a B3** (Decisión 55; AGENTS.md
 §9.3). Si M4 lo hace en su propio PR, esta fase se omite: se borra o se marca «No aplica» y el PR espera al de
@@ -720,7 +736,7 @@ otorgue la autoridad de edición (o hasta que se borre esta fase porque M4 lo ha
 pruebas existentes de M4 y de la carpeta compartida de pruebas deben seguir en verde sin cambios, y
 `backend/tests/shared/test_contrato_comanda.py` (read-only) no se edita.
 
-- [ ] 5.1 **CONDICIONADA a 0.2.** (Rojo, B1) Crear `backend/tests/modules/atencion/test_comanda_reserva.py`
+- [ ] 5.1 **No aplica (resuelta en #236).** (Rojo, B1) Crear `backend/tests/modules/atencion/test_comanda_reserva.py`
   (o el archivo que indique M4), escenarios «B1, sin vínculo todo sigue igual» y «B1, el vínculo debe ser un
   entero positivo»: `test_comanda_crear_sin_reserva_id_queda_en_none`;
   `test_comanda_crear_rechaza_reserva_id_no_positivo_o_no_entero` (`0`, `-1`, `2.5`, `"3"`);
@@ -729,15 +745,15 @@ pruebas existentes de M4 y de la carpeta compartida de pruebas deben seguir en v
   corresponda a la decisión de 0.2(e) sobre `POST /comandas` con `reserva_id` en el cuerpo (ignora, rechaza o
   admite). Fallan: `ComandaCrear` ignora `reserva_id` en silencio.
   - Evidencia:
-- [ ] 5.2 **CONDICIONADA a 0.2.** (Verde, B1) `backend/app/shared/contratos/comanda.py`: `reserva_id:
+- [ ] 5.2 **No aplica (resuelta en #236).** (Verde, B1) `backend/app/shared/contratos/comanda.py`: `reserva_id:
   StrictInt | None = Field(default=None, gt=0)` en `ComandaCrear`; `backend/app/modules/atencion/repository.py`:
   `crear_comanda` copia `reserva_id` al `model`. Pasa 5.1; corren `pytest --no-cov -q tests/modules/atencion
   tests/shared` y `V-BACK`.
   - Evidencia:
-- [ ] 5.3 **CONDICIONADA a 0.2.** Commit M4-a (B1): `feat: permite vincular una comanda con una reserva (<ID de M4>)`.
+- [ ] 5.3 **No aplica (resuelta en #236).** Commit M4-a (B1): `feat: permite vincular una comanda con una reserva (<ID de M4>)`.
   Solo `comanda.py`, `repository.py` y `test_comanda_reserva.py`. La aprobación de M4 se anota en el PR (P.2).
   - Evidencia:
-- [ ] 5.4 **CONDICIONADA a 0.2.** (Rojo, B2 y B3) En `backend/tests/modules/atencion/test_comanda_reserva.py`
+- [ ] 5.4 **No aplica (resuelta en #236).** (Rojo, B2 y B3) En `backend/tests/modules/atencion/test_comanda_reserva.py`
   (siembra de M3 con el patrón de las fixtures existentes de `atencion`): escenarios «B2, la primitiva no
   confirma» y «B2, `crear_comanda` conserva su comportamiento»:
   `test_crear_comanda_sin_confirmar_no_confirma_y_el_rollback_la_descarta` (sin comanda y mesa `LIBRE`);
@@ -747,19 +763,24 @@ pruebas existentes de M4 y de la carpeta compartida de pruebas deben seguir en v
   `crear_comanda` mantiene su `commit`, su `rollback` y la traducción a `ComandaAbiertaError`. Fallan:
   `crear_comanda_sin_confirmar` no existe.
   - Evidencia:
-- [ ] 5.5 **CONDICIONADA a 0.2.** (Verde, B2 y B3) `backend/app/modules/atencion/service.py`:
+- [ ] 5.5 **No aplica (resuelta en #236).** (Verde, B2 y B3) `backend/app/modules/atencion/service.py`:
   `crear_comanda_sin_confirmar(db, datos: ComandaCrear) -> ComandaSalida` con la misma validación que
   `crear_comanda` (comanda abierta, mesa `LIBRE`, cotización, ocupar la mesa), `db.flush()` en lugar de
   `db.commit()`, sin `rollback`, con `MesasDeSalon()` y `CatalogoDeCarta()` construidos adentro; `crear_comanda`
   pasa a apoyarse en esa lógica y conserva su `commit`, su `rollback` y el manejo del `IntegrityError`. Pasa
   5.4; todas las pruebas de M4 existentes pasan sin cambios; `V-BACK` en verde (incluye `lint-imports`).
   - Evidencia:
-- [ ] 5.6 **CONDICIONADA a 0.2.** Commit M4-b (B2 y B3): `feat: agrega crear_comanda_sin_confirmar (<ID de M4>)`.
+- [ ] 5.6 **No aplica (resuelta en #236).** Commit M4-b (B2 y B3): `feat: agrega crear_comanda_sin_confirmar (<ID de M4>)`.
   Solo el `service.py` de M4 y su prueba. Rollback: revertir cada commit de M4 por separado; el
   endpoint general de comandas no cambia.
   - Evidencia:
 
 ## Fase 6. BLOQUEADA hasta que B1 y B2 estén en `develop` (o en esta rama, por la Fase 5)
+
+**Desbloqueada (2026-11-11):** M4 entregó su interfaz en #236, con otra forma que la de B1 y B2
+(`crear_comanda_para_reserva(db, datos, reserva_id)`; ver la adenda 2026-11-11 de `design.md`), y ya está en
+esta rama. Las tareas 6.1 a 6.6 y la parte enfocada de 6.7 se hicieron con esa forma; quedan pendientes el
+resto de 6.7, 6.8 (humo manual), 6.9 (commits) y 6.10 (medición).
 
 **Dependencia común: B1 y B2 acordados con M4 (tarea 0.2) e integrados.** Hasta entonces el PR no se abre. Las
 pruebas de esta fase se escriben recién ahora, sin `skipif` (Decisión 61): un `skipif` por atributo las dejaría
@@ -767,14 +788,27 @@ verdes en silencio si M4 elige otro nombre. Allowed edit surfaces: `backend/app/
 (solo si cambia la forma de B2), `backend/tests/modules/reservas/test_puente.py` y
 `backend/tests/modules/reservas/test_integracion_comanda.py`.
 
-- [ ] 6.1 **BLOQUEADA (depende de B1 y B2 en la base).** Puerta (persona): `git pull origin develop` y resolver
+- [x] 6.1 **Desbloqueada por #236.** Puerta (persona): `git pull origin develop` y resolver
   los conflictos en la rama (en particular con el PR #230 sobre el `service.py` de M4); buscando con `rg`
   `crear_comanda_sin_confirmar` en el módulo atencion y `reserva_id` en el contrato compartido de comanda,
   confirmar que B1 y B2 existen y leer la **firma real**. Si coincide con la Decisión 55, las tareas siguientes
   corren tal cual; si difiere (por ejemplo `confirmar: bool`), solo cambia el cuerpo de
   `crear_comanda_de_reserva` en la tarea 6.3.
-  - Evidencia:
-- [ ] 6.2 **BLOQUEADA (depende de B1 y B2).** (Rojo) `backend/tests/modules/reservas/test_puente.py`, función
+  - Evidencia (2026-11-11): `git log --oneline` muestra el merge `760dfce` (PR #236) y el merge `ae68602`
+    (`develop` ya incorporado en esta rama). Búsqueda con `grep -rn` (`rg` no está instalado en este entorno):
+    `crear_comanda_sin_confirmar` aparecía solo en `backend/app/modules/reservas/puente.py` (la llamada y su
+    docstring) y no está definida en `backend/app/modules/atencion/`; `def crear_comanda_para_reserva` está en
+    `backend/app/modules/atencion/service.py:163`. **Firma real:** `crear_comanda_para_reserva(db: Session,
+    datos: ComandaCrear, reserva_id: int) -> ComandaSalida`: valida, cotiza y ocupa la mesa con
+    `_registrar_comanda`, no hace `commit` ni `rollback`, exige `reserva_id > 0` (`DatosInvalidosError`) y arma
+    `MesasDeSalon()` y `CatalogoDeCarta()` con un import diferido (B3 resuelto). `ComandaCrear`
+    (`backend/app/shared/contratos/comanda.py:33-36`) sigue con `mesa_id`, `detalles` y `observaciones`, sin
+    `reserva_id` y sin `extra="forbid"`: un `reserva_id=` se ignora en silencio. `ComandaSalida.reserva_id`
+    existe (línea 59). **Diferencias con la Decisión 55:** el nombre (`crear_comanda_para_reserva`, no
+    `crear_comanda_sin_confirmar`) y que el vínculo entra como argumento aparte, no dentro de `ComandaCrear`
+    (B1 no se hizo). Solo cambia el cuerpo de `crear_comanda_de_reserva` (6.3): la firma del puente, el
+    `service`, el doble y sus pruebas no cambian.
+- [x] 6.2 **Desbloqueada por #236.** (Rojo) `backend/tests/modules/reservas/test_puente.py`, función
   real con `puente_real`, M3 sembrado con `mesas_en_m3` y un producto habilitado de M1 sembrado con un
   ayudante local (sin importar fixtures de otro módulo): `test_crear_comanda_de_reserva_real_arma_la_comanda_con_la_mesa_y_el_vinculo`
   (tras `db.commit()`, la comanda tiene `reserva_id` y `mesa_id`; la `ComandaSalida` trae `reserva_id`);
@@ -782,12 +816,25 @@ verdes en silencio si M4 elige otro nombre. Allowed edit surfaces: `backend/app/
   `LIBRE`); `test_crear_comanda_de_reserva_real_propaga_el_error_de_m4` (producto inexistente:
   `NoEncontradoError`). Como el cuerpo se escribió en 1.2, estas pruebas pueden pasar de inmediato: la
   evidencia de Rojo es la mutación de 6.5(a).
-  - Evidencia:
-- [ ] 6.3 **BLOQUEADA (depende de 6.1).** (Verde, condicional) Solo si la firma real difiere: ajustar el cuerpo
+  - Evidencia (2026-11-11): **Rojo real, antes de tocar `puente.py`:** las tres pruebas nuevas de
+    `test_puente.py` no pasaron de inmediato, porque el cuerpo viejo llamaba a una función inexistente.
+    `docker compose run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp backend pytest --no-cov -q
+    -p no:cacheprovider tests/modules/reservas/test_puente.py`: `3 failed, 19 passed`, las tres con
+    `AttributeError: module 'app.modules.atencion.service' has no attribute 'crear_comanda_sin_confirmar'`.
+    Verde: ver 6.3. Ayudante local `_sembrar_producto_habilitado` (sección y producto de M1 con los servicios
+    reales de `productos`, sin importar fixtures de otro módulo). La mutación de 6.5(a) vuelve a hacer fallar
+    la primera prueba.
+- [x] 6.3 **Desbloqueada por #236.** (Verde, condicional) Solo si la firma real difiere: ajustar el cuerpo
   de `crear_comanda_de_reserva` en `backend/app/modules/reservas/puente.py` (Decisión 53); el `service`, el
   doble y sus pruebas no cambian. Si no difiere, queda «sin cambios» con la evidencia de que 6.2 pasa.
-  - Evidencia:
-- [ ] 6.4 **BLOQUEADA (depende de B1 y B2).** (Rojo y Verde) Crear
+  - Evidencia (2026-11-11): la firma real difiere (6.1), así que se ajustó el cuerpo de
+    `crear_comanda_de_reserva` en `puente.py`: arma `ComandaCrear(mesa_id=..., detalles=...,
+    observaciones=...)` sin `reserva_id` y llama a `atencion_service.crear_comanda_para_reserva(db, datos,
+    reserva_id)`; el docstring ya no cita B1, B2 ni `crear_comanda_sin_confirmar`. Nada más cambió en el
+    archivo (+5 -6 líneas). `... pytest --no-cov -q -p no:cacheprovider tests/modules/reservas/test_puente.py`:
+    `22 passed` (19 previas y las 3 de 6.2). `git diff --stat` sobre `service.py` de reservas, `conftest.py`,
+    `atencion`, `salon`, `shared` y `pyproject.toml`: vacío.
+- [x] 6.4 **Desbloqueada por #236.** (Rojo y Verde) Crear
   `backend/tests/modules/reservas/test_integracion_comanda.py` con SQLite real, el puente real, M3 sembrado y
   un producto habilitado de M1, a través de `POST /reservas/{id}/comanda` (escenarios «[Integración,
   condicionado a B1 y B2]»; los modelos de `productos`, `salon` y `atencion` se importan solo desde `tests/`):
@@ -809,48 +856,129 @@ verdes en silencio si M4 elige otro nombre. Allowed edit surfaces: `backend/app/
     se cubre la traducción con 1.11 y se anota como pendiente en el PR (riesgo del diseño).
   Se escriben en rojo contra el puente real (o pasan de inmediato si 6.2 y la implementación ya cumplen) y
   se registra el resultado real.
-  - Evidencia:
-- [ ] 6.5 **BLOQUEADA (depende de 6.2 y 6.4).** Mutaciones, una por vez, restauradas a mano desde una copia de
+  - Evidencia (2026-11-11): `test_integracion_comanda.py` nuevo (314 líneas, 8 pruebas): SQLite migrada, puente
+    real (`puente_real`), M3 con `mesas_en_m3` y un producto habilitado de M1 con un ayudante local. Cubre:
+    persistencia con vínculo y mesa `OCUPADA` (201, reserva `ATENDIDA`); mesa `OCUPADA` y mesa
+    `FUERA_DE_SERVICIO` (409 «La mesa {numero} no está libre», reserva `ACTIVA`, sin comandas); mesa con una
+    comanda `ABIERTA` previa (la `ComandaAbiertaError` de M4: 409 con su texto, una sola comanda, reserva
+    `ACTIVA`); producto inexistente en la segunda línea (404, 0 comandas y 0 detalles, mesa `LIBRE`, reserva
+    `ACTIVA`); falla del commit (500; se comprueba que la comanda ya estaba en la transacción y que no queda
+    nada); base que rechaza la comanda duplicada (409 «La mesa {mesa_id} ya tiene una comanda abierta», reserva
+    `ACTIVA`, solo la comanda ajena); dos solicitudes para la misma reserva (una atiende y la otra responde 409
+    «La reserva {id} ya fue atendida»; una sola comanda con `reserva_id`). **Rojo real:** con el cuerpo viejo de
+    `puente.py` (copia de `HEAD`), `pytest --no-cov -q -p no:cacheprovider
+    tests/modules/reservas/test_integracion_comanda.py tests/modules/reservas/test_puente.py` dio `10 failed,
+    20 passed`: las 3 de 6.2 y 7 de las 8 de integración, todas con el `AttributeError` de 6.2. La octava, la
+    de la falla del commit, pasaba por el 500 del `AttributeError` y no por el motivo previsto; se le agregó la
+    comprobación de que la comanda llega a la transacción, y con el cuerpo viejo falla (`assert [] == [1]`).
+    **Verde:** `8 passed`; repetida 6 veces junto con `test_puente.py`: `30 passed` cada vez, sin pruebas
+    inestables. **Entrelazados deterministas:** los dos de carrera ejecutan una función dentro de la
+    solicitud, al volver la consulta de `salon_service.obtener_mesa` que hace M4 (después de su verificación
+    previa de comanda abierta y antes del insert), y esa función confirma desde otra sesión lo que haría una
+    solicitud concurrente (sin hilos ni esperas). **Limitaciones:** en el de dos solicitudes la ganadora es una
+    llamada a `service.crear_comanda` con su propia sesión y no un segundo `POST`, porque el cliente HTTP de
+    las pruebas comparte una sola sesión; y el entrelazado depende del orden interno de M4 (verificación
+    previa, consulta a M3, insert): si M4 lo cambia, las dos pruebas fallan de forma visible, no en silencio.
+    El texto del 409 de la base duplicada es el de la Decisión 52, no «el mismo mensaje que M4» de la
+    spec (que remite al diseño).
+- [x] 6.5 **Desbloqueada por #236.** Mutaciones, una por vez, restauradas a mano desde una copia de
   respaldo: (a) quitar `reserva_id=reserva_id` del `ComandaCrear` en `puente.py` y comprobar que 6.2 falla (da
   el Rojo que 1.2 no pudo dar); (b) quitar la rama `except IntegrityError` de `service.crear_comanda` y
   comprobar que la prueba de la comanda duplicada de 6.4 falla.
-  - Evidencia:
-- [ ] 6.6 **BLOQUEADA (depende de B1 y B2).** Escenario «B3, M5 no importa los adaptadores de M4»: `lint-imports`
+  - Evidencia (2026-11-11): copias de respaldo de `puente.py` y `service.py` fuera del repositorio; una
+    mutación por vez y restauración a mano con `cp` y `cmp` (idénticos). **(a)** `puente.py` con
+    `reserva_id + 1` en la llamada a `crear_comanda_para_reserva` (el vínculo deja de ser el de la reserva):
+    `pytest --no-cov -q -p no:cacheprovider tests/modules/reservas/test_integracion_comanda.py
+    tests/modules/reservas/test_puente.py` dio `3 failed, 27 passed`:
+    `test_crear_comanda_de_reserva_real_arma_la_comanda_con_la_mesa_y_el_vinculo` (`assert (1, 11) == (1, 10)`),
+    `test_post_comanda_de_reserva_persiste_la_comanda_con_el_vinculo_y_ocupa_la_mesa` y
+    `test_post_comanda_de_reserva_dos_solicitudes_para_la_misma_reserva_una_201_y_otra_409`
+    (`assert [2] == [1]`). Restaurado. **(b)** `service.crear_comanda` sin la rama `except IntegrityError`:
+    `... pytest ... tests/modules/reservas/test_integracion_comanda.py` dio `2 failed, 6 passed`:
+    `test_post_comanda_de_reserva_con_la_base_rechazando_la_comanda_duplicada_devuelve_409` y la de dos
+    solicitudes, ambas con `sqlalchemy.exc.IntegrityError: UNIQUE constraint failed: comandas.mesa_id` sin
+    traducir. Restaurado: `git diff --stat -- backend/app/modules/reservas/service.py` vacío.
+- [x] 6.6 **Desbloqueada por #236.** Escenario «B3, M5 no importa los adaptadores de M4»: `lint-imports`
   pasa sin cambios en los contratos de importación (el archivo de configuración del backend no se edita), y `reservas` solo importa
   `app.modules.atencion.service` y `app.modules.salon.service`, y solo desde `puente.py` (el existente
   `test_solo_el_puente_importa_salon_y_atencion` sigue en verde).
-  - Evidencia:
-- [ ] 6.7 **BLOQUEADA (depende de B1 y B2).** `git pull origin develop` (de nuevo, si avanzó) y verificación
+  - Evidencia (2026-11-11): `docker compose run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -e
+    RUFF_CACHE_DIR=/tmp/ruff_cache backend sh -c "ruff check . && ruff format --check . && lint-imports"`:
+    `Contracts: 10 kept, 0 broken` (87 archivos, 351 dependencias), sin cambios en `backend/pyproject.toml`
+    (`git diff --stat` vacío). `grep -rn` de `modules.atencion` y `modules.salon` sobre
+    `backend/app/modules/reservas`: solo `puente.py`, líneas 20 y 21 (`app.modules.atencion.service` y
+    `app.modules.salon.service`); no importa `adaptadores`. `test_solo_el_puente_importa_salon_y_atencion` pasa
+    dentro de `tests/modules/reservas` (ver 6.7: `528 passed`).
+- [x] 6.7 **Desbloqueada por #236.** `git pull origin develop` (de nuevo, si avanzó) y verificación
   completa del repositorio con `V-BACK`, `V-ALEMBIC` y `V-FRONT`: CI local en verde, sin migración nueva.
-  - Evidencia:
-- [ ] 6.8 **BLOQUEADA (depende de B1 y B2).** Humo manual (persona), con `docker compose up --build` (si la
+  - Evidencia (2026-11-11). Escritor, enfocado: `pytest --no-cov -q tests/modules/reservas`: `528 passed`.
+    **Padre, completo e independiente**, sobre la rama con `origin/develop` (760dfce) ya integrado (merge
+    `ae68602`, 4 conflictos aditivos en `reservas/` resueltos conservando ambos lados):
+    - Backend (`V-BACK` + `V-ALEMBIC`, un solo comando en Docker con `RUFF_CACHE_DIR=/tmp/ruff_cache`):
+      `ruff check .` `All checks passed!`; `ruff format --check .` `151 files already formatted`;
+      `lint-imports` `Contracts: 10 kept, 0 broken`; `pytest`: `2163 passed, 1 warning in 0:16:55`,
+      `Required test coverage of 70% reached. Total coverage: 98.43%`; `alembic heads`:
+      `c3e5a7b9d1f2 (head)` (un único head, el mismo de `develop`; ninguna migración nueva).
+    - Frontend (`V-FRONT`, desde `frontend/`, con `VITE_API_URL` sin definir y salidas de cobertura y
+      build en el scratchpad por los directorios de root): `eslint . --max-warnings=0` sin hallazgos;
+      `format:check` `All matched files use Prettier code style!`; `typecheck` sin errores;
+      `test:coverage` `Test Files 122 passed (122)`, `Tests 1349 passed (1349)`, cobertura `All files`
+      86,58 % de líneas (el umbral aplica a `src/App.tsx` y `src/shared/**`); `vite build` `built in 706ms`.
+- [ ] 6.8 **PARCIAL (la parte de la interfaz sigue pendiente).** Humo manual (persona), con `docker compose up --build` (si la
   base local es vieja, `docker compose down -v` antes): crear una reserva `ACTIVA` de hoy en una mesa `LIBRE`;
   pulsar «Crear comanda»; cargar un producto y una cantidad; comprobar el aviso «Comanda n.º {id} creada», que
   la fila deja de estar `ACTIVA`, que la mesa figura `OCUPADA` y que la comanda aparece en la pantalla de
   comandas de M4 con la reserva; probar una reserva de otra fecha (aviso del backend dentro del modal) y una
   mesa ocupada (409 de M4). Anotar lo observado.
-  - Evidencia:
-- [ ] 6.9 **BLOQUEADA (depende de 6.2 a 6.7).** Commit 6 (unidad 6): `test: agrega pruebas del puente real y de integración de la comanda desde una reserva (HU-M5-06)`.
+  - Evidencia (2026-11-11), **parcial:** humo contra la API real, no contra la pantalla. Se levantó `uvicorn`
+    de verdad en un contenedor descartable (`docker compose run --no-deps`, `DATABASE_URL=sqlite:////tmp/humo.db`,
+    `alembic upgrade head`), sin tocar `docker compose down -v` ni la base ni el volumen locales, y un script
+    externo al repositorio llamó a la API HTTP: **30 de 30 pasos OK** (`RESULTADO: TODO OK`).
+    Observado: reserva `ACTIVA` de hoy → `POST /reservas/{id}/comanda` `201`, comanda `ABIERTA` con
+    `reserva_id` y `mesa_id`; la reserva pasa a `ATENDIDA`; la mesa queda `OCUPADA`; `GET /comandas/{id}` de M4
+    trae el `reserva_id`; segundo intento sobre la misma reserva `409` «ya fue atendida»; reserva de mañana
+    `409` «no corresponde al día de hoy»; reserva cancelada `409`; cantidad 0 `422`, con la reserva todavía
+    `ACTIVA`. Siguió el recorrido de S4-05: entrega, cierre (la mesa vuelve a `LIBRE`), factura de `2700.90`
+    (2 × 1500.50 menos 10 % de una promoción) `PAGADA` con su cobro, y los reportes de caja, productos más
+    vendidos, reservas y ausentismo (4 reservas, 1 atendida, 1 cancelada), impacto de promociones y las
+    versiones PDF respondieron `200`.
+    **No observado (pendiente, es de la persona):** el modal «Crear comanda», el aviso «Comanda n.º {id}
+    creada», que la fila deje de estar `ACTIVA` en la pantalla y la pantalla de comandas de M4 (requieren un
+    navegador); lo cubren las pruebas de Vitest con la API simulada. Tampoco se probó con un mozo: la comanda
+    no recibe `mozo_id` en `develop`, y `mesas-ventas-por-mozo` devolvió `lineas: []`.
+- [x] 6.9 **Desbloqueada (depende de 6.2 a 6.7).** Commit 6 (unidad 6): `test: agrega pruebas del puente real y de integración de la comanda desde una reserva (HU-M5-06)`.
   Incluye `test_puente.py`, `test_integracion_comanda.py` y, si 6.3 lo exigió, `puente.py`. Después, un commit
   de documentación con `apply-progress.md` (4.4): `docs: registra el avance y la verificación de HU-M5-06`.
   Rollback: revertir el commit (solo pruebas).
-  - Evidencia:
-- [ ] 6.10 **BLOQUEADA (depende de 6.9).** Medición final con `MEDIR` (backend y frontend por separado, con B si
+  - Evidencia (2026-11-11): commit `243d6aa` `feat: conecta el puente de reservas con la comanda para reserva
+    de atención y agrega sus pruebas de integración (HU-M5-06)` (`puente.py`, `test_puente.py` y
+    `test_integracion_comanda.py`). Como la firma real difería, el cambio de `puente.py` es de comportamiento
+    (la comanda sin vínculo se perdía en silencio), por eso el tipo es `feat` y no `test`. El commit de
+    documentación (`tasks.md`, `design.md`, `spec.md` y `apply-progress.md`) es el que sigue a este. No hay
+    atribución de IA en ningún mensaje de la rama.
+- [x] 6.10 **Desbloqueada (depende de 6.9).** Medición final con `MEDIR` (backend y frontend por separado, con B si
   entró en este PR, y con las pruebas de integración) contra el pronóstico y el límite de 800 por lado. Las
   cifras pasan a la nota de tamaño del PR (P.6).
-  - Evidencia:
+  - Evidencia (2026-11-11), `git diff --shortstat origin/develop...HEAD -- <lado>` (el merge de `develop` no
+    cuenta: la base ya es `origin/develop`): backend `10 files changed, 1683 insertions(+), 6 deletions(-)`;
+    frontend `14 files changed, 1246 insertions(+), 11 deletions(-)`. Sin pruebas: backend 100 y 2 líneas
+    (4 archivos), frontend 391 y 6 (8 archivos); el resto son pruebas. Los dos lados superan el punto de
+    control de 800 (excepción de tamaño, `single-pr`): la HU toca dos capas, no se recortaron pruebas y B1 a B3
+    no entran (los hizo M4 en #236). El pronóstico del backend (550 a 755, hasta 935 con B) quedó por encima
+    porque las pruebas de integración y del puente real suman unas 400 líneas.
 
-## Fase 7. Antes del PR (persona; BLOQUEADA hasta completar la Fase 6)
+## Fase 7. Antes del PR (persona; desbloqueada, la Fase 6 está hecha salvo la parte de la interfaz de 6.8)
 
 Estas tareas las hace la persona responsable (o el agente con su confirmación explícita). Ninguna crea, cierra
 ni edita issues, comentarios, PR ni tarjetas sin confirmación (AGENTS.md §8). El push y el PR los decide la
-persona. **El PR no se abre hasta que B1 y B2 estén en `develop` o dentro de esta rama.**
+persona. **B1 y B2 ya están en `develop`** (PR #236, con otra forma: `crear_comanda_para_reserva`), así que el
+PR ya se puede abrir; en P.2 la «aprobación de M4» es ese PR y la revisión de Juan que se pidió en él.
 
-- [ ] P.1 **BLOQUEADA (depende de la Fase 6).** Completar `Closes #68` en la descripción del PR, usando la
+- [ ] P.1 **Desbloqueada (Fase 6 hecha).** Completar `Closes #68` en la descripción del PR, usando la
   plantilla `.github/pull_request_template.md` (read-only), con el PR hacia `develop` y el ID `HU-M5-06` en la rama
   y el título.
   - Evidencia:
-- [ ] P.2 **BLOQUEADA (depende de 0.2 y 0.3).** Mencionar en el PR (a) **la aprobación de M4**: el acuerdo escrito
+- [ ] P.2 **Desbloqueada (0.2 resuelta por #236).** Mencionar en el PR (a) **la aprobación de M4**: el acuerdo escrito
   sobre B1 a B3, quién los implementó, el ID de sus commits y, si corresponde, el orden respecto del PR #230;
   y (b) **los supuestos pendientes de validación del equipo**: S53 y S57 (decisiones de producto), S54, S55,
   S56, S58 a S65 y las contradicciones C1 a C3, indicando cuáles siguen sin respuesta.
