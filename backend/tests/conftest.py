@@ -16,6 +16,15 @@ from app.main import app
 ALEMBIC_INI = Path(__file__).resolve().parents[1] / "alembic.ini"
 
 
+@pytest.fixture(autouse=True)
+def _rondas_bcrypt_bajas(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """El hash de las pruebas usa 4 rondas para no ralentizar la suite (A6)."""
+    monkeypatch.setenv("BCRYPT_RONDAS", "4")
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
+
+
 @pytest.fixture
 def db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Session]:
     """Sesion sobre una base nueva, migrada hasta head."""
@@ -34,6 +43,14 @@ def db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Session]:
 @pytest.fixture
 def cliente(db: Session) -> Iterator[TestClient]:
     """Cliente HTTP que usa la sesion de la prueba en lugar de la base real."""
+    app.dependency_overrides[get_db] = lambda: db
+    yield TestClient(app)
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def cliente_sin_sesion(db: Session) -> Iterator[TestClient]:
+    """Cliente HTTP con la seguridad real: sin encabezado la API responde 401."""
     app.dependency_overrides[get_db] = lambda: db
     yield TestClient(app)
     app.dependency_overrides.clear()

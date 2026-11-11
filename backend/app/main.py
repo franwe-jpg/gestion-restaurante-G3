@@ -17,6 +17,7 @@ from app.modules.pagos.router import router as pagos_router
 from app.modules.productos.router import router as productos_router
 from app.modules.reservas.router import router as reservas_router
 from app.modules.salon.router import router as salon_router
+from app.modules.usuarios.router import router as usuarios_router
 from app.shared.excepciones import (
     DatosInvalidosError,
     NoAutenticadoError,
@@ -40,6 +41,7 @@ app.include_router(pagos_router, prefix=API_PREFIX)
 app.include_router(productos_router, prefix=API_PREFIX)
 app.include_router(salon_router, prefix=API_PREFIX)
 app.include_router(reservas_router, prefix=API_PREFIX)
+app.include_router(usuarios_router, prefix=API_PREFIX)
 
 
 def montar_media(aplicacion: FastAPI, directorio: str | Path) -> None:
