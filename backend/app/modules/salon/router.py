@@ -27,95 +27,111 @@ from app.modules.salon.schemas import (
     SectorSalida,
 )
 from app.shared.paginacion import Pagina, ParametrosPaginacion
+from app.shared.permisos import Permiso
+from app.shared.seguridad import requiere
 
 router = APIRouter()
 
 Sesion = Annotated[Session, Depends(get_db)]
 
 
-@router.post("/sectores", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/sectores",
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[requiere(Permiso.SALON_GESTIONAR)],
+)
 def crear_sector(datos: SectorCrear, db: Sesion) -> SectorSalida:
     return service.crear_sector(db, datos)
 
 
-@router.put("/sectores/{sector_id}")
+@router.put("/sectores/{sector_id}", dependencies=[requiere(Permiso.SALON_GESTIONAR)])
 def modificar_sector(sector_id: int, datos: SectorModificar, db: Sesion) -> SectorSalida:
     return service.modificar_sector(db, sector_id, datos)
 
 
-@router.post("/sectores/{sector_id}/baja")
+@router.post("/sectores/{sector_id}/baja", dependencies=[requiere(Permiso.SALON_GESTIONAR)])
 def dar_de_baja_sector(sector_id: int, db: Sesion) -> SectorSalida:
     return service.dar_de_baja_sector(db, sector_id)
 
 
-@router.post("/mesas", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/mesas", status_code=status.HTTP_201_CREATED, dependencies=[requiere(Permiso.SALON_GESTIONAR)]
+)
 def crear_mesa(datos: MesaCrear, db: Sesion) -> MesaSalida:
     return service.crear_mesa(db, datos)
 
 
-@router.get("/mesas")
+@router.get("/mesas", dependencies=[requiere(Permiso.SALON_VER)])
 def listar_mesas(
     db: Sesion, filtro: Annotated[ParametrosPaginacion, Query()]
 ) -> Pagina[MesaSalida]:
     return service.listar_mesas(db, filtro)
 
 
-@router.put("/mesas/{mesa_id}")
+@router.put("/mesas/{mesa_id}", dependencies=[requiere(Permiso.SALON_GESTIONAR)])
 def modificar_mesa(mesa_id: int, datos: MesaModificar, db: Sesion) -> MesaSalida:
     return service.modificar_mesa(db, mesa_id, datos)
 
 
-@router.delete("/mesas/{mesa_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/mesas/{mesa_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[requiere(Permiso.SALON_GESTIONAR)],
+)
 def eliminar_mesa(mesa_id: int, db: Sesion) -> None:
     service.eliminar_mesa(db, mesa_id)
 
 
-@router.get("/sectores")
+@router.get("/sectores", dependencies=[requiere(Permiso.SALON_VER)])
 def listar_sectores(db: Sesion, filtro: Annotated[FiltroSectores, Query()]) -> Pagina[SectorSalida]:
     return service.listar_sectores(db, filtro, filtro.estado)
 
 
-@router.post("/mozos", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/mozos", status_code=status.HTTP_201_CREATED, dependencies=[requiere(Permiso.SALON_GESTIONAR)]
+)
 def crear_mozo(datos: MozoCrear, db: Sesion) -> MozoSalida:
     return service.crear_mozo(db, datos)
 
 
-@router.get("/mozos")
+@router.get("/mozos", dependencies=[requiere(Permiso.SALON_GESTIONAR)])
 def listar_mozos(db: Sesion, filtro: Annotated[FiltroMozos, Query()]) -> Pagina[MozoSalida]:
     return service.listar_mozos(db, filtro, filtro.estado)
 
 
-@router.put("/mozos/{mozo_id}")
+@router.put("/mozos/{mozo_id}", dependencies=[requiere(Permiso.SALON_GESTIONAR)])
 def modificar_mozo(mozo_id: int, datos: MozoModificar, db: Sesion) -> MozoSalida:
     return service.modificar_mozo(db, mozo_id, datos)
 
 
-@router.post("/mozos/{mozo_id}/baja")
+@router.post("/mozos/{mozo_id}/baja", dependencies=[requiere(Permiso.SALON_GESTIONAR)])
 def dar_de_baja_mozo(mozo_id: int, db: Sesion) -> MozoSalida:
     return service.dar_de_baja_mozo(db, mozo_id)
 
 
-@router.post("/chefs", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/chefs", status_code=status.HTTP_201_CREATED, dependencies=[requiere(Permiso.SALON_GESTIONAR)]
+)
 def crear_chef(datos: ChefCrear, db: Sesion) -> ChefSalida:
     return service.crear_chef(db, datos)
 
 
-@router.get("/chefs")
+@router.get("/chefs", dependencies=[requiere(Permiso.SALON_GESTIONAR)])
 def listar_chefs(db: Sesion, filtro: Annotated[FiltroChefs, Query()]) -> Pagina[ChefSalida]:
     return service.listar_chefs(db, filtro, filtro.estado)
 
 
-@router.put("/chefs/{chef_id}")
+@router.put("/chefs/{chef_id}", dependencies=[requiere(Permiso.SALON_GESTIONAR)])
 def modificar_chef(chef_id: int, datos: ChefModificar, db: Sesion) -> ChefSalida:
     return service.modificar_chef(db, chef_id, datos)
 
 
-@router.post("/chefs/{chef_id}/baja")
+@router.post("/chefs/{chef_id}/baja", dependencies=[requiere(Permiso.SALON_GESTIONAR)])
 def dar_de_baja_chef(chef_id: int, db: Sesion) -> ChefSalida:
     return service.dar_de_baja_chef(db, chef_id)
 
 
-@router.get("/reportes/mesas-ventas-por-mozo")
+@router.get("/reportes/mesas-ventas-por-mozo", dependencies=[requiere(Permiso.REPORTES_VER)])
 def reporte_mesas_ventas_por_mozo(
     db: Sesion,
     fecha_desde: date | None = None,

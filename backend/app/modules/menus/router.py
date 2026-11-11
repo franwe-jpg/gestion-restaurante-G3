@@ -31,6 +31,8 @@ from app.modules.menus.schemas import (
 )
 from app.modules.productos import imagenes
 from app.shared.paginacion import Pagina
+from app.shared.permisos import Permiso
+from app.shared.seguridad import requiere
 
 router = APIRouter()
 
@@ -64,7 +66,11 @@ def leer_imagen(imagen: UploadFile | None) -> bytes | None:
     return imagen.file.read(imagenes.TAMANO_MAXIMO_BYTES + 1)
 
 
-@router.post("/menus-del-dia", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/menus-del-dia",
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[requiere(Permiso.MENUS_GESTIONAR)],
+)
 def crear_menu_del_dia(
     datos: Annotated[MenuDelDiaCrear, Depends(datos_de(MenuDelDiaCrear))],
     db: Sesion,
@@ -73,19 +79,19 @@ def crear_menu_del_dia(
     return service.crear_menu_del_dia(db, datos, leer_imagen(imagen))
 
 
-@router.get("/menus-del-dia")
+@router.get("/menus-del-dia", dependencies=[requiere(Permiso.MENUS_VER)])
 def listar_menus_del_dia(
     db: Sesion, filtro: Annotated[FiltroMenusDelDia, Query()]
 ) -> Pagina[MenuDelDiaListado]:
     return service.listar_menus_del_dia(db, filtro, filtro.estado_elegido())
 
 
-@router.get("/menus-del-dia/{menu_id}")
+@router.get("/menus-del-dia/{menu_id}", dependencies=[requiere(Permiso.MENUS_VER)])
 def consultar_menu_del_dia(menu_id: int, db: Sesion) -> MenuDelDiaSalida:
     return service.obtener_menu_del_dia(db, menu_id)
 
 
-@router.put("/menus-del-dia/{menu_id}")
+@router.put("/menus-del-dia/{menu_id}", dependencies=[requiere(Permiso.MENUS_GESTIONAR)])
 def modificar_menu_del_dia(
     menu_id: int,
     datos: Annotated[MenuDelDiaModificar, Depends(datos_de(MenuDelDiaModificar))],
@@ -95,65 +101,75 @@ def modificar_menu_del_dia(
     return service.modificar_menu_del_dia(db, menu_id, datos, leer_imagen(imagen))
 
 
-@router.post("/menus-del-dia/{menu_id}/baja")
+@router.post("/menus-del-dia/{menu_id}/baja", dependencies=[requiere(Permiso.MENUS_GESTIONAR)])
 def dar_de_baja_menu_del_dia(menu_id: int, db: Sesion) -> MenuDelDiaSalida:
     return service.dar_de_baja_menu_del_dia(db, menu_id)
 
 
-@router.post("/menus-ejecutivos", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/menus-ejecutivos",
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[requiere(Permiso.MENUS_GESTIONAR)],
+)
 def crear_menu_ejecutivo(datos: MenuEjecutivoCrear, db: Sesion) -> MenuEjecutivoSalida:
     return service.crear_menu_ejecutivo(db, datos)
 
 
-@router.get("/menus-ejecutivos")
+@router.get("/menus-ejecutivos", dependencies=[requiere(Permiso.MENUS_VER)])
 def listar_menus_ejecutivos(
     db: Sesion, filtro: Annotated[FiltroMenusEjecutivos, Query()]
 ) -> Pagina[MenuEjecutivoListado]:
     return service.listar_menus_ejecutivos(db, filtro)
 
 
-@router.get("/menus-ejecutivos/{menu_id}")
+@router.get("/menus-ejecutivos/{menu_id}", dependencies=[requiere(Permiso.MENUS_VER)])
 def consultar_menu_ejecutivo(menu_id: int, db: Sesion) -> MenuEjecutivoSalida:
     return service.obtener_menu_ejecutivo(db, menu_id)
 
 
-@router.put("/menus-ejecutivos/{menu_id}")
+@router.put("/menus-ejecutivos/{menu_id}", dependencies=[requiere(Permiso.MENUS_GESTIONAR)])
 def modificar_menu_ejecutivo(
     menu_id: int, datos: MenuEjecutivoActualizar, db: Sesion
 ) -> MenuEjecutivoSalida:
     return service.modificar_menu_ejecutivo(db, menu_id, datos)
 
 
-@router.post("/menus-ejecutivos/{menu_id}/baja")
+@router.post("/menus-ejecutivos/{menu_id}/baja", dependencies=[requiere(Permiso.MENUS_GESTIONAR)])
 def dar_de_baja_menu_ejecutivo(menu_id: int, db: Sesion) -> MenuEjecutivoSalida:
     return service.dar_de_baja_menu_ejecutivo(db, menu_id)
 
 
-@router.post("/promociones", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/promociones",
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[requiere(Permiso.MENUS_GESTIONAR)],
+)
 def crear_promocion(datos: PromocionCrear, db: Sesion) -> PromocionSalida:
     return service.crear_promocion(db, datos)
 
 
-@router.put("/promociones/{promocion_id}")
+@router.put("/promociones/{promocion_id}", dependencies=[requiere(Permiso.MENUS_GESTIONAR)])
 def modificar_promocion(
     promocion_id: int, datos: PromocionModificar, db: Sesion
 ) -> PromocionSalida:
     return service.modificar_promocion(db, promocion_id, datos)
 
 
-@router.post("/promociones/{promocion_id}/finalizar")
+@router.post(
+    "/promociones/{promocion_id}/finalizar", dependencies=[requiere(Permiso.MENUS_GESTIONAR)]
+)
 def finalizar_promocion(promocion_id: int, db: Sesion) -> PromocionSalida:
     return service.finalizar_promocion(db, promocion_id)
 
 
-@router.get("/promociones")
+@router.get("/promociones", dependencies=[requiere(Permiso.MENUS_VER)])
 def listar_promociones(
     db: Sesion, filtro: Annotated[FiltroPromociones, Query()]
 ) -> Pagina[PromocionListado]:
     return service.listar_promociones(db, filtro)
 
 
-@router.get("/reportes/impacto-promociones")
+@router.get("/reportes/impacto-promociones", dependencies=[requiere(Permiso.REPORTES_VER)])
 def reporte_impacto_promociones(
     db: Sesion,
     fecha_desde: date | None = None,

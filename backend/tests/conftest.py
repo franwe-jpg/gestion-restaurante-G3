@@ -50,7 +50,7 @@ def db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Session]:
     motor.dispose()
 
 
-def _usuario_de_prueba(*roles: Rol) -> UsuarioSesion:
+def usuario_de_prueba(*roles: Rol) -> UsuarioSesion:
     permisos = sorted(permisos_de(roles))
     return UsuarioSesion(
         id=1,
@@ -65,7 +65,7 @@ def _usuario_de_prueba(*roles: Rol) -> UsuarioSesion:
 def cliente(db: Session) -> Iterator[TestClient]:
     """Cliente HTTP con un encargado ya autenticado y la base de la prueba (A12)."""
     app.dependency_overrides[get_db] = lambda: db
-    app.dependency_overrides[usuario_actual] = lambda: _usuario_de_prueba(Rol.ENCARGADO)
+    app.dependency_overrides[usuario_actual] = lambda: usuario_de_prueba(Rol.ENCARGADO)
     yield TestClient(app)
     app.dependency_overrides.clear()
 
@@ -76,7 +76,7 @@ def cliente_con_rol(db: Session) -> Iterator[Callable[[Rol], TestClient]]:
     app.dependency_overrides[get_db] = lambda: db
 
     def crear(*roles: Rol) -> TestClient:
-        app.dependency_overrides[usuario_actual] = lambda: _usuario_de_prueba(*roles)
+        app.dependency_overrides[usuario_actual] = lambda: usuario_de_prueba(*roles)
         return TestClient(app)
 
     yield crear
