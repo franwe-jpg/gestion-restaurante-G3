@@ -7,6 +7,7 @@ import { Card, CardDescription, CardHeader } from '../../../shared/components/ui
 import { Pagination } from '../../../shared/components/ui/pagination';
 import { useAbrirDesdeUrl } from '../../../shared/hooks/useAbrirDesdeUrl';
 import {
+  ComandaDesdeReservaDialog,
   NavegadorFecha,
   ReservaFormDialog,
   ReservasTabla,
@@ -19,11 +20,15 @@ import { useCancelarReserva } from '../components/useCancelarReserva';
 
 import { useListadoReservas } from './useListadoReservas';
 
-/** El modal de reserva: cerrado, para una reserva nueva o para modificar la fila elegida (S36). */
-type Panel = 'cerrado' | 'alta' | { edicion: Reserva };
+/**
+ * El modal de reserva: cerrado, para una reserva nueva, para modificar la fila elegida o para crear
+ * su comanda. Uno solo a la vez (S36).
+ */
+type Panel = 'cerrado' | 'alta' | { edicion: Reserva } | { comanda: Reserva };
 
 interface ListadoDelDiaProps {
   listado: ReturnType<typeof useListadoReservas>;
+  onCrearComanda: (reserva: Reserva) => void;
   onModificar: (reserva: Reserva) => void;
   onCancelarAnticipada: (reserva: Reserva) => void;
   onCancelarPorAusencia: (reserva: Reserva) => void;
@@ -32,6 +37,7 @@ interface ListadoDelDiaProps {
 /** Navegador de fecha, filtro de estado, tabla del día y paginación. */
 function ListadoDelDia({
   listado,
+  onCrearComanda,
   onModificar,
   onCancelarAnticipada,
   onCancelarPorAusencia,
@@ -53,6 +59,7 @@ function ListadoDelDia({
           cargando={reservas.cargando}
           error={reservas.error}
           onReintentar={reservas.recargar}
+          onCrearComanda={onCrearComanda}
           onModificar={onModificar}
           onCancelarAnticipada={onCancelarAnticipada}
           onCancelarPorAusencia={onCancelarPorAusencia}
@@ -76,9 +83,23 @@ interface ModalDeReservaProps {
   onGuardado: () => void;
 }
 
-/** Monta `ReservaFormDialog` solo mientras el modal debe verse (Decisión 21 y 22). */
+/**
+ * Monta el modal solo mientras debe verse (Decisión 21 y 22): `ComandaDesdeReservaDialog` para
+ * crear la comanda de una fila y `ReservaFormDialog` para el alta y la edición. `onGuardado` cierra
+ * el panel y vuelve a pedir el listado en los dos casos.
+ */
 function ModalDeReserva({ panel, onOpenChange, onGuardado }: ModalDeReservaProps) {
   if (panel === 'cerrado') return null;
+  if (typeof panel === 'object' && 'comanda' in panel) {
+    return (
+      <ComandaDesdeReservaDialog
+        key={panel.comanda.id}
+        reserva={panel.comanda}
+        onOpenChange={onOpenChange}
+        onCreada={onGuardado}
+      />
+    );
+  }
   const reserva = panel === 'alta' ? undefined : panel.edicion;
   return (
     // La clave reinicia el formulario al pasar de una fila a otra o de la edición al alta.
@@ -124,6 +145,7 @@ export function ReservasPage() {
 
       <ListadoDelDia
         listado={listado}
+        onCrearComanda={(reserva) => setPanel({ comanda: reserva })}
         onModificar={(reserva) => setPanel({ edicion: reserva })}
         onCancelarAnticipada={(reserva) => void cancelarAnticipada(reserva)}
         onCancelarPorAusencia={(reserva) => void cancelarPorAusencia(reserva)}

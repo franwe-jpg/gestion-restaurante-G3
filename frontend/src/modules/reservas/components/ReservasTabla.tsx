@@ -1,4 +1,4 @@
-import { CalendarDays, CalendarX, Pencil, UserX } from 'lucide-react';
+import { CalendarDays, CalendarX, ClipboardList, Pencil, UserX } from 'lucide-react';
 
 import { EmptyState } from '../../../shared/components/EmptyState';
 import { Badge } from '../../../shared/components/ui/badge';
@@ -14,6 +14,8 @@ export interface ReservasTablaProps {
   cargando?: boolean;
   error?: string | null;
   onReintentar?: () => void;
+  /** Se ofrece solo en las filas `ACTIVA`, sin mirar la fecha: decide el backend (HU-M5-06, S59). */
+  onCrearComanda: (reserva: Reserva) => void;
   /** Se ofrece solo en las filas `ACTIVA`: las demás reservas no se modifican (HU-M5-02 CA 5). */
   onModificar: (reserva: Reserva) => void;
   /** Se ofrece solo en las filas `ACTIVA`, con la misma regla que `onModificar` (HU-M5-04). */
@@ -47,10 +49,11 @@ const COLUMNAS: ColumnaTabla<Reserva>[] = [
 
 type AccionesDeFila = Pick<
   ReservasTablaProps,
-  'onModificar' | 'onCancelarAnticipada' | 'onCancelarPorAusencia'
+  'onCrearComanda' | 'onModificar' | 'onCancelarAnticipada' | 'onCancelarPorAusencia'
 >;
 
 function columnaAcciones({
+  onCrearComanda,
   onModificar,
   onCancelarAnticipada,
   onCancelarPorAusencia,
@@ -62,6 +65,14 @@ function columnaAcciones({
     render: (r) =>
       r.estado === 'ACTIVA' ? (
         <div className="flex justify-end gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-label="Crear comanda"
+            onClick={() => onCrearComanda(r)}
+          >
+            <ClipboardList className="h-4 w-4" aria-hidden="true" />
+          </Button>
           <Button
             variant="ghost"
             size="sm"
@@ -96,6 +107,7 @@ export function ReservasTabla({
   cargando,
   error,
   onReintentar,
+  onCrearComanda,
   onModificar,
   onCancelarAnticipada,
   onCancelarPorAusencia,
@@ -104,7 +116,12 @@ export function ReservasTabla({
     <DataTable
       columnas={[
         ...COLUMNAS,
-        columnaAcciones({ onModificar, onCancelarAnticipada, onCancelarPorAusencia }),
+        columnaAcciones({
+          onCrearComanda,
+          onModificar,
+          onCancelarAnticipada,
+          onCancelarPorAusencia,
+        }),
       ]}
       filas={reservas}
       obtenerClave={(reserva) => reserva.id}

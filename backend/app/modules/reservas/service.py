@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.modules.reservas import puente, reporte, reporte_pdf, repository
 from app.modules.reservas.models import EstadoReserva, Reserva
 from app.modules.reservas.schemas import (
+    ComandaDesdeReservaCrear,
     FiltroReservas,
     MesaDisponible,
     ReservaCrear,
@@ -16,6 +17,7 @@ from app.modules.reservas.schemas import (
     ReservaSalida,
     ResumenReservas,
 )
+from app.shared.contratos.comanda import ComandaSalida, DetalleComandaCrear
 from app.shared.excepciones import DatosInvalidosError, NoEncontradoError, ReglaDeNegocioError
 from app.shared.models.enums import EstadoMesa
 from app.shared.paginacion import Pagina
@@ -199,6 +201,66 @@ def cancelar_por_ausencia(db: Session, reserva_id: int) -> ReservaSalida:
     reserva.estado = EstadoReserva.CANCELADA_POR_AUSENCIA
     db.commit()
     return ReservaSalida.model_validate(reserva)
+
+
+def _obtener_atendible(db: Session, reserva_id: int) -> Reserva:
+    """Existe (404), no esta cancelada ni atendida y es de hoy (409), en ese orden (HU-M5-06).
+
+    Solo cuenta la fecha: la hora de la reserva no se verifica (S63). Mismo orden de estados que
+    `_obtener_cancelable`, con mensajes propios porque aqui se atiende, no se cancela.
+    """
+    reserva = _obtener(db, reserva_id)
+    if reserva.estado in _CANCELADAS:
+        raise ReglaDeNegocioError(f"La reserva {reserva_id} ya fue cancelada")
+    if reserva.estado == EstadoReserva.ATENDIDA:
+        raise ReglaDeNegocioError(f"La reserva {reserva_id} ya fue atendida")
+    if reserva.fecha != ahora().date():  # S57: la de otra fecha se rechaza, no solo se advierte
+        raise ReglaDeNegocioError(f"La reserva {reserva_id} no corresponde al día de hoy")
+    return reserva
+
+
+def _validar_al_menos_un_producto(detalles: list[DetalleComandaCrear]) -> None:
+    """S53 (HU-M5-06): al menos una linea con `producto_id`; las de menu se aceptan junto a ella."""
+    if all(detalle.producto_id is None for detalle in detalles):
+        raise DatosInvalidosError("La comanda debe incluir al menos un producto")
+
+
+def _conflicto_al_atender(db: Session, reserva_id: int, mesa_id: int) -> ReglaDeNegocioError:
+    """Explica un IntegrityError al atender, ya revertido (HU-M5-06, Decision 52).
+
+    En esta transaccion la unica restriccion que puede fallar es el indice unico de comanda
+    ABIERTA por mesa de M4. Si otra solicitud ya atendio la reserva (doble envio), se informa
+    eso; si no, otra comanda tomo la mesa entre la validacion y el insert.
+    """
+    try:
+        _obtener_atendible(db, reserva_id)
+    except ReglaDeNegocioError as estado_actual:
+        return estado_actual
+    return ReglaDeNegocioError(f"La mesa {mesa_id} ya tiene una comanda abierta")
+
+
+def crear_comanda(db: Session, reserva_id: int, datos: ComandaDesdeReservaCrear) -> ComandaSalida:
+    """HU-M5-06: crea la comanda ABIERTA en la mesa de la reserva y la pasa a ATENDIDA.
+
+    Un solo commit: la comanda, la mesa ocupada (M4/M3) y la reserva atendida, o nada. Las
+    verificaciones previas no escriben, asi que quedan fuera del `try`.
+    """
+    reserva = _obtener_atendible(db, reserva_id)
+    _validar_al_menos_un_producto(datos.detalles)
+    mesa_id = reserva.mesa_id  # se lee antes: el rollback expira la reserva
+    try:
+        comanda = puente.crear_comanda_de_reserva(
+            db, mesa_id, reserva.id, datos.detalles, datos.observaciones
+        )
+        reserva.estado = EstadoReserva.ATENDIDA
+        db.commit()
+    except IntegrityError as error:
+        db.rollback()
+        raise _conflicto_al_atender(db, reserva_id, mesa_id) from error
+    except Exception:
+        db.rollback()
+        raise
+    return comanda
 
 
 def listar_reservas(db: Session, filtro: FiltroReservas) -> Pagina[ReservaSalida]:

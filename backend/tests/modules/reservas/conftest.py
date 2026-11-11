@@ -10,6 +10,7 @@ import time as tiempo
 from collections.abc import Callable, Iterator
 from dataclasses import replace
 from datetime import UTC, date, datetime, time
+from decimal import Decimal
 
 import pytest
 from pydantic import ValidationError
@@ -25,6 +26,13 @@ from app.modules.reservas.puente import MesaReservable, SectorDeMesa
 # Los modelos de salon se importan solo en las pruebas: lint-imports controla `app`, no `tests`.
 from app.modules.salon import service as salon_service
 from app.modules.salon.models import Mesa, Sector
+from app.shared.contratos.comanda import (
+    ComandaSalida,
+    DetalleComandaCrear,
+    DetalleComandaSalida,
+    EstadoComanda,
+    EstadoEntrega,
+)
 from app.shared.excepciones import DatosInvalidosError
 from app.shared.models.enums import EstadoMesa
 
@@ -44,6 +52,7 @@ OBTENER_MESA_REAL = puente.obtener_mesa
 LISTAR_MESAS_REAL = puente.listar_mesas
 EXISTE_CLIENTE_REAL = puente.existe_cliente
 REGISTRAR_CLIENTE_REAL = puente.registrar_cliente
+CREAR_COMANDA_DE_RESERVA_REAL = puente.crear_comanda_de_reserva
 
 SECTOR_SALON = SectorDeMesa(1, "Salón")
 
@@ -61,6 +70,11 @@ class DoblePuente:
     estado de una mesa. Los clientes nuevos se validan con el `ClienteNuevo` real de M4 (una sola
     fuente de reglas, S42), pero su lista no participa de la transaccion: un `rollback` no la
     vacia (Decision 27); lo que depende de la transaccion se prueba con el puente real.
+
+    `crear_comanda_de_reserva` (HU-M5-06) no escribe en la base: devuelve una `ComandaSalida`
+    `ABIERTA` y guarda lo recibido en `comandas`. Si `falla` tiene una excepcion, la lanza sin
+    registrar la llamada. Si `efecto` tiene una funcion, la ejecuta con la sesion antes de
+    fallar o devolver (simula una escritura de M4 con `flush` o una sesion concurrente).
     """
 
     def __init__(self) -> None:
@@ -70,6 +84,9 @@ class DoblePuente:
         self.clientes: dict[int, tuple[str, str]] = {}
         self.registrados: list[tuple[int, str, str]] = []
         self.poner_cliente(7, "Ana Pérez", "+54 280 1234567")
+        self.comandas: list[tuple[int, int, list[DetalleComandaCrear], str | None]] = []
+        self.falla: Exception | None = None
+        self.efecto: Callable[[Session], None] | None = None
 
     def poner(self, mesa_id: int, **cambios) -> MesaReservable:
         """Reemplaza la mesa con `cambios`; si no existe, la agrega con los valores por defecto."""
@@ -109,6 +126,39 @@ class DoblePuente:
         self.poner_cliente(cliente_id, datos.nombre, datos.telefono)
         self.registrados.append((cliente_id, datos.nombre, datos.telefono))
         return cliente_id
+
+    def crear_comanda_de_reserva(
+        self,
+        db: Session,
+        mesa_id: int,
+        reserva_id: int,
+        detalles: list[DetalleComandaCrear],
+        observaciones: str | None,
+    ) -> ComandaSalida:
+        if self.efecto is not None:
+            self.efecto(db)
+        if self.falla is not None:
+            raise self.falla
+        self.comandas.append((mesa_id, reserva_id, detalles, observaciones))
+        return ComandaSalida(
+            id=len(self.comandas),
+            mesa_id=mesa_id,
+            estado=EstadoComanda.ABIERTA,
+            fecha_hora=AHORA,
+            reserva_id=reserva_id,
+            observaciones=observaciones,
+            detalles=[
+                DetalleComandaSalida(
+                    producto_id=detalle.producto_id,
+                    menu_ejecutivo_id=detalle.menu_ejecutivo_id,
+                    cantidad=detalle.cantidad,
+                    precio_unitario=Decimal("100.00"),
+                    descuento=Decimal("0.00"),
+                    estado_entrega=EstadoEntrega.PENDIENTE,
+                )
+                for detalle in detalles
+            ],
+        )
 
 
 class DatetimeConRelojFijo(datetime):
@@ -170,6 +220,7 @@ def puente_doble(monkeypatch: pytest.MonkeyPatch) -> DoblePuente:
     monkeypatch.setattr(puente, "listar_mesas", doble.listar_mesas)
     monkeypatch.setattr(puente, "existe_cliente", doble.existe_cliente)
     monkeypatch.setattr(puente, "registrar_cliente", doble.registrar_cliente)
+    monkeypatch.setattr(puente, "crear_comanda_de_reserva", doble.crear_comanda_de_reserva)
     return doble
 
 
@@ -215,6 +266,7 @@ def puente_real(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(puente, "listar_mesas", LISTAR_MESAS_REAL)
     monkeypatch.setattr(puente, "existe_cliente", EXISTE_CLIENTE_REAL)
     monkeypatch.setattr(puente, "registrar_cliente", REGISTRAR_CLIENTE_REAL)
+    monkeypatch.setattr(puente, "crear_comanda_de_reserva", CREAR_COMANDA_DE_RESERVA_REAL)
 
 
 @pytest.fixture

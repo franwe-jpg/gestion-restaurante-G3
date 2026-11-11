@@ -8,6 +8,7 @@ from pydantic import ValidationError
 from app.modules.reservas.models import EstadoReserva
 from app.modules.reservas.puente import MesaReservable, SectorDeMesa
 from app.modules.reservas.schemas import (
+    ComandaDesdeReservaCrear,
     ConsultaMesasDisponibles,
     FiltroReservas,
     MesaDisponible,
@@ -382,3 +383,96 @@ def test_mesa_disponible_no_expone_el_estado() -> None:
         "capacidad": 6,
         "sector": {"id": 2, "nombre": "Terraza"},
     }
+
+
+# --- HU-M5-06: ComandaDesdeReservaCrear, el pedido de la comanda de una reserva ---
+
+PRODUCTO_12 = {"producto_id": 12, "cantidad": 2}
+MENU_5 = {"menu_ejecutivo_id": 5, "cantidad": 1}
+UNA_REFERENCIA = "Indique un producto o un menú ejecutivo, exclusivamente"
+
+
+def _fallas_de_la_comanda(cuerpo: dict) -> list[tuple]:
+    """Ubicacion (`loc`) de cada falla que el esquema encuentra en el cuerpo."""
+    with pytest.raises(ValidationError) as error:
+        ComandaDesdeReservaCrear.model_validate(cuerpo)
+    return [tuple(falla["loc"]) for falla in error.value.errors()]
+
+
+# CA 1: las observaciones son opcionales y las lineas pueden ser de producto o de menu
+def test_comanda_desde_reserva_acepta_detalles_con_observaciones_opcionales() -> None:
+    sin_observaciones = ComandaDesdeReservaCrear.model_validate({"detalles": [PRODUCTO_12]})
+    con_observaciones = ComandaDesdeReservaCrear.model_validate(
+        {"detalles": [PRODUCTO_12, MENU_5], "observaciones": "Sin sal"}
+    )
+
+    assert sin_observaciones.observaciones is None
+    assert [(d.producto_id, d.cantidad) for d in sin_observaciones.detalles] == [(12, 2)]
+    assert con_observaciones.observaciones == "Sin sal"
+    assert [(d.producto_id, d.menu_ejecutivo_id) for d in con_observaciones.detalles] == [
+        (12, None),
+        (None, 5),
+    ]
+
+
+# Forma del pedido: `detalles` es obligatorio y no admite lista vacia ni null
+@pytest.mark.parametrize("cuerpo", [{}, {"detalles": []}, {"detalles": None}], ids=str)
+def test_comanda_desde_reserva_rechaza_detalles_ausentes_vacios_o_nulos(cuerpo: dict) -> None:
+    assert _fallas_de_la_comanda(cuerpo) == [("detalles",)]
+
+
+# CA 4: la cantidad es un entero estricto mayor que cero
+@pytest.mark.parametrize("cantidad", [0, -3, 1.5, "2", True, None], ids=repr)
+def test_comanda_desde_reserva_rechaza_cantidad_invalida(cantidad: object) -> None:
+    cuerpo = {"detalles": [{"producto_id": 12, "cantidad": cantidad}]}
+
+    assert _fallas_de_la_comanda(cuerpo) == [("detalles", 0, "cantidad")]
+
+
+def test_comanda_desde_reserva_rechaza_cantidad_ausente() -> None:
+    assert _fallas_de_la_comanda({"detalles": [{"producto_id": 12}]}) == [
+        ("detalles", 0, "cantidad")
+    ]
+
+
+def test_comanda_desde_reserva_nombra_la_linea_con_la_cantidad_invalida() -> None:
+    cuerpo = {"detalles": [PRODUCTO_12, {"producto_id": 13, "cantidad": 0}]}
+
+    assert _fallas_de_la_comanda(cuerpo) == [("detalles", 1, "cantidad")]
+
+
+@pytest.mark.parametrize("producto_id", [0, -1, 2.5, "12", True], ids=repr)
+def test_comanda_desde_reserva_rechaza_producto_no_positivo_o_no_entero(
+    producto_id: object,
+) -> None:
+    cuerpo = {"detalles": [{"producto_id": producto_id, "cantidad": 1}]}
+
+    assert _fallas_de_la_comanda(cuerpo) == [("detalles", 0, "producto_id")]
+
+
+@pytest.mark.parametrize(
+    "linea",
+    [{"producto_id": 12, "menu_ejecutivo_id": 5, "cantidad": 1}, {"cantidad": 1}],
+    ids=["ambos", "ninguno"],
+)
+def test_comanda_desde_reserva_rechaza_producto_y_menu_a_la_vez_o_ninguno(linea: dict) -> None:
+    with pytest.raises(ValidationError, match=UNA_REFERENCIA) as error:
+        ComandaDesdeReservaCrear.model_validate({"detalles": [linea]})
+
+    assert [tuple(falla["loc"]) for falla in error.value.errors()] == [("detalles", 0)]
+
+
+# S62: el cuerpo no trae mesa, reserva, estado ni cliente
+@pytest.mark.parametrize(
+    ("campo", "valor"),
+    [("mesa_id", 6), ("reserva_id", 10), ("estado", "ATENDIDA"), ("cliente_id", 7)],
+)
+def test_comanda_desde_reserva_prohibe_campos_extra(campo: str, valor: object) -> None:
+    cuerpo = {"detalles": [PRODUCTO_12], campo: valor}
+
+    assert _fallas_de_la_comanda(cuerpo) == [(campo,)]
+
+
+def test_comanda_desde_reserva_no_declara_mesa_id() -> None:
+    assert "mesa_id" not in ComandaDesdeReservaCrear.model_fields  # la mesa sale de la reserva
+    assert set(ComandaDesdeReservaCrear.model_fields) == {"detalles", "observaciones"}
