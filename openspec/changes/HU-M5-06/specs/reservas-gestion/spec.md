@@ -637,6 +637,8 @@ En cada fila `ACTIVA` de `ReservasTabla` DEBE aparecer una acción nueva con el 
 
 El modal DEBE construirse con el componente `Dialog` compartido (`frontend/src/shared/components/ui/dialog.tsx`), según la regla de AGENTS.md (sección 5), con el título «Crear comanda». DEBE mostrar la mesa de la reserva en un campo de solo lectura, que la persona no puede editar y que no se envía, y una lista de líneas de producto. Cada línea tiene un campo de producto por su número (ID) y una cantidad (S58). El modal NO DEBE importar `ComandaForm` ni `usePedido` de `atencion` (AGENTS.md, sección 9.4). Supuesto: S64, los textos y el comportamiento de abajo no los fija la propuesta: el campo «Mesa» con el valor «Mesa n.º {mesa_id}»; las líneas «Producto {n} (ID)» y «Cantidad {n}», numeradas desde 1; el modal arranca con una línea vacía y cantidad `1`; el botón «Agregar producto» suma una línea y «Quitar producto {n}» la elimina, y no se puede quitar la última; el pie lleva los botones «Cancelar» y «Guardar comanda». El modal no pide `observaciones`. Solo puede haber un modal de reserva abierto a la vez (S36 de la capacidad): mientras el modal «Crear comanda» está abierto, «Nueva reserva» DEBE verse pero estar deshabilitado.
 
+> Nota 2026-11-11 (2): el producto de cada línea ya no se escribe por su número (ID). Cada línea lleva un desplegable «Producto {n}» con los productos habilitados (nombre y precio), y el valor elegido sigue siendo el `producto_id` que se envía. El texto de arriba se conserva como estaba y esta nota lo reemplaza en lo que nombra «(ID)». Ver S64 y la «Adenda 2026-11-11 (2)» de `design.md`.
+
 #### Escenario: Contenido inicial del modal
 
 - DADO una fila `ACTIVA` con `id` 10 en la mesa 5
@@ -644,6 +646,7 @@ El modal DEBE construirse con el componente `Dialog` compartido (`frontend/src/s
 - ENTONCES el modal muestra el título «Crear comanda», el campo «Mesa» de solo lectura con «Mesa n.º 5» y una línea con «Producto 1 (ID)» vacío y «Cantidad 1» igual a `1`
 - Y los botones «Cancelar» y «Guardar comanda»
 - Y Supuesto: S58 y S64
+- Nota 2026-11-11 (2): la línea muestra el desplegable «Producto 1» sin producto elegido («Seleccione un producto») en lugar de «Producto 1 (ID)» vacío; «Cantidad 1» no cambia
 
 #### Escenario: La mesa no se puede editar
 
@@ -657,6 +660,7 @@ El modal DEBE construirse con el componente `Dialog` compartido (`frontend/src/s
 - CUANDO la persona pulsa «Agregar producto» y luego «Quitar producto 2»
 - ENTONCES aparece una segunda línea («Producto 2 (ID)» y «Cantidad 2») y después desaparece
 - Y con una sola línea no se puede quitar: «Quitar producto 1» no está disponible
+- Nota 2026-11-11 (2): las etiquetas de la segunda línea son «Producto 2» y «Cantidad 2», sin «(ID)»
 
 #### Escenario: Cerrar sin guardar
 
@@ -681,6 +685,8 @@ El modal DEBE construirse con el componente `Dialog` compartido (`frontend/src/s
 
 Antes de enviar, el modal DEBE validar cada línea y mostrar bajo el campo qué falla: el producto DEBE ser un entero mayor que cero y la cantidad DEBE ser un entero mayor que cero. Si hay algún error local, el modal NO DEBE llamar a la API ni cerrarse. Supuesto: S64, los textos son «El producto debe ser un número entero mayor que cero» y «La cantidad debe ser un número entero mayor que cero».
 
+> Nota 2026-11-11 (2): la regla del producto pasa a «debe haberse elegido un producto» y su texto es «Seleccione un producto». La regla y el texto de la cantidad no cambian. El texto de arriba se conserva como estaba y esta nota lo reemplaza en lo que toca al producto.
+
 #### Escenario: Cantidad inválida
 
 - DADO el modal con el producto de la línea 1 en `12`
@@ -693,6 +699,7 @@ Antes de enviar, el modal DEBE validar cada línea y mostrar bajo el campo qué 
 - DADO el modal con la cantidad `1`
 - CUANDO la persona deja vacío «Producto 1 (ID)», o escribe `0`, `-1`, `2.5` o `abc`, y pulsa «Guardar comanda»
 - ENTONCES aparece «El producto debe ser un número entero mayor que cero» bajo ese campo y no se llama a la API
+- Nota 2026-11-11 (2): el producto se elige de un desplegable, así que ya no se pueden escribir `0`, `-1`, `2.5` ni `abc`. El único error local del producto es no haber elegido ninguno: «Seleccione un producto» bajo el campo, sin llamar a la API
 
 #### Escenario: Un error en una línea bloquea todo el envío
 
@@ -770,6 +777,7 @@ Los supuestos S53 a S60 son los S1 a S8 de la propuesta (`openspec/changes/HU-M5
 - Supuesto: S62 (nuevo). `ComandaDesdeReservaCrear` prohíbe los campos extra a nivel del cuerpo (como S15 para `ReservaCrear`): `mesa_id` y cualquier otro campo desconocido responden 422 en lugar de ignorarse, para que nadie crea que puede elegir otra mesa. Los elementos de `detalles` siguen las reglas del DTO compartido, que no se edita.
 - Supuesto: S63 (nuevo). Solo cuenta la fecha de la reserva (paso 5): su hora no se verifica, ni como mínimo ni como máximo, así que una reserva de hoy se puede atender antes o después de su hora. La propuesta no define ninguna ventana de tolerancia.
 - Supuesto: S64 (nuevo). Textos y comportamientos de pantalla que la propuesta no fija: el título «Crear comanda»; el campo «Mesa» de solo lectura con «Mesa n.º {mesa_id}»; las etiquetas «Producto {n} (ID)» y «Cantidad {n}»; la línea inicial vacía con cantidad `1`; «Agregar producto» y «Quitar producto {n}» (no se quita la última); los botones «Cancelar» y «Guardar comanda»; los mensajes locales «El producto debe ser un número entero mayor que cero» y «La cantidad debe ser un número entero mayor que cero»; el aviso de éxito «Comanda n.º {id} creada»; el título del aviso de error «No se pudo crear la comanda»; que ante un error del backend el modal sigue abierto con las líneas escritas y no se recarga el listado (como las cancelaciones de HU-M5-04-05); y que «Guardar comanda» se deshabilita mientras la solicitud está en curso. El equipo valida estos textos antes de implementarlos.
+- Nota 2026-11-11 (2) sobre S58 y S64: el producto se elige por su nombre y no por su número (ID), a pedido de la responsable del módulo. Cambian las etiquetas («Producto {n}» en lugar de «Producto {n} (ID)»), el mensaje local del producto («Seleccione un producto» en lugar de «El producto debe ser un número entero mayor que cero») y se agregan los textos de la lista: «Seleccione un producto», «Cargando productos…», «No hay productos habilitados» y el aviso «No se pudieron cargar los productos». El contrato de la API no cambia: el cuerpo sigue siendo `{"detalles": [{"producto_id", "cantidad"}]}`. Supuesto: el equipo valida también estos textos. Lo demás de S58 y S64 sigue igual. Ver la «Adenda 2026-11-11 (2)» de `design.md`.
 - Supuesto: S65 (nuevo). Sin concurrencia especial: si dos personas atienden la misma reserva a la vez, la segunda recibe 409 («ya fue atendida» si lee después del `commit` de la primera, o el de comanda abierta de M4 si lee antes); no se agrega bloqueo (igual criterio que S51 de HU-M5-04-05).
 
 ## Trazabilidad

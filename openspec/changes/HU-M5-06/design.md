@@ -625,3 +625,40 @@ Decisiones afectadas:
 | 61 (estrategia de pruebas) | Las filas «Bloqueada hasta B» (puente real e integración) se escriben y pasan: `test_puente.py` (3 pruebas) y `test_integracion_comanda.py` (8 pruebas). Los dos entrelazados de la carrera se reproducen de forma determinista con una función que corre dentro de la solicitud, entre la verificación previa de M4 y su insert | Strict TDD, sin `skipif`, el doble `DoblePuente` y las pruebas con doble de las Fases 1 y 2 |
 
 Siguen igual las Decisiones 50 a 52, 54 y 56 a 60. La Decisión 52 queda confirmada contra M4 real: la primitiva deja subir el `IntegrityError` y M5 lo traduce a 409. Pendiente fuera de este diseño: la spec (requisito «M5 consume la interfaz de M4 solo a través del puente», y su escenario con `crear_comanda_sin_confirmar`) y la divergencia D1 de `tasks.md` todavía nombran la forma anterior; no se reescriben aquí.
+
+## Adenda 2026-11-11 (2): el producto se elige por nombre
+
+La responsable del módulo pidió, como ajuste de usabilidad de esta HU ya integrada, que en el modal «Crear comanda» el producto se elija por su nombre y no escribiendo su ID: quien atiende no conoce los IDs. El diseño original se conserva y esta adenda registra qué cambió. Es un cambio solo de frontend, dentro de `frontend/src/modules/reservas/`; no toca el backend, `shared/` ni las rutas. Reemplaza lo que fijaban el supuesto S58 («por el número (ID) del producto»), el supuesto S64 («Producto {n} (ID)») y la Decisión 58 («Producto (número)» como `Input`).
+
+### Qué cambia
+
+| Punto | Antes (Decisión 58, S58 y S64) | Ahora |
+| --- | --- | --- |
+| Campo de producto | `Input` de texto «Producto {n} (ID)» | `Select` «Producto {n}» (componente `SelectorProducto`, mismo patrón que `SelectorMesa`) con los productos habilitados como «Nombre · precio», por ejemplo «Milanesa · $ 1.500,50». El valor de cada opción es el `id` del producto |
+| Origen de los datos | Ninguno: la persona escribía el número | `GET /api/v1/productos?estado=HABILITADO&limit=100&offset=N`, llamada `listarProductosHabilitados()` en `api.ts` (tipo `ProductoHabilitado` en `types.ts`) |
+| Lista larga | No aplicaba | La API pagina y no tiene búsqueda, así que se leen todas las páginas de 100 hasta cubrir `total`. Una página vacía antes de completar el total corta la lectura y devuelve lo leído, para no girar sin fin; si falla cualquier página se devuelve el error y se descarta lo leído; un producto repetido por un cambio del catálogo entre páginas se ofrece una sola vez. Salen ordenados por nombre con `localeCompare(…, 'es')` |
+| Estados de la lista | No aplicaba | Hook `useProductosHabilitados` con `cargando`, `listo` (puede venir vacía) y `error`, como `useMesasDisponibles`. Se carga **una sola vez al abrir el modal** y el modal la comparte entre todas las líneas: no hay una consulta por línea |
+| Textos de interfaz | «Producto {n} (ID)» | Opción vacía «Seleccione un producto»; «Cargando productos…»; «No hay productos habilitados»; etiqueta «Producto {n}»; aviso de error de la carga «No se pudieron cargar los productos» con el detalle de la API (o «No se pudo obtener la lista de productos habilitados.»). Español neutro, sin voseo |
+| Validación local | El producto debía ser un entero mayor que cero («El producto debe ser un número entero mayor que cero») | Debe haberse elegido un producto; el error es «Seleccione un producto». Ya no existen los valores `0`, `-1`, `2.5` o `abc`, porque el valor sale de una opción de la lista |
+| «Guardar comanda» | Deshabilitado solo mientras `enviando` | Además, deshabilitado mientras la lista carga, si no hay productos habilitados o si la carga falló. Si la carga falla, un aviso `danger` dentro del modal lo explica y no se puede enviar |
+| Precio | No se mostraba | `formatearMoneda` de `frontend/src/shared/lib/format.ts` (ya compartido), en pesos argentinos con el formato de las demás pantallas |
+
+### Qué sigue igual
+
+- **El contrato de la API.** `POST /api/v1/reservas/{id}/comanda` recibe el mismo cuerpo, `{"detalles": [{"producto_id": 12, "cantidad": 2}]}`. El estado de cada línea sigue guardando el `id` como texto y `aComandaCrear` lo convierte con `Number(...)`, así que `producto_id` sigue siendo numérico. `crearComandaDesdeReserva`, el backend y sus errores (404, 409 y 422) no cambian.
+- Las Decisiones 50 a 57 y 59 a 61, y la «Adenda 2026-11-11» anterior.
+- La mesa de solo lectura, que no se envía; que el modal no pide `observaciones`; la cantidad, que sigue siendo un entero mayor que cero con su mensaje; «Agregar producto» y «Quitar producto {n}» (no se quita la última); la protección contra el doble envío y la guarda de vigencia al cerrar el modal; el aviso «Comanda n.º {id} creada»; que un error del backend deja el modal abierto con las líneas elegidas.
+- **Menús ejecutivos fuera de la pantalla** (S53, S58): `GET /productos` ya excluye los menús del día, y el modal solo ofrece productos, así que el 422 de «solo menús» sigue sin poder producirse desde la pantalla.
+- **Aislamiento (AGENTS.md §9.4):** el módulo no importa nada de `atencion` ni de `menus`; usa solo `shared/lib/format` y `shared/components/ui/select`. Los tipos son propios de `reservas`. No se agrega ninguna dependencia.
+
+### Consecuencias y puntos a validar
+
+- Si la carga de productos falla, el modal no permite enviar y no ofrece «Reintentar»: la persona lo cierra y lo vuelve a abrir, que repite la carga. Se eligió así para no agregar un estado de reintento que la solicitud no pidió.
+- Un desplegable con todos los productos habilitados es manejable con el catálogo de esta aplicación. Si el catálogo creciera mucho, un buscador de productos sería otro componente y otra HU (lo que ya decía S58).
+- El catálogo se lee al abrir el modal y no se vuelve a leer mientras está abierto. Si un producto se deshabilita entretanto, el backend rechaza la línea y el modal muestra su `detalle` (el caso «Producto o menú deshabilitado» de la spec).
+- Supuesto: los textos nuevos de esta adenda, igual que el resto de S64, los valida el equipo.
+- `tasks.md` y `proposal.md` conservan sus referencias históricas a «(ID)» (D4 y S6); no se reescriben aquí.
+
+### Archivos de esta adenda
+
+`types.ts`, `api.ts` (+ `api.test.ts`), `components/useProductosHabilitados.ts` y `components/SelectorProducto.tsx` (nuevos, cada uno con su `.test.tsx`), `components/ComandaDesdeReservaDialog.tsx`, `components/validarComandaDesdeReserva.ts`, `components/useComandaDesdeReserva.ts` (solo comentarios) y las pruebas de esos archivos y de `pages/ReservasPage.test.tsx`. Con Strict TDD: las pruebas se escribieron primero y fallaron antes de implementar.
