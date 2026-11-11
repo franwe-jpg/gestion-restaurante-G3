@@ -921,7 +921,7 @@ export function ComponentesPage() {
             <Breadcrumbs
               items={[
                 { etiqueta: 'Inicio', ruta: '/' },
-                { etiqueta: 'Salón y Mozos', ruta: '/salon' },
+                { etiqueta: 'Salón, Mozos y Chefs', ruta: '/salon' },
                 { etiqueta: 'Mesas' },
               ]}
             />
