@@ -14,6 +14,7 @@ from pydantic import (
     field_validator,
 )
 
+from app.shared.credenciales import ContrasenaNueva, Correo
 from app.shared.models import Estado
 from app.shared.models.enums import EstadoMesa
 from app.shared.paginacion import ParametrosPaginacion
@@ -110,13 +111,17 @@ Telefono = Annotated[
 ]
 
 
-class MozoCrear(BaseModel):
+class PersonaCrear(BaseModel):
+    """Datos comunes del alta de un mozo o un chef, con las credenciales de su usuario."""
+
     model_config = ConfigDict(extra="forbid")  # el estado lo asigna el sistema (HU-M3-09)
 
     dni: Dni
     nombre: NombrePersona
     apellido: NombrePersona
     telefono: Telefono | None = None
+    correo: Correo
+    contrasena: ContrasenaNueva
 
     @field_validator("telefono")
     @classmethod
@@ -124,11 +129,34 @@ class MozoCrear(BaseModel):
         return telefono or None
 
 
-class MozoModificar(MozoCrear):
-    """Mismos campos y reglas que el alta; el estado no se recibe (HU-M3-10)."""
+class PersonaModificar(PersonaCrear):
+    """Igual que el alta, pero la contrasena es opcional: vacia conserva la actual (S2)."""
+
+    contrasena: ContrasenaNueva | None = None
+
+    @field_validator("contrasena", mode="before")
+    @classmethod
+    def _contrasena_vacia_es_none(cls, contrasena: object) -> object:
+        return None if contrasena == "" else contrasena
 
 
-class MozoSalida(BaseModel):
+class MozoCrear(PersonaCrear):
+    """Alta de mozo (HU-M3-09) con correo y contrasena (HU-TR-01)."""
+
+
+class MozoModificar(PersonaModificar):
+    """Modificacion de mozo (HU-M3-10); el estado no se recibe."""
+
+
+class ChefCrear(PersonaCrear):
+    """Alta de chef (HU-TR-01)."""
+
+
+class ChefModificar(PersonaModificar):
+    """Modificacion de chef (HU-TR-01); el estado no se recibe."""
+
+
+class PersonaSalida(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
@@ -137,12 +165,25 @@ class MozoSalida(BaseModel):
     apellido: str
     telefono: str | None
     estado: Estado
+    correo: str | None = None  # nulo si la persona todavia no tiene usuario (S5)
+
+
+class MozoSalida(PersonaSalida):
+    pass
+
+
+class ChefSalida(PersonaSalida):
+    pass
 
 
 class FiltroMozos(ParametrosPaginacion):
     """Paginación y filtro de GET /mozos: `estado` viaja dentro del mismo modelo."""
 
     estado: Estado | None = None
+
+
+class FiltroChefs(FiltroMozos):
+    """Paginación y filtro de GET /chefs: los mismos que los de mozos."""
 
 
 class LineaReporteMozo(BaseModel):

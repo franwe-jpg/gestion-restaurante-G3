@@ -128,8 +128,9 @@ def cerrar_sesion(db: Session, token: str) -> None:
 
 
 def _validar_correo_libre(db: Session, correo: str, excluir_id: int | None = None) -> None:
-    if repository.existe_correo(db, _normalizar(correo), excluir_id):
-        raise ReglaDeNegocioError(f"Ya existe un usuario con el correo {correo}")
+    normalizado = _normalizar(correo)
+    if repository.existe_correo(db, normalizado, excluir_id):
+        raise ReglaDeNegocioError(f"Ya existe un usuario con el correo {normalizado}")
 
 
 def registrar_usuario(db: Session, correo: str, contrasena: str, rol: Rol) -> Usuario:

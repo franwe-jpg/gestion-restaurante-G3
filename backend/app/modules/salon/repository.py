@@ -3,7 +3,7 @@
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.modules.salon.models import Mesa, Mozo, Sector
+from app.modules.salon.models import Chef, Mesa, Mozo, Sector
 from app.shared.models import Estado
 from app.shared.paginacion import ParametrosPaginacion, aplicar, contar
 
@@ -38,7 +38,10 @@ def existe_numero_en_sector(
     return db.scalar(consulta.limit(1)) is not None
 
 
-def agregar(db: Session, entidad: Sector | Mesa) -> None:
+Persona = Mozo | Chef
+
+
+def agregar(db: Session, entidad: Sector | Mesa | Persona) -> None:
     db.add(entidad)
     db.flush()
 
@@ -74,28 +77,30 @@ def listar_mesas(
     return [(mesa, sector) for mesa, sector in filas], contar(db, select(Mesa.id))
 
 
-def existe_dni(db: Session, dni: str, excluir_id: int | None = None) -> bool:
-    consulta = select(Mozo.id).where(Mozo.dni == dni)
+def existe_dni(
+    db: Session, dni: str, excluir_id: int | None = None, modelo: type[Persona] = Mozo
+) -> bool:
+    consulta = select(modelo.id).where(modelo.dni == dni)
     if excluir_id is not None:
-        consulta = consulta.where(Mozo.id != excluir_id)
+        consulta = consulta.where(modelo.id != excluir_id)
     return db.scalar(consulta.limit(1)) is not None
 
 
-def obtener_mozo(db: Session, mozo_id: int) -> Mozo | None:
-    return db.get(Mozo, mozo_id)
+def obtener_persona(db: Session, modelo: type[Persona], persona_id: int) -> Persona | None:
+    return db.get(modelo, persona_id)
 
 
-def listar_mozos(
-    db: Session, parametros: ParametrosPaginacion, estado: Estado | None
-) -> tuple[list[Mozo], int]:
-    """Devuelve la página de mozos ordenada por apellido y nombre, y el total.
+def listar_personas(
+    db: Session, modelo: type[Persona], parametros: ParametrosPaginacion, estado: Estado | None
+) -> tuple[list[Persona], int]:
+    """Pagina de mozos o chefs ordenada por apellido y nombre, y el total.
 
-    Con `estado`, el listado y el total cuentan solo los mozos en ese estado.
+    Con `estado`, el listado y el total cuentan solo las personas en ese estado.
     """
-    consulta = select(Mozo)
+    consulta = select(modelo)
     if estado is not None:
-        consulta = consulta.where(Mozo.estado == estado)
-    consulta_ordenada = consulta.order_by(Mozo.apellido, Mozo.nombre, Mozo.id)
+        consulta = consulta.where(modelo.estado == estado)
+    consulta_ordenada = consulta.order_by(modelo.apellido, modelo.nombre, modelo.id)
     filas = db.scalars(aplicar(consulta_ordenada, parametros)).all()
     return list(filas), contar(db, consulta)
 

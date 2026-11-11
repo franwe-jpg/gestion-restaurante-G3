@@ -15,13 +15,27 @@ from app.shared.paginacion import ParametrosPaginacion
 
 def _alta(**cambios) -> MozoCrear:
     return MozoCrear.model_validate(
-        {"dni": "30123456", "nombre": "Juan", "apellido": "Fernández"} | cambios
+        {
+            "dni": "30123456",
+            "nombre": "Juan",
+            "apellido": "Fernández",
+            "correo": "juan@resto.com",
+            "contrasena": "Clave1234",
+        }
+        | cambios
     )
 
 
 def _modificacion(dni: str = "30123456", **cambios) -> MozoModificar:
     return MozoModificar.model_validate(
-        {"dni": dni, "nombre": "Juan", "apellido": "Fernández"} | cambios
+        {
+            "dni": dni,
+            "nombre": "Juan",
+            "apellido": "Fernández",
+            "correo": "juan@resto.com",
+            "contrasena": "Clave1234",  # los mozos de fabrica_mozo no tienen usuario (S5)
+        }
+        | cambios
     )
 
 

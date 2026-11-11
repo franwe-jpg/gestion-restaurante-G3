@@ -9,6 +9,10 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.modules.salon import service
 from app.modules.salon.schemas import (
+    ChefCrear,
+    ChefModificar,
+    ChefSalida,
+    FiltroChefs,
     FiltroMozos,
     FiltroSectores,
     MesaCrear,
@@ -89,6 +93,26 @@ def modificar_mozo(mozo_id: int, datos: MozoModificar, db: Sesion) -> MozoSalida
 @router.post("/mozos/{mozo_id}/baja")
 def dar_de_baja_mozo(mozo_id: int, db: Sesion) -> MozoSalida:
     return service.dar_de_baja_mozo(db, mozo_id)
+
+
+@router.post("/chefs", status_code=status.HTTP_201_CREATED)
+def crear_chef(datos: ChefCrear, db: Sesion) -> ChefSalida:
+    return service.crear_chef(db, datos)
+
+
+@router.get("/chefs")
+def listar_chefs(db: Sesion, filtro: Annotated[FiltroChefs, Query()]) -> Pagina[ChefSalida]:
+    return service.listar_chefs(db, filtro, filtro.estado)
+
+
+@router.put("/chefs/{chef_id}")
+def modificar_chef(chef_id: int, datos: ChefModificar, db: Sesion) -> ChefSalida:
+    return service.modificar_chef(db, chef_id, datos)
+
+
+@router.post("/chefs/{chef_id}/baja")
+def dar_de_baja_chef(chef_id: int, db: Sesion) -> ChefSalida:
+    return service.dar_de_baja_chef(db, chef_id)
 
 
 @router.get("/reportes/mesas-ventas-por-mozo")
