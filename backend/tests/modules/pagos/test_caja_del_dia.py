@@ -1,6 +1,5 @@
 """Pruebas de la caja del dia (S4-06, escenarios K01 a K11)."""
 
-from collections.abc import Callable
 from datetime import UTC, datetime
 from decimal import Decimal
 
@@ -11,58 +10,21 @@ from sqlalchemy.orm import Session
 from app.main import app
 from app.modules.pagos import repository, service
 from app.modules.pagos.models import Cobro, EstadoFactura, Factura, TipoMedioPago
-from tests.modules.pagos.conftest import FabricaMedioPago
+from tests.modules.pagos.conftest import (
+    HOY_A_LAS_10,
+    FabricaCobro,
+    FabricaFactura,
+    FabricaMedioPago,
+)
 
 RUTA = "/api/v1/reportes/caja-del-dia"
 # 12:00 UTC = 09:00 en el restaurante (UTC-3): el dia va de 03:00 UTC de hoy a 03:00 UTC de manana.
 AHORA = datetime(2026, 11, 9, 12, 0, tzinfo=UTC)
-HOY_A_LAS_10 = datetime(2026, 11, 9, 10, 0, tzinfo=UTC)
-
-FabricaCobro = Callable[..., Cobro]
-FabricaFactura = Callable[..., Factura]
 
 
 @pytest.fixture(autouse=True)
 def reloj_fijo(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(service, "_ahora", lambda: AHORA)
-
-
-@pytest.fixture
-def fabrica_factura(db: Session) -> FabricaFactura:
-    numero = iter(range(1, 1000))
-
-    def crear(
-        saldo: str = "0.00",
-        estado: EstadoFactura = EstadoFactura.PAGADA,
-        total: str = "5000.00",
-    ) -> Factura:
-        factura = Factura(
-            comanda_id=next(numero),
-            total=Decimal(total),
-            saldo_pendiente=Decimal(saldo),
-            estado=estado,
-        )
-        db.add(factura)
-        db.commit()
-        return factura
-
-    return crear
-
-
-@pytest.fixture
-def fabrica_cobro(db: Session, fabrica_factura: FabricaFactura) -> FabricaCobro:
-    def crear(medio_pago_id: int, monto: str, fecha_hora: datetime = HOY_A_LAS_10) -> Cobro:
-        cobro = Cobro(
-            factura_id=fabrica_factura().id,
-            medio_pago_id=medio_pago_id,
-            monto=Decimal(monto),
-            fecha_hora=fecha_hora,
-        )
-        db.add(cobro)
-        db.commit()
-        return cobro
-
-    return crear
 
 
 # K01

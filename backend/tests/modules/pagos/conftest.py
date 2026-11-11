@@ -2,6 +2,7 @@
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
@@ -10,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.modules.atencion.models import Comanda, DetalleComanda
 from app.modules.menus import service as menus_service
 from app.modules.menus.schemas import MenuEjecutivoCrear
-from app.modules.pagos.models import MedioPago, TipoMedioPago
+from app.modules.pagos.models import Cobro, EstadoFactura, Factura, MedioPago, TipoMedioPago
 from app.modules.productos import service as productos_service
 from app.modules.productos.schemas import PlatoCrear, SeccionCrear
 from app.modules.salon import service as salon_service
@@ -19,6 +20,10 @@ from app.shared.contratos.comanda import EstadoComanda, EstadoEntrega
 from app.shared.models import Estado
 
 FabricaMedioPago = Callable[..., MedioPago]
+FabricaFactura = Callable[..., Factura]
+FabricaCobro = Callable[..., Cobro]
+# 10:00 UTC = 07:00 en el restaurante (UTC-3).
+HOY_A_LAS_10 = datetime(2026, 11, 9, 10, 0, tzinfo=UTC)
 
 
 @pytest.fixture
@@ -114,5 +119,46 @@ def fabrica_comanda(db: Session, catalogo: Catalogo) -> FabricaComanda:
         db.add(comanda)
         db.commit()
         return comanda.id
+
+    return crear
+
+
+@pytest.fixture
+def fabrica_factura(db: Session) -> FabricaFactura:
+    numero = iter(range(1, 1000))
+
+    def crear(
+        saldo: str = "0.00",
+        estado: EstadoFactura = EstadoFactura.PAGADA,
+        total: str = "5000.00",
+        fecha_emision: datetime | None = None,
+    ) -> Factura:
+        factura = Factura(
+            comanda_id=next(numero),
+            total=Decimal(total),
+            saldo_pendiente=Decimal(saldo),
+            estado=estado,
+        )
+        if fecha_emision is not None:
+            factura.fecha_emision = fecha_emision
+        db.add(factura)
+        db.commit()
+        return factura
+
+    return crear
+
+
+@pytest.fixture
+def fabrica_cobro(db: Session, fabrica_factura: FabricaFactura) -> FabricaCobro:
+    def crear(medio_pago_id: int, monto: str, fecha_hora: datetime = HOY_A_LAS_10) -> Cobro:
+        cobro = Cobro(
+            factura_id=fabrica_factura().id,
+            medio_pago_id=medio_pago_id,
+            monto=Decimal(monto),
+            fecha_hora=fecha_hora,
+        )
+        db.add(cobro)
+        db.commit()
+        return cobro
 
     return crear
