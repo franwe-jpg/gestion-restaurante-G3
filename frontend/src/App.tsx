@@ -77,6 +77,11 @@ const PagosPage = lazy(() =>
     default: modulo.PagosPage,
   })),
 );
+const ReporteRecaudacionPage = lazy(() =>
+  import('./modules/pagos/pages/ReporteRecaudacionPage').then((modulo) => ({
+    default: modulo.ReporteRecaudacionPage,
+  })),
+);
 
 export default function App() {
   return (
@@ -95,6 +100,10 @@ export default function App() {
           <Route path="reservas" element={<ReservasPage />} />
           <Route path="reportes/reservas-ausentismo" element={<ReporteReservasAusentismoPage />} />
           <Route path="pagos" element={<PagosPage />} />
+          <Route
+            path="reportes/recaudacion-por-medio-de-pago"
+            element={<ReporteRecaudacionPage />}
+          />
           <Route path="reportes" element={<ReportesPage />} />
           <Route path="componentes" element={<ComponentesPage />} />
           <Route path="salud" element={<EstadoBackend />} />
