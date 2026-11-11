@@ -30,4 +30,10 @@ export const REPORTES: ReporteDisponible[] = [
       'Las ventas diarias de cada producto durante una promoción comparadas con las ventas fuera de ella.',
     ruta: '/reportes/impacto-promociones',
   },
+  {
+    titulo: 'Recaudación por medio de pago',
+    descripcion:
+      'Lo cobrado en un período por cada medio de pago y el total adeudado de las facturas del período.',
+    ruta: '/reportes/recaudacion-por-medio-de-pago',
+  },
 ];
