@@ -1,7 +1,8 @@
-/** Una línea del modal tal como la escribe la persona: todo texto, se convierte al enviar. */
+/** Una línea del modal tal como la completa la persona: todo texto, se convierte al enviar. */
 export interface LineaEscrita {
   /** Identifica la línea mientras exista; no cambia al quitar otras (HU-M5-06). */
   clave: number;
+  /** `id` del producto elegido en el desplegable como texto, o `''` si no se eligió ninguno. */
   producto: string;
   cantidad: string;
 }
@@ -14,16 +15,21 @@ export type ErroresDeLineas = Record<number, ErroresDeLinea>;
 
 const ENTERO_POSITIVO = /^[1-9]\d*$/;
 
-const ERROR_PRODUCTO = 'El producto debe ser un número entero mayor que cero';
+const ERROR_PRODUCTO = 'Seleccione un producto';
 const ERROR_CANTIDAD = 'La cantidad debe ser un número entero mayor que cero';
 
 function errorDeEntero(valor: string, mensaje: string): string | undefined {
   return ENTERO_POSITIVO.test(valor.trim()) ? undefined : mensaje;
 }
 
+/** El producto sale de un desplegable: solo se exige que se haya elegido uno. */
+function errorDeProducto(producto: string): string | undefined {
+  return producto.trim() === '' ? ERROR_PRODUCTO : undefined;
+}
+
 function erroresDeLinea({ producto, cantidad }: LineaEscrita): ErroresDeLinea {
   const encontrados: ErroresDeLinea = {
-    producto: errorDeEntero(producto, ERROR_PRODUCTO),
+    producto: errorDeProducto(producto),
     cantidad: errorDeEntero(cantidad, ERROR_CANTIDAD),
   };
   return Object.fromEntries(
@@ -32,8 +38,9 @@ function erroresDeLinea({ producto, cantidad }: LineaEscrita): ErroresDeLinea {
 }
 
 /**
- * Valida cada línea antes de enviar (S64): producto y cantidad deben ser enteros mayores que cero.
- * Es solo una ayuda para no hacer un viaje inútil: la API sigue siendo la autoridad.
+ * Valida cada línea antes de enviar (S64): debe haber un producto elegido y la cantidad debe ser un
+ * entero mayor que cero. Es solo una ayuda para no hacer un viaje inútil: la API sigue siendo la
+ * autoridad.
  */
 export function validarComandaDesdeReserva(lineas: LineaEscrita[]): ErroresDeLineas {
   const errores: ErroresDeLineas = {};

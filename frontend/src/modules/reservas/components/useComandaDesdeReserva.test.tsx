@@ -151,6 +151,19 @@ describe('useComandaDesdeReserva: error local', () => {
     expect(result.current.enviando).toBe(false);
   });
 
+  it('sin producto elegido no llama a la API y deja «Seleccione un producto» en la línea', async () => {
+    const { result, onCreada } = preparar();
+    escribir(result, 0, '', '2');
+    const clave = result.current.lineas[0]!.clave;
+
+    await act(() => result.current.enviar());
+
+    expect(crearComandaDesdeReserva).not.toHaveBeenCalled();
+    expect(onCreada).not.toHaveBeenCalled();
+    expect(result.current.errores.lineas[clave]).toEqual({ producto: 'Seleccione un producto' });
+    expect(result.current.enviando).toBe(false);
+  });
+
   it('limpia el error general anterior al volver a enviar', async () => {
     vi.mocked(crearComandaDesdeReserva).mockResolvedValue({
       datos: null,
