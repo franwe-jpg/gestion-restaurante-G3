@@ -662,3 +662,30 @@ La responsable del módulo pidió, como ajuste de usabilidad de esta HU ya integ
 ### Archivos de esta adenda
 
 `types.ts`, `api.ts` (+ `api.test.ts`), `components/useProductosHabilitados.ts` y `components/SelectorProducto.tsx` (nuevos, cada uno con su `.test.tsx`), `components/ComandaDesdeReservaDialog.tsx`, `components/validarComandaDesdeReserva.ts`, `components/useComandaDesdeReserva.ts` (solo comentarios) y las pruebas de esos archivos y de `pages/ReservasPage.test.tsx`. Con Strict TDD: las pruebas se escribieron primero y fallaron antes de implementar.
+
+## Adenda 2026-11-11 (3): la comanda exige que la reserva esté en su horario (S68)
+
+La responsable del módulo pidió que no se pueda crear la comanda de una reserva de otro día ni antes de la hora de la reserva. La de otro día ya se rechazaba en el servidor (S57); lo que cambia es el horario y lo que la pantalla ofrece.
+
+### Qué cambia
+
+| Punto | Antes | Ahora |
+| --- | --- | --- |
+| Horario en el servidor (S63) | La hora no se verificaba: «Solo cuenta la fecha» | Regla propia `_validar_horario_de_atencion`, llamada desde `_obtener_atendible` justo después de la fecha. Si `reserva.hora > ahora().time()` responde 409 «La reserva {id} todavía no está en su horario: es a las {HH:MM}». Estricta y sin tolerancia (S68, que revierte S63) |
+| Orden de las verificaciones | existe, cancelada, atendida, fecha, producto, M4 | existe (404), cancelada (409), atendida (409), fecha (409), **horario (409)**, al menos un producto (422), M4 |
+| Botón «Crear comanda» (S59) | Se ofrecía en toda fila `ACTIVA`; decidía el backend | Sigue mostrándose solo en filas `ACTIVA`, pero **deshabilitado** con el motivo a la vista cuando la reserva no es de hoy («Solo se puede crear la comanda el día de la reserva») o todavía no es su hora («Disponible desde las HH:MM») |
+| Cálculo de «ahora» en la pantalla | No existía | `atencionDeReserva(reserva, ahora)` resta tres horas al instante (UTC-3 fijo del restaurante, sin `Intl` ni la zona del navegador) y compara fecha y hora. `useAhoraDelRestaurante` refresca el instante cada 60 s para habilitar el botón al llegar la hora |
+
+### Qué sigue igual
+
+- **El servidor decide.** La pantalla solo evita llenar un modal que fallaría. Si el reloj del navegador discrepa, el 409 del servidor se sigue mostrando dentro del modal.
+- El contrato de la API y el cuerpo de `POST /reservas/{id}/comanda`; los demás 404, 409 y 422; la transacción única; el puente y M4.
+- El orden relativo previo: el 409 de la fecha ya iba antes del 422 de «al menos un producto», y el del horario se ubica a su lado.
+
+### Consecuencias y puntos a validar
+
+- Sin tolerancia: una persona que llega antes de la hora no puede ser atendida hasta que llegue. Si el equipo prefiere un margen (por ejemplo 15 minutos), es una constante en la regla del servidor y otra en `atencionDeReserva`.
+- El botón puede quedar hasta 59 s desfasado respecto de la hora exacta (refresco cada 60 s). En el caso inverso, el servidor rechaza con su 409.
+- Las pruebas del backend usan un reloj fijo de las 12:00; las reservas de referencia de atención pasaron de 21:30 a 11:30 para seguir cumpliendo la regla.
+- Los comentarios de pruebas que numeran los pasos («paso 6, S53», «pasos 7 y 8») conservan la numeración vieja de la spec, que no se renumera.
+- Supuesto: S68 lo valida el equipo. `tasks.md` y `proposal.md` conservan sus referencias históricas a S63 y S59.
