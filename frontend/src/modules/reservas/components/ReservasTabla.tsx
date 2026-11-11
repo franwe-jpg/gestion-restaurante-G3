@@ -14,14 +14,18 @@ export interface ReservasTablaProps {
   cargando?: boolean;
   error?: string | null;
   onReintentar?: () => void;
-  /** Se ofrece solo en las filas `ACTIVA`, sin mirar la fecha: decide el backend (HU-M5-06, S59). */
-  onCrearComanda: (reserva: Reserva) => void;
+  /**
+   * Las cuatro acciones van juntas (permiso `RESERVAS_OPERAR`): si falta alguna, la tabla no
+   * muestra la columna de acciones.
+   * Se ofrece solo en las filas `ACTIVA`, sin mirar la fecha: decide el backend (HU-M5-06, S59).
+   */
+  onCrearComanda?: (reserva: Reserva) => void;
   /** Se ofrece solo en las filas `ACTIVA`: las demás reservas no se modifican (HU-M5-02 CA 5). */
-  onModificar: (reserva: Reserva) => void;
+  onModificar?: (reserva: Reserva) => void;
   /** Se ofrece solo en las filas `ACTIVA`, con la misma regla que `onModificar` (HU-M5-04). */
-  onCancelarAnticipada: (reserva: Reserva) => void;
+  onCancelarAnticipada?: (reserva: Reserva) => void;
   /** Se ofrece solo en las filas `ACTIVA`, con la misma regla que `onModificar` (HU-M5-05). */
-  onCancelarPorAusencia: (reserva: Reserva) => void;
+  onCancelarPorAusencia?: (reserva: Reserva) => void;
 }
 
 const MENSAJE_ERROR = 'No se pudieron cargar las reservas.';
@@ -47,9 +51,11 @@ const COLUMNAS: ColumnaTabla<Reserva>[] = [
   },
 ];
 
-type AccionesDeFila = Pick<
-  ReservasTablaProps,
-  'onCrearComanda' | 'onModificar' | 'onCancelarAnticipada' | 'onCancelarPorAusencia'
+type AccionesDeFila = Required<
+  Pick<
+    ReservasTablaProps,
+    'onCrearComanda' | 'onModificar' | 'onCancelarAnticipada' | 'onCancelarPorAusencia'
+  >
 >;
 
 function columnaAcciones({
@@ -112,17 +118,23 @@ export function ReservasTabla({
   onCancelarAnticipada,
   onCancelarPorAusencia,
 }: ReservasTablaProps) {
+  const conAcciones =
+    onCrearComanda && onModificar && onCancelarAnticipada && onCancelarPorAusencia;
   return (
     <DataTable
-      columnas={[
-        ...COLUMNAS,
-        columnaAcciones({
-          onCrearComanda,
-          onModificar,
-          onCancelarAnticipada,
-          onCancelarPorAusencia,
-        }),
-      ]}
+      columnas={
+        conAcciones
+          ? [
+              ...COLUMNAS,
+              columnaAcciones({
+                onCrearComanda,
+                onModificar,
+                onCancelarAnticipada,
+                onCancelarPorAusencia,
+              }),
+            ]
+          : COLUMNAS
+      }
       filas={reservas}
       obtenerClave={(reserva) => reserva.id}
       cargando={cargando}

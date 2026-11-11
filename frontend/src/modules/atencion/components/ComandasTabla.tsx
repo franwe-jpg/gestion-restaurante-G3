@@ -17,6 +17,10 @@ interface Props {
   pagina: Pagina<ComandaResumen>;
   hayFiltros: boolean;
   ocupado: boolean;
+  /** Sin `COMANDAS_OPERAR` la fila solo permite ver el detalle. */
+  puedeOperar: boolean;
+  /** Sin `PAGOS_OPERAR` no se ofrece «Facturar». */
+  puedeFacturar: boolean;
   onCerrar: (id: number) => void;
   onEntregas: (id: number) => void;
   onModificar: (id: number) => void;
@@ -26,52 +30,39 @@ interface Props {
   onPagina: (offset: number) => void;
 }
 
-export function ComandasTabla({
-  pagina,
-  hayFiltros,
-  ocupado,
-  onCerrar,
-  onEntregas,
-  onModificar,
-  onReabrir,
-  onAnular,
-  onFacturar,
-  onPagina,
-}: Props) {
+type PropsDeFila = Omit<Props, 'pagina' | 'hayFiltros' | 'onPagina'>;
+
+export function ComandasTabla({ pagina, hayFiltros, onPagina, ...fila }: Props) {
   return (
     <section aria-label="Listado de comandas" className="space-y-4">
       {pagina.items.length === 0 ? (
         <ComandasVacias pagina={pagina} hayFiltros={hayFiltros} />
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Comanda</TableHead>
-              <TableHead>Mesa</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead>Fecha local</TableHead>
-              <TableHead>Acciones</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {pagina.items.map((comanda) => (
-              <ComandaFila
-                key={comanda.id}
-                comanda={comanda}
-                ocupado={ocupado}
-                onCerrar={onCerrar}
-                onEntregas={onEntregas}
-                onModificar={onModificar}
-                onReabrir={onReabrir}
-                onAnular={onAnular}
-                onFacturar={onFacturar}
-              />
-            ))}
-          </TableBody>
-        </Table>
+        <TablaDeComandas pagina={pagina} {...fila} />
       )}
-      <PaginacionComandas pagina={pagina} ocupado={ocupado} onPagina={onPagina} />
+      <PaginacionComandas pagina={pagina} ocupado={fila.ocupado} onPagina={onPagina} />
     </section>
+  );
+}
+
+function TablaDeComandas({ pagina, ...fila }: PropsDeFila & { pagina: Pagina<ComandaResumen> }) {
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Comanda</TableHead>
+          <TableHead>Mesa</TableHead>
+          <TableHead>Estado</TableHead>
+          <TableHead>Fecha local</TableHead>
+          <TableHead>Acciones</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {pagina.items.map((comanda) => (
+          <ComandaFila key={comanda.id} comanda={comanda} {...fila} />
+        ))}
+      </TableBody>
+    </Table>
   );
 }
 
@@ -135,6 +126,8 @@ function ComandasVacias({
 interface AccionesProps {
   comanda: ComandaResumen;
   ocupado: boolean;
+  puedeOperar: boolean;
+  puedeFacturar: boolean;
   onCerrar: (id: number) => void;
   onEntregas: (id: number) => void;
   onModificar: (id: number) => void;
@@ -164,7 +157,50 @@ function AccionFacturar({
   );
 }
 
-function AccionesComanda({ comanda, ocupado, ...acciones }: AccionesProps) {
+function BotonAnular({
+  id,
+  ocupado,
+  onAnular,
+}: {
+  id: number;
+  ocupado: boolean;
+  onAnular: (id: number) => void;
+}) {
+  return (
+    <Button
+      variant="danger"
+      disabled={ocupado}
+      aria-label={`Anular comanda #${id}`}
+      onClick={() => onAnular(id)}
+    >
+      Anular comanda
+    </Button>
+  );
+}
+
+function AccionesComanda({ puedeOperar, ...props }: AccionesProps) {
+  if (!puedeOperar) {
+    return (
+      <TableCell>
+        <Button
+          variant="outline"
+          aria-label={`Ver detalle de la comanda #${props.comanda.id}`}
+          onClick={() => props.onEntregas(props.comanda.id)}
+        >
+          Ver detalle
+        </Button>
+      </TableCell>
+    );
+  }
+  return <AccionesDeOperacion {...props} />;
+}
+
+function AccionesDeOperacion({
+  comanda,
+  ocupado,
+  puedeFacturar,
+  ...acciones
+}: Omit<AccionesProps, 'puedeOperar'>) {
   return (
     <TableCell className="space-x-2">
       <Button
@@ -175,14 +211,7 @@ function AccionesComanda({ comanda, ocupado, ...acciones }: AccionesProps) {
         Entregas
       </Button>
       {comanda.estado === 'ABIERTA' && (
-        <Button
-          variant="danger"
-          disabled={ocupado}
-          aria-label={`Anular comanda #${comanda.id}`}
-          onClick={() => acciones.onAnular(comanda.id)}
-        >
-          Anular comanda
-        </Button>
+        <BotonAnular id={comanda.id} ocupado={ocupado} onAnular={acciones.onAnular} />
       )}
       <Button
         variant="outline"
@@ -208,7 +237,7 @@ function AccionesComanda({ comanda, ocupado, ...acciones }: AccionesProps) {
       >
         Cerrar
       </Button>
-      {comanda.estado === 'CERRADA' && (
+      {comanda.estado === 'CERRADA' && puedeFacturar && (
         <AccionFacturar id={comanda.id} ocupado={ocupado} onFacturar={acciones.onFacturar} />
       )}
     </TableCell>

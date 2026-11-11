@@ -7,6 +7,8 @@ import { useEntregas } from './useEntregas';
 
 interface Props {
   id: number;
+  /** Muestra el detalle sin botones para registrar entregas. */
+  soloLectura?: boolean;
   onSalir: () => void;
 }
 
@@ -22,11 +24,13 @@ function EntregaFila({
   detalle,
   nombre,
   bloqueado,
+  soloLectura,
   onCambiar,
 }: {
   detalle: DetalleEntrega;
   nombre: string;
   bloqueado: boolean;
+  soloLectura: boolean;
   onCambiar: (valor: number) => void;
 }) {
   const { cantidad, cantidad_entregada: entregadas } = detalle;
@@ -37,51 +41,85 @@ function EntregaFila({
         {entregadas} de {cantidad}
       </span>
       <InsigniaEntrega entregado={detalle.estado_entrega === 'ENTREGADO'} />
-      <span className="flex items-center gap-2">
-        <Button
-          variant="outline"
-          aria-label={`Restar una unidad de ${nombre}`}
-          disabled={bloqueado || entregadas === 0}
-          onClick={() => onCambiar(entregadas - 1)}
-        >
-          −
-        </Button>
-        <Button
-          variant="outline"
-          aria-label={`Sumar una unidad de ${nombre}`}
-          disabled={bloqueado || entregadas === cantidad}
-          onClick={() => onCambiar(entregadas + 1)}
-        >
-          +
-        </Button>
-        <Button
-          variant="outline"
-          aria-label={`Entregar todo de ${nombre}`}
-          disabled={bloqueado || entregadas === cantidad}
-          onClick={() => onCambiar(cantidad)}
-        >
-          Entregar todo
-        </Button>
-      </span>
+      {!soloLectura && (
+        <BotonesDeEntrega
+          nombre={nombre}
+          entregadas={entregadas}
+          cantidad={cantidad}
+          bloqueado={bloqueado}
+          onCambiar={onCambiar}
+        />
+      )}
     </li>
   );
 }
 
-function Avisos({ datos, error }: { datos: EntregasComanda | null; error: string }) {
+function BotonesDeEntrega({
+  nombre,
+  entregadas,
+  cantidad,
+  bloqueado,
+  onCambiar,
+}: {
+  nombre: string;
+  entregadas: number;
+  cantidad: number;
+  bloqueado: boolean;
+  onCambiar: (valor: number) => void;
+}) {
+  return (
+    <span className="flex items-center gap-2">
+      <Button
+        variant="outline"
+        aria-label={`Restar una unidad de ${nombre}`}
+        disabled={bloqueado || entregadas === 0}
+        onClick={() => onCambiar(entregadas - 1)}
+      >
+        −
+      </Button>
+      <Button
+        variant="outline"
+        aria-label={`Sumar una unidad de ${nombre}`}
+        disabled={bloqueado || entregadas === cantidad}
+        onClick={() => onCambiar(entregadas + 1)}
+      >
+        +
+      </Button>
+      <Button
+        variant="outline"
+        aria-label={`Entregar todo de ${nombre}`}
+        disabled={bloqueado || entregadas === cantidad}
+        onClick={() => onCambiar(cantidad)}
+      >
+        Entregar todo
+      </Button>
+    </span>
+  );
+}
+
+function Avisos({
+  datos,
+  error,
+  soloLectura,
+}: {
+  datos: EntregasComanda | null;
+  error: string;
+  soloLectura: boolean;
+}) {
   const completa = datos !== null && datos.detalles.every((d) => d.estado_entrega === 'ENTREGADO');
   return (
     <>
       {!datos && !error && <p role="status">Cargando entregas…</p>}
       {error && <p role="alert">{error}</p>}
       {completa && <p>No falta servir nada</p>}
-      {datos && datos.estado !== 'ABIERTA' && (
+      {!soloLectura && datos && datos.estado !== 'ABIERTA' && (
         <p>La comanda está {datos.estado}: no se pueden cambiar las entregas.</p>
       )}
     </>
   );
 }
 
-export function EntregasComandaDialog({ id, onSalir }: Props) {
+export function EntregasComandaDialog({ id, soloLectura = false, onSalir }: Props) {
   const { datos, error, enviando, registrar } = useEntregas(id);
   const { nombreDe } = useCatalogoComanda();
   const bloqueado = enviando || datos?.estado !== 'ABIERTA';
@@ -89,13 +127,13 @@ export function EntregasComandaDialog({ id, onSalir }: Props) {
     <Dialog
       open
       size="lg"
-      title={`Entregas de la comanda #${id}`}
+      title={`${soloLectura ? 'Detalle' : 'Entregas'} de la comanda #${id}`}
       onOpenChange={(abierto) => {
         if (!abierto) onSalir();
       }}
     >
       <div className="space-y-4">
-        <Avisos datos={datos} error={error} />
+        <Avisos datos={datos} error={error} soloLectura={soloLectura} />
         {datos && (
           <ul className="space-y-2">
             {datos.detalles.map((detalle) => (
@@ -104,6 +142,7 @@ export function EntregasComandaDialog({ id, onSalir }: Props) {
                 detalle={detalle}
                 nombre={nombreDe(detalle)}
                 bloqueado={bloqueado}
+                soloLectura={soloLectura}
                 onCambiar={(valor) => void registrar(detalle.id, valor)}
               />
             ))}

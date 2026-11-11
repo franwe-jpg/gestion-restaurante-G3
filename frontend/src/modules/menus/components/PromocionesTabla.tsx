@@ -13,8 +13,9 @@ interface PromocionesTablaProps {
   cargando: boolean;
   error: string | null;
   onReintentar: () => void;
-  onEditar: (promocion: Promocion) => void;
-  onFinalizada: () => void;
+  /** Sin `onEditar` y `onFinalizada` (rol sin permiso de gestion) no hay columna de acciones. */
+  onEditar?: (promocion: Promocion) => void;
+  onFinalizada?: () => void;
 }
 
 const TIPO: Record<TipoPromocion, string> = {
@@ -66,10 +67,10 @@ function estado(promocion: Promocion) {
 }
 
 function columnas(
-  onEditar: (promocion: Promocion) => void,
-  onFinalizada: () => void,
+  onEditar?: (promocion: Promocion) => void,
+  onFinalizada?: () => void,
 ): ColumnaTabla<Promocion>[] {
-  return [
+  const base: ColumnaTabla<Promocion>[] = [
     { clave: 'nombre', encabezado: 'Nombre', render: (promocion) => promocion.nombre },
     { clave: 'tipo', encabezado: 'Tipo', render: (promocion) => TIPO[promocion.tipo] },
     { clave: 'vigencia', encabezado: 'Vigencia', render: vigencia },
@@ -77,6 +78,10 @@ function columnas(
     { clave: 'horario', encabezado: 'Horario', render: horario },
     { clave: 'estado', encabezado: 'Estado', render: estado },
     { clave: 'finalizacion', encabezado: 'Finalización', render: finalizacion },
+  ];
+  if (!onEditar || !onFinalizada) return base;
+  return [
+    ...base,
     {
       clave: 'acciones',
       encabezado: <span className="sr-only">Acciones</span>,

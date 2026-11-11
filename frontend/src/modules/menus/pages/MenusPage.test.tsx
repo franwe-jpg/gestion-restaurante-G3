@@ -7,6 +7,7 @@ import {
   listarProductosHabilitados,
   listarSeccionesHabilitadas,
 } from '../api';
+import { usarRoles } from '../../../test/sesionDePrueba';
 import type { MenuEjecutivo } from '../types';
 
 import { MenusPage } from './MenusPage';
@@ -85,4 +86,21 @@ describe('MenusPage', () => {
     await waitFor(() => expect(darDeBajaMenuEjecutivo).not.toHaveBeenCalled());
     expect(screen.getByText('Almuerzo ejecutivo')).toBeInTheDocument();
   });
+});
+
+describe('MenusPage: según el rol', () => {
+  it.each([['MOZO'], ['CHEF']] as const)(
+    'el %s ve los menús ejecutivos sin alta, edición ni baja',
+    async (rol) => {
+      usarRoles([rol]);
+      render(<MenusPage />);
+
+      expect(await screen.findByText('Almuerzo ejecutivo')).toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: 'Nuevo menú ejecutivo' }),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Editar|Dar de baja/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole('columnheader', { name: 'Acciones' })).not.toBeInTheDocument();
+    },
+  );
 });

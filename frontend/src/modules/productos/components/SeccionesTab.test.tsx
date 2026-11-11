@@ -9,6 +9,7 @@ import {
   listarSecciones,
   modificarSeccion,
 } from '../api';
+import { usarRoles } from '../../../test/sesionDePrueba';
 import type { ProductoSeleccionable, SeccionListado } from '../types';
 
 import { SeccionesTab } from './SeccionesTab';
@@ -155,5 +156,32 @@ describe('SeccionesTab: dar de baja una fila', () => {
     expect(darDeBajaSeccion).toHaveBeenCalledWith(1);
     expect(listarSecciones).toHaveBeenCalledTimes(2);
     expect(listarProductosHabilitados).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('SeccionesTab: según el rol', () => {
+  it('el encargado ve «Nueva sección» y las acciones', async () => {
+    usarRoles(['ENCARGADO']);
+    vi.mocked(listarSecciones).mockResolvedValue(pagina([ENTRADAS]));
+    vi.mocked(listarProductosHabilitados).mockResolvedValue(pagina([]));
+
+    render(<SeccionesTab />);
+
+    expect(await screen.findByText('Entradas')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Nueva sección' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Editar/ })).toBeInTheDocument();
+  });
+
+  it.each([['MOZO'], ['CHEF']] as const)('el %s ve las secciones sin acciones', async (rol) => {
+    usarRoles([rol]);
+    vi.mocked(listarSecciones).mockResolvedValue(pagina([ENTRADAS]));
+    vi.mocked(listarProductosHabilitados).mockResolvedValue(pagina([]));
+
+    render(<SeccionesTab />);
+
+    expect(await screen.findByText('Entradas')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Nueva sección' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Editar|Dar de baja/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'Acciones' })).not.toBeInTheDocument();
   });
 });

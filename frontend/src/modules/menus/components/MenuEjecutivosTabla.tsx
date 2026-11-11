@@ -13,8 +13,9 @@ interface MenuEjecutivosTablaProps {
   cargando: boolean;
   error: string | null;
   onReintentar: () => void;
-  onEditar: (menu: MenuEjecutivo) => void;
-  onDadoDeBaja: () => void;
+  /** Sin `onEditar` y `onDadoDeBaja` (rol sin permiso de gestion) no hay columna de acciones. */
+  onEditar?: (menu: MenuEjecutivo) => void;
+  onDadoDeBaja?: () => void;
 }
 
 function incluidos(menu: MenuEjecutivo) {
@@ -34,10 +35,10 @@ function etiquetaEstado(estado: MenuEjecutivo['estado']) {
 }
 
 function columnas(
-  onEditar: (menu: MenuEjecutivo) => void,
-  onDadoDeBaja: () => void,
+  onEditar?: (menu: MenuEjecutivo) => void,
+  onDadoDeBaja?: () => void,
 ): ColumnaTabla<MenuEjecutivo>[] {
-  return [
+  const base: ColumnaTabla<MenuEjecutivo>[] = [
     { clave: 'nombre', encabezado: 'Nombre', render: (menu) => menu.nombre },
     { clave: 'seccion', encabezado: 'Sección', render: (menu) => menu.seccion.nombre },
     { clave: 'productos', encabezado: 'Incluye', render: incluidos },
@@ -47,6 +48,10 @@ function columnas(
       render: (menu) => formatearMoneda(Number(menu.precio_fijo)),
     },
     { clave: 'estado', encabezado: 'Estado', render: (menu) => etiquetaEstado(menu.estado) },
+  ];
+  if (!onEditar || !onDadoDeBaja) return base;
+  return [
+    ...base,
     {
       clave: 'acciones',
       encabezado: <span className="sr-only">Acciones</span>,

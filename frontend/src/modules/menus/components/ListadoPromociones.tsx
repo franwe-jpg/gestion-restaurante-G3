@@ -12,8 +12,8 @@ interface ListadoPromocionesProps {
   error: string | null;
   onReintentar: () => void;
   onCambiarPagina: (pagina: number) => void;
-  onEditar: (promocion: Promocion) => void;
-  onFinalizada: () => void;
+  onEditar?: (promocion: Promocion) => void;
+  onFinalizada?: () => void;
 }
 
 export function ListadoPromociones({

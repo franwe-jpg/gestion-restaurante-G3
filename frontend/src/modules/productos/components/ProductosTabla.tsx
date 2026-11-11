@@ -34,7 +34,7 @@ function Etiquetas({ etiquetas }: { etiquetas: string[] }) {
 function columnas(
   renderAcciones?: (producto: ProductoListado) => ReactNode,
 ): ColumnaTabla<ProductoListado>[] {
-  return [
+  const base: ColumnaTabla<ProductoListado>[] = [
     { clave: 'nombre', encabezado: 'Nombre', render: (p) => p.nombre },
     {
       clave: 'categoria',
@@ -62,10 +62,15 @@ function columnas(
         </Badge>
       ),
     },
+  ];
+  // Sin permiso de gestion no hay columna de acciones.
+  if (!renderAcciones) return base;
+  return [
+    ...base,
     {
       clave: 'acciones',
       encabezado: <span className="sr-only">Acciones</span>,
-      render: (p) => renderAcciones?.(p) ?? null,
+      render: (p) => renderAcciones(p),
       className: 'w-28',
     },
   ];

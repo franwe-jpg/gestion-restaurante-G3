@@ -18,7 +18,7 @@ export interface SeccionesTablaProps {
 function columnas(
   renderAcciones?: (seccion: SeccionListado) => ReactNode,
 ): ColumnaTabla<SeccionListado>[] {
-  return [
+  const base: ColumnaTabla<SeccionListado>[] = [
     { clave: 'orden', encabezado: 'Orden', render: (s) => s.orden, className: 'w-20' },
     { clave: 'nombre', encabezado: 'Nombre', render: (s) => s.nombre },
     { clave: 'productos', encabezado: 'Productos', render: (s) => s.cantidad_productos },
@@ -31,10 +31,15 @@ function columnas(
         </Badge>
       ),
     },
+  ];
+  // Sin permiso de gestion no hay columna de acciones.
+  if (!renderAcciones) return base;
+  return [
+    ...base,
     {
       clave: 'acciones',
       encabezado: <span className="sr-only">Acciones</span>,
-      render: (s) => renderAcciones?.(s) ?? null,
+      render: (s) => renderAcciones(s),
       className: 'w-44',
     },
   ];
