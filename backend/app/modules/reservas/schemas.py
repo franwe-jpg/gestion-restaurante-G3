@@ -1,5 +1,6 @@
 """reservas: entrada y salida de la API."""
 
+import re
 from datetime import date, time
 from decimal import Decimal
 
@@ -12,6 +13,7 @@ from pydantic import (
     field_serializer,
     field_validator,
 )
+from pydantic_core import PydanticCustomError
 
 from app.modules.reservas.models import EstadoReserva
 from app.shared.contratos.comanda import DetalleComandaCrear
@@ -40,13 +42,57 @@ class _DatosDelTurno(BaseModel):
     _hora_con_precision_de_minutos = field_validator("hora")(_hora_en_minutos)
 
 
+# Supuesto S66 (correccion de HU-M5-01-02-03, 2026-11-11, pendiente de validacion del equipo): el
+# telefono del cliente nuevo admite un `+` opcional solo al inicio, digitos, espacios y guiones;
+# entre 6 y 15 digitos (15 es el maximo de E.164) y hasta 20 caracteres en total. Los espacios de
+# los extremos se recortan antes de validar y de guardar. Lo valida M5 antes de llamar a M4 porque
+# la regla de M4 no acota el largo.
+_TELEFONO_FORMATO = re.compile(r"\+?[0-9 -]+")
+_TELEFONO_LARGO_MAXIMO = 20
+_TELEFONO_DIGITOS_MINIMO = 6
+_TELEFONO_DIGITOS_MAXIMO = 15
+
+
+def _telefono_valido(telefono: str) -> str:
+    """Devuelve el telefono recortado o lanza el error de la primera regla que no cumple.
+
+    Se usa `PydanticCustomError` y no `ValueError` para que el detalle del 422 no lleve el
+    prefijo «Value error, » y se lea como el de M4.
+    """
+    recortado = telefono.strip()
+    if not recortado:
+        raise PydanticCustomError("telefono_obligatorio", "telefono es obligatorio")
+    if _TELEFONO_FORMATO.fullmatch(recortado) is None:
+        raise PydanticCustomError(
+            "telefono_caracteres", "telefono solo admite dígitos, espacios, guiones y + al inicio"
+        )
+    if len(recortado) > _TELEFONO_LARGO_MAXIMO:
+        raise PydanticCustomError(
+            "telefono_largo", f"telefono admite hasta {_TELEFONO_LARGO_MAXIMO} caracteres"
+        )
+    digitos = sum(caracter.isdigit() for caracter in recortado)
+    if not _TELEFONO_DIGITOS_MINIMO <= digitos <= _TELEFONO_DIGITOS_MAXIMO:
+        raise PydanticCustomError(
+            "telefono_digitos",
+            f"telefono debe tener entre {_TELEFONO_DIGITOS_MINIMO} y "
+            f"{_TELEFONO_DIGITOS_MAXIMO} dígitos",
+        )
+    return recortado
+
+
 class ClienteNuevo(BaseModel):
-    """Cliente que se registra con la reserva (S40). Solo forma: el contenido lo valida M4."""
+    """Cliente que se registra con la reserva (S40).
+
+    El nombre es solo de forma: su contenido lo valida M4 (S42). El teléfono lo valida este
+    esquema antes de llamar a M4 (S66) y se guarda ya recortado.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
     nombre: StrictStr
     telefono: StrictStr
+
+    _telefono_acotado = field_validator("telefono")(_telefono_valido)
 
 
 class ReservaCrear(_DatosDelTurno):
