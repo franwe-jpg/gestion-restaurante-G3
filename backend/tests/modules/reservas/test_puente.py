@@ -1,4 +1,4 @@
-"""Pruebas del puente con Mesa (M3) y Cliente (M4): los dos lados son reales."""
+"""Pruebas del puente con Mesa (M3), Cliente y Comanda (M4): los lados reales usan la base."""
 
 import ast
 import importlib.util
@@ -10,7 +10,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.modules.atencion import service as atencion_service
-from app.modules.atencion.models import Cliente
+from app.modules.atencion.models import Cliente, Comanda
+
+# Los esquemas y el service de productos se importan solo en las pruebas (como los de salon).
+from app.modules.productos import service as productos_service
+from app.modules.productos.schemas import PlatoCrear, SeccionCrear
 from app.modules.reservas import puente
 from app.modules.salon import service as salon_service
 from app.shared.contratos.comanda import (
@@ -19,7 +23,7 @@ from app.shared.contratos.comanda import (
     EstadoComanda,
     EstadoEntrega,
 )
-from app.shared.excepciones import DatosInvalidosError, ReglaDeNegocioError
+from app.shared.excepciones import DatosInvalidosError, NoEncontradoError, ReglaDeNegocioError
 from app.shared.models.enums import EstadoMesa
 from app.shared.paginacion import ParametrosPaginacion
 
@@ -238,6 +242,79 @@ def test_registrar_cliente_real_propaga_el_rechazo_de_m4(
     assert campo in str(error.value)
     assert not db.new
     assert db.scalars(select(Cliente)).all() == []
+
+
+# --- HU-M5-06: la comanda de una reserva con el puente real, sin doble (M4, M3 y M1) ---
+
+RESERVA_ID = 10
+
+
+def _sembrar_producto_habilitado(db: Session) -> int:
+    """Siembra un producto HABILITADO de M1 con los servicios reales y devuelve su id."""
+    seccion = productos_service.crear_seccion(db, SeccionCrear(nombre="Principales", orden=1))
+    plato = productos_service.crear_producto(
+        db,
+        PlatoCrear(
+            nombre="Milanesa",
+            seccion_id=seccion.id,
+            precio=Decimal("1500.50"),
+            ingredientes=["Carne"],
+        ),
+        None,
+    )
+    return plato.id
+
+
+# Decision 53: el puente arma el pedido de M4 con la mesa y pasa el vinculo con la reserva aparte
+def test_crear_comanda_de_reserva_real_arma_la_comanda_con_la_mesa_y_el_vinculo(
+    db: Session, puente_real, mesas_en_m3
+) -> None:
+    mesa = mesas_en_m3(1)[0]
+    producto_id = _sembrar_producto_habilitado(db)
+    lineas = [DetalleComandaCrear(producto_id=producto_id, cantidad=2)]
+
+    salida = puente.crear_comanda_de_reserva(db, mesa.id, RESERVA_ID, lineas, "Sin sal")
+    db.commit()
+    db.expire_all()
+
+    assert isinstance(salida, ComandaSalida)
+    assert (salida.mesa_id, salida.reserva_id) == (mesa.id, RESERVA_ID)
+    assert salida.estado == EstadoComanda.ABIERTA
+    assert [(d.producto_id, d.cantidad) for d in salida.detalles] == [(producto_id, 2)]
+    guardada = db.get(Comanda, salida.id)
+    assert (guardada.mesa_id, guardada.reserva_id) == (mesa.id, RESERVA_ID)
+    assert guardada.observaciones == "Sin sal"
+    assert salon_service.obtener_mesa(db, mesa.id).estado == EstadoMesa.OCUPADA
+
+
+# Decision 53: el puente no confirma; quien llama decide el commit o el rollback
+def test_crear_comanda_de_reserva_real_no_confirma(db: Session, puente_real, mesas_en_m3) -> None:
+    mesa = mesas_en_m3(1)[0]
+    producto_id = _sembrar_producto_habilitado(db)
+
+    puente.crear_comanda_de_reserva(
+        db, mesa.id, RESERVA_ID, [DetalleComandaCrear(producto_id=producto_id, cantidad=1)], None
+    )
+    db.rollback()
+
+    assert db.scalars(select(Comanda)).all() == []
+    assert salon_service.obtener_mesa(db, mesa.id).estado == EstadoMesa.LIBRE
+
+
+# Los errores de M4 suben tal cual, sin traducir ni escribir nada
+def test_crear_comanda_de_reserva_real_propaga_el_error_de_m4(
+    db: Session, puente_real, mesas_en_m3
+) -> None:
+    mesa = mesas_en_m3(1)[0]
+
+    with pytest.raises(NoEncontradoError, match="El producto 999 no existe"):
+        puente.crear_comanda_de_reserva(
+            db, mesa.id, RESERVA_ID, [DetalleComandaCrear(producto_id=999, cantidad=1)], None
+        )
+
+    assert not db.new
+    assert db.scalars(select(Comanda)).all() == []
+    assert salon_service.obtener_mesa(db, mesa.id).estado == EstadoMesa.LIBRE
 
 
 # --- Contratos de importacion (RNF-MAN-09): lint-imports no puede decir "solo desde el puente" ---

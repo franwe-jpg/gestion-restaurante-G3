@@ -116,10 +116,9 @@ def crear_comanda_de_reserva(
 ) -> ComandaSalida:
     """Crea en M4 la comanda de la reserva dentro de la sesion de M5; M4 no confirma (HU-M5-06).
 
-    Usa `crear_comanda_sin_confirmar` (B2) con `reserva_id` en `ComandaCrear` (B1). Los errores de
-    M4 suben tal cual; el commit o el rollback los hace `service.crear_comanda`.
+    Usa `crear_comanda_para_reserva`, que recibe el vinculo con la reserva como argumento aparte:
+    `ComandaCrear` no tiene `reserva_id` y lo ignoraria en silencio. Los errores de M4 suben tal
+    cual; el commit o el rollback los hace `service.crear_comanda`.
     """
-    datos = ComandaCrear(
-        mesa_id=mesa_id, reserva_id=reserva_id, detalles=detalles, observaciones=observaciones
-    )
-    return atencion_service.crear_comanda_sin_confirmar(db, datos)
+    datos = ComandaCrear(mesa_id=mesa_id, detalles=detalles, observaciones=observaciones)
+    return atencion_service.crear_comanda_para_reserva(db, datos, reserva_id)
