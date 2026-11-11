@@ -7,14 +7,19 @@ import { DataTable } from '../../../shared/components/ui/data-table';
 import type { ColumnaTabla } from '../../../shared/components/ui/data-table';
 import type { Reserva } from '../types';
 
+import { atencionDeReserva } from './atencionDeReserva';
 import { ESTADOS_RESERVA } from './estadosReserva';
+import { useAhoraDelRestaurante } from './useAhoraDelRestaurante';
 
 export interface ReservasTablaProps {
   reservas: Reserva[];
   cargando?: boolean;
   error?: string | null;
   onReintentar?: () => void;
-  /** Se ofrece solo en las filas `ACTIVA`, sin mirar la fecha: decide el backend (HU-M5-06, S59). */
+  /**
+   * Se ofrece solo en las filas `ACTIVA` y queda deshabilitada hasta el día y la hora de la reserva
+   * en la hora del restaurante (HU-M5-06); el backend sigue decidiendo (S59).
+   */
   onCrearComanda: (reserva: Reserva) => void;
   /** Se ofrece solo en las filas `ACTIVA`: las demás reservas no se modifican (HU-M5-02 CA 5). */
   onModificar: (reserva: Reserva) => void;
@@ -50,9 +55,47 @@ const COLUMNAS: ColumnaTabla<Reserva>[] = [
 type AccionesDeFila = Pick<
   ReservasTablaProps,
   'onCrearComanda' | 'onModificar' | 'onCancelarAnticipada' | 'onCancelarPorAusencia'
->;
+> & { ahora: Date };
+
+interface BotonCrearComandaProps {
+  reserva: Reserva;
+  ahora: Date;
+  onCrearComanda: (reserva: Reserva) => void;
+}
+
+/**
+ * Deshabilitado, con el motivo a la vista, mientras la reserva no se puede atender (HU-M5-06). El
+ * `Button` deshabilitado no recibe el puntero (`pointer-events-none`), así que el contenedor
+ * repite el `title` para que el motivo aparezca al pasar el mouse.
+ */
+function BotonCrearComanda({ reserva, ahora, onCrearComanda }: BotonCrearComandaProps) {
+  const atencion = atencionDeReserva(reserva, ahora);
+  const motivo = atencion.disponible ? undefined : atencion.motivo;
+  const idMotivo = `motivo-comanda-${reserva.id}`;
+  return (
+    <span className="inline-flex" title={motivo}>
+      <Button
+        variant="ghost"
+        size="sm"
+        aria-label="Crear comanda"
+        disabled={!atencion.disponible}
+        title={motivo}
+        aria-describedby={motivo === undefined ? undefined : idMotivo}
+        onClick={() => onCrearComanda(reserva)}
+      >
+        <ClipboardList className="h-4 w-4" aria-hidden="true" />
+      </Button>
+      {motivo !== undefined && (
+        <span id={idMotivo} className="sr-only">
+          {motivo}
+        </span>
+      )}
+    </span>
+  );
+}
 
 function columnaAcciones({
+  ahora,
   onCrearComanda,
   onModificar,
   onCancelarAnticipada,
@@ -65,14 +108,7 @@ function columnaAcciones({
     render: (r) =>
       r.estado === 'ACTIVA' ? (
         <div className="flex justify-end gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            aria-label="Crear comanda"
-            onClick={() => onCrearComanda(r)}
-          >
-            <ClipboardList className="h-4 w-4" aria-hidden="true" />
-          </Button>
+          <BotonCrearComanda reserva={r} ahora={ahora} onCrearComanda={onCrearComanda} />
           <Button
             variant="ghost"
             size="sm"
@@ -112,11 +148,13 @@ export function ReservasTabla({
   onCancelarAnticipada,
   onCancelarPorAusencia,
 }: ReservasTablaProps) {
+  const ahora = useAhoraDelRestaurante();
   return (
     <DataTable
       columnas={[
         ...COLUMNAS,
         columnaAcciones({
+          ahora,
           onCrearComanda,
           onModificar,
           onCancelarAnticipada,

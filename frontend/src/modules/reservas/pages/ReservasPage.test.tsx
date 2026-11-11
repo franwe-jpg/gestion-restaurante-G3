@@ -619,7 +619,14 @@ function escribirLinea(nombre: string, cantidad: string) {
   fireEvent.change(screen.getByLabelText('Cantidad 1'), { target: { value: cantidad } });
 }
 
+/**
+ * 23:30 del 2 de noviembre en el restaurante (UTC-3): ya pasó la hora de las reservas 10 (21:30) y
+ * 11 (22:00), así que «Crear comanda» está habilitada (HU-M5-06). Reemplaza el reloj de las 12:00.
+ */
+const EN_HORARIO = new Date('2026-11-03T02:30:00Z');
+
 function servirReservaActiva10() {
+  vi.setSystemTime(EN_HORARIO);
   vi.mocked(listarReservas).mockResolvedValue(pagina([ACTIVA_10]));
   vi.mocked(listarProductosHabilitados).mockResolvedValue({
     datos: [FLAN, MILANESA],
@@ -659,6 +666,25 @@ describe('ReservasPage: abrir el modal de comanda (HU-M5-06)', () => {
     expect(screen.getByLabelText('Producto 1')).toHaveValue('');
     expect(screen.getByLabelText('Cantidad 1')).toHaveValue('1');
     expect(screen.queryByLabelText('Producto 2')).toBeNull();
+  });
+});
+
+describe('ReservasPage: «Crear comanda» antes de la hora de la reserva (HU-M5-06)', () => {
+  beforeEach(servirReservaActiva10);
+
+  it('queda deshabilitada con el motivo y pulsarla no abre el modal', async () => {
+    vi.setSystemTime(new Date('2026-11-03T00:29:00Z'));
+    abrir();
+    await screen.findByText('Cliente n.º 7');
+
+    const boton = screen.getByRole('button', { name: 'Crear comanda' });
+    expect(boton).toBeDisabled();
+    expect(boton).toHaveAccessibleDescription('Disponible desde las 21:30');
+    fireEvent.click(boton);
+    await asentar();
+
+    expect(screen.queryByRole('heading', { name: 'Crear comanda' })).toBeNull();
+    expect(listarProductosHabilitados).not.toHaveBeenCalled();
   });
 });
 
