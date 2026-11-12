@@ -81,7 +81,7 @@ El `service` de `reservas` consulta a Mesa y a Cliente solo a través de un puen
 | `existe_cliente` | `cliente_id: int` | `true` si el cliente existe; `false` si no. Real: delega en `existe_cliente` de M4 (S39). |
 | `registrar_cliente` | `nombre: str`, `telefono: str` | El `id` del cliente registrado. Delega en `registrar_cliente_para_reserva` de M4, que valida y agrega el cliente a la sesión sin confirmar ni deshacer; si los datos son inválidos propaga el error 422 de M4 (S39, S41). |
 
-La capacidad que informa `listar_mesas` sirve solo para mostrarla en el selector de mesas: la cantidad de personas no se valida contra ella (S5).
+La capacidad que informa el puente sirve para mostrarla en el selector de mesas y, desde la corrección del 2026-11-11 (S67, pendiente de validación del equipo), también para validar la cantidad de personas con `obtener_mesa`. Antes la cantidad no se validaba contra ella (S5).
 
 Implementación incluida en este cambio:
 
@@ -335,15 +335,51 @@ La fecha de «hoy» y la hora actual que usan «Fecha no pasada» y «Hora váli
 - CUANDO se hace `POST /reservas`
 - ENTONCES responde 422 y no se crea nada
 
-### Requisito: La cantidad de personas no se valida contra la capacidad de la mesa (HU-M5-01 CA 8, S5)
+### Requisito: La cantidad de personas no puede superar la capacidad de la mesa (HU-M5-01 CA 8, S5, S67)
 
-El sistema NO DEBE validar `cantidad_personas` contra la capacidad de la mesa, ni en el alta ni en la modificación: la capacidad se resuelve en forma presencial (issue #61). La única regla sobre la cantidad es la de «Cantidad de personas positiva» (entero estricto mayor a cero); cualquier entero positivo, por grande que sea, DEBE aceptarse. El puente informa la capacidad de cada mesa solo para mostrarla en el selector de mesas (S5): ninguna regla la compara con la cantidad de personas y ninguna respuesta del sistema DEBE rechazar una reserva por exceder la capacidad.
+> Nota 2026-11-11 (corrección de HU-M5-01-02-03, **pendiente de validación del equipo**): esta regla **revierte** la que tenía este requisito, «La cantidad de personas no se valida contra la capacidad de la mesa» (S5, issue #61), por pedido de la responsable del módulo. El issue #61 todavía dice lo contrario («El sistema no la valida contra la capacidad de la mesa (se resuelve en forma presencial)») y debe actualizarse: lo hace una persona, no el agente. Supuesto: S67.
+
+El sistema DEBE validar `cantidad_personas` contra la capacidad de la mesa, en el alta y en la modificación. Si la cantidad supera la capacidad, DEBE responder 409 «La mesa {mesa_id} admite hasta {capacidad} personas» (con «persona» si la capacidad es 1), con la misma excepción de negocio que la mesa fuera de servicio (S31), y NO DEBE guardar ni modificar nada. Una cantidad igual a la capacidad DEBE aceptarse. La capacidad sale de `obtener_mesa` del puente (S33): `reservas` no importa nada de `salon` ni de `atencion` fuera del puente. «Cantidad de personas positiva» sigue siendo la validación de forma (entero estricto mayor a cero).
+
+- En el alta, la comprobación va después de la existencia de la mesa y de su estado y antes de la existencia del cliente (S17); con una mesa fuera de servicio gana el 409 de la mesa.
+- En la modificación, la mesa es la de la reserva (no se edita). La comprobación va después de verificar que la reserva está `ACTIVA` y antes de la fecha y la hora. Si M3 ya no tiene esa mesa, responde 404 «La mesa {mesa_id} no existe»; el estado de la mesa no se revisa (S27).
+- En el alta, el formulario DEBERÍA avisar antes de enviar con «La mesa elegida admite hasta {capacidad} personas.» junto a Cantidad de personas, porque el selector ya conoce la capacidad de cada mesa. En la edición la fila no trae la capacidad, así que el modal muestra el 409 de la API como error general.
 
 #### Escenario: Cantidad muy grande en el alta
 
 - DADO el doble de prueba del puente, con la mesa 5 de capacidad 4
 - CUANDO se hace `POST /reservas` con la mesa 5 y `cantidad_personas` 100
-- ENTONCES responde 201 con `cantidad_personas` 100 y la reserva queda guardada (S5: sin control contra la capacidad)
+- ENTONCES responde 409 con «La mesa 5 admite hasta 4 personas» y no se crea nada (S67; antes respondía 201, S5)
+
+#### Escenario: Capacidad exacta en el alta
+
+- DADO el doble de prueba del puente, con la mesa 5 de capacidad 4
+- CUANDO se hace `POST /reservas` con la mesa 5 y `cantidad_personas` 4
+- ENTONCES responde 201 y la reserva queda guardada
+
+#### Escenario: Una persona más que la capacidad en el alta
+
+- DADO el doble de prueba del puente, con la mesa 5 de capacidad 4
+- CUANDO se hace `POST /reservas` con la mesa 5 y `cantidad_personas` 5
+- ENTONCES responde 409 con «La mesa 5 admite hasta 4 personas» y no se crea nada
+
+#### Escenario: Mesa de dos con ocho o quinientas personas en el alta
+
+- DADO un puente que informa la mesa 5 con capacidad 2
+- CUANDO se hace `POST /reservas` con la mesa 5 y `cantidad_personas` 8, y luego con 500
+- ENTONCES las dos respuestas son 409 con «La mesa 5 admite hasta 2 personas» y no se crea nada
+
+#### Escenario: Capacidad excedida con cliente nuevo
+
+- DADO el doble de prueba del puente y un `cliente_nuevo` válido
+- CUANDO se hace `POST /reservas` con la mesa 5 y `cantidad_personas` 5
+- ENTONCES responde 409 y no se registra ningún cliente (S41)
+
+#### Escenario: Capacidad excedida en el formulario del alta
+
+- DADO el modal de alta con la mesa 5 elegida (capacidad 4) y `cantidad_personas` 5
+- CUANDO la persona pulsa «Guardar reserva»
+- ENTONCES el modal muestra «La mesa elegida admite hasta 4 personas.» junto a Cantidad de personas y no envía el `POST`
 
 #### Escenario: Cantidad cero sigue rechazada
 
@@ -679,7 +715,7 @@ La modificación NO DEBE cambiar `mesa_id`, `cliente_id`, `estado` ni `id`. Si `
 
 ### Requisito: Revalidar las reglas del alta (HU-M5-02 CA 3)
 
-Al modificar, el sistema DEBE aplicar las mismas reglas de fecha no pasada, hora válida y no pasada y `cantidad_personas` positiva que el alta, sin compararla con la capacidad de la mesa (S5). Si algún dato es inválido, DEBE responder 422 con el mismo mensaje del alta y NO DEBE aplicar ningún cambio. No consulta si la mesa o el cliente existen (S27).
+Al modificar, el sistema DEBE aplicar las mismas reglas de fecha no pasada, hora válida y no pasada y `cantidad_personas` positiva que el alta, y comparar la cantidad con la capacidad de la mesa de la reserva (S67; ver «La cantidad de personas no puede superar la capacidad de la mesa»). Si algún dato es inválido, DEBE responder 422 con el mismo mensaje del alta y NO DEBE aplicar ningún cambio. No consulta si el cliente existe ni el estado de la mesa (S27); desde S67 sí lee la mesa de la reserva, solo para conocer su capacidad.
 
 #### Escenario: Fecha pasada
 
@@ -703,7 +739,25 @@ Al modificar, el sistema DEBE aplicar las mismas reglas de fecha no pasada, hora
 
 - DADO el doble de prueba del puente y una reserva `ACTIVA` con 4 personas en la mesa 5 (capacidad 4)
 - CUANDO se hace `PUT` con `cantidad_personas` 100
-- ENTONCES responde 200 con `cantidad_personas` 100 y `GET /reservas/{id}` devuelve 100 (S5: sin control contra la capacidad)
+- ENTONCES responde 409 con «La mesa 5 admite hasta 4 personas» y la reserva no cambia (S67; antes respondía 200, S5)
+
+#### Escenario: Capacidad exacta y una persona más al modificar
+
+- DADO el doble de prueba del puente y una reserva `ACTIVA` en la mesa 5 (capacidad 4)
+- CUANDO se hace `PUT` con `cantidad_personas` 4, y luego con 5
+- ENTONCES el primero responde 200 y el segundo, 409 con «La mesa 5 admite hasta 4 personas» sin cambiar la reserva
+
+#### Escenario: Nueve personas en una mesa de capacidad 2
+
+- DADO un puente que informa la mesa 5 con capacidad 2 y una reserva `ACTIVA` con 2 personas en esa mesa
+- CUANDO se hace `PUT` con `cantidad_personas` 9
+- ENTONCES responde 409 con «La mesa 5 admite hasta 2 personas» y la reserva no cambia
+
+#### Escenario: La mesa de la reserva ya no existe en M3
+
+- DADO una reserva `ACTIVA` en la mesa 5 y un puente que ya no ofrece esa mesa
+- CUANDO se hace `PUT` con datos válidos
+- ENTONCES responde 404 con «La mesa 5 no existe» y la reserva no cambia
 
 ### Requisito: Conflicto sin contar la propia reserva (HU-M5-02 CA 4)
 
@@ -1526,7 +1580,7 @@ El cuerpo de `POST /reservas` DEBE traer `cliente_id` o `cliente_nuevo`, y no lo
 
 ### Requisito: Datos inválidos del cliente nuevo (issue #61, HU-M4-01)
 
-Si el `cliente_nuevo` no cumple las reglas de M4 (nombre obligatorio y solo con letras y espacios, incluidos los acentos; teléfono obligatorio con dígitos, espacios, guiones y `+` solo al inicio), el alta DEBE responder 422 con el mensaje de M4, que nombra el campo (`nombre` o `telefono`), y NO DEBE guardar la reserva ni el cliente. Las reglas de contenido viven en M4: M5 no las vuelve a implementar (S42).
+Si el `cliente_nuevo` no cumple las reglas de M4 (nombre obligatorio y solo con letras y espacios, incluidos los acentos; teléfono obligatorio con dígitos, espacios, guiones y `+` solo al inicio), el alta DEBE responder 422 con el mensaje de M4, que nombra el campo (`nombre` o `telefono`), y NO DEBE guardar la reserva ni el cliente. Las reglas de contenido del nombre viven en M4: M5 no las vuelve a implementar (S42). **Nota 2026-11-11: el teléfono tiene además las reglas propias de largo del requisito siguiente (S66).**
 
 #### Escenario: Nombre faltante, vacío o con símbolos
 
@@ -1545,6 +1599,50 @@ Si el `cliente_nuevo` no cumple las reglas de M4 (nombre obligatorio y solo con 
 - DADO `cliente_nuevo` con `nombre` «María José Núñez» y `telefono` «+54 280 4-556677»
 - CUANDO se hace `POST /reservas` con los demás datos válidos
 - ENTONCES responde 201 y el cliente queda registrado
+
+### Requisito: Teléfono del cliente nuevo acotado (S66)
+
+> Nota 2026-11-11 (corrección de HU-M5-01-02-03, **pendiente de validación del equipo**): el alta aceptaba teléfonos de 300 caracteres, sin ningún dígito (`"- - -"`) o con espacios al final. Los valores de abajo son un `Supuesto:` de la responsable del módulo (S66).
+
+Con `cliente_nuevo`, el `telefono` DEBE cumplir, después de recortar los espacios de los extremos: un `+` opcional solo al inicio, dígitos, espacios y guiones; entre 6 y 15 dígitos (15 es el máximo de E.164) y hasta 20 caracteres en total. El esquema propio de M5 (`ClienteNuevo`) lo valida antes de llamar a M4, y el teléfono recortado es el que se guarda. Si no se cumple, el alta DEBE responder 422 con «Datos invalidos. cliente_nuevo.telefono: {mensaje}» y NO DEBE guardar la reserva ni el cliente. Los mensajes, en el orden en que se comprueban: «telefono es obligatorio», «telefono solo admite dígitos, espacios, guiones y + al inicio», «telefono admite hasta 20 caracteres» y «telefono debe tener entre 6 y 15 dígitos».
+
+En la pantalla, el campo Teléfono DEBE ser de tipo `tel` (`inputMode` `tel`), admitir hasta 20 caracteres y quitar al escribir todo lo que no sea dígito, espacio, guion o un `+` al inicio. La validación local DEBE aplicar la misma regla con los mismos textos, en la forma «El teléfono …», y el 422 que nombra `telefono` se sigue mostrando junto al campo (Decisión 31).
+
+#### Escenario: Teléfonos en los límites
+
+- DADO `cliente_nuevo` con `telefono` `"123456"` (6 dígitos), `"123456789012345"` (15 dígitos) o `"+123 456 789 012 345"` (20 caracteres)
+- CUANDO se hace `POST /reservas` con los demás datos válidos
+- ENTONCES responde 201 y el cliente queda registrado con ese teléfono
+
+#### Escenario: Teléfono con espacios en los extremos
+
+- DADO `cliente_nuevo` con `telefono` `"  2804123456   "`
+- CUANDO se hace `POST /reservas` con los demás datos válidos
+- ENTONCES responde 201 y el cliente queda registrado con `"2804123456"`
+
+#### Escenario: Pocos o demasiados dígitos
+
+- DADO `cliente_nuevo` con `telefono` `"1"`, `"12345"`, `"- - -"` o `"1234567890123456"` (16 dígitos)
+- CUANDO se hace `POST /reservas` con los demás datos válidos
+- ENTONCES responde 422 con «telefono debe tener entre 6 y 15 dígitos» y no se crea ninguna reserva ni ningún cliente
+
+#### Escenario: Más de 20 caracteres
+
+- DADO `cliente_nuevo` con `telefono` de 21 caracteres (por ejemplo `"+123  456 789 012 345"`) o de 300 caracteres
+- CUANDO se hace `POST /reservas` con los demás datos válidos
+- ENTONCES responde 422 con «telefono admite hasta 20 caracteres» y no se crea ninguna reserva ni ningún cliente
+
+#### Escenario: Letras o `+` fuera del inicio
+
+- DADO `cliente_nuevo` con `telefono` `"abc123"`, `"2804abc123"`, `"+"` o `"280+456"`
+- CUANDO se hace `POST /reservas` con los demás datos válidos
+- ENTONCES responde 422 con «telefono solo admite dígitos, espacios, guiones y + al inicio» y no se crea ninguna reserva ni ningún cliente
+
+#### Escenario: El campo filtra lo que se escribe
+
+- DADO el modal de alta con «Cliente nuevo» abierto
+- CUANDO la persona escribe `abc280+456` en Teléfono
+- ENTONCES el campo muestra `280456` y no admite más de 20 caracteres
 
 ### Requisito: Una reserva fallida no deja un cliente huérfano (issue #61)
 
@@ -1692,13 +1790,13 @@ Al guardar, DEBE enviar `cliente_id` si hay un cliente elegido, o `cliente_nuevo
 
 ## Supuestos
 
-Los supuestos S1 a S14 son los de la propuesta, con la misma numeración. S15 en adelante son nuevos de esta spec. Por el issue #61 se reescribieron S4, S5, S9, S10, S13, S17, S20 y S23 (sin cambiar su número) y se agregaron S29 a S35. Por la regla general de modales de AGENTS.md (sección 5) se reescribieron además S24 y S34 (sin cambiar su número, el panel lateral pasa a ser un modal) y se agregaron S36, S37 y S38. Por el delta «cliente registrado o nuevo» (issue #61, HU-M4-01) se reescribieron además S6, S13, S17, S20 y S34 (sin cambiar su número) y se agregaron S39 a S43. Por la adenda 2026-11-12 («ocupación de la mesa») se reescribieron además S4, S7, S9, S17, S21 y S30 (sin cambiar su número) y se agregó S69. Todos están marcados `Supuesto:` para que el equipo los valide (AGENTS.md, sección 9.2).
+Los supuestos S1 a S14 son los de la propuesta, con la misma numeración. S15 en adelante son nuevos de esta spec. Por el issue #61 se reescribieron S4, S5, S9, S10, S13, S17, S20 y S23 (sin cambiar su número) y se agregaron S29 a S35. Por la regla general de modales de AGENTS.md (sección 5) se reescribieron además S24 y S34 (sin cambiar su número, el panel lateral pasa a ser un modal) y se agregaron S36, S37 y S38. Por el delta «cliente registrado o nuevo» (issue #61, HU-M4-01) se reescribieron además S6, S13, S17, S20 y S34 (sin cambiar su número) y se agregaron S39 a S43. Por la corrección del 2026-11-11 (pedido de la responsable del módulo) se agregaron S66 y S67 y se anotaron S5, S27 y S42. Por la adenda 2026-11-12 («ocupación de la mesa») se reescribieron además S4, S7, S9, S17, S21 y S30 (sin cambiar su número) y se agregó S69. Todos están marcados `Supuesto:` para que el equipo los valide (AGENTS.md, sección 9.2).
 
 - Supuesto: S1. Estado inicial `ACTIVA`. Lo dicen el diagrama de clases, S2-02 y la maqueta. Contradicción de fuentes: S1-07 (CP-HU-M5-01) usa `PENDIENTE`. Se sigue el diagrama porque manda en nombres y valores; el equipo tiene que validarlo y corregir S1-07.
 - Supuesto: S2. Horario de atención: ninguna fuente lo define, así que no se restringe la hora de la reserva (vale cualquier hora del día). Si el equipo define un horario, se agrega como validación 422 en un cambio posterior.
 - Supuesto: S3. Fecha y hora pasadas: `fecha` tiene que ser hoy o posterior (diagrama `{>= hoy}`). Si `fecha` es hoy, `hora` tiene que ser posterior a la hora actual de la zona del restaurante (S28). Si no se cumple, responde 422. La hora se maneja en minutos (sin segundos).
 - Supuesto: S4. Mesa «disponible» para una fecha y hora: la mesa existe según el puente, su estado en M3 no es `FUERA_DE_SERVICIO` y no está ocupada en ese turno: no tiene otra reserva `ACTIVA` o `ATENDIDA` a menos de 2 horas (estricto) del instante pedido, según la ventana de ocupación de S69. El estado `OCUPADA` no la excluye (S30). Cambio de la adenda 2026-11-12: la versión anterior decía que no se modelaba la duración y que solo contaba la misma fecha y hora exactas; se reemplaza por la ventana de S69, por pedido expreso del responsable del módulo. Cambio respecto de la propuesta: la primera versión de S4 decía que no se modelaba el estado de la mesa; el issue #61 dice que una mesa fuera de servicio no es una mesa disponible y gana sobre esa versión (AGENTS.md, sección 2).
-- Supuesto: S5. Capacidad: resuelto por el issue #61 (HU-M5-01), que dice «Cantidad de personas (obligatoria): número entero mayor a cero. El sistema no la valida contra la capacidad de la mesa (se resuelve en forma presencial)». La cantidad de personas no se valida contra la capacidad de la mesa; se resuelve en forma presencial. S1-07 pedía `cantidadPersonas <= capacidad`, pero el issue manda sobre esa guía (AGENTS.md §2). La capacidad que devuelve `listar_mesas` del puente se usa solo para mostrarla en el selector de mesas; ninguna regla la compara con la cantidad de personas y no existe una respuesta 422 por capacidad excedida.
+- Supuesto: S5. Capacidad: resuelto por el issue #61 (HU-M5-01), que dice «Cantidad de personas (obligatoria): número entero mayor a cero. El sistema no la valida contra la capacidad de la mesa (se resuelve en forma presencial)». La cantidad de personas no se valida contra la capacidad de la mesa; se resuelve en forma presencial. S1-07 pedía `cantidadPersonas <= capacidad`, pero el issue manda sobre esa guía (AGENTS.md §2). La capacidad que devuelve `listar_mesas` del puente se usa solo para mostrarla en el selector de mesas; ninguna regla la compara con la cantidad de personas y no existe una respuesta 422 por capacidad excedida. **Nota 2026-11-11 (pendiente de validación del equipo): esta regla fue revertida por S67 a pedido de la responsable del módulo; la cantidad no puede superar la capacidad de la mesa. El issue #61 todavía dice lo contrario y debe actualizarse (lo hace una persona, no el agente).**
 - Supuesto: S6. Cliente: se identifica por `cliente_id` entero. Existe si M4 lo tiene (`existe_cliente`, S39); la versión anterior daba por válido cualquier id positivo con un stub, que ya no existe. Una reserva puede crear al cliente al mismo tiempo con `cliente_nuevo` (S39). S1-07 no menciona al cliente; el diagrama sí (Cliente 1 - Reserva).
 - Supuesto: S7. Modificar: solo se puede modificar una reserva `ACTIVA` (si no, 409). Se modifican `fecha`, `hora` y `cantidad_personas`. Se revalida S3 siempre y la ventana de ocupación de S4 y S69 solo si cambian `fecha` u `hora`, sin contar la propia reserva. La mesa y el cliente no cambian (diagrama). No hay control de concurrencia: gana la última modificación.
 - Supuesto: S8. Listado: paginado (D-27); filtros opcionales `fecha` (día exacto) y `estado`; orden ascendente por `fecha`, `hora` e `id`. Sin filtros, la API devuelve todas las reservas. El frontend arranca con el filtro de estado `ACTIVA`.
@@ -1720,7 +1818,7 @@ Los supuestos S1 a S14 son los de la propuesta, con la misma numeración. S15 en
 - Supuesto: S24. El frontend es una sola pantalla: `ReservasPage` en la ruta `/reservas`, que ya existe. El alta y la edición se abren en un modal sobre esa misma pantalla, con el componente `Dialog` compartido (`frontend/src/shared/components/ui/dialog.tsx`), porque AGENTS.md (sección 5) pide que «los formularios de alta y edición se abren en un modal sobre la misma página», como ya hacen `MesaFormDialog`, `SectorFormDialog`, `ClienteFormDialog`, `ProductoFormDialog` y `MedioPagoFormDialog`. Cambio respecto de la propuesta: la maqueta `SPRINT-2/S2-04-maqueta/reservas.html` muestra el alta y la edición en una página aparte y con un panel lateral, pero esa regla general de AGENTS.md gana sobre la maqueta (AGENTS.md, sección 2: la maqueta tiene la prioridad más baja de todas las fuentes). No se agregan rutas ni se modifica `frontend/src/App.tsx` ni ningún archivo compartido. La edición parte de los datos de la fila, así que el frontend no usa `GET /reservas/{id}` (la ruta existe en el backend porque la pide HU-M5-02).
 - Supuesto: S25. Fecha y filtros de la pantalla, según la maqueta: la tabla muestra las reservas de un día, que arranca en hoy (fecha local del navegador), con los botones «Día anterior» y «Día siguiente», el campo «Día» y el botón «Hoy». El estado arranca en `ACTIVA` (S8) y el selector ofrece además «Todas». Cambiar de día vuelve a la página 1. El día se maneja como texto `YYYY-MM-DD` (S11).
 - Supuesto: S26. Los textos de los estados vacío y de error de la tabla son los de «Estados vacío y error del listado». El aviso de éxito del modal es un toast del sistema de avisos compartido, sin modificarlo.
-- Supuesto: S27. Al modificar, el `service` no revalida que la mesa o el cliente existan, porque no cambian, y tampoco consulta al puente.
+- Supuesto: S27. Al modificar, el `service` no revalida que la mesa o el cliente existan, porque no cambian, y tampoco consulta al puente. **Nota 2026-11-11: desde S67 la modificación lee la mesa de la reserva con `obtener_mesa` solo para comprobar su capacidad; sigue sin revisar su estado ni al cliente.**
 - Supuesto: S28. «Hoy» y «hora actual» son la fecha y la hora de la zona del restaurante: UTC-3 fija (Argentina no usa horario de verano desde 2009), calculadas a partir del reloj UTC del servidor. No dependen de `TZ` del proceso ni del contenedor. Reemplaza al supuesto anterior, «la hora local del servidor»: el 2026-10-31 se comprobó que Docker corre en UTC sin `TZ`, y eso rechazaba con 422 las reservas de las próximas 3 horas. La zona es una constante del módulo, sin variable de entorno ni dependencia nueva (se usa un desplazamiento fijo y no `zoneinfo`, que necesita la base de zonas del sistema). Las pruebas fijan el reloj para los escenarios con fecha de hoy.
 - Supuesto: S29. La lista de mesas disponibles es una lista simple, sin paginar (no es una `Pagina[T]`). Un selector tiene que mostrar todas las mesas posibles, y un restaurante tiene muchas menos mesas que el tope de una página (100). Por eso la respuesta no trae `total`, `limit` ni `offset`.
 - Supuesto: S30. El estado `OCUPADA` de una mesa no la excluye de la lista ni del alta. `OCUPADA` describe el momento presente (hay clientes sentados ahora) y no dice nada sobre el turno que se reserva para otra fecha u hora. Solo `FUERA_DE_SERVICIO` excluye. Si se reserva para hoy una mesa que ahora está ocupada, se acepta y el salón lo resuelve en el momento. Lo mismo vale con la ventana de S69: `OCUPADA` (el estado actual de la mesa en M3) sigue sin excluir una mesa por sí sola; la ocupación de un turno la deciden únicamente las reservas `ACTIVA` y `ATENDIDA` de la ventana, no el estado presente de la mesa.
@@ -1735,8 +1833,10 @@ Los supuestos S1 a S14 son los de la propuesta, con la misma numeración. S15 en
 - Supuesto: S39. Puente de cliente real. `existe_cliente` y la operación nueva `registrar_cliente(db, nombre, telefono) -> int` del puente delegan en `app.modules.atencion.service` (`existe_cliente` y `registrar_cliente_para_reserva`, que M4 expone con esa firma). Reemplaza al stub de S6 y S20. `registrar_cliente_para_reserva` valida con las reglas de M4, agrega el cliente a la sesión y hace flush, pero nunca confirma ni deshace. `ReservaCrear` pasa de `cliente_id` obligatorio a exactamente uno de `cliente_id` o `cliente_nuevo`; si llegan los dos o ninguno, 422. El cambio depende de que M4 publique esas dos funciones (el cambio HU-M4-01-02-03 se actualiza en paralelo).
 - Supuesto: S40. `ClienteNuevo` es un esquema propio de M5, solo de forma (`nombre` y `telefono` como texto, obligatorios, sin campos extra), para no importar los `schemas` de M4 (AGENTS.md, sección 9.4). Sin apellido ni DNI: no figuran en HU-M4-01 ni en el diagrama de clases.
 - Supuesto: S41. Atomicidad del cliente nuevo. El `service` valida mesa, cliente existente, fecha, hora y turno libre antes de registrar al cliente nuevo, y después guarda reserva y cliente en un solo commit. Si ese commit falla (por ejemplo, la carrera por el índice único parcial), deshace la sesión completa, también el cliente, y responde 409. Nunca queda un cliente huérfano. Como M4 nunca confirma, la confirmación única es de M5. Quedan fuera los errores de la base ajenos a estos casos (responden 500 y también deshacen la sesión).
-- Supuesto: S42. Las reglas de contenido de nombre y teléfono son únicamente las de M4 (nombre obligatorio, solo letras y espacios con acentos; teléfono obligatorio con dígitos, espacios, guiones y `+` solo al inicio; nombres repetidos permitidos): M5 no las copia en el backend. El frontend de M5 repite las mismas reglas y mensajes solo para avisar antes de enviar, porque no puede importar archivos de `atencion` (AGENTS.md, sección 9.4); si M4 cambia las reglas, hay que actualizar ese espejo. No se detectan duplicados de cliente: dos altas iguales crean dos clientes, igual que en M4.
+- Supuesto: S42. Las reglas de contenido de nombre y teléfono son únicamente las de M4 (nombre obligatorio, solo letras y espacios con acentos; teléfono obligatorio con dígitos, espacios, guiones y `+` solo al inicio; nombres repetidos permitidos): M5 no las copia en el backend. El frontend de M5 repite las mismas reglas y mensajes solo para avisar antes de enviar, porque no puede importar archivos de `atencion` (AGENTS.md, sección 9.4); si M4 cambia las reglas, hay que actualizar ese espejo. No se detectan duplicados de cliente: dos altas iguales crean dos clientes, igual que en M4. **Nota 2026-11-11: el teléfono tiene reglas propias de largo y de cantidad de dígitos que M5 sí valida en el backend (S66); el nombre sigue siendo solo de M4.**
 - Supuesto: S43. Selector de cliente del modal. Reservas pide `GET /clientes?q=&limit=` a través de su propio `api.ts` (la ruta de M4 ya existe y es de solo lectura). Los resultados se leen como «Nombre · Teléfono», acotados a la primera página (sin paginar en pantalla; para afinar se sigue escribiendo). La búsqueda empieza con al menos un carácter escrito y espera una breve pausa al tipear (el diseño fija el valor). El modal de edición no cambia el cliente. Fuera de alcance: mostrar el nombre del cliente en la tabla de reservas (S23).
+- Supuesto: S66. Teléfono del cliente nuevo (corrección 2026-11-11, pedido de la responsable del módulo, **pendiente de validación del equipo**). `+` opcional solo al inicio, dígitos, espacios y guiones; entre 6 y 15 dígitos (15 es el máximo de E.164) y hasta 20 caracteres en total; se recortan los espacios de los extremos antes de validar y de guardar. Lo valida el esquema propio `ClienteNuevo` de M5 antes de llamar a M4, porque la regla de M4 (`validar_telefono` de `atencion/schemas.py`, compartida con el alta y la modificación de clientes) no acota el largo ni exige dígitos; M5 no puede cambiar `atencion` (AGENTS.md, sección 9.3), así que la carencia de M4 se avisa a su responsable. Precisa S42 solo para el teléfono. El campo del frontend filtra lo que se escribe y aplica la misma regla y los mismos textos (con «El teléfono …» en lugar de «telefono …»). Los 6, 15 y 20 son valores propuestos, no salen de la HU ni del diagrama.
+- Supuesto: S67. Capacidad de la mesa (corrección 2026-11-11, pedido de la responsable del módulo, **pendiente de validación del equipo**). Revierte S5: `cantidad_personas` no puede superar la capacidad de la mesa, en el alta y en la modificación, con 409 «La mesa {mesa_id} admite hasta {capacidad} personas». El issue #61 todavía dice que no se valida y debe actualizarse (lo hace una persona, no el agente). Orden de validación (precisa S17): en el alta, después de la existencia y del estado de la mesa y antes del cliente; en la modificación, después del estado de la reserva y antes de la fecha y la hora. La capacidad sale de `puente.obtener_mesa`; al modificar se usa la mesa de la reserva y, si M3 ya no la tiene, responde 404 (Supuesto: no hay capacidad contra la cual comparar). Si M3 reduce la capacidad de una mesa con reservas, la próxima modificación de esa reserva debe ajustar la cantidad. En el frontend, el alta valida contra la capacidad de la mesa elegida (el selector ya la conoce); la edición no, porque la fila no la trae, y muestra el 409 de la API como error general del modal.
 - Supuesto: S69. Ventana de ocupación de la mesa (reemplaza al «no se modela duración» de S4). Toda reserva `ACTIVA` o `ATENDIDA` ocupa su mesa durante una ventana fija de 2 horas que empieza en su `hora`; `CANCELADA_ANTICIPADA` y `CANCELADA_POR_AUSENCIA` no cuentan. Una reserva nueva en la mesa M, en el instante T (`fecha` y `hora` combinadas), choca con otra de M en el instante E si |T − E| < 2 horas (comparación estricta): las 21:00 chocan con las 22:59 y no con las 23:00, y lo mismo hacia atrás (las 19:01 chocan con las 21:00; las 19:00 no). La comparación usa instantes reales y se miran las reservas del día anterior, del mismo día y del siguiente, así que las 23:30 del día D chocan con las 00:30 del día D+1. La duración vive en una sola constante (`VENTANA_DE_OCUPACION`, en el `service`) y el `repository` la recibe como parámetro, sin importar nada del `service`. Hay una sola definición de «mesa ocupada»: la usan el alta, la modificación y `GET /reservas/mesas-disponibles`, de modo que la lista nunca ofrece una mesa que el alta rechazaría. Error: 409 «La mesa {mesa_id} ya tiene una reserva el {fecha} a las {hora}; cada reserva ocupa la mesa 2 horas», con la fecha y la hora de la reserva que conflicta; el 2 sale de la constante. Modificación: se excluye la propia reserva y la ventana se revisa solo si cambian `fecha` u `hora`, para no bloquear la edición de otros datos (por ejemplo `cantidad_personas`) en una reserva que ya se superponía con otra por datos anteriores a esta regla; la mesa no cambia (S27). Una reserva `ATENDIDA` cuenta porque el cliente sigue sentado en la mesa durante su ventana, aunque la reserva ya no esté `ACTIVA`. La duración de 2 horas es un valor único para todas las mesas, sectores y cantidades de personas, y no figura en la HU ni en el diagrama de clases: el equipo tiene que validarla. Límite conocido: el índice único parcial de la base solo protege el turno exacto (misma mesa, fecha y hora, reserva `ACTIVA`); si dos solicitudes simultáneas piden turnos distintos que se superponen, la verificación previa de cada una puede no ver a la otra y las dos pueden guardarse. En SQLite, que ejecuta una escritura a la vez, el margen es angosto, pero no hay un bloqueo por mesa ni una restricción de la base para la ventana, y esta spec no los agrega (no hay migración ni cambio de modelo). El frontend no cambia: el selector ya consume `mesas-disponibles` y muestra el `detalle` del servidor.
 
 ## Adenda 2026-11-12
@@ -1749,5 +1849,5 @@ Ocupación de la mesa por ventana de 2 horas, a pedido expreso del responsable d
 - La modificación revisa la ventana solo si cambian `fecha` u `hora`, y la propia reserva no cuenta.
 - El estado `OCUPADA` de la mesa en M3 (S30) sigue sin excluir una mesa por sí solo.
 - Sin migración, sin cambio de modelo y sin cambio de frontend; el índice único parcial queda como está y sigue siendo la defensa del turno exacto. El límite conocido de las solicitudes simultáneas con turnos superpuestos pero distintos está en S69.
-- Alcance de las reescrituras: S4, S7, S9, S17, S21 y S30 cambian de texto sin cambiar de número; se agrega S69. Se numeró S69 y no el siguiente de este archivo para evitar choques con los supuestos S66 y S67 del PR #240 y S68 del PR #243, que siguen abiertos y los agregan en otros cambios. En este archivo el último número anterior es S43; S44 a S65 están en los cambios hermanos de M5.
+- Alcance de las reescrituras: S4, S7, S9, S17, S21 y S30 cambian de texto sin cambiar de número; se agrega S69. Se numeró S69 y no el siguiente de este archivo (S68) para evitar el choque con el supuesto S68 del PR #243, que sigue abierto y lo agrega en otro cambio. En este archivo el último número anterior es S67 (S66 y S67 llegaron con el PR #240); S44 a S65 están en los cambios hermanos de M5.
 - Todo lo anterior es un `Supuesto:` para que el equipo lo valide (AGENTS.md, sección 9.2).

@@ -11,6 +11,7 @@ import type { ClienteEncontrado } from '../types';
 
 import { useBuscarClientes } from './useBuscarClientes';
 import type { EstadoBusquedaClientes } from './useBuscarClientes';
+import { TELEFONO_LARGO_MAXIMO, filtrarTelefono } from './validarReserva';
 import type { SeleccionCliente } from './validarReserva';
 
 /** Errores de la validación local de los tres campos que el selector muestra. */
@@ -92,9 +93,12 @@ function CamposClienteNuevo({ nombre, telefono, errores, onCambiar }: CamposClie
           >
             <Input
               id="reserva-cliente-telefono"
+              type="tel"
+              inputMode="tel"
+              maxLength={TELEFONO_LARGO_MAXIMO}
               value={telefono}
               onChange={(evento) =>
-                onCambiar({ tipo: 'nuevo', nombre, telefono: evento.target.value })
+                onCambiar({ tipo: 'nuevo', nombre, telefono: filtrarTelefono(evento.target.value) })
               }
             />
           </FormField>
