@@ -37,16 +37,34 @@ def ahora() -> datetime:
     return datetime.now(ZONA_DEL_RESTAURANTE).replace(tzinfo=None)
 
 
-def _validar_mesa(db: Session, mesa_id: int) -> None:
-    """La mesa debe existir (404) y no estar fuera de servicio (409, S31).
-
-    Se lee una sola vez. OCUPADA no se rechaza: describe el momento presente, no el turno (S30).
-    """
+def _mesa_existente(db: Session, mesa_id: int) -> puente.MesaReservable:
+    """La mesa que informa el puente, o 404 si M3 no la tiene."""
     mesa = puente.obtener_mesa(db, mesa_id)
     if mesa is None:
         raise NoEncontradoError(f"La mesa {mesa_id} no existe")
+    return mesa
+
+
+def _validar_capacidad(mesa: puente.MesaReservable, cantidad_personas: int) -> None:
+    """S67: la cantidad de personas no puede superar la capacidad de la mesa (409).
+
+    Supuesto (correccion de HU-M5-01-02-03, 2026-11-11, pendiente de validacion del equipo): esta
+    regla revierte el S5 del issue #61, que dejaba la capacidad para resolverla en forma presencial.
+    """
+    if cantidad_personas > mesa.capacidad:
+        unidad = "persona" if mesa.capacidad == 1 else "personas"
+        raise ReglaDeNegocioError(f"La mesa {mesa.id} admite hasta {mesa.capacidad} {unidad}")
+
+
+def _validar_mesa(db: Session, mesa_id: int, cantidad_personas: int) -> None:
+    """La mesa debe existir (404), no estar fuera de servicio (409, S31) y admitir la cantidad.
+
+    Se lee una sola vez. OCUPADA no se rechaza: describe el momento presente, no el turno (S30).
+    """
+    mesa = _mesa_existente(db, mesa_id)
     if mesa.estado == EstadoMesa.FUERA_DE_SERVICIO:
         raise ReglaDeNegocioError(f"La mesa {mesa_id} está fuera de servicio")
+    _validar_capacidad(mesa, cantidad_personas)
 
 
 def _validar_cliente(db: Session, cliente_id: int) -> None:
@@ -111,7 +129,7 @@ def _id_del_cliente(db: Session, datos: ReservaCrear) -> int:
 
 def crear_reserva(db: Session, datos: ReservaCrear) -> ReservaSalida:
     _validar_un_cliente(datos)
-    _validar_mesa(db, datos.mesa_id)
+    _validar_mesa(db, datos.mesa_id, datos.cantidad_personas)
     if datos.cliente_id is not None:
         _validar_cliente(db, datos.cliente_id)
     _validar_momento(datos.fecha, datos.hora)
@@ -148,6 +166,8 @@ def obtener_reserva(db: Session, reserva_id: int) -> ReservaSalida:
 def modificar_reserva(db: Session, reserva_id: int, datos: ReservaModificar) -> ReservaSalida:
     reserva = _obtener(db, reserva_id)
     _validar_activa(reserva)
+    # S67: la mesa no se edita; solo se lee su capacidad. No se revisa su estado (S27).
+    _validar_capacidad(_mesa_existente(db, reserva.mesa_id), datos.cantidad_personas)
     _validar_momento(datos.fecha, datos.hora)
     _validar_turno_libre(db, reserva.mesa_id, datos.fecha, datos.hora, excluir_id=reserva.id)
     reserva.fecha = datos.fecha
