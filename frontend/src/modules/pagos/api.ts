@@ -10,6 +10,7 @@ import type {
   MedioPago,
   MedioPagoCrear,
   MedioPagoModificar,
+  ResumenRecaudacion,
 } from './types';
 
 const RUTA = '/medios-de-pago';
@@ -87,4 +88,30 @@ export function obtenerComprobante(numero: number): Promise<RespuestaApi<Comprob
 /** HU-M6-03: el mismo comprobante en PDF, para entregarlo al cliente. */
 export function descargarComprobantePdf(numero: number): Promise<RespuestaApi<Blob>> {
   return clienteHttp.obtenerArchivo(`${RUTA_COMPROBANTES}/${numero}/pdf`);
+}
+
+const RUTA_RECAUDACION = '/reportes/recaudacion-por-medio-de-pago';
+
+function consultaPeriodo(fechaDesde: string, fechaHasta: string): string {
+  return new URLSearchParams({ fecha_desde: fechaDesde, fecha_hasta: fechaHasta }).toString();
+}
+
+/** HU-M6-08: `GET /reportes/recaudacion-por-medio-de-pago`. Un 422 llega en `error`. */
+export function obtenerReporteRecaudacion(
+  fechaDesde: string,
+  fechaHasta: string,
+): Promise<RespuestaApi<ResumenRecaudacion>> {
+  return clienteHttp.get<ResumenRecaudacion>(
+    `${RUTA_RECAUDACION}?${consultaPeriodo(fechaDesde, fechaHasta)}`,
+  );
+}
+
+/** HU-M6-08: el mismo reporte en PDF, como `Blob` para `guardarArchivo`. */
+export function descargarReporteRecaudacionPdf(
+  fechaDesde: string,
+  fechaHasta: string,
+): Promise<RespuestaApi<Blob>> {
+  return clienteHttp.obtenerArchivo(
+    `${RUTA_RECAUDACION}/pdf?${consultaPeriodo(fechaDesde, fechaHasta)}`,
+  );
 }

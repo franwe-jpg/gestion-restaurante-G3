@@ -5,6 +5,7 @@ import { clienteHttp } from '../../shared/api/client';
 import {
   crearMedioPago,
   descargarComprobantePdf,
+  descargarReporteRecaudacionPdf,
   eliminarMedioPago,
   generarFactura,
   listarFacturas,
@@ -12,6 +13,7 @@ import {
   modificarMedioPago,
   obtenerComprobante,
   obtenerFactura,
+  obtenerReporteRecaudacion,
   previsualizarFactura,
   registrarCobro,
 } from './api';
@@ -148,6 +150,32 @@ describe('api de comprobantes (HU-M6-03)', () => {
     const respuesta = await descargarComprobantePdf(12);
 
     expect(obtenerArchivo).toHaveBeenCalledWith('/comprobantes/12/pdf');
+    expect(respuesta.datos).toBe(blob);
+  });
+});
+
+describe('api del reporte de recaudación (HU-M6-08)', () => {
+  it('pide el reporte por GET con el período en la query', async () => {
+    const get = vi.spyOn(clienteHttp, 'get').mockResolvedValue({ datos: null, exito: true });
+
+    await obtenerReporteRecaudacion('2026-10-01', '2026-10-31');
+
+    expect(get).toHaveBeenCalledWith(
+      '/reportes/recaudacion-por-medio-de-pago?fecha_desde=2026-10-01&fecha_hasta=2026-10-31',
+    );
+  });
+
+  it('descarga el PDF del reporte como archivo', async () => {
+    const blob = new Blob(['%PDF'], { type: 'application/pdf' });
+    const obtenerArchivo = vi
+      .spyOn(clienteHttp, 'obtenerArchivo')
+      .mockResolvedValue({ datos: blob, exito: true });
+
+    const respuesta = await descargarReporteRecaudacionPdf('2026-10-01', '2026-10-31');
+
+    expect(obtenerArchivo).toHaveBeenCalledWith(
+      '/reportes/recaudacion-por-medio-de-pago/pdf?fecha_desde=2026-10-01&fecha_hasta=2026-10-31',
+    );
     expect(respuesta.datos).toBe(blob);
   });
 });

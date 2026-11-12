@@ -1,15 +1,16 @@
 """pagos: reglas de negocio y transacciones."""
 
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
+from sqlalchemy import Row
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.modules.atencion import service as atencion_service
 from app.modules.menus import service as menus_service
-from app.modules.pagos import comprobante_pdf, repository
+from app.modules.pagos import comprobante_pdf, reporte, reporte_pdf, repository
 from app.modules.pagos.models import Cobro, DetalleFactura, EstadoFactura, Factura, MedioPago
 from app.modules.pagos.schemas import (
     AdeudadoSalida,
@@ -27,6 +28,7 @@ from app.modules.pagos.schemas import (
     MedioPagoDelComprobante,
     MedioPagoModificar,
     MedioPagoSalida,
+    ResumenRecaudacion,
 )
 from app.modules.productos import service as productos_service
 from app.shared.contratos.comanda import ComandaSalida, DetalleComandaSalida, EstadoComanda
@@ -313,13 +315,8 @@ def _redondear(valor: object) -> Decimal:
     return Decimal(str(valor)).quantize(CENTAVO)
 
 
-def obtener_caja_del_dia(db: Session, ahora: datetime | None = None) -> CajaDelDiaSalida:
-    """S4-06: lo cobrado hoy por medio de pago y lo adeudado; el dia es el del restaurante."""
-    zona = comprobante_pdf.ZONA_DEL_RESTAURANTE
-    hoy = (ahora or _ahora()).astimezone(zona).date()
-    desde = datetime(hoy.year, hoy.month, hoy.day, tzinfo=zona).astimezone(UTC)
-    filas = repository.sumar_cobros_por_medio(db, desde, desde + timedelta(days=1))
-    por_medio = [
+def _cobrados_por_medio(filas: list[Row]) -> list[CobradoPorMedio]:
+    return [
         CobradoPorMedio(
             medio_pago_id=fila.medio_pago_id,
             nombre=fila.nombre,
@@ -329,10 +326,53 @@ def obtener_caja_del_dia(db: Session, ahora: datetime | None = None) -> CajaDelD
         )
         for fila in filas
     ]
+
+
+def obtener_caja_del_dia(db: Session, ahora: datetime | None = None) -> CajaDelDiaSalida:
+    """S4-06: lo cobrado hoy por medio de pago y lo adeudado; el dia es el del restaurante."""
+    zona = comprobante_pdf.ZONA_DEL_RESTAURANTE
+    hoy = (ahora or _ahora()).astimezone(zona).date()
+    desde = datetime(hoy.year, hoy.month, hoy.day, tzinfo=zona).astimezone(UTC)
+    filas = repository.sumar_cobros_por_medio(db, desde, desde + timedelta(days=1))
+    por_medio = _cobrados_por_medio(filas)
     cantidad, saldo = repository.resumir_facturas_adeudadas(db)
     return CajaDelDiaSalida(
         fecha=hoy,
         por_medio_pago=por_medio,
         total_cobrado=sum((medio.monto for medio in por_medio), Decimal("0.00")),
         adeudado=AdeudadoSalida(cantidad_facturas=cantidad, monto=_redondear(saldo)),
+    )
+
+
+def generar_reporte_recaudacion(
+    db: Session, fecha_desde: date | None, fecha_hasta: date | None
+) -> ResumenRecaudacion:
+    """HU-M6-08: cobrado por medio de pago y deuda de las facturas emitidas en el período.
+
+    Solo lectura.
+    """
+    desde, hasta = reporte.validar_periodo(fecha_desde, fecha_hasta)
+    inicio, fin = reporte.intervalo_utc(desde, hasta)
+    por_medio = _cobrados_por_medio(repository.sumar_cobros_por_medio(db, inicio, fin))
+    cantidad, saldo = repository.resumir_facturas_adeudadas(db, inicio, fin)
+    adeudado = AdeudadoSalida(cantidad_facturas=cantidad, monto=_redondear(saldo))
+    return reporte.armar_resumen(desde, hasta, por_medio, adeudado)
+
+
+@dataclass(frozen=True)
+class ArchivoReporte:
+    contenido: bytes
+    nombre: str
+
+
+def generar_pdf_recaudacion(
+    db: Session, fecha_desde: date | None, fecha_hasta: date | None
+) -> ArchivoReporte:
+    """HU-M6-08: el mismo reporte y las mismas validaciones, en PDF; un período vacío también."""
+    resumen = generar_reporte_recaudacion(db, fecha_desde, fecha_hasta)
+    generado = _ahora().astimezone(comprobante_pdf.ZONA_DEL_RESTAURANTE).replace(tzinfo=None)
+    documento = reporte_pdf.componer(resumen, generado)
+    periodo = f"{resumen.fecha_desde.isoformat()}_{resumen.fecha_hasta.isoformat()}"
+    return ArchivoReporte(
+        contenido=renderizar(documento), nombre=f"recaudacion-medio-pago_{periodo}.pdf"
     )
