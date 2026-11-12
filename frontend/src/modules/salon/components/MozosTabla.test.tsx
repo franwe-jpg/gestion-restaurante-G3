@@ -12,6 +12,7 @@ const JUAN: Mozo = {
   apellido: 'Fernández',
   telefono: '280 412-3456',
   estado: 'HABILITADO',
+  correo: 'juan@resto.com',
 };
 
 const ANA: Mozo = {
@@ -21,6 +22,7 @@ const ANA: Mozo = {
   apellido: 'Romero',
   telefono: null,
   estado: 'HABILITADO',
+  correo: null,
 };
 
 const LUIS: Mozo = {
@@ -30,24 +32,25 @@ const LUIS: Mozo = {
   apellido: 'Castro',
   telefono: null,
   estado: 'DESHABILITADO',
+  correo: 'luis@resto.com',
 };
 
 describe('MozosTabla: datos', () => {
-  it('muestra DNI, apellido y nombre, teléfono y estado (CA 1 y 3 de #46)', () => {
+  it('muestra DNI, apellido y nombre, teléfono, correo y estado (CA 1 y 3 de #46)', () => {
     render(<MozosTabla mozos={[JUAN, ANA, LUIS]} onEditar={vi.fn()} onEliminar={vi.fn()} />);
 
     const filas = screen.getAllByRole('row').slice(1);
     const celdas = filas.map((fila) =>
       within(fila)
         .getAllByRole('cell')
-        .slice(0, 4)
+        .slice(0, 5)
         .map((celda) => celda.textContent),
     );
 
     expect(celdas).toEqual([
-      ['30123456', 'Fernández, Juan', '280 412-3456', 'Habilitado'],
-      ['35987654', 'Romero, Ana', '—', 'Habilitado'],
-      ['40111222', 'Castro, Luis', '—', 'Deshabilitado'],
+      ['30123456', 'Fernández, Juan', '280 412-3456', 'juan@resto.com', 'Habilitado'],
+      ['35987654', 'Romero, Ana', '—', 'Sin usuario', 'Habilitado'],
+      ['40111222', 'Castro, Luis', '—', 'luis@resto.com', 'Deshabilitado'],
     ]);
   });
 

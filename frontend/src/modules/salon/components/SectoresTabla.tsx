@@ -12,8 +12,9 @@ export interface SectoresTablaProps {
   cargando?: boolean;
   error?: string | null;
   onReintentar?: () => void;
-  onEditar: (sector: Sector) => void;
-  onEliminar: (sector: Sector) => void;
+  /** Sin `onEditar` y `onEliminar` (rol sin `SALON_GESTIONAR`) no hay columna de acciones. */
+  onEditar?: (sector: Sector) => void;
+  onEliminar?: (sector: Sector) => void;
 }
 
 interface AccionesSectorProps {
@@ -50,10 +51,10 @@ function AccionesSector({ sector, onEditar, onEliminar }: AccionesSectorProps) {
 }
 
 function columnas(
-  onEditar: (sector: Sector) => void,
-  onEliminar: (sector: Sector) => void,
+  onEditar?: (sector: Sector) => void,
+  onEliminar?: (sector: Sector) => void,
 ): ColumnaTabla<Sector>[] {
-  return [
+  const base: ColumnaTabla<Sector>[] = [
     {
       clave: 'nombre',
       encabezado: 'Nombre',
@@ -73,6 +74,10 @@ function columnas(
         </Badge>
       ),
     },
+  ];
+  if (!onEditar || !onEliminar) return base;
+  return [
+    ...base,
     {
       clave: 'acciones',
       encabezado: <span className="sr-only">Acciones</span>,

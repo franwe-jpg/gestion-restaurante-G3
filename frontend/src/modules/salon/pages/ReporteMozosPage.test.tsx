@@ -16,6 +16,7 @@ const MOZO = {
   apellido: 'Pérez',
   telefono: null,
   estado: 'HABILITADO' as const,
+  correo: 'ana@resto.com',
 };
 
 const SECTOR = {

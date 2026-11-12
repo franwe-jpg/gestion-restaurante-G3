@@ -97,3 +97,13 @@ describe('SectoresTabla: baja', () => {
     expect(screen.getByRole('button', { name: 'Editar «Reservado»' })).toBeInTheDocument();
   });
 });
+
+describe('SectoresTabla: solo lectura', () => {
+  it('sin onEditar ni onEliminar no hay columna de acciones ni botones', () => {
+    render(<SectoresTabla sectores={[SALON, RESERVADO]} />);
+
+    expect(screen.getByText('Salón principal')).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'Acciones' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Editar|Eliminar/ })).not.toBeInTheDocument();
+  });
+});
