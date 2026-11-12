@@ -30,7 +30,11 @@ CUERPO = {
 }
 CLIENTE_NUEVO = {"nombre": "Luis Gómez", "telefono": "+54 280 1234567"}
 SIN_CLIENTE = {k: v for k, v in CUERPO.items() if k != "cliente_id"}
-TURNO_OCUPADO = "La mesa 5 ya tiene una reserva activa el 2026-11-02 a las 21:30"
+# S69: una reserva ACTIVA o ATENDIDA ocupa la mesa 2 horas desde su hora; el mensaje nombra la
+# reserva que conflicta, no el turno pedido.
+TURNO_OCUPADO = (
+    "La mesa 5 ya tiene una reserva el 2026-11-02 a las 21:30; cada reserva ocupa la mesa 2 horas"
+)
 
 
 def _cantidad_reservas(db: Session) -> int:
@@ -76,6 +80,54 @@ def test_post_reservas_turno_ocupado_devuelve_409_con_detalle(
 
     assert respuesta.status_code == 409
     assert respuesta.json() == {"detalle": TURNO_OCUPADO}
+    assert _cantidad_reservas(db) == 1
+
+
+# S69: dentro de las 2 horas de otra reserva de la mesa tambien es 409, con la hora de la otra
+@pytest.mark.parametrize(
+    "hora", ["19:31", "21:31", "23:29"], ids=["119-antes", "1-despues", "119-despues"]
+)
+def test_post_reservas_turno_dentro_de_la_ventana_devuelve_409_con_detalle(
+    cliente: TestClient, db: Session, fabrica_reserva, hora: str
+) -> None:
+    fabrica_reserva(mesa_id=5, fecha=date(2026, 11, 2), hora=time(21, 30))
+
+    respuesta = cliente.post(RUTA, json=CUERPO | {"hora": hora})
+
+    assert respuesta.status_code == 409
+    assert respuesta.json() == {"detalle": TURNO_OCUPADO}
+    assert _cantidad_reservas(db) == 1
+
+
+# S69: la ventana es estricta: justo a 2 horas de la otra reserva, antes o despues, se acepta
+@pytest.mark.parametrize("hora", ["19:30", "23:30"], ids=["120-antes", "120-despues"])
+def test_post_reservas_turno_justo_a_dos_horas_devuelve_201(
+    cliente: TestClient, db: Session, fabrica_reserva, hora: str
+) -> None:
+    fabrica_reserva(mesa_id=5, fecha=date(2026, 11, 2), hora=time(21, 30))
+
+    respuesta = cliente.post(RUTA, json=CUERPO | {"hora": hora})
+
+    assert respuesta.status_code == 201
+    assert respuesta.json()["hora"] == hora
+    assert _cantidad_reservas(db) == 2
+
+
+# S69: la ventana cruza la medianoche y una reserva ATENDIDA tambien ocupa la mesa
+def test_post_reservas_turno_del_dia_siguiente_dentro_de_la_ventana_devuelve_409(
+    cliente: TestClient, db: Session, fabrica_reserva
+) -> None:
+    fabrica_reserva(
+        mesa_id=5, fecha=date(2026, 11, 2), hora=time(23, 30), estado=EstadoReserva.ATENDIDA
+    )
+
+    respuesta = cliente.post(RUTA, json=CUERPO | {"fecha": "2026-11-03", "hora": "00:30"})
+
+    assert respuesta.status_code == 409
+    assert respuesta.json() == {
+        "detalle": "La mesa 5 ya tiene una reserva el 2026-11-02 a las 23:30; "
+        "cada reserva ocupa la mesa 2 horas"
+    }
     assert _cantidad_reservas(db) == 1
 
 
@@ -173,6 +225,38 @@ def test_puente_real_alta_en_una_mesa_de_m3_devuelve_201(
     assert _cantidad_reservas(db) == 1
 
 
+# S67 con el puente real: la capacidad sale de la mesa de M3 (`mesas_en_m3` crea mesas de 4)
+def test_puente_real_alta_respeta_la_capacidad_de_la_mesa_de_m3(
+    cliente: TestClient, db: Session, puente_real, mesas_en_m3, cliente_en_m4: int
+) -> None:
+    mesa = mesas_en_m3(1)[0]
+    cuerpo = CUERPO | {"mesa_id": mesa.id, "cliente_id": cliente_en_m4}
+
+    excedida = cliente.post(RUTA, json=cuerpo | {"cantidad_personas": 5})
+    exacta = cliente.post(RUTA, json=cuerpo | {"cantidad_personas": 4})
+
+    assert excedida.status_code == 409
+    assert excedida.json() == {"detalle": f"La mesa {mesa.id} admite hasta 4 personas"}
+    assert exacta.status_code == 201
+    assert _cantidad_reservas(db) == 1
+
+
+def test_puente_real_modificacion_respeta_la_capacidad_de_la_mesa_de_m3(
+    cliente: TestClient, db: Session, puente_real, mesas_en_m3, fabrica_reserva
+) -> None:
+    mesa = mesas_en_m3(1)[0]
+    reserva = fabrica_reserva(mesa_id=mesa.id, fecha=HOY, hora=time(21, 30))
+    ruta = f"{RUTA}/{reserva.id}"
+
+    excedida = cliente.put(ruta, json=CUERPO_PUT | {"cantidad_personas": 9})
+    exacta = cliente.put(ruta, json=CUERPO_PUT | {"cantidad_personas": 4})
+
+    assert excedida.status_code == 409
+    assert excedida.json() == {"detalle": f"La mesa {mesa.id} admite hasta 4 personas"}
+    assert exacta.status_code == 200
+    assert cliente.get(ruta).json()["cantidad_personas"] == 4
+
+
 def test_puente_real_mesa_inexistente_devuelve_404(
     cliente: TestClient, db: Session, puente_real, mesas_en_m3
 ) -> None:
@@ -234,13 +318,45 @@ def test_post_reservas_con_estado_en_el_cuerpo_devuelve_422(
     assert _cantidad_reservas(db) == 0
 
 
-# CA 7, S5 (issue #61): solo se exige un entero mayor a cero, sin compararlo con la mesa
-def test_post_reservas_cantidad_muy_grande_devuelve_201(cliente: TestClient, db: Session) -> None:
+# CA 7, S67 (correccion 2026-11-11, pendiente de validacion del equipo). Esta prueba antes se
+# llamaba `test_post_reservas_cantidad_muy_grande_devuelve_201` y comprobaba el S5 del issue #61.
+# La responsable del modulo pidio revertir esa regla: la cantidad no puede superar la capacidad de
+# la mesa. Se conserva el caso (100 personas) con el resultado invertido.
+def test_post_reservas_cantidad_muy_grande_devuelve_409(cliente: TestClient, db: Session) -> None:
     respuesta = cliente.post(RUTA, json=CUERPO | {"cantidad_personas": 100})
 
-    assert respuesta.status_code == 201
-    assert respuesta.json()["cantidad_personas"] == 100
-    assert db.get(Reserva, respuesta.json()["id"]).cantidad_personas == 100
+    assert respuesta.status_code == 409
+    assert respuesta.json() == {"detalle": "La mesa 5 admite hasta 4 personas"}
+    assert _cantidad_reservas(db) == 0
+
+
+@pytest.mark.parametrize(
+    "capacidad, cantidad, estado",
+    [(2, 2, 201), (2, 3, 409), (2, 8, 409), (2, 500, 409), (4, 4, 201), (4, 5, 409)],
+)
+def test_post_reservas_compara_la_cantidad_con_la_capacidad_de_la_mesa(
+    cliente: TestClient, db: Session, puente_doble, capacidad: int, cantidad: int, estado: int
+) -> None:
+    puente_doble.poner(5, capacidad=capacidad)
+
+    respuesta = cliente.post(RUTA, json=CUERPO | {"cantidad_personas": cantidad})
+
+    assert respuesta.status_code == estado
+    if estado == 409:
+        assert respuesta.json() == {"detalle": f"La mesa 5 admite hasta {capacidad} personas"}
+    assert _cantidad_reservas(db) == (1 if estado == 201 else 0)
+
+
+def test_post_reservas_capacidad_excedida_con_cliente_nuevo_no_registra_al_cliente(
+    cliente: TestClient, db: Session, puente_doble
+) -> None:
+    respuesta = cliente.post(
+        RUTA, json=SIN_CLIENTE | {"cantidad_personas": 5, "cliente_nuevo": CLIENTE_NUEVO}
+    )
+
+    assert respuesta.status_code == 409
+    assert puente_doble.registrados == []
+    assert _cantidad_reservas(db) == 0
 
 
 # D-25 y D-26
@@ -372,7 +488,7 @@ def test_get_reservas_serializa_hora_en_minutos(cliente: TestClient, fabrica_res
 
 
 # HU-M5-02: consulta y modificacion
-CUERPO_PUT = {"fecha": "2026-11-03", "hora": "22:00", "cantidad_personas": 5}
+CUERPO_PUT = {"fecha": "2026-11-03", "hora": "22:00", "cantidad_personas": 3}
 HOY = date(2026, 11, 2)
 
 
@@ -425,7 +541,7 @@ def test_put_reserva_modifica_y_devuelve_200(cliente: TestClient, fabrica_reserv
         "cliente_id": 7,
         "fecha": "2026-11-03",
         "hora": "22:00",
-        "cantidad_personas": 5,
+        "cantidad_personas": 3,
         "estado": "ACTIVA",
     }
 
@@ -437,15 +553,48 @@ def test_put_reserva_modifica_y_devuelve_200(cliente: TestClient, fabrica_reserv
     assert cliente.get(RUTA).json()["items"] == [esperada]
 
 
-# CA 3, S5 (issue #61): la modificacion tampoco compara la cantidad con la capacidad de la mesa
-def test_put_reserva_cantidad_muy_grande_devuelve_200(cliente: TestClient, fabrica_reserva) -> None:
+# CA 3, S67 (correccion 2026-11-11, pendiente de validacion del equipo). Esta prueba antes se
+# llamaba `test_put_reserva_cantidad_muy_grande_devuelve_200` y comprobaba el S5 del issue #61. Se
+# conserva el caso (100 personas) con el resultado invertido: la modificacion tambien compara la
+# cantidad con la capacidad de la mesa de la reserva.
+def test_put_reserva_cantidad_muy_grande_devuelve_409(
+    cliente: TestClient, db: Session, fabrica_reserva
+) -> None:
     reserva = _ocupar_turno(fabrica_reserva)
 
     respuesta = cliente.put(f"{RUTA}/{reserva.id}", json=CUERPO_PUT | {"cantidad_personas": 100})
 
-    assert respuesta.status_code == 200
-    assert respuesta.json()["cantidad_personas"] == 100
-    assert cliente.get(f"{RUTA}/{reserva.id}").json()["cantidad_personas"] == 100
+    assert respuesta.status_code == 409
+    assert respuesta.json() == {"detalle": "La mesa 5 admite hasta 4 personas"}
+    db.expire_all()
+    assert (reserva.fecha, reserva.hora, reserva.cantidad_personas) == (HOY, time(21, 30), 4)
+
+
+@pytest.mark.parametrize(
+    "capacidad, cantidad, estado",
+    [(2, 2, 200), (2, 3, 409), (2, 9, 409), (4, 4, 200), (4, 5, 409)],
+)
+def test_put_reserva_compara_la_cantidad_con_la_capacidad_de_la_mesa(
+    cliente: TestClient,
+    fabrica_reserva,
+    puente_doble,
+    capacidad: int,
+    cantidad: int,
+    estado: int,
+) -> None:
+    puente_doble.poner(5, capacidad=capacidad)
+    reserva = _ocupar_turno(fabrica_reserva, cantidad_personas=1)
+
+    respuesta = cliente.put(
+        f"{RUTA}/{reserva.id}", json=CUERPO_PUT | {"cantidad_personas": cantidad}
+    )
+
+    assert respuesta.status_code == estado
+    if estado == 409:
+        assert respuesta.json() == {"detalle": f"La mesa 5 admite hasta {capacidad} personas"}
+        assert cliente.get(f"{RUTA}/{reserva.id}").json()["cantidad_personas"] == 1
+    else:
+        assert cliente.get(f"{RUTA}/{reserva.id}").json()["cantidad_personas"] == cantidad
 
 
 # CA 1 (S19) y CA 2 (S15): cada rechazo deja la reserva como estaba
@@ -488,7 +637,7 @@ def test_put_reserva_no_activa_devuelve_409(cliente: TestClient, fabrica_reserva
 # CA 4
 def test_put_reserva_turno_ocupado_devuelve_409(cliente: TestClient, fabrica_reserva) -> None:
     _ocupar_turno(fabrica_reserva)
-    otra = _ocupar_turno(fabrica_reserva, hora=time(22, 0))
+    otra = _ocupar_turno(fabrica_reserva, hora=time(23, 30))
 
     respuesta = cliente.put(
         f"{RUTA}/{otra.id}", json=CUERPO_PUT | {"fecha": "2026-11-02", "hora": "21:30"}
@@ -496,6 +645,59 @@ def test_put_reserva_turno_ocupado_devuelve_409(cliente: TestClient, fabrica_res
 
     assert respuesta.status_code == 409
     assert respuesta.json() == {"detalle": TURNO_OCUPADO}
+
+
+# S69: mover la reserva a un turno que cae dentro de las 2 horas de otra tambien es 409
+def test_put_reserva_turno_dentro_de_la_ventana_devuelve_409(
+    cliente: TestClient, fabrica_reserva
+) -> None:
+    _ocupar_turno(fabrica_reserva)
+    otra = _ocupar_turno(fabrica_reserva, fecha=date(2026, 11, 3))
+
+    respuesta = cliente.put(
+        f"{RUTA}/{otra.id}", json=CUERPO_PUT | {"fecha": "2026-11-02", "hora": "22:30"}
+    )
+
+    assert respuesta.status_code == 409
+    assert respuesta.json() == {"detalle": TURNO_OCUPADO}
+    assert cliente.get(f"{RUTA}/{otra.id}").json()["fecha"] == "2026-11-03"
+
+
+# S69: justo a 2 horas de otra reserva se acepta; la propia reserva no cuenta contra si misma
+def test_put_reserva_justo_a_dos_horas_y_dentro_de_su_propia_ventana_devuelve_200(
+    cliente: TestClient, fabrica_reserva
+) -> None:
+    _ocupar_turno(fabrica_reserva)
+    otra = _ocupar_turno(fabrica_reserva, fecha=date(2026, 11, 3))
+    propia = _ocupar_turno(fabrica_reserva, mesa_id=6)
+
+    a_dos_horas = cliente.put(
+        f"{RUTA}/{otra.id}", json=CUERPO_PUT | {"fecha": "2026-11-02", "hora": "23:30"}
+    )
+    dentro_de_su_ventana = cliente.put(
+        f"{RUTA}/{propia.id}", json=CUERPO_PUT | {"fecha": "2026-11-02", "hora": "22:30"}
+    )
+
+    assert a_dos_horas.status_code == 200
+    assert a_dos_horas.json()["hora"] == "23:30"
+    assert dentro_de_su_ventana.status_code == 200
+    assert dentro_de_su_ventana.json()["hora"] == "22:30"
+
+
+# S69: la ventana solo se revisa si cambian fecha u hora; la superposicion de antes no bloquea
+def test_put_reserva_sin_cambiar_fecha_ni_hora_con_superposicion_previa_devuelve_200(
+    cliente: TestClient, fabrica_reserva
+) -> None:
+    _ocupar_turno(fabrica_reserva)
+    otra = _ocupar_turno(fabrica_reserva, hora=time(22, 0))  # ya se superpone con la primera
+
+    respuesta = cliente.put(
+        f"{RUTA}/{otra.id}",
+        json=CUERPO_PUT | {"fecha": "2026-11-02", "hora": "22:00", "cantidad_personas": 3},
+    )
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["cantidad_personas"] == 3
 
 
 # CA 3
@@ -584,6 +786,32 @@ def test_get_mesas_disponibles_no_se_confunde_con_la_consulta_por_id(
     assert no_numerico.status_code == 422
     assert por_id.status_code == 200
     assert por_id.json() == creada
+
+
+# S69: la lista usa la misma ventana de 2 horas que el alta: no ofrece una mesa que el alta rechaza
+@pytest.mark.parametrize("estado", [EstadoReserva.ACTIVA, EstadoReserva.ATENDIDA])
+def test_get_mesas_disponibles_excluye_la_mesa_con_reserva_dentro_de_la_ventana(
+    cliente: TestClient, fabrica_reserva, estado: EstadoReserva
+) -> None:
+    fabrica_reserva(mesa_id=5, fecha=date(2026, 11, 2), hora=time(22, 30), estado=estado)
+
+    lista = cliente.get(RUTA_MESAS, params=TURNO)
+    alta = cliente.post(RUTA, json=CUERPO)
+
+    assert _ids_de_mesas(lista) == [6]
+    assert alta.status_code == 409
+
+
+def test_get_mesas_disponibles_incluye_la_mesa_con_reserva_justo_a_dos_horas(
+    cliente: TestClient, fabrica_reserva
+) -> None:
+    fabrica_reserva(mesa_id=5, fecha=date(2026, 11, 2), hora=time(23, 30))
+
+    lista = cliente.get(RUTA_MESAS, params=TURNO)
+    alta = cliente.post(RUTA, json=CUERPO)
+
+    assert _ids_de_mesas(lista) == [5, 6]
+    assert alta.status_code == 201
 
 
 @pytest.mark.parametrize(
@@ -822,7 +1050,7 @@ def test_post_reservas_sin_exactamente_un_cliente_devuelve_422(
     "cliente_nuevo, campo",
     [
         (CLIENTE_NUEVO | {"dni": "1"}, "dni"),
-        ({"nombre": 123, "telefono": "123"}, "nombre"),
+        ({"nombre": 123, "telefono": "280123456"}, "nombre"),
         ({"nombre": "Luis"}, "telefono"),
     ],
 )
@@ -850,6 +1078,121 @@ def test_post_reservas_cliente_nuevo_valida_el_contenido_con_m4(
     assert "nombre" in invalido.json()["detalle"]
     assert valido.status_code == 201
     assert _cantidad_reservas(db) == 1
+
+
+# Supuesto S66 (correccion 2026-11-11, pendiente de validacion del equipo): el esquema de M5 valida
+# el telefono del cliente nuevo antes de llamar a M4. El detalle nombra `cliente_nuevo.telefono:`,
+# que es lo que el frontend usa para llevar el error al campo Telefono.
+TELEFONO_CARACTERES = "telefono solo admite dígitos, espacios, guiones y + al inicio"
+TELEFONO_LARGO = "telefono admite hasta 20 caracteres"
+TELEFONO_DIGITOS = "telefono debe tener entre 6 y 15 dígitos"
+
+
+@pytest.mark.parametrize(
+    "telefono, mensaje",
+    [
+        ("", "telefono es obligatorio"),
+        ("   ", "telefono es obligatorio"),
+        ("abc123", TELEFONO_CARACTERES),
+        ("2804abc123", TELEFONO_CARACTERES),
+        ("+", TELEFONO_CARACTERES),
+        ("1", TELEFONO_DIGITOS),
+        ("12345", TELEFONO_DIGITOS),
+        ("- - -", TELEFONO_DIGITOS),
+        ("1234567890123456", TELEFONO_DIGITOS),
+        ("1" * 21, TELEFONO_LARGO),
+        ("1" * 300, TELEFONO_LARGO),
+    ],
+    ids=[
+        "vacio",
+        "solo-espacios",
+        "letras-al-final",
+        "letras-en-el-medio",
+        "mas-solo",
+        "un-digito",
+        "cinco-digitos",
+        "sin-digitos",
+        "dieciseis-digitos",
+        "veintiun-caracteres",
+        "trescientos-caracteres",
+    ],
+)
+def test_post_reservas_telefono_invalido_del_cliente_nuevo_devuelve_422(
+    cliente: TestClient, db: Session, puente_doble, telefono: str, mensaje: str
+) -> None:
+    respuesta = cliente.post(
+        RUTA, json=SIN_CLIENTE | {"cliente_nuevo": CLIENTE_NUEVO | {"telefono": telefono}}
+    )
+
+    assert respuesta.status_code == 422
+    assert respuesta.json() == {"detalle": f"Datos invalidos. cliente_nuevo.telefono: {mensaje}"}
+    assert puente_doble.registrados == []
+    assert _cantidad_reservas(db) == 0
+
+
+@pytest.mark.parametrize(
+    "telefono",
+    ["123456", "123456789012345", "+123 456 789 012 345", "+54 280 1234567"],
+    ids=["seis-digitos", "quince-digitos", "veinte-caracteres", "con-prefijo"],
+)
+def test_post_reservas_telefono_en_los_limites_del_cliente_nuevo_devuelve_201(
+    cliente: TestClient, db: Session, puente_doble, telefono: str
+) -> None:
+    respuesta = cliente.post(
+        RUTA, json=SIN_CLIENTE | {"cliente_nuevo": CLIENTE_NUEVO | {"telefono": telefono}}
+    )
+
+    assert respuesta.status_code == 201
+    assert [t for _, _, t in puente_doble.registrados] == [telefono]
+    assert _cantidad_reservas(db) == 1
+
+
+def test_post_reservas_recorta_los_espacios_del_telefono_antes_de_guardarlo(
+    cliente: TestClient, db: Session, puente_doble
+) -> None:
+    respuesta = cliente.post(
+        RUTA,
+        json=SIN_CLIENTE | {"cliente_nuevo": CLIENTE_NUEVO | {"telefono": "  2804123456   "}},
+    )
+
+    assert respuesta.status_code == 201
+    assert [t for _, _, t in puente_doble.registrados] == ["2804123456"]
+
+
+# Con el puente real el cliente queda en M4 con el telefono ya recortado
+def test_puente_real_telefono_con_espacios_se_guarda_recortado_en_m4(
+    cliente: TestClient, db: Session, puente_real, mesas_en_m3
+) -> None:
+    mesa = mesas_en_m3(1)[0]
+
+    respuesta = cliente.post(
+        RUTA,
+        json=SIN_CLIENTE
+        | {
+            "mesa_id": mesa.id,
+            "cliente_nuevo": CLIENTE_NUEVO | {"telefono": "2804123456   "},
+        },
+    )
+
+    assert respuesta.status_code == 201
+    assert [c.telefono for c in _clientes_en_m4(db)] == ["2804123456"]
+
+
+def test_puente_real_telefono_de_300_digitos_devuelve_422_sin_cliente_ni_reserva(
+    cliente: TestClient, db: Session, puente_real, mesas_en_m3
+) -> None:
+    mesa = mesas_en_m3(1)[0]
+
+    respuesta = cliente.post(
+        RUTA,
+        json=SIN_CLIENTE
+        | {"mesa_id": mesa.id, "cliente_nuevo": CLIENTE_NUEVO | {"telefono": "1" * 300}},
+    )
+
+    assert respuesta.status_code == 422
+    assert "cliente_nuevo.telefono:" in respuesta.json()["detalle"]
+    assert _clientes_en_m4(db) == []
+    assert _cantidad_reservas(db) == 0
 
 
 # S41, integracion con el puente real: el cliente nuevo queda en M4 y no hay huerfanos
@@ -910,7 +1253,7 @@ def test_puente_real_carrera_por_el_indice_unico_no_deja_cliente_nuevo(
 ) -> None:
     mesa = mesas_en_m3(1)[0]
     fabrica_reserva(mesa_id=mesa.id, fecha=date(2026, 11, 2), hora=time(21, 30))
-    monkeypatch.setattr(repository, "existe_reserva_activa", lambda *_a, **_k: False)
+    monkeypatch.setattr(repository, "reserva_que_ocupa_la_mesa", lambda *_a, **_k: None)
 
     respuesta = cliente.post(
         RUTA, json=SIN_CLIENTE | {"mesa_id": mesa.id, "cliente_nuevo": CLIENTE_NUEVO}
@@ -918,7 +1261,8 @@ def test_puente_real_carrera_por_el_indice_unico_no_deja_cliente_nuevo(
 
     assert respuesta.status_code == 409
     assert respuesta.json() == {
-        "detalle": f"La mesa {mesa.id} ya tiene una reserva activa el 2026-11-02 a las 21:30"
+        "detalle": f"La mesa {mesa.id} ya tiene una reserva el 2026-11-02 a las 21:30; "
+        "cada reserva ocupa la mesa 2 horas"
     }
     assert _cantidad_reservas(db) == 1
     assert [c.id for c in _clientes_en_m4(db)] == [cliente_en_m4]
@@ -1120,8 +1464,8 @@ def _atender(cliente: TestClient, reserva_id: object, cuerpo: dict = PEDIDO):
 
 
 def _de_hoy(fabrica_reserva, **cambios) -> Reserva:
-    """La reserva de referencia: ACTIVA, de hoy, en la mesa 5, para el cliente 7."""
-    cuerpo = {"mesa_id": 5, "cliente_id": 7, "fecha": date(2026, 11, 2), "hora": time(21, 30)}
+    """La reserva de referencia: ACTIVA, hoy a las 11:30 (ya cumplida, S68), mesa 5, cliente 7."""
+    cuerpo = {"mesa_id": 5, "cliente_id": 7, "fecha": date(2026, 11, 2), "hora": time(11, 30)}
     return fabrica_reserva(**(cuerpo | cambios))
 
 
@@ -1151,7 +1495,7 @@ def test_post_comanda_de_reserva_devuelve_201_con_la_comanda_abierta_y_atiende_l
         "mesa_id": 5,
         "cliente_id": 7,
         "fecha": "2026-11-02",
-        "hora": "21:30",
+        "hora": "11:30",
         "cantidad_personas": 4,
         "estado": "ATENDIDA",
     }
@@ -1298,14 +1642,76 @@ def test_post_comanda_de_reserva_hoy_es_el_de_la_zona_del_restaurante(
     }
 
 
-# S63: solo cuenta la fecha
-@pytest.mark.parametrize("hora", [time(21, 30), time(8, 0)], ids=["no-llego", "ya-paso"])
-def test_post_comanda_de_reserva_no_verifica_la_hora(
-    cliente: TestClient, fabrica_reserva, hora: time
+# S68 (revierte S63): la reserva de hoy no se atiende antes de su hora, sin tolerancia
+@pytest.mark.parametrize(
+    ("hora", "texto"),
+    [(time(12, 1), "12:01"), (time(21, 30), "21:30")],
+    ids=["un-minuto-antes", "a-la-noche"],
+)
+def test_post_comanda_de_reserva_antes_de_su_hora_devuelve_409(
+    cliente: TestClient, db: Session, fabrica_reserva, puente_doble, hora: time, texto: str
+) -> None:
+    reserva = _de_hoy(fabrica_reserva, hora=hora)
+
+    respuesta = _atender(cliente, reserva.id)
+
+    assert respuesta.status_code == 409
+    assert respuesta.json() == {
+        "detalle": f"La reserva {reserva.id} todavía no está en su horario: es a las {texto}"
+    }
+    assert _estado_de(db, reserva.id) == EstadoReserva.ACTIVA
+    assert puente_doble.comandas == []
+
+
+@pytest.mark.parametrize(
+    "hora",
+    [time(12, 0), time(11, 59), time(8, 0)],
+    ids=["en-punto", "un-minuto-despues", "ya-paso"],
+)
+def test_post_comanda_de_reserva_desde_su_hora_devuelve_201(
+    cliente: TestClient, db: Session, fabrica_reserva, hora: time
 ) -> None:
     reserva = _de_hoy(fabrica_reserva, hora=hora)
 
     assert _atender(cliente, reserva.id).status_code == 201
+    assert _estado_de(db, reserva.id) == EstadoReserva.ATENDIDA
+
+
+# S68: cancelada, atendida y otra fecha ganan al horario; el horario gana al pedido sin productos
+def test_post_comanda_de_reserva_orden_del_horario(
+    cliente: TestClient, fabrica_reserva, puente_doble
+) -> None:
+    sin_llegar = time(21, 30)
+    cancelada = _de_hoy(fabrica_reserva, hora=sin_llegar, estado=EstadoReserva.CANCELADA_ANTICIPADA)
+    atendida = _de_hoy(fabrica_reserva, hora=sin_llegar, estado=EstadoReserva.ATENDIDA)
+    de_ayer = _de_hoy(fabrica_reserva, fecha=date(2026, 11, 1), hora=sin_llegar)
+    de_manana = _de_hoy(fabrica_reserva, fecha=date(2026, 11, 3), hora=sin_llegar)
+    de_hoy = _de_hoy(fabrica_reserva, mesa_id=6, hora=sin_llegar)
+
+    respuestas = {
+        "cancelada": _atender(cliente, cancelada.id),
+        "atendida": _atender(cliente, atendida.id),
+        "de_ayer": _atender(cliente, de_ayer.id),
+        "de_manana": _atender(cliente, de_manana.id),
+        "sin_productos": _atender(cliente, de_hoy.id, {"detalles": [MENU_5]}),
+    }
+
+    codigos = {clave: respuesta.status_code for clave, respuesta in respuestas.items()}
+    assert codigos == dict.fromkeys(respuestas, 409)
+    assert respuestas["cancelada"].json() == {
+        "detalle": f"La reserva {cancelada.id} ya fue cancelada"
+    }
+    assert respuestas["atendida"].json() == {"detalle": f"La reserva {atendida.id} ya fue atendida"}
+    assert respuestas["de_ayer"].json() == {
+        "detalle": f"La reserva {de_ayer.id} no corresponde al día de hoy"
+    }
+    assert respuestas["de_manana"].json() == {
+        "detalle": f"La reserva {de_manana.id} no corresponde al día de hoy"
+    }
+    assert respuestas["sin_productos"].json() == {
+        "detalle": f"La reserva {de_hoy.id} todavía no está en su horario: es a las 21:30"
+    }
+    assert puente_doble.comandas == []
 
 
 # CA 4 y forma del pedido: el cuerpo se valida antes de leer la reserva (paso 1)

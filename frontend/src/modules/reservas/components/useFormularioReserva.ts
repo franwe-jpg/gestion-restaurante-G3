@@ -96,6 +96,15 @@ function mesaVigente(estado: EstadoMesasDisponibles, mesa: string): string {
   return incluida ? mesa : '';
 }
 
+/**
+ * Capacidad de la mesa elegida según la lista del turno (S67). Sin mesa elegida o sin lista
+ * cargada, y en la edición (no pide la lista), es `undefined`: la API valida la capacidad con 409.
+ */
+function capacidadDeMesa(estado: EstadoMesasDisponibles, mesa: string): number | undefined {
+  if (estado.tipo !== 'listo') return undefined;
+  return estado.mesas.find(({ id }) => String(id) === mesa)?.capacidad;
+}
+
 /** Con la lista del turno ya cargada y vacía, «Guardar reserva» no tiene nada que enviar (S34). */
 function listaVacia(estado: EstadoMesasDisponibles): boolean {
   return estado.tipo === 'listo' && estado.mesas.length === 0;
@@ -158,6 +167,7 @@ export function useFormularioReserva({ reserva, onGuardado }: OpcionesFormulario
       modo,
       hoyLocal(),
       horaActualLocal(),
+      capacidadDeMesa(estadoMesas, mesaElegida),
     );
     setErrores(locales);
     if (Object.keys(locales).length > 0) return;

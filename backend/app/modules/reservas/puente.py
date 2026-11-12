@@ -8,8 +8,8 @@ mesa. El lado Cliente tambien es real (S39): consulta y registra clientes solo c
 (HU-M5-06) crea la comanda de una reserva con `app.modules.atencion.service`, sin confirmarla.
 
 El `service` llama siempre a `puente.<operacion>(...)` para que las pruebas puedan reemplazarlas.
-La capacidad de la mesa solo se informa para mostrarla en el selector de mesas: la cantidad de
-personas no se valida contra ella (S5, issue #61).
+La capacidad de la mesa se informa para mostrarla en el selector de mesas y para validar la
+cantidad de personas de la reserva (S67, que revierte el S5 del issue #61).
 """
 
 from dataclasses import dataclass
