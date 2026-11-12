@@ -327,7 +327,8 @@ describe('filtrarTelefono', () => {
 });
 
 describe('errorDelServidor', () => {
-  const MENSAJE_409 = 'La mesa 5 ya tiene una reserva activa el 2026-11-02 a las 21:30';
+  const MENSAJE_409 =
+    'La mesa 5 ya tiene una reserva el 2026-11-02 a las 21:30; cada reserva ocupa la mesa 2 horas';
 
   it('deja el texto del 404, 409 o 422 como error general', () => {
     expect(errorDelServidor(MENSAJE_409, nuevo('Luis', '123'))).toEqual({ general: MENSAJE_409 });

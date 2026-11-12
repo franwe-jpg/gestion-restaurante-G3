@@ -27,6 +27,10 @@ from app.shared.pdf import renderizar
 # Es un desplazamiento fijo y no `zoneinfo`, para no depender de la base de zonas del sistema.
 ZONA_DEL_RESTAURANTE = timezone(timedelta(hours=-3), "ART")
 
+# S69: una reserva ACTIVA o ATENDIDA ocupa su mesa esta cantidad de tiempo desde su hora. Es el
+# unico lugar de la duracion: el limite de la regla y el texto del mensaje 409 salen de aca.
+VENTANA_DE_OCUPACION = timedelta(hours=2)
+
 
 def ahora() -> datetime:
     """Fecha y hora actuales del restaurante (UTC-3), sin zona. Las pruebas la reemplazan.
@@ -82,17 +86,27 @@ def _validar_momento(fecha: date, hora: time) -> None:
 
 
 def _turno_ocupado(mesa_id: int, fecha: date, hora: time) -> ReglaDeNegocioError:
-    """Unico lugar del mensaje de conflicto (R13): lo usan la verificacion previa y el indice."""
+    """Unico lugar del mensaje de conflicto (R13, S69): la verificacion previa y el indice.
+
+    `fecha` y `hora` son las de la reserva que conflicta; en la carrera por el indice unico, que
+    solo ve el turno exacto, son las mismas que las pedidas.
+    """
+    horas = VENTANA_DE_OCUPACION.total_seconds() / 3600
     return ReglaDeNegocioError(
-        f"La mesa {mesa_id} ya tiene una reserva activa el {fecha} a las {hora:%H:%M}"
+        f"La mesa {mesa_id} ya tiene una reserva el {fecha} a las {hora:%H:%M}; "
+        f"cada reserva ocupa la mesa {horas:g} horas"
     )
 
 
 def _validar_turno_libre(
     db: Session, mesa_id: int, fecha: date, hora: time, excluir_id: int | None = None
 ) -> None:
-    if repository.existe_reserva_activa(db, mesa_id, fecha, hora, excluir_id):
-        raise _turno_ocupado(mesa_id, fecha, hora)
+    """S69: la mesa no tiene otra reserva ACTIVA o ATENDIDA a menos de la ventana de ocupacion."""
+    conflicto = repository.reserva_que_ocupa_la_mesa(
+        db, mesa_id, datetime.combine(fecha, hora), VENTANA_DE_OCUPACION, excluir_id
+    )
+    if conflicto is not None:
+        raise _turno_ocupado(mesa_id, conflicto.fecha, conflicto.hora)
 
 
 def _confirmar(db: Session, reserva: Reserva) -> None:
@@ -169,7 +183,10 @@ def modificar_reserva(db: Session, reserva_id: int, datos: ReservaModificar) -> 
     # S67: la mesa no se edita; solo se lee su capacidad. No se revisa su estado (S27).
     _validar_capacidad(_mesa_existente(db, reserva.mesa_id), datos.cantidad_personas)
     _validar_momento(datos.fecha, datos.hora)
-    _validar_turno_libre(db, reserva.mesa_id, datos.fecha, datos.hora, excluir_id=reserva.id)
+    if (datos.fecha, datos.hora) != (reserva.fecha, reserva.hora):
+        # S69: la ventana solo se revisa si cambia el turno; editar otro dato de una reserva que
+        # ya se superponia (datos de antes de la regla) no se bloquea.
+        _validar_turno_libre(db, reserva.mesa_id, datos.fecha, datos.hora, excluir_id=reserva.id)
     reserva.fecha = datos.fecha
     reserva.hora = datos.hora
     reserva.cantidad_personas = datos.cantidad_personas
@@ -312,11 +329,14 @@ def listar_mesas_disponibles(db: Session, fecha: date, hora: time) -> list[MesaD
     """Mesas que se pueden reservar en ese turno, por sector, numero e id (issue #61).
 
     El turno debe cumplir las reglas de "no pasado" del alta y se valida antes de leer M3 (S32).
-    Figura toda mesa que no esta FUERA_DE_SERVICIO y no tiene una reserva ACTIVA en ese turno;
+    Figura toda mesa que no esta FUERA_DE_SERVICIO y no esta ocupada en ese turno por una reserva
+    ACTIVA o ATENDIDA a menos de la ventana de ocupacion (S69), la misma regla del alta;
     OCUPADA figura porque describe el momento presente (S30). Solo lee: no confirma nada.
     """
     _validar_momento(fecha, hora)
-    ocupadas = repository.ids_de_mesas_con_reserva_activa(db, fecha, hora)
+    ocupadas = repository.ids_de_mesas_ocupadas(
+        db, datetime.combine(fecha, hora), VENTANA_DE_OCUPACION
+    )
     disponibles = [
         mesa
         for mesa in puente.listar_mesas(db)

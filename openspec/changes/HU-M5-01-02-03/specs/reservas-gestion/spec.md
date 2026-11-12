@@ -43,7 +43,7 @@ Esquemas (nombres JSON en `snake_case`; `cantidad_personas` es el `cantidadPerso
 
 Parámetros del listado: `fecha` (día exacto, `YYYY-MM-DD`) y `estado` (uno de los cuatro valores de `EstadoReserva`, con esa capitalización). Valores inválidos responden 422 (S22).
 
-Mensajes de negocio de referencia (S18): 404 «La reserva {id} no existe», «La mesa {id} no existe» y «El cliente {id} no existe»; 409 «La mesa {mesa_id} ya tiene una reserva activa el {fecha} a las {hora}», «La mesa {id} está fuera de servicio» (S31) y «La reserva {id} no está activa y no se puede modificar»; 422 «La fecha de la reserva no puede ser anterior a hoy» y «La hora de la reserva debe ser posterior a la hora actual». Un `cliente_nuevo` con nombre o teléfono inválidos responde 422 con el mensaje de M4 (`Datos invalidos. nombre: …` o `telefono: …`), que nombra el campo. Los 422 de forma usan el manejador global existente (`Datos invalidos. <campo>: <mensaje>`), que nombra cada campo inválido.
+Mensajes de negocio de referencia (S18): 404 «La reserva {id} no existe», «La mesa {id} no existe» y «El cliente {id} no existe»; 409 «La mesa {mesa_id} ya tiene una reserva el {fecha} a las {hora}; cada reserva ocupa la mesa 2 horas» (`{fecha}` y `{hora}` son los de la reserva que conflicta, S69), «La mesa {id} está fuera de servicio» (S31) y «La reserva {id} no está activa y no se puede modificar»; 422 «La fecha de la reserva no puede ser anterior a hoy» y «La hora de la reserva debe ser posterior a la hora actual». Un `cliente_nuevo` con nombre o teléfono inválidos responde 422 con el mensaje de M4 (`Datos invalidos. nombre: …` o `telefono: …`), que nombra el campo. Los 422 de forma usan el manejador global existente (`Datos invalidos. <campo>: <mensaje>`), que nombra cada campo inválido.
 
 Orden de validación (S17):
 
@@ -67,7 +67,7 @@ Tabla `reservas`, creada por una sola migración nueva con `down_revision = a8c0
 
 Restricciones adicionales:
 
-- Índice único parcial sobre `(mesa_id, fecha, hora)` solo para las filas con `estado = 'ACTIVA'`. Es la defensa de la base contra la doble reserva de la misma mesa (riesgo R13 de `SPRINT-0/S0-10-riesgos.md`); las filas que no están `ACTIVA` no participan.
+- Índice único parcial sobre `(mesa_id, fecha, hora)` solo para las filas con `estado = 'ACTIVA'`. Es la defensa de la base contra la doble reserva de la misma mesa en el mismo turno exacto (riesgo R13 de `SPRINT-0/S0-10-riesgos.md`); las filas que no están `ACTIVA` no participan. Solo cubre el turno exacto: la ventana de 2 horas la verifica el `service` (S69) y no tiene una restricción equivalente en la base.
 - La migración tiene `downgrade()`, que borra la tabla de reservas.
 
 ## Contrato del puente Mesa y Cliente
@@ -87,7 +87,7 @@ Implementación incluida en este cambio:
 
 - Lado Mesa (real, S33): `obtener_mesa` y `listar_mesas` DEBEN consultar a M3 solo con `app.modules.salon.service.listar_mesas`, sin importar de `salon` ni su `router`, ni su `repository`, ni sus `models`, ni sus `schemas` (contrato de importación RNF-MAN-09), y sin modificar `salon`. Esa consulta es paginada (100 por página como máximo), no filtra por estado y no busca por `id`; por eso el puente DEBE leer todas las páginas, y `obtener_mesa` y `listar_mesas` DEBEN responder lo mismo para la misma mesa.
 - Lado Cliente (real, S39; reemplaza al stub de S6 y S20): `existe_cliente` y `registrar_cliente` DEBEN consultar a M4 solo con `app.modules.atencion.service.existe_cliente` y `app.modules.atencion.service.registrar_cliente_para_reserva`, sin importar de `atencion` su `router`, su `repository`, sus `models` ni sus `schemas` (RNF-MAN-09), y sin modificar `atencion`. Ya no basta con que el id sea positivo: un cliente que M4 no tiene no existe.
-- El puente no participa en la regla de doble reserva: esa regla usa solo la tabla `reservas`.
+- El puente no participa en la regla de la ventana de ocupación de la mesa (S69): esa regla usa solo la tabla `reservas`.
 
 Doble de prueba (S20): sustituye al puente en las pruebas del `service` y de la API, sin usar la base de M3. Un doble DEBE ofrecer las cuatro operaciones con la forma de la tabla; `registrar_cliente` del doble guarda el cliente en una lista propia (para que las pruebas comprueben si quedó o no registrado) y valida los datos con las reglas de M4 (S42). Lo que `obtener_mesa` informa de una mesa DEBE coincidir con lo que `listar_mesas` ofrece de esa misma mesa (mismo `estado`). Una mesa que el doble no ofrece no existe. Para los escenarios, el doble por defecto es el de la «Convención de los escenarios».
 
@@ -190,7 +190,7 @@ El sistema DEBE consultar al puente que la mesa exista y, cuando el cuerpo trae 
 
 ### Requisito: El alta rechaza una mesa fuera de servicio
 
-`POST /reservas` con una mesa que el puente informa con estado `FUERA_DE_SERVICIO` DEBE responder 409 «La mesa {id} está fuera de servicio» y NO DEBE guardar nada. Es un conflicto con una regla de negocio (D-25, D-26) y no un error de forma (S31). Si la mesa no existe, sigue valiendo el 404 «La mesa {id} no existe». Una mesa `OCUPADA` NO DEBE rechazarse: ese estado describe el momento presente, no el turno pedido (S30). El orden de validación del alta es: forma, existencia de la mesa, mesa fuera de servicio, existencia del cliente, momento (fecha y hora) y turno libre (S17). La modificación NO consulta al puente por la mesa (S27) y no cambia.
+`POST /reservas` con una mesa que el puente informa con estado `FUERA_DE_SERVICIO` DEBE responder 409 «La mesa {id} está fuera de servicio» y NO DEBE guardar nada. Es un conflicto con una regla de negocio (D-25, D-26) y no un error de forma (S31). Si la mesa no existe, sigue valiendo el 404 «La mesa {id} no existe». Una mesa `OCUPADA` NO DEBE rechazarse: ese estado describe el momento presente, no el turno pedido (S30). El orden de validación del alta es: forma, existencia de la mesa, mesa fuera de servicio, existencia del cliente, momento (fecha y hora) y turno libre, es decir, sin otra reserva dentro de la ventana de ocupación de la mesa (S17, S69). La modificación NO consulta al puente por la mesa (S27) y no cambia.
 
 #### Escenario: Mesa fuera de servicio
 
@@ -387,22 +387,53 @@ El sistema DEBE validar `cantidad_personas` contra la capacidad de la mesa, en e
 - CUANDO se hace `POST /reservas` con los demás datos válidos
 - ENTONCES responde 422 nombrando `cantidad_personas` y no se crea nada (la única validación de la cantidad es «entero mayor a cero»)
 
-### Requisito: Mesa sin otra reserva activa (HU-M5-01 CA 9, R13)
+### Requisito: Mesa sin otra reserva que la ocupe (HU-M5-01 CA 9, R13, S69)
 
-No DEBE existir otra reserva `ACTIVA` con la misma `mesa_id`, la misma `fecha` y la misma `hora` exactas. Si existe, DEBE responder 409 «La mesa {mesa_id} ya tiene una reserva activa el {fecha} a las {hora}» sin guardar. No se modela la duración de la reserva: solo cuenta la coincidencia exacta (S4). Las reservas que no están `ACTIVA` NO DEBEN bloquear. La regla DEBE seguir valiendo cuando dos solicitudes simultáneas llegan para la misma mesa, fecha y hora: solo una DEBE crear la reserva.
+Toda reserva `ACTIVA` o `ATENDIDA` ocupa su mesa durante una ventana fija de 2 horas que empieza en su `fecha` y `hora` (S69). Una reserva nueva en la mesa M, en el instante T (la `fecha` y la `hora` pedidas, combinadas), DEBE rechazarse si M ya tiene otra reserva `ACTIVA` o `ATENDIDA` en un instante E con |T − E| menor a 2 horas (comparación estricta): las 21:00 chocan con las 22:59 y no con las 23:00, y lo mismo hacia atrás (las 19:01 chocan con las 21:00 y las 19:00 no). La comparación usa instantes reales, así que también vale entre un día y el siguiente: las 23:30 del día D chocan con las 00:30 del día D+1. Las reservas `CANCELADA_ANTICIPADA` y `CANCELADA_POR_AUSENCIA` NO DEBEN bloquear.
+
+Si hay conflicto, DEBE responder 409 «La mesa {mesa_id} ya tiene una reserva el {fecha} a las {hora}; cada reserva ocupa la mesa 2 horas» sin guardar. `{fecha}` y `{hora}` son los de la reserva que conflicta, no los pedidos (coinciden cuando el turno es exactamente el mismo). El 2 sale de la constante única de la ventana (`VENTANA_DE_OCUPACION`, en el `service`) y no está escrito a mano en el texto. El mismo mensaje se usa en la verificación previa del `service` y cuando la base rechaza el duplicado exacto (R13).
+
+La ventana tiene una sola definición, que comparten el alta, la modificación y `GET /reservas/mesas-disponibles` (requisito «Mesas disponibles para una fecha y hora»): la lista nunca ofrece una mesa que el alta rechazaría. El `repository` recibe la duración como parámetro. El índice único parcial sobre `(mesa_id, fecha, hora)` de las reservas `ACTIVA` se mantiene sin cambios y solo cubre el turno exacto; el resto de la ventana lo verifica el `service`. Si dos solicitudes simultáneas llegan para la misma mesa, fecha y hora, solo una DEBE crear la reserva. Si dos solicitudes simultáneas piden turnos distintos que se superponen, no se garantiza que una falle (S69).
 
 #### Escenario: Segunda reserva activa en la misma mesa, fecha y hora
 
 - DADO una reserva `ACTIVA` en la mesa 5, `2026-11-02`, `21:30`
 - CUANDO se crea otra con la mesa 5, `2026-11-02`, `21:30` y otro cliente
-- ENTONCES responde 409 con «La mesa 5 ya tiene una reserva activa el 2026-11-02 a las 21:30»
+- ENTONCES responde 409 con «La mesa 5 ya tiene una reserva el 2026-11-02 a las 21:30; cada reserva ocupa la mesa 2 horas»
 - Y la primera reserva no cambia y no se crea la segunda
 
-#### Escenario: Otra hora en la misma mesa
+#### Escenario: Otra hora dentro de las 2 horas posteriores
 
 - DADO una reserva `ACTIVA` en la mesa 5, `2026-11-02`, `21:30`
-- CUANDO se crea otra en la mesa 5, `2026-11-02`, `22:00`
-- ENTONCES responde 201, porque no se modela duración
+- CUANDO se crea otra en la mesa 5, `2026-11-02`, `22:45`, y por separado con `23:29` (119 minutos después)
+- ENTONCES cada una responde 409 con «La mesa 5 ya tiene una reserva el 2026-11-02 a las 21:30; cada reserva ocupa la mesa 2 horas», con la hora de la reserva existente y no la de la pedida
+- Y no se crea ninguna reserva nueva
+
+#### Escenario: Otra hora dentro de las 2 horas anteriores
+
+- DADO una reserva `ACTIVA` en la mesa 5, `2026-11-02`, `21:30`
+- CUANDO se crea otra en la mesa 5, `2026-11-02`, `21:29`, y por separado con `19:31` (119 minutos antes)
+- ENTONCES cada una responde 409 con «La mesa 5 ya tiene una reserva el 2026-11-02 a las 21:30; cada reserva ocupa la mesa 2 horas»
+
+#### Escenario: Justo a 2 horas de otra reserva
+
+- DADO una reserva `ACTIVA` en la mesa 5, `2026-11-02`, `21:30`
+- CUANDO se crea otra en la mesa 5, `2026-11-02`, `23:30`, y por separado con `19:30`
+- ENTONCES cada una responde 201, porque la ventana es estricta (S69)
+
+#### Escenario: La ventana cruza la medianoche
+
+- DADO una reserva `ACTIVA` en la mesa 5, `2026-11-02`, `23:30`
+- CUANDO se crea otra en la mesa 5, `2026-11-03`, `00:30`
+- ENTONCES responde 409 con «La mesa 5 ya tiene una reserva el 2026-11-02 a las 23:30; cada reserva ocupa la mesa 2 horas»
+- Y el caso inverso (reserva existente el `2026-11-03` a las `00:30` y alta el `2026-11-02` a las `23:30`) también responde 409 con la fecha y la hora de la existente
+- Y con la existente a las `23:30` y el alta el `2026-11-03` a las `01:30` (exactamente 2 horas), responde 201
+
+#### Escenario: Una reserva atendida sigue ocupando la mesa
+
+- DADO una reserva `ATENDIDA` en la mesa 5, `2026-11-02`, `21:30`
+- CUANDO se crea otra en la mesa 5, `2026-11-02`, `22:30`
+- ENTONCES responde 409 con «La mesa 5 ya tiene una reserva el 2026-11-02 a las 21:30; cada reserva ocupa la mesa 2 horas» (S69)
 
 #### Escenario: Otra mesa en la misma fecha y hora
 
@@ -416,11 +447,11 @@ No DEBE existir otra reserva `ACTIVA` con la misma `mesa_id`, la misma `fecha` y
 - CUANDO se crea otra en la mesa 5, `2026-11-03`, `21:30`
 - ENTONCES responde 201
 
-#### Escenario: La reserva existente no está activa
+#### Escenario: La reserva existente está cancelada
 
-- DADO una reserva `ATENDIDA`, otra `CANCELADA_ANTICIPADA` y otra `CANCELADA_POR_AUSENCIA`, las tres en la mesa 5, `2026-11-02`, `21:30`
-- CUANDO se crea una reserva `ACTIVA` en la mesa 5, `2026-11-02`, `21:30`
-- ENTONCES responde 201
+- DADO una reserva `CANCELADA_ANTICIPADA` y otra `CANCELADA_POR_AUSENCIA`, las dos en la mesa 5, `2026-11-02`, `21:30`
+- CUANDO se crea una reserva `ACTIVA` en la mesa 5, `2026-11-02`, `21:30`, y por separado a las `22:30`
+- ENTONCES cada una responde 201, porque una reserva cancelada libera la mesa también dentro de la ventana (S69)
 
 #### Escenario: Mismo cliente en mesas distintas
 
@@ -434,21 +465,23 @@ No DEBE existir otra reserva `ACTIVA` con la misma `mesa_id`, la misma `fecha` y
 - CUANDO se procesan a la vez
 - ENTONCES una responde 201 y la otra 409
 - Y en los datos existe una sola reserva `ACTIVA` para esa mesa, fecha y hora
+- Y esa garantía vale solo para el turno exacto: dos solicitudes simultáneas con horas distintas pero superpuestas (por ejemplo `21:30` y `22:30` en la misma mesa) pueden crearse las dos, porque el índice único no cubre la ventana y la verificación previa no ve la reserva que la otra solicitud todavía no confirmó. En SQLite, que serializa las escrituras, el margen es chico, pero no está garantizado (S69)
 
 #### Escenario: La base rechaza el duplicado que el servicio no detectó
 
-- DADO que la verificación previa del servicio no encuentra conflicto pero otra reserva `ACTIVA` igual se confirma antes de guardar
+- DADO que la verificación previa del servicio no encuentra conflicto pero otra reserva `ACTIVA` igual en mesa, fecha y hora se confirma antes de guardar
 - CUANDO la base rechaza la inserción por el índice único parcial
-- ENTONCES el servicio responde 409 con el mismo mensaje de conflicto y no queda ninguna reserva duplicada
+- ENTONCES el servicio responde 409 con el mismo mensaje de conflicto, con la fecha y la hora pedidas (que son las del turno exacto), y no queda ninguna reserva duplicada
 
 ### Requisito: Mesas disponibles para una fecha y hora (issue #61)
 
-`GET /reservas/mesas-disponibles?fecha=YYYY-MM-DD&hora=HH:MM` DEBE responder 200 con una lista simple, no paginada (S29), de las mesas que se pueden reservar en esa fecha y hora. Cada elemento DEBE traer `id`, `numero`, `capacidad` y `sector` (con `id` y `nombre`), y nada más. Una mesa DEBE figurar en la lista si su estado no es `FUERA_DE_SERVICIO` y no tiene ninguna reserva `ACTIVA` con exactamente esa `fecha` y esa `hora`:
+`GET /reservas/mesas-disponibles?fecha=YYYY-MM-DD&hora=HH:MM` DEBE responder 200 con una lista simple, no paginada (S29), de las mesas que se pueden reservar en esa fecha y hora. Cada elemento DEBE traer `id`, `numero`, `capacidad` y `sector` (con `id` y `nombre`), y nada más. Una mesa DEBE figurar en la lista si su estado no es `FUERA_DE_SERVICIO` y no está ocupada en ese turno, con la misma definición de «mesa ocupada» que usa el alta (requisito «Mesa sin otra reserva que la ocupe», S4 y S69): la mesa está ocupada si tiene una reserva `ACTIVA` o `ATENDIDA` a menos de 2 horas (estricto) del instante pedido, antes o después, también entre un día y el siguiente. La lista nunca ofrece una mesa que el alta rechazaría:
 
 - Una mesa `FUERA_DE_SERVICIO` NO DEBE figurar (issue #61).
 - Una mesa `OCUPADA` DEBE figurar: ese estado describe el momento presente, no el turno pedido (S30).
-- Una reserva `ACTIVA` de la mesa con otra hora u otra fecha NO DEBE ocultarla (no se modela duración, S4).
-- Una reserva `ATENDIDA`, `CANCELADA_ANTICIPADA` o `CANCELADA_POR_AUSENCIA` NO DEBE ocultarla.
+- Una reserva `ACTIVA` o `ATENDIDA` de la mesa a menos de 2 horas del turno pedido NO DEBE dejarla figurar.
+- Una reserva `ACTIVA` o `ATENDIDA` de la mesa a exactamente 2 horas del turno pedido, o a más, o de otra fecha lejana NO DEBE ocultarla.
+- Una reserva `CANCELADA_ANTICIPADA` o `CANCELADA_POR_AUSENCIA` NO DEBE ocultarla.
 
 La lista DEBE ordenarse de forma ascendente por nombre del sector, `numero` e `id`. Los datos de las mesas vienen del puente, que lee todas las páginas de M3 (S33). La consulta es de solo lectura.
 
@@ -473,15 +506,40 @@ La lista DEBE ordenarse de forma ascendente por nombre del sector, `numero` e `i
 - CUANDO se hace `GET /reservas/mesas-disponibles?fecha=2026-11-02&hora=21:30`
 - ENTONCES la lista contiene solo la mesa 6
 
-#### Escenario: Una mesa reservada a otra hora o en otra fecha figura
+#### Escenario: Una mesa con reserva dentro de las 2 horas no figura
 
-- DADO el doble de prueba del puente y dos reservas `ACTIVA` en la mesa 5: una el `2026-11-02` a las `22:00` y otra el `2026-11-03` a las `21:30`
+- DADO el doble de prueba del puente y una reserva `ACTIVA` en la mesa 5, `2026-11-02`, `22:30`
+- CUANDO se hace `GET /reservas/mesas-disponibles?fecha=2026-11-02&hora=21:30`, y por separado con la reserva a las `19:31` o a las `23:29`
+- ENTONCES cada lista contiene solo la mesa 6 (S69)
+
+#### Escenario: Una mesa con reserva atendida dentro de las 2 horas no figura
+
+- DADO el doble de prueba del puente y una reserva `ATENDIDA` en la mesa 5, `2026-11-02`, `22:30`
+- CUANDO se hace `GET /reservas/mesas-disponibles?fecha=2026-11-02&hora=21:30`
+- ENTONCES la lista contiene solo la mesa 6 (S69)
+
+#### Escenario: Una mesa con reserva a exactamente 2 horas figura
+
+- DADO el doble de prueba del puente y una reserva `ACTIVA` en la mesa 5, `2026-11-02`, `23:30`
+- CUANDO se hace `GET /reservas/mesas-disponibles?fecha=2026-11-02&hora=21:30`, y por separado con la reserva a las `19:30`
+- ENTONCES cada lista contiene las mesas 5 y 6, porque la ventana es estricta (S69)
+
+#### Escenario: La ventana de una reserva cruza la medianoche
+
+- DADO el doble de prueba del puente y una reserva `ACTIVA` en la mesa 5, `2026-11-02`, `23:30`
+- CUANDO se hace `GET /reservas/mesas-disponibles?fecha=2026-11-03&hora=00:30`
+- ENTONCES la lista contiene solo la mesa 6
+- Y con la reserva el `2026-11-03` a las `00:30` y la consulta del `2026-11-02` a las `23:30`, también contiene solo la mesa 6
+
+#### Escenario: Una mesa reservada en otra fecha figura
+
+- DADO el doble de prueba del puente y una reserva `ACTIVA` en la mesa 5 el `2026-11-03` a las `21:30`
 - CUANDO se hace `GET /reservas/mesas-disponibles?fecha=2026-11-02&hora=21:30`
 - ENTONCES la lista contiene las mesas 5 y 6
 
-#### Escenario: Una reserva que no está activa no oculta la mesa
+#### Escenario: Una reserva cancelada no oculta la mesa
 
-- DADO el doble de prueba del puente y tres reservas en la mesa 5, `2026-11-02`, `21:30`: una `ATENDIDA`, otra `CANCELADA_ANTICIPADA` y otra `CANCELADA_POR_AUSENCIA`
+- DADO el doble de prueba del puente y dos reservas en la mesa 5, `2026-11-02`, `21:30`: una `CANCELADA_ANTICIPADA` y otra `CANCELADA_POR_AUSENCIA`
 - CUANDO se hace `GET /reservas/mesas-disponibles?fecha=2026-11-02&hora=21:30`
 - ENTONCES la lista contiene las mesas 5 y 6
 
@@ -703,7 +761,7 @@ Al modificar, el sistema DEBE aplicar las mismas reglas de fecha no pasada, hora
 
 ### Requisito: Conflicto sin contar la propia reserva (HU-M5-02 CA 4)
 
-Al modificar, el sistema DEBE revalidar la regla de doble reserva (S4) excluyendo la propia reserva. Si otra reserva `ACTIVA` ocupa la misma mesa, fecha y hora nuevas, DEBE responder 409 con el mensaje de conflicto del alta y no aplicar ningún cambio.
+Al modificar, el sistema DEBE revalidar la regla de la ventana de ocupación de la mesa (S4, S69) excluyendo la propia reserva, pero solo si cambian la `fecha` o la `hora` respecto de los valores guardados. Si otra reserva `ACTIVA` o `ATENDIDA` de la misma mesa queda a menos de 2 horas (estricto) de la `fecha` y `hora` nuevas, DEBE responder 409 con el mensaje de conflicto del alta, con la fecha y la hora de esa otra reserva, y no aplicar ningún cambio. Si la `fecha` y la `hora` no cambian (por ejemplo, solo cambia `cantidad_personas`), NO DEBE revisar la ventana: una reserva que ya se superponía con otra por datos anteriores a esta regla no queda bloqueada para editar los demás campos. La mesa no cambia al modificar (S27).
 
 #### Escenario: Guardar los mismos valores
 
@@ -711,16 +769,48 @@ Al modificar, el sistema DEBE revalidar la regla de doble reserva (S4) excluyend
 - CUANDO se hace `PUT` con esos mismos `fecha` y `hora`
 - ENTONCES responde 200, porque la reserva no choca consigo misma
 
+#### Escenario: Mover dentro de la propia ventana
+
+- DADO una reserva `ACTIVA` en la mesa 5, `2026-11-02`, `21:30`, y ninguna otra
+- CUANDO se hace `PUT` con `hora` `22:30`
+- ENTONCES responde 200, porque la propia reserva no cuenta para su conflicto (S69)
+
 #### Escenario: Mover a un horario ocupado por otra reserva activa
 
-- DADO una reserva `ACTIVA` A en la mesa 5, `2026-11-02`, `21:30`, y otra B en la mesa 5, `2026-11-02`, `22:00`
+- DADO una reserva `ACTIVA` A en la mesa 5, `2026-11-02`, `21:30`, y otra B en la mesa 5, `2026-11-02`, `23:30`
 - CUANDO se hace `PUT` sobre B con `fecha` `2026-11-02` y `hora` `21:30`
-- ENTONCES responde 409 con «La mesa 5 ya tiene una reserva activa el 2026-11-02 a las 21:30»
+- ENTONCES responde 409 con «La mesa 5 ya tiene una reserva el 2026-11-02 a las 21:30; cada reserva ocupa la mesa 2 horas»
 - Y A y B no cambian
 
-#### Escenario: Mover a un horario ocupado por una reserva no activa
+#### Escenario: Mover a un horario dentro de las 2 horas de otra reserva
 
-- DADO una reserva `ACTIVA` B en la mesa 5, `2026-11-02`, `22:00`, y otra `CANCELADA_ANTICIPADA` en la mesa 5, `2026-11-02`, `21:30`
+- DADO una reserva `ACTIVA` A en la mesa 5, `2026-11-02`, `21:30`, y otra B en la mesa 5, `2026-11-03`, `21:30`
+- CUANDO se hace `PUT` sobre B con `fecha` `2026-11-02` y `hora` `22:30`, y por separado con `19:31` o `23:29`
+- ENTONCES cada pedido responde 409 con «La mesa 5 ya tiene una reserva el 2026-11-02 a las 21:30; cada reserva ocupa la mesa 2 horas»
+- Y A y B no cambian
+
+#### Escenario: Mover justo a 2 horas de otra reserva
+
+- DADO una reserva `ACTIVA` A en la mesa 5, `2026-11-02`, `21:30`, y otra B en la mesa 5, `2026-11-03`, `21:30`
+- CUANDO se hace `PUT` sobre B con `fecha` `2026-11-02` y `hora` `23:30`, y por separado con `19:30`
+- ENTONCES cada pedido responde 200, porque la ventana es estricta (S69)
+
+#### Escenario: Mover a un horario ocupado por una reserva atendida
+
+- DADO una reserva `ATENDIDA` A en la mesa 5, `2026-11-02`, `21:30`, y una reserva `ACTIVA` B en la mesa 5, `2026-11-03`, `21:30`
+- CUANDO se hace `PUT` sobre B con `fecha` `2026-11-02` y `hora` `22:30`
+- ENTONCES responde 409 con «La mesa 5 ya tiene una reserva el 2026-11-02 a las 21:30; cada reserva ocupa la mesa 2 horas» (S69)
+
+#### Escenario: Mover a un horario que cruza la medianoche
+
+- DADO una reserva `ACTIVA` A en la mesa 5, `2026-11-02`, `23:30`, y otra B en la mesa 5, `2026-11-05`, `21:30`
+- CUANDO se hace `PUT` sobre B con `fecha` `2026-11-03` y `hora` `00:30`
+- ENTONCES responde 409 con «La mesa 5 ya tiene una reserva el 2026-11-02 a las 23:30; cada reserva ocupa la mesa 2 horas»
+- Y B no cambia
+
+#### Escenario: Mover a un horario ocupado por una reserva cancelada
+
+- DADO una reserva `ACTIVA` B en la mesa 5, `2026-11-02`, `23:30`, y otra `CANCELADA_ANTICIPADA` en la mesa 5, `2026-11-02`, `21:30`
 - CUANDO se hace `PUT` sobre B con `hora` `21:30`
 - ENTONCES responde 200
 
@@ -733,8 +823,15 @@ Al modificar, el sistema DEBE revalidar la regla de doble reserva (S4) excluyend
 #### Escenario: El horario liberado queda disponible
 
 - DADO una reserva `ACTIVA` B en la mesa 5, `2026-11-02`, `22:00`
-- CUANDO se mueve B a `22:30` y luego se crea otra reserva en la mesa 5, `2026-11-02`, `22:00`
+- CUANDO se mueve B a `2026-11-03` a las `22:00` y luego se crea otra reserva en la mesa 5, `2026-11-02`, `22:00`
 - ENTONCES el `PUT` responde 200 y el alta responde 201
+
+#### Escenario: Editar otro dato de una reserva que ya se superponía
+
+- DADO una reserva `ACTIVA` A en la mesa 5, `2026-11-02`, `21:30`, y otra B en la mesa 5, `2026-11-02`, `22:00` (datos anteriores a la regla de la ventana)
+- CUANDO se hace `PUT` sobre B con los mismos `fecha` y `hora` (`2026-11-02`, `22:00`) y `cantidad_personas` 6
+- ENTONCES responde 200 con `cantidad_personas` 6, porque la ventana solo se revisa si cambian la fecha o la hora (S69)
+- Y un `PUT` sobre B con `hora` `22:30` responde 409 con «La mesa 5 ya tiene una reserva el 2026-11-02 a las 21:30; cada reserva ocupa la mesa 2 horas», porque cambió la hora y sigue superpuesta
 
 ### Requisito: Solo se modifican reservas activas (HU-M5-02 CA 5)
 
@@ -905,7 +1002,7 @@ Toda respuesta 404, 409 o 422 de estas rutas DEBE tener el cuerpo `{"detalle": "
 
 #### Escenario: Cuerpo de cada error
 
-- DADO un 404 (reserva inexistente), un 409 (doble reserva) y un 422 (cantidad cero)
+- DADO un 404 (reserva inexistente), un 409 (mesa ocupada por otra reserva dentro de su ventana, S69) y un 422 (cantidad cero)
 - CUANDO se leen las tres respuestas
 - ENTONCES cada una es un objeto JSON cuya única clave es `detalle`, con un texto
 
@@ -1008,7 +1105,7 @@ La tabla `reservas` DEBE imponer en la base `CHECK (cantidad_personas > 0)` y el
 
 - DADO una reserva `ACTIVA` y otras dos, `ATENDIDA` y `CANCELADA_POR_AUSENCIA`, en la misma mesa, fecha y hora
 - CUANDO se insertan directamente
-- ENTONCES la base las acepta, porque el índice solo cubre las filas `ACTIVA`
+- ENTONCES la base las acepta, porque el índice solo cubre las filas `ACTIVA` en el turno exacto; la ventana de 2 horas y el hecho de que una reserva `ATENDIDA` también ocupe la mesa son reglas del `service` (S69), no de la base
 
 #### Escenario: Valores del enumerado
 
@@ -1312,7 +1409,7 @@ La lista es una ayuda: la API vuelve a verificar la mesa al guardar (S35). El mo
 
 #### Escenario: Conflicto de mesa
 
-- DADO el modal completo y una API que responde 409 con «La mesa 5 ya tiene una reserva activa el 2026-11-02 a las 21:30»
+- DADO el modal completo y una API que responde 409 con «La mesa 5 ya tiene una reserva el 2026-11-02 a las 21:30; cada reserva ocupa la mesa 2 horas»
 - CUANDO la persona pulsa «Guardar reserva»
 - ENTONCES el modal muestra ese mensaje como error general, conserva los datos y sigue abierto
 
@@ -1380,7 +1477,7 @@ La acción «Modificar reserva» de una fila `ACTIVA` DEBE abrir el mismo modal 
 
 #### Escenario: Conflicto al modificar
 
-- DADO una API que responde 409 con «La mesa 5 ya tiene una reserva activa el 2026-11-02 a las 21:30»
+- DADO una API que responde 409 con «La mesa 5 ya tiene una reserva el 2026-11-02 a las 21:30; cada reserva ocupa la mesa 2 horas»
 - CUANDO la persona guarda
 - ENTONCES el modal muestra ese mensaje como error general, conserva los datos y sigue abierto
 
@@ -1573,7 +1670,7 @@ Cuando el alta trae `cliente_nuevo` y la reserva no se puede crear, NO DEBE qued
 
 - DADO una reserva `ACTIVA` en la mesa 5, `2026-11-02`, `21:30`
 - CUANDO se hace `POST /reservas` con la misma mesa, fecha y hora y un `cliente_nuevo` válido
-- ENTONCES responde 409 con «La mesa 5 ya tiene una reserva activa el 2026-11-02 a las 21:30» y no queda ningún cliente
+- ENTONCES responde 409 con «La mesa 5 ya tiene una reserva el 2026-11-02 a las 21:30; cada reserva ocupa la mesa 2 horas» y no queda ningún cliente
 
 #### Escenario: La base rechaza el duplicado al confirmar
 
@@ -1675,7 +1772,7 @@ Al guardar, DEBE enviar `cliente_id` si hay un cliente elegido, o `cliente_nuevo
 
 #### Escenario: La reserva falla con un cliente nuevo
 
-- DADO el modal con «Cliente nuevo» completo y una API que responde 409 con «La mesa 5 ya tiene una reserva activa el 2026-11-02 a las 21:30»
+- DADO el modal con «Cliente nuevo» completo y una API que responde 409 con «La mesa 5 ya tiene una reserva el 2026-11-02 a las 21:30; cada reserva ocupa la mesa 2 horas»
 - CUANDO la persona pulsa «Guardar reserva»
 - ENTONCES el modal muestra ese mensaje como error general, conserva Nombre, Teléfono y los demás datos, y sigue abierto
 
@@ -1693,17 +1790,17 @@ Al guardar, DEBE enviar `cliente_id` si hay un cliente elegido, o `cliente_nuevo
 
 ## Supuestos
 
-Los supuestos S1 a S14 son los de la propuesta, con la misma numeración. S15 en adelante son nuevos de esta spec. Por el issue #61 se reescribieron S4, S5, S9, S10, S13, S17, S20 y S23 (sin cambiar su número) y se agregaron S29 a S35. Por la regla general de modales de AGENTS.md (sección 5) se reescribieron además S24 y S34 (sin cambiar su número, el panel lateral pasa a ser un modal) y se agregaron S36, S37 y S38. Por el delta «cliente registrado o nuevo» (issue #61, HU-M4-01) se reescribieron además S6, S13, S17, S20 y S34 (sin cambiar su número) y se agregaron S39 a S43. Por la corrección del 2026-11-11 (pedido de la responsable del módulo) se agregaron S66 y S67 y se anotaron S5, S27 y S42. Todos están marcados `Supuesto:` para que el equipo los valide (AGENTS.md, sección 9.2).
+Los supuestos S1 a S14 son los de la propuesta, con la misma numeración. S15 en adelante son nuevos de esta spec. Por el issue #61 se reescribieron S4, S5, S9, S10, S13, S17, S20 y S23 (sin cambiar su número) y se agregaron S29 a S35. Por la regla general de modales de AGENTS.md (sección 5) se reescribieron además S24 y S34 (sin cambiar su número, el panel lateral pasa a ser un modal) y se agregaron S36, S37 y S38. Por el delta «cliente registrado o nuevo» (issue #61, HU-M4-01) se reescribieron además S6, S13, S17, S20 y S34 (sin cambiar su número) y se agregaron S39 a S43. Por la corrección del 2026-11-11 (pedido de la responsable del módulo) se agregaron S66 y S67 y se anotaron S5, S27 y S42. Por la adenda 2026-11-12 («ocupación de la mesa») se reescribieron además S4, S7, S9, S17, S21 y S30 (sin cambiar su número) y se agregó S69. Todos están marcados `Supuesto:` para que el equipo los valide (AGENTS.md, sección 9.2).
 
 - Supuesto: S1. Estado inicial `ACTIVA`. Lo dicen el diagrama de clases, S2-02 y la maqueta. Contradicción de fuentes: S1-07 (CP-HU-M5-01) usa `PENDIENTE`. Se sigue el diagrama porque manda en nombres y valores; el equipo tiene que validarlo y corregir S1-07.
 - Supuesto: S2. Horario de atención: ninguna fuente lo define, así que no se restringe la hora de la reserva (vale cualquier hora del día). Si el equipo define un horario, se agrega como validación 422 en un cambio posterior.
 - Supuesto: S3. Fecha y hora pasadas: `fecha` tiene que ser hoy o posterior (diagrama `{>= hoy}`). Si `fecha` es hoy, `hora` tiene que ser posterior a la hora actual de la zona del restaurante (S28). Si no se cumple, responde 422. La hora se maneja en minutos (sin segundos).
-- Supuesto: S4. Mesa «disponible» para una fecha y hora: la mesa existe según el puente, su estado en M3 no es `FUERA_DE_SERVICIO` y no tiene otra reserva `ACTIVA` con la misma fecha y hora exactas. El estado `OCUPADA` no la excluye (S30). No se modela duración. Cambio respecto de la propuesta: la primera versión de S4 decía que no se modelaba el estado de la mesa; el issue #61 dice que una mesa fuera de servicio no es una mesa disponible y gana sobre esa versión (AGENTS.md, sección 2).
+- Supuesto: S4. Mesa «disponible» para una fecha y hora: la mesa existe según el puente, su estado en M3 no es `FUERA_DE_SERVICIO` y no está ocupada en ese turno: no tiene otra reserva `ACTIVA` o `ATENDIDA` a menos de 2 horas (estricto) del instante pedido, según la ventana de ocupación de S69. El estado `OCUPADA` no la excluye (S30). Cambio de la adenda 2026-11-12: la versión anterior decía que no se modelaba la duración y que solo contaba la misma fecha y hora exactas; se reemplaza por la ventana de S69, por pedido expreso del responsable del módulo. Cambio respecto de la propuesta: la primera versión de S4 decía que no se modelaba el estado de la mesa; el issue #61 dice que una mesa fuera de servicio no es una mesa disponible y gana sobre esa versión (AGENTS.md, sección 2).
 - Supuesto: S5. Capacidad: resuelto por el issue #61 (HU-M5-01), que dice «Cantidad de personas (obligatoria): número entero mayor a cero. El sistema no la valida contra la capacidad de la mesa (se resuelve en forma presencial)». La cantidad de personas no se valida contra la capacidad de la mesa; se resuelve en forma presencial. S1-07 pedía `cantidadPersonas <= capacidad`, pero el issue manda sobre esa guía (AGENTS.md §2). La capacidad que devuelve `listar_mesas` del puente se usa solo para mostrarla en el selector de mesas; ninguna regla la compara con la cantidad de personas y no existe una respuesta 422 por capacidad excedida. **Nota 2026-11-11 (pendiente de validación del equipo): esta regla fue revertida por S67 a pedido de la responsable del módulo; la cantidad no puede superar la capacidad de la mesa. El issue #61 todavía dice lo contrario y debe actualizarse (lo hace una persona, no el agente).**
 - Supuesto: S6. Cliente: se identifica por `cliente_id` entero. Existe si M4 lo tiene (`existe_cliente`, S39); la versión anterior daba por válido cualquier id positivo con un stub, que ya no existe. Una reserva puede crear al cliente al mismo tiempo con `cliente_nuevo` (S39). S1-07 no menciona al cliente; el diagrama sí (Cliente 1 - Reserva).
-- Supuesto: S7. Modificar: solo se puede modificar una reserva `ACTIVA` (si no, 409). Se modifican `fecha`, `hora` y `cantidad_personas`. Se revalidan S3 y S4 sin contar la propia reserva. La mesa y el cliente no cambian (diagrama). No hay control de concurrencia: gana la última modificación.
+- Supuesto: S7. Modificar: solo se puede modificar una reserva `ACTIVA` (si no, 409). Se modifican `fecha`, `hora` y `cantidad_personas`. Se revalida S3 siempre y la ventana de ocupación de S4 y S69 solo si cambian `fecha` u `hora`, sin contar la propia reserva. La mesa y el cliente no cambian (diagrama). No hay control de concurrencia: gana la última modificación.
 - Supuesto: S8. Listado: paginado (D-27); filtros opcionales `fecha` (día exacto) y `estado`; orden ascendente por `fecha`, `hora` e `id`. Sin filtros, la API devuelve todas las reservas. El frontend arranca con el filtro de estado `ACTIVA`.
-- Supuesto: S9. Códigos de error: 404 si la reserva no existe, y también si la mesa o el cliente indicados no existen según el puente. 409 si hay conflicto con otra reserva `ACTIVA`, si se intenta modificar una reserva que no está `ACTIVA` o si la mesa está fuera de servicio (S31). 422 para errores de validación (fecha u hora pasadas, `cantidad_personas <= 0`). Igual criterio que M1 y M3.
+- Supuesto: S9. Códigos de error: 404 si la reserva no existe, y también si la mesa o el cliente indicados no existen según el puente. 409 si la mesa está ocupada por otra reserva `ACTIVA` o `ATENDIDA` dentro de su ventana de ocupación (S69), si se intenta modificar una reserva que no está `ACTIVA` o si la mesa está fuera de servicio (S31). 422 para errores de validación (fecha u hora pasadas, `cantidad_personas <= 0`). Igual criterio que M1 y M3.
 - Supuesto: S10. Sin claves foráneas: la tabla `clientes` no existe (M4 vacío) y `reservas` no declara claves foráneas hacia Mesa ni Cliente, aunque la mesa se consulte a M3 por el puente. La integridad referencial la cubre el puente; las FK se agregan con una migración posterior, cuando M3 y M4 estén integrados.
 - Supuesto: S11. Fechas en el frontend: `formatearFecha` (`frontend/src/shared/lib/format.ts`) muestra el día anterior en UTC-3 con fechas `YYYY-MM-DD`. M5 formatea sus fechas dentro del módulo, sin tocar `shared/`, y se avisa al equipo para corregir la función compartida.
 - Supuesto: S12. Insignia de estado: `StatusBadge` no conoce los estados de `EstadoReserva`. M5 asigna el texto y la variante dentro del módulo, sin modificar `shared/`.
@@ -1711,11 +1808,11 @@ Los supuestos S1 a S14 son los de la propuesta, con la misma numeración. S15 en
 - Supuesto: S14. Nombre del atributo: la HU dice «comensales» y el diagrama `cantidadPersonas`. En el código se usa `cantidad_personas` / `cantidadPersonas` (gana el diagrama); en la pantalla dice «Cantidad de personas» (maqueta) o «Personas» en la tabla.
 - Supuesto: S15. Los cuerpos de `ReservaCrear` y `ReservaModificar` prohíben campos extra (como `MesaCrear` de HU-M3-05): `estado` e `id` en el alta, y `mesa_id`, `cliente_id`, `estado` e `id` en la modificación responden 422 en lugar de ignorarse.
 - Supuesto: S16. Formatos y tipos de la API: `fecha` en `YYYY-MM-DD` y `hora` en `HH:MM` (una hora con segundos distintos de cero responde 422; la respuesta siempre usa `HH:MM`). `cantidad_personas`, `mesa_id` y `cliente_id` son enteros estrictos mayores a cero (sin decimales, texto ni booleanos). El formato `DD/MM/AAAA` de S1-07 es solo de pantalla.
-- Supuesto: S17. Orden de validación: el de «Contrato de la API». En el alta: forma (incluido exactamente uno de `cliente_id` o `cliente_nuevo`), existencia de la mesa, mesa fuera de servicio, existencia del cliente (solo con `cliente_id`), fecha, hora, turno libre y, al final, registro del cliente nuevo y guardado (S41). Un dato inválido nunca deja cambios parciales.
+- Supuesto: S17. Orden de validación: el de «Contrato de la API». En el alta: forma (incluido exactamente uno de `cliente_id` o `cliente_nuevo`), existencia de la mesa, mesa fuera de servicio, existencia del cliente (solo con `cliente_id`), fecha, hora, turno libre (sin otra reserva dentro de la ventana de ocupación de la mesa, S69) y, al final, registro del cliente nuevo y guardado (S41). Un dato inválido nunca deja cambios parciales.
 - Supuesto: S18. Los textos de los mensajes de negocio son los de referencia de «Contrato de la API»; el diseño puede ajustar el redactado sin cambiar el código de estado ni la clave `detalle`.
 - Supuesto: S19. `PUT /reservas/{id}` exige los tres campos modificables (`fecha`, `hora`, `cantidad_personas`); no se ofrece una modificación parcial (`PATCH`).
 - Supuesto: S20. Puente y pruebas. El lado Mesa del puente es real y consulta a M3 (S33); una mesa con id positivo ya no existe por el solo hecho de serlo. El lado Cliente también es real y consulta a M4 (S39): un id positivo ya no basta para que el cliente exista. Por eso las pruebas usan un doble de prueba del puente (ver «Convención de los escenarios») con las mesas y los clientes que cada escenario necesita, y los 404 de mesa o de cliente se prueban con el doble o con una implementación alternativa del puente.
-- Supuesto: S21. Un mismo cliente PUEDE tener varias reservas `ACTIVA`, incluso en la misma fecha y hora en mesas distintas. La única regla de conflicto es la de mesa, fecha y hora (diagrama).
+- Supuesto: S21. Un mismo cliente PUEDE tener varias reservas `ACTIVA`, incluso en la misma fecha y hora en mesas distintas. La única regla de conflicto es la de la mesa y su ventana de ocupación (diagrama, S69); el cliente no interviene.
 - Supuesto: S22. En el listado, `estado` distingue mayúsculas y minúsculas (`activa` responde 422, como en `GET /productos` y `GET /secciones`); `fecha` usa `YYYY-MM-DD`; el filtro de fecha acepta cualquier día, también pasado, a diferencia del alta.
 - Supuesto: S23. `ReservaSalida` y la tabla de pantalla traen `mesa_id` y `cliente_id` y no nombres de mesa, sector, cliente ni teléfono. Este cambio no modifica `ReservaSalida` ni la tabla: mostrar el sector y el número de la mesa en el listado queda para un cambio posterior. La tabla muestra «Mesa n.º {mesa_id}» con el `id` interno de la mesa, que puede no coincidir con su `numero` (el selector del alta muestra el sector y el número). La maqueta muestra Cliente, Teléfono y Mesa con texto: la diferencia se anota en el PR.
 - Supuesto: S24. El frontend es una sola pantalla: `ReservasPage` en la ruta `/reservas`, que ya existe. El alta y la edición se abren en un modal sobre esa misma pantalla, con el componente `Dialog` compartido (`frontend/src/shared/components/ui/dialog.tsx`), porque AGENTS.md (sección 5) pide que «los formularios de alta y edición se abren en un modal sobre la misma página», como ya hacen `MesaFormDialog`, `SectorFormDialog`, `ClienteFormDialog`, `ProductoFormDialog` y `MedioPagoFormDialog`. Cambio respecto de la propuesta: la maqueta `SPRINT-2/S2-04-maqueta/reservas.html` muestra el alta y la edición en una página aparte y con un panel lateral, pero esa regla general de AGENTS.md gana sobre la maqueta (AGENTS.md, sección 2: la maqueta tiene la prioridad más baja de todas las fuentes). No se agregan rutas ni se modifica `frontend/src/App.tsx` ni ningún archivo compartido. La edición parte de los datos de la fila, así que el frontend no usa `GET /reservas/{id}` (la ruta existe en el backend porque la pide HU-M5-02).
@@ -1724,7 +1821,7 @@ Los supuestos S1 a S14 son los de la propuesta, con la misma numeración. S15 en
 - Supuesto: S27. Al modificar, el `service` no revalida que la mesa o el cliente existan, porque no cambian, y tampoco consulta al puente. **Nota 2026-11-11: desde S67 la modificación lee la mesa de la reserva con `obtener_mesa` solo para comprobar su capacidad; sigue sin revisar su estado ni al cliente.**
 - Supuesto: S28. «Hoy» y «hora actual» son la fecha y la hora de la zona del restaurante: UTC-3 fija (Argentina no usa horario de verano desde 2009), calculadas a partir del reloj UTC del servidor. No dependen de `TZ` del proceso ni del contenedor. Reemplaza al supuesto anterior, «la hora local del servidor»: el 2026-10-31 se comprobó que Docker corre en UTC sin `TZ`, y eso rechazaba con 422 las reservas de las próximas 3 horas. La zona es una constante del módulo, sin variable de entorno ni dependencia nueva (se usa un desplazamiento fijo y no `zoneinfo`, que necesita la base de zonas del sistema). Las pruebas fijan el reloj para los escenarios con fecha de hoy.
 - Supuesto: S29. La lista de mesas disponibles es una lista simple, sin paginar (no es una `Pagina[T]`). Un selector tiene que mostrar todas las mesas posibles, y un restaurante tiene muchas menos mesas que el tope de una página (100). Por eso la respuesta no trae `total`, `limit` ni `offset`.
-- Supuesto: S30. El estado `OCUPADA` de una mesa no la excluye de la lista ni del alta. `OCUPADA` describe el momento presente (hay clientes sentados ahora) y no dice nada sobre el turno que se reserva para otra fecha u hora. Solo `FUERA_DE_SERVICIO` excluye. Si se reserva para hoy una mesa que ahora está ocupada, se acepta y el salón lo resuelve en el momento.
+- Supuesto: S30. El estado `OCUPADA` de una mesa no la excluye de la lista ni del alta. `OCUPADA` describe el momento presente (hay clientes sentados ahora) y no dice nada sobre el turno que se reserva para otra fecha u hora. Solo `FUERA_DE_SERVICIO` excluye. Si se reserva para hoy una mesa que ahora está ocupada, se acepta y el salón lo resuelve en el momento. Lo mismo vale con la ventana de S69: `OCUPADA` (el estado actual de la mesa en M3) sigue sin excluir una mesa por sí sola; la ocupación de un turno la deciden únicamente las reservas `ACTIVA` y `ATENDIDA` de la ventana, no el estado presente de la mesa.
 - Supuesto: S31. Una mesa fuera de servicio en el alta responde 409 «La mesa {id} está fuera de servicio» y no 422. Se trata como un conflicto con una regla de negocio, igual que la doble reserva (D-25, D-26): los datos enviados están bien formados, pero el estado de la mesa impide la reserva. 422 queda para datos mal formados o fechas y horas pasadas. El issue #61 pide que no se cree la reserva y que se avise; no fija el código.
 - Supuesto: S32. La consulta de mesas disponibles reutiliza las reglas de «no pasado» del alta (S3) con los mismos mensajes 422: un turno que no se podría reservar tampoco tiene mesas disponibles. La consulta de fechas pasadas del listado (S22) es otra cosa y no cambia.
 - Supuesto: S33. El puente lee todas las páginas de `listar_mesas` del `service` de M3 y a partir de esa lectura resuelve `obtener_mesa` y `listar_mesas`. Es lo único que M3 ofrece (páginas de hasta 100, orden por sector, `numero` e `id`, sin filtro por estado ni búsqueda por `id`) y `reservas` no puede cambiar `salon` (AGENTS.md, sección 9.3). Cada alta y cada consulta de mesas disponibles leen todas las mesas; con las decenas de mesas de un restaurante el costo es aceptable. Si M3 agrega una búsqueda por `id` o un filtro por estado, se cambia el cuerpo del puente sin tocar las reglas.
@@ -1740,3 +1837,17 @@ Los supuestos S1 a S14 son los de la propuesta, con la misma numeración. S15 en
 - Supuesto: S43. Selector de cliente del modal. Reservas pide `GET /clientes?q=&limit=` a través de su propio `api.ts` (la ruta de M4 ya existe y es de solo lectura). Los resultados se leen como «Nombre · Teléfono», acotados a la primera página (sin paginar en pantalla; para afinar se sigue escribiendo). La búsqueda empieza con al menos un carácter escrito y espera una breve pausa al tipear (el diseño fija el valor). El modal de edición no cambia el cliente. Fuera de alcance: mostrar el nombre del cliente en la tabla de reservas (S23).
 - Supuesto: S66. Teléfono del cliente nuevo (corrección 2026-11-11, pedido de la responsable del módulo, **pendiente de validación del equipo**). `+` opcional solo al inicio, dígitos, espacios y guiones; entre 6 y 15 dígitos (15 es el máximo de E.164) y hasta 20 caracteres en total; se recortan los espacios de los extremos antes de validar y de guardar. Lo valida el esquema propio `ClienteNuevo` de M5 antes de llamar a M4, porque la regla de M4 (`validar_telefono` de `atencion/schemas.py`, compartida con el alta y la modificación de clientes) no acota el largo ni exige dígitos; M5 no puede cambiar `atencion` (AGENTS.md, sección 9.3), así que la carencia de M4 se avisa a su responsable. Precisa S42 solo para el teléfono. El campo del frontend filtra lo que se escribe y aplica la misma regla y los mismos textos (con «El teléfono …» en lugar de «telefono …»). Los 6, 15 y 20 son valores propuestos, no salen de la HU ni del diagrama.
 - Supuesto: S67. Capacidad de la mesa (corrección 2026-11-11, pedido de la responsable del módulo, **pendiente de validación del equipo**). Revierte S5: `cantidad_personas` no puede superar la capacidad de la mesa, en el alta y en la modificación, con 409 «La mesa {mesa_id} admite hasta {capacidad} personas». El issue #61 todavía dice que no se valida y debe actualizarse (lo hace una persona, no el agente). Orden de validación (precisa S17): en el alta, después de la existencia y del estado de la mesa y antes del cliente; en la modificación, después del estado de la reserva y antes de la fecha y la hora. La capacidad sale de `puente.obtener_mesa`; al modificar se usa la mesa de la reserva y, si M3 ya no la tiene, responde 404 (Supuesto: no hay capacidad contra la cual comparar). Si M3 reduce la capacidad de una mesa con reservas, la próxima modificación de esa reserva debe ajustar la cantidad. En el frontend, el alta valida contra la capacidad de la mesa elegida (el selector ya la conoce); la edición no, porque la fila no la trae, y muestra el 409 de la API como error general del modal.
+- Supuesto: S69. Ventana de ocupación de la mesa (reemplaza al «no se modela duración» de S4). Toda reserva `ACTIVA` o `ATENDIDA` ocupa su mesa durante una ventana fija de 2 horas que empieza en su `hora`; `CANCELADA_ANTICIPADA` y `CANCELADA_POR_AUSENCIA` no cuentan. Una reserva nueva en la mesa M, en el instante T (`fecha` y `hora` combinadas), choca con otra de M en el instante E si |T − E| < 2 horas (comparación estricta): las 21:00 chocan con las 22:59 y no con las 23:00, y lo mismo hacia atrás (las 19:01 chocan con las 21:00; las 19:00 no). La comparación usa instantes reales y se miran las reservas del día anterior, del mismo día y del siguiente, así que las 23:30 del día D chocan con las 00:30 del día D+1. La duración vive en una sola constante (`VENTANA_DE_OCUPACION`, en el `service`) y el `repository` la recibe como parámetro, sin importar nada del `service`. Hay una sola definición de «mesa ocupada»: la usan el alta, la modificación y `GET /reservas/mesas-disponibles`, de modo que la lista nunca ofrece una mesa que el alta rechazaría. Error: 409 «La mesa {mesa_id} ya tiene una reserva el {fecha} a las {hora}; cada reserva ocupa la mesa 2 horas», con la fecha y la hora de la reserva que conflicta; el 2 sale de la constante. Modificación: se excluye la propia reserva y la ventana se revisa solo si cambian `fecha` u `hora`, para no bloquear la edición de otros datos (por ejemplo `cantidad_personas`) en una reserva que ya se superponía con otra por datos anteriores a esta regla; la mesa no cambia (S27). Una reserva `ATENDIDA` cuenta porque el cliente sigue sentado en la mesa durante su ventana, aunque la reserva ya no esté `ACTIVA`. La duración de 2 horas es un valor único para todas las mesas, sectores y cantidades de personas, y no figura en la HU ni en el diagrama de clases: el equipo tiene que validarla. Límite conocido: el índice único parcial de la base solo protege el turno exacto (misma mesa, fecha y hora, reserva `ACTIVA`); si dos solicitudes simultáneas piden turnos distintos que se superponen, la verificación previa de cada una puede no ver a la otra y las dos pueden guardarse. En SQLite, que ejecuta una escritura a la vez, el margen es angosto, pero no hay un bloqueo por mesa ni una restricción de la base para la ventana, y esta spec no los agrega (no hay migración ni cambio de modelo). El frontend no cambia: el selector ya consume `mesas-disponibles` y muestra el `detalle` del servidor.
+
+## Adenda 2026-11-12
+
+Ocupación de la mesa por ventana de 2 horas, a pedido expreso del responsable del módulo M5. Esta adenda **revierte S4**: hasta ahora una mesa solo chocaba con otra reserva `ACTIVA` en exactamente la misma `fecha` y `hora`, y «no se modela duración». Desde ahora rige S69:
+
+- Toda reserva `ACTIVA` o `ATENDIDA` ocupa su mesa 2 horas desde su `hora` (comparación estricta, también entre un día y el siguiente); las canceladas no cuentan.
+- El alta, la modificación y `GET /reservas/mesas-disponibles` comparten una sola definición de «mesa ocupada»; la duración está en una constante única y el `repository` la recibe como parámetro.
+- El 409 pasa a decir «La mesa {mesa_id} ya tiene una reserva el {fecha} a las {hora}; cada reserva ocupa la mesa 2 horas», con la fecha y la hora de la reserva que conflicta. El mensaje se arma en un solo lugar y lo comparten la verificación previa y la carrera por el índice único (R13).
+- La modificación revisa la ventana solo si cambian `fecha` u `hora`, y la propia reserva no cuenta.
+- El estado `OCUPADA` de la mesa en M3 (S30) sigue sin excluir una mesa por sí solo.
+- Sin migración, sin cambio de modelo y sin cambio de frontend; el índice único parcial queda como está y sigue siendo la defensa del turno exacto. El límite conocido de las solicitudes simultáneas con turnos superpuestos pero distintos está en S69.
+- Alcance de las reescrituras: S4, S7, S9, S17, S21 y S30 cambian de texto sin cambiar de número; se agrega S69. Se numeró S69 y no el siguiente de este archivo (S68) para evitar el choque con el supuesto S68 del PR #243, que sigue abierto y lo agrega en otro cambio. En este archivo el último número anterior es S67 (S66 y S67 llegaron con el PR #240); S44 a S65 están en los cambios hermanos de M5.
+- Todo lo anterior es un `Supuesto:` para que el equipo lo valide (AGENTS.md, sección 9.2).
