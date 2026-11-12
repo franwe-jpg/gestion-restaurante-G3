@@ -14,6 +14,8 @@ from app.modules.atencion.schemas import EntregaDetalle
 from app.modules.menus import service as menus_service
 from app.modules.menus.schemas import PromocionCrear
 from app.modules.pagos.models import Cobro, DetalleFactura, Factura, MedioPago
+from app.modules.salon import service as salon_service
+from app.modules.salon.schemas import MozoCrear
 from app.shared.contratos.comanda import ComandaCrear, DetalleComandaCrear, EstadoComanda
 from app.shared.models import Estado
 from tests.modules.pagos.conftest import Catalogo, FabricaComanda, FabricaMedioPago
@@ -585,10 +587,12 @@ def test_previsualizar_factura_de_comanda_con_promocion_conserva_el_descuento(
             }
         ),
     )
+    mozo = salon_service.crear_mozo(db, MozoCrear(dni="30123456", nombre="Ana", apellido="Paz"))
     comanda = atencion_service.crear_comanda(
         db,
         ComandaCrear(
             mesa_id=catalogo.mesa_id,
+            mozo_id=mozo.id,
             detalles=[DetalleComandaCrear(producto_id=catalogo.plato_id, cantidad=2)],
         ),
         MesasDeSalon(),

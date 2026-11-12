@@ -143,6 +143,7 @@ class FiltroMozos(ParametrosPaginacion):
     """Paginación y filtro de GET /mozos: `estado` viaja dentro del mismo modelo."""
 
     estado: Estado | None = None
+    q: str | None = None
 
 
 class LineaReporteMozo(BaseModel):

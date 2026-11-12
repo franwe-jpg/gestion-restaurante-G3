@@ -18,6 +18,7 @@ const pagina = <T,>(items: T[]) => ({
 const COMANDA = {
   id: 3,
   mesa_id: 7,
+  mozo_id: null,
   estado: 'ABIERTA' as const,
   fecha_hora: '2026-10-31T12:30:00Z',
   detalles: [

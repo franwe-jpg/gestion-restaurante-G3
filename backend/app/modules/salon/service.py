@@ -281,16 +281,29 @@ def dar_de_baja_mozo(db: Session, mozo_id: int) -> MozoSalida:
 
 
 def listar_mozos(
-    db: Session, parametros: ParametrosPaginacion, estado: Estado | None = None
+    db: Session,
+    parametros: ParametrosPaginacion,
+    estado: Estado | None = None,
+    q: str | None = None,
 ) -> Pagina[MozoSalida]:
     """Listado paginado de mozos; con `estado=HABILITADO` son los disponibles (HU-M3-12)."""
-    mozos, total = repository.listar_mozos(db, parametros, estado)
+    mozos, total = repository.listar_mozos(db, parametros, estado, q)
     return Pagina[MozoSalida](
         items=[MozoSalida.model_validate(mozo) for mozo in mozos],
         total=total,
         limit=parametros.limit,
         offset=parametros.offset,
     )
+
+
+def validar_mozo_habilitado(db: Session, mozo_id: int) -> MozoSalida:
+    """Valida que el mozo exista y esté habilitado para una comanda nueva."""
+    mozo = repository.obtener_mozo(db, mozo_id)
+    if mozo is None:
+        raise NoEncontradoError(f"El mozo {mozo_id} no existe")
+    if mozo.estado != Estado.HABILITADO:
+        raise ReglaDeNegocioError(f"El mozo {mozo_id} está deshabilitado")
+    return MozoSalida.model_validate(mozo)
 
 
 def generar_reporte_mozos(

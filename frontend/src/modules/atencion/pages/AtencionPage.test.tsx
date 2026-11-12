@@ -16,6 +16,8 @@ vi.mock('../api', () => ({
   listarClientes: vi.fn(),
   modificarCliente: vi.fn(),
   listarMesas: vi.fn(),
+  listarMozosHabilitados: vi.fn(),
+  listarTodosMozos: vi.fn(),
   listarProductos: vi.fn(),
   listarMenusEjecutivos: vi.fn(),
 }));
@@ -42,6 +44,7 @@ function renderEn(ruta: string) {
 const COMANDA = {
   id: 3,
   mesa_id: 7,
+  mozo_id: 31,
   estado: 'ABIERTA' as const,
   fecha_hora: '2026-10-31T12:30:00Z',
 };
@@ -68,6 +71,14 @@ beforeEach(() => {
       { id: 5, nombre: 'Menú del día', precio_fijo: '12000.00', estado: 'HABILITADO' as const },
     ]),
   );
+  vi.mocked(api.listarMozosHabilitados).mockResolvedValue({
+    exito: true,
+    datos: [{ id: 31, nombre: 'Lucía', apellido: 'Fernández', estado: 'HABILITADO' as const }],
+  });
+  vi.mocked(api.listarTodosMozos).mockResolvedValue({
+    exito: true,
+    datos: [{ id: 31, nombre: 'Lucía', apellido: 'Fernández', estado: 'HABILITADO' as const }],
+  });
   vi.mocked(api.listarComandas).mockResolvedValue({ exito: true, datos: PAGINA });
   vi.mocked(api.listarClientes).mockResolvedValue({
     exito: true,
@@ -173,6 +184,9 @@ it('crea un pedido eligiendo mesa y producto de los selectores', async () => {
   render(<AtencionPage />);
   fireEvent.click(screen.getByRole('button', { name: 'Nueva comanda' }));
   await screen.findByRole('option', { name: 'Mesa 7 · Salón' });
+  const selectorMozo = screen.getByRole('combobox', { name: /^Mozo/ });
+  fireEvent.change(selectorMozo, { target: { value: 'Lucía' } });
+  fireEvent.click(await screen.findByRole('option', { name: 'Lucía Fernández' }));
   fireEvent.change(screen.getByLabelText('Mesa'), { target: { value: '7' } });
   fireEvent.change(screen.getByLabelText('Producto 1'), { target: { value: '12' } });
   fireEvent.change(screen.getByLabelText('Cantidad 1'), { target: { value: '2' } });
@@ -180,6 +194,7 @@ it('crea un pedido eligiendo mesa y producto de los selectores', async () => {
   await waitFor(() =>
     expect(api.crearComanda).toHaveBeenCalledWith({
       mesa_id: 7,
+      mozo_id: 31,
       observaciones: null,
       detalles: [{ producto_id: 12, menu_ejecutivo_id: null, cantidad: 2 }],
     }),
@@ -196,6 +211,9 @@ it('informa integración no disponible sin simular una creación', async () => {
   render(<AtencionPage />);
   fireEvent.click(screen.getByRole('button', { name: 'Nueva comanda' }));
   await screen.findByRole('option', { name: 'Mesa 7 · Salón' });
+  const selectorMozo = screen.getByRole('combobox', { name: /^Mozo/ });
+  fireEvent.change(selectorMozo, { target: { value: 'Lucía' } });
+  fireEvent.click(await screen.findByRole('option', { name: 'Lucía Fernández' }));
   fireEvent.change(screen.getByLabelText('Mesa'), { target: { value: '7' } });
   fireEvent.change(screen.getByLabelText('Producto 1'), { target: { value: '12' } });
   fireEvent.click(screen.getByRole('button', { name: 'Guardar comanda' }));
@@ -369,7 +387,7 @@ it('confirma anulación, informa éxito y recarga conservando la fila histórica
   await waitFor(() => expect(api.anularComanda).toHaveBeenCalledWith(3));
   expect(await screen.findByText('Comanda anulada')).toBeInTheDocument();
   expect(await screen.findByText('Comanda #3')).toBeInTheDocument();
-  expect(api.listarComandas).toHaveBeenCalledTimes(2);
+  await waitFor(() => expect(api.listarComandas).toHaveBeenCalledTimes(2));
 });
 
 it('muestra el motivo de rechazo al anular y recarga el estado actual', async () => {
@@ -388,7 +406,7 @@ it('muestra el motivo de rechazo al anular y recarga el estado actual', async ()
   fireEvent.click(screen.getByRole('button', { name: 'Anular comanda' }));
   expect(await screen.findByText('No se puede anular porque está facturada')).toBeInTheDocument();
   expect(screen.queryByText('Comanda anulada')).not.toBeInTheDocument();
-  expect(api.listarComandas).toHaveBeenCalledTimes(2);
+  await waitFor(() => expect(api.listarComandas).toHaveBeenCalledTimes(2));
 });
 
 it('ante fallo de consulta de entregas no habilita la confirmación', async () => {
@@ -429,6 +447,9 @@ it('impide cantidades fraccionarias y admite varias líneas de producto y menú'
   render(<AtencionPage />);
   fireEvent.click(screen.getByRole('button', { name: 'Nueva comanda' }));
   await screen.findByRole('option', { name: 'Mesa 7 · Salón' });
+  const selectorMozo = screen.getByRole('combobox', { name: /^Mozo/ });
+  fireEvent.change(selectorMozo, { target: { value: 'Lucía' } });
+  fireEvent.click(await screen.findByRole('option', { name: 'Lucía Fernández' }));
   fireEvent.change(screen.getByLabelText('Mesa'), { target: { value: '7' } });
   fireEvent.change(screen.getByLabelText('Producto 1'), { target: { value: '12' } });
   fireEvent.change(screen.getByLabelText('Cantidad 1'), { target: { value: '1.5' } });
@@ -442,6 +463,7 @@ it('impide cantidades fraccionarias y admite varias líneas de producto y menú'
   await waitFor(() =>
     expect(api.crearComanda).toHaveBeenCalledWith({
       mesa_id: 7,
+      mozo_id: 31,
       observaciones: null,
       detalles: [
         { producto_id: 12, menu_ejecutivo_id: null, cantidad: 2 },
