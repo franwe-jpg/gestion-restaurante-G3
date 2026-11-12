@@ -90,3 +90,10 @@ Los fallos iniciales de llamadas de prueba con paths relativos desde la raíz y 
 - Resultado: no se encontró incompatibilidad de producción ni fue necesario modificar código ajeno; 4.4 queda completada.
 
 La cobertura de la Safety Net previa para varios tests UI existentes no se registró antes de editar sus archivos. Sí se ejecutaron al final todos los tests enfocados listados arriba; no se afirma una baseline previa inexistente.
+
+## Seguimiento de fallos de CI del flujo M5→M4
+
+- El PR #244 reportó 14 fallos de Vitest en `ReservasPage.test.tsx` y `useComandaDesdeReserva.test.tsx`. En la página, `listarMozosHabilitados` no estaba configurado en el mock de API y devolvía `undefined`; en las pruebas unitarias del hook se intentaba enviar una comanda sin seleccionar el Mozo requerido.
+- Se añadió una respuesta habilitada realista al mock de página, las pruebas de envío seleccionan el mozo 31, y las expectativas del cuerpo ahora incluyen `mozo_id`. No se relajó la validación de producción.
+- Reejecución enfocada de ambos archivos: `npm exec vitest -- run src/modules/reservas/pages/ReservasPage.test.tsx src/modules/reservas/components/useComandaDesdeReserva.test.tsx` → **51 passed**.
+- GitHub Actions reportó los dos jobs backend como aprobados en el HEAD inspeccionado. La verificación local completa `npm run test:coverage` se interrumpió al superar 180 s y mostró timeouts adicionales fuera de esos dos archivos; no se obtuvo un resultado global de cobertura.
