@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as api from '../api';
-import { cargarCatalogo, nombreDeDetalle } from './catalogoComanda';
+import { buscarMozos, cargarCatalogo, nombreDeDetalle } from './catalogoComanda';
 
 vi.mock('../api', () => ({
+  listarMozosHabilitados: vi.fn(),
+  listarTodosMozos: vi.fn(),
   listarMesas: vi.fn(),
   listarProductos: vi.fn(),
   listarMenusEjecutivos: vi.fn(),
@@ -34,6 +36,20 @@ beforeEach(() => {
       { id: 22, nombre: 'Menú viejo', precio_fijo: '10000.00', estado: 'DESHABILITADO' },
     ]),
   );
+  vi.mocked(api.listarMozosHabilitados).mockResolvedValue({
+    exito: true,
+    datos: [
+      { id: 31, nombre: 'Lucía', apellido: 'Paz', estado: 'HABILITADO' },
+      { id: 32, nombre: 'Juan', apellido: 'Ríos', estado: 'DESHABILITADO' },
+    ],
+  });
+  vi.mocked(api.listarTodosMozos).mockResolvedValue({
+    exito: true,
+    datos: [
+      { id: 31, nombre: 'Lucía', apellido: 'Paz', estado: 'HABILITADO' },
+      { id: 32, nombre: 'Juan', apellido: 'Ríos', estado: 'DESHABILITADO' },
+    ],
+  });
 });
 
 describe('cargarCatalogo', () => {
@@ -49,6 +65,22 @@ describe('cargarCatalogo', () => {
     const r = await cargarCatalogo(false);
     expect(api.listarMesas).not.toHaveBeenCalled();
     expect(r.datos?.mesasLibres).toEqual([]);
+  });
+
+  it('carga mozos solo cuando se solicita y expone únicamente los habilitados', async () => {
+    const r = await cargarCatalogo(false, true);
+
+    expect(api.listarMozosHabilitados).toHaveBeenCalledOnce();
+    expect(r.datos?.mozos).toEqual([
+      { id: 31, nombre: 'Lucía', apellido: 'Paz', estado: 'HABILITADO' },
+    ]);
+  });
+
+  it('incluye mozos deshabilitados al resolver nombres para comandas históricas', async () => {
+    const r = await cargarCatalogo(false, true, true, true);
+
+    expect(api.listarTodosMozos).toHaveBeenCalledOnce();
+    expect(r.datos?.mozos.map((mozo) => mozo.estado)).toEqual(['HABILITADO', 'DESHABILITADO']);
   });
 
   it('propaga el error de la primera lista que falla', async () => {
@@ -78,4 +110,14 @@ describe('nombreDeDetalle', () => {
     expect(nombreDeDetalle(todos.nombres, det(99, null))).toBe('Producto #99');
     expect(nombreDeDetalle(todos.nombres, det(null, 98))).toBe('Menú #98');
   });
+});
+
+it('busca por nombre y apellido y descarta mozos deshabilitados', () => {
+  const mozos = [
+    { id: 1, nombre: 'Lucía', apellido: 'Fernández', estado: 'HABILITADO' as const },
+    { id: 2, nombre: 'Juan', apellido: 'Lucero', estado: 'HABILITADO' as const },
+    { id: 3, nombre: 'Lucía', apellido: 'Paz', estado: 'DESHABILITADO' as const },
+  ];
+
+  expect(buscarMozos(mozos, 'luc')).toEqual(mozos.slice(0, 2));
 });

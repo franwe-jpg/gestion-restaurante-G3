@@ -1,6 +1,6 @@
 """salon: acceso a datos. Nunca confirma la transaccion: lo hace el service (D-10)."""
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.modules.salon.models import Mesa, Mozo, Sector
@@ -86,7 +86,7 @@ def obtener_mozo(db: Session, mozo_id: int) -> Mozo | None:
 
 
 def listar_mozos(
-    db: Session, parametros: ParametrosPaginacion, estado: Estado | None
+    db: Session, parametros: ParametrosPaginacion, estado: Estado | None, q: str | None = None
 ) -> tuple[list[Mozo], int]:
     """Devuelve la página de mozos ordenada por apellido y nombre, y el total.
 
@@ -95,6 +95,14 @@ def listar_mozos(
     consulta = select(Mozo)
     if estado is not None:
         consulta = consulta.where(Mozo.estado == estado)
+    if q and q.strip():
+        termino = q.strip()
+        consulta = consulta.where(
+            or_(
+                Mozo.nombre.contains(termino, autoescape=True),
+                Mozo.apellido.contains(termino, autoescape=True),
+            )
+        )
     consulta_ordenada = consulta.order_by(Mozo.apellido, Mozo.nombre, Mozo.id)
     filas = db.scalars(aplicar(consulta_ordenada, parametros)).all()
     return list(filas), contar(db, consulta)

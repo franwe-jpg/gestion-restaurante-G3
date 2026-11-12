@@ -59,6 +59,7 @@ class CatalogoPrueba:
 def pedido(comanda) -> ComandaCrear:
     return ComandaCrear(
         mesa_id=2,
+        mozo_id=1,
         observaciones="No salt",
         detalles=[DetalleComandaCrear(producto_id=1, cantidad=2)],
     )

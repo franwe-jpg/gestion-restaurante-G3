@@ -32,6 +32,7 @@ class DetalleComandaCrear(BaseModel):
 
 class ComandaCrear(BaseModel):
     mesa_id: StrictInt = Field(gt=0)
+    mozo_id: StrictInt = Field(gt=0)
     detalles: list[DetalleComandaCrear] = Field(min_length=1)
     observaciones: str | None = None
 
@@ -51,6 +52,7 @@ class DetalleComandaSalida(DetalleComandaCrear):
 class ComandaResumen(BaseModel):
     id: int
     mesa_id: int
+    mozo_id: int | None = None
     estado: EstadoComanda
     fecha_hora: datetime
 

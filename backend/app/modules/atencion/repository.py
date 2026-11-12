@@ -24,6 +24,7 @@ def crear_comanda(
 ) -> Comanda:
     comanda = Comanda(
         mesa_id=datos.mesa_id,
+        mozo_id=datos.mozo_id,
         reserva_id=reserva_id,
         observaciones=datos.observaciones,
         estado=EstadoComanda.ABIERTA,

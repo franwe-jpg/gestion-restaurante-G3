@@ -30,6 +30,7 @@ it('crea usando el cuerpo de entrada S2-01 sin importes ni fecha arbitrarios', a
   const post = vi.spyOn(clienteHttp, 'post').mockResolvedValue({ exito: true, datos: null });
   const datos = {
     mesa_id: 7,
+    mozo_id: 31,
     detalles: [{ producto_id: 12, menu_ejecutivo_id: null, cantidad: 2 }],
     observaciones: null,
   };
@@ -93,4 +94,63 @@ it('lista mesas, productos (todos) y menús con límite 100 para los selectores'
   expect(get).toHaveBeenCalledWith('/mesas?limit=100');
   expect(get).toHaveBeenCalledWith('/productos?estado=TODOS&limit=100');
   expect(get).toHaveBeenCalledWith('/menus-ejecutivos?limit=100');
+});
+
+it('agrega todas las páginas del listado público de mozos habilitados', async () => {
+  const mozos = Array.from({ length: 100 }, (_, indice) => ({
+    id: indice + 1,
+    nombre: `Mozo ${indice + 1}`,
+    apellido: 'Paz',
+    estado: 'HABILITADO' as const,
+  }));
+  const get = vi
+    .spyOn(clienteHttp, 'get')
+    .mockResolvedValueOnce({
+      exito: true,
+      datos: { items: mozos, total: 101, limit: 100, offset: 0 },
+    })
+    .mockResolvedValueOnce({
+      exito: true,
+      datos: {
+        items: [{ id: 101, nombre: 'Lucía', apellido: 'Ríos', estado: 'HABILITADO' }],
+        total: 101,
+        limit: 100,
+        offset: 100,
+      },
+    });
+
+  const respuesta = await api.listarMozosHabilitados();
+
+  expect(respuesta.exito).toBe(true);
+  expect(respuesta.datos).toHaveLength(101);
+  expect(get.mock.calls.map(([ruta]) => ruta)).toEqual([
+    '/mozos?estado=HABILITADO&limit=100&offset=0',
+    '/mozos?estado=HABILITADO&limit=100&offset=100',
+  ]);
+});
+
+it('consulta el listado público paginado sin filtro de estado para resolver nombres históricos', async () => {
+  const mozo = { id: 4, nombre: 'Juan', apellido: 'Ríos', estado: 'DESHABILITADO' as const };
+  const get = vi.spyOn(clienteHttp, 'get').mockResolvedValue({
+    exito: true,
+    datos: { items: [mozo], total: 1, limit: 100, offset: 0 },
+  });
+
+  const respuesta = await api.listarTodosMozos();
+
+  expect(respuesta).toEqual({ exito: true, datos: [mozo] });
+  expect(get).toHaveBeenCalledWith('/mozos?limit=100&offset=0');
+});
+
+it('envía la búsqueda al filtro paginado público de mozos habilitados', async () => {
+  const get = vi.spyOn(clienteHttp, 'get').mockResolvedValue({
+    exito: true,
+    datos: { items: [], total: 0, limit: 100, offset: 0 },
+  });
+
+  await api.listarMozosHabilitados('Lucía Ríos');
+
+  expect(get).toHaveBeenCalledWith(
+    '/mozos?estado=HABILITADO&q=Luc%C3%ADa+R%C3%ADos&limit=100&offset=0',
+  );
 });

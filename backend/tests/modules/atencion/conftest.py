@@ -14,7 +14,7 @@ from app.modules.menus.schemas import MenuEjecutivoCrear
 from app.modules.productos import service as productos_service
 from app.modules.productos.schemas import PlatoCrear, SeccionCrear
 from app.modules.salon import service as salon_service
-from app.modules.salon.schemas import MesaCrear, SectorCrear
+from app.modules.salon.schemas import MesaCrear, MozoCrear, SectorCrear
 from app.shared.contratos.comanda import EstadoComanda, EstadoEntrega
 
 
@@ -30,6 +30,12 @@ def comanda(db: Session) -> Comanda:
         text(
             "INSERT INTO mesas (id, numero, capacidad, sector_id, estado) "
             "VALUES (1, 1, 4, 1, 'OCUPADA'), (2, 2, 4, 1, 'LIBRE')"
+        )
+    )
+    db.execute(
+        text(
+            "INSERT INTO mozos (id, dni, nombre, apellido, estado) "
+            "VALUES (1, '30123456', 'Ana', 'Paz', 'HABILITADO')"
         )
     )
     db.execute(
@@ -96,6 +102,7 @@ class Salon:
     mesa_id: int
     plato_id: int
     menu_id: int
+    mozo_id: int
 
 
 @pytest.fixture
@@ -122,7 +129,11 @@ def salon(db: Session) -> Salon:
             seccion_id=seccion.id,
         ),
     )
-    return Salon(mesa_id=mesa.id, plato_id=plato.id, menu_id=menu.id)
+    mozo = salon_service.crear_mozo(
+        db,
+        MozoCrear(dni="30123456", nombre="Ana", apellido="Paz"),
+    )
+    return Salon(mesa_id=mesa.id, plato_id=plato.id, menu_id=menu.id, mozo_id=mozo.id)
 
 
 @pytest.fixture
