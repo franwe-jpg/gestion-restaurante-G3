@@ -473,7 +473,7 @@ describe('ReservaFormDialog: envío', () => {
 
 describe('ReservaFormDialog: errores del servidor', () => {
   it.each([
-    'La mesa 5 ya tiene una reserva activa el 2026-11-02 a las 21:30',
+    'La mesa 5 ya tiene una reserva el 2026-11-02 a las 21:30; cada reserva ocupa la mesa 2 horas',
     'La mesa 99 no existe',
     'La fecha de la reserva no puede ser anterior a hoy',
   ])('muestra «%s» como error general y conserva los datos', async (detalle) => {
@@ -580,7 +580,8 @@ describe('ReservaFormDialog: errores de la API con un cliente nuevo', () => {
   });
 
   it('el 409 con un cliente nuevo es un error general y conserva Nombre y Teléfono', async () => {
-    const detalle = 'La mesa 5 ya tiene una reserva activa el 2026-11-03 a las 21:30';
+    const detalle =
+      'La mesa 5 ya tiene una reserva el 2026-11-03 a las 21:30; cada reserva ocupa la mesa 2 horas';
     vi.mocked(crearReserva).mockResolvedValue({ datos: null, exito: false, error: detalle });
     abrir();
     await completar({ cliente: 'nuevo' });
@@ -738,7 +739,8 @@ describe('ReservaFormDialog: guarda del guardado vigente (S38)', () => {
       {
         datos: null,
         exito: false,
-        error: 'La mesa 5 ya tiene una reserva activa el 2026-11-03 a las 21:30',
+        error:
+          'La mesa 5 ya tiene una reserva el 2026-11-03 a las 21:30; cada reserva ocupa la mesa 2 horas',
       } as RespuestaApi<Reserva>,
     ],
   ])(
@@ -764,7 +766,7 @@ describe('ReservaFormDialog: guarda del guardado vigente (S38)', () => {
 
 describe('ReservaFormDialog: errores de la edición', () => {
   it.each([
-    'La mesa 5 ya tiene una reserva activa el 2026-11-03 a las 21:30',
+    'La mesa 5 ya tiene una reserva el 2026-11-03 a las 21:30; cada reserva ocupa la mesa 2 horas',
     'La reserva 12 no está activa y no se puede modificar',
     'La reserva 12 no existe',
   ])('muestra «%s» como error general y deja el panel abierto', async (detalle) => {

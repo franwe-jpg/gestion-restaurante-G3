@@ -30,7 +30,11 @@ CUERPO = {
 }
 CLIENTE_NUEVO = {"nombre": "Luis Gómez", "telefono": "+54 280 1234567"}
 SIN_CLIENTE = {k: v for k, v in CUERPO.items() if k != "cliente_id"}
-TURNO_OCUPADO = "La mesa 5 ya tiene una reserva activa el 2026-11-02 a las 21:30"
+# S69: una reserva ACTIVA o ATENDIDA ocupa la mesa 2 horas desde su hora; el mensaje nombra la
+# reserva que conflicta, no el turno pedido.
+TURNO_OCUPADO = (
+    "La mesa 5 ya tiene una reserva el 2026-11-02 a las 21:30; cada reserva ocupa la mesa 2 horas"
+)
 
 
 def _cantidad_reservas(db: Session) -> int:
@@ -76,6 +80,54 @@ def test_post_reservas_turno_ocupado_devuelve_409_con_detalle(
 
     assert respuesta.status_code == 409
     assert respuesta.json() == {"detalle": TURNO_OCUPADO}
+    assert _cantidad_reservas(db) == 1
+
+
+# S69: dentro de las 2 horas de otra reserva de la mesa tambien es 409, con la hora de la otra
+@pytest.mark.parametrize(
+    "hora", ["19:31", "21:31", "23:29"], ids=["119-antes", "1-despues", "119-despues"]
+)
+def test_post_reservas_turno_dentro_de_la_ventana_devuelve_409_con_detalle(
+    cliente: TestClient, db: Session, fabrica_reserva, hora: str
+) -> None:
+    fabrica_reserva(mesa_id=5, fecha=date(2026, 11, 2), hora=time(21, 30))
+
+    respuesta = cliente.post(RUTA, json=CUERPO | {"hora": hora})
+
+    assert respuesta.status_code == 409
+    assert respuesta.json() == {"detalle": TURNO_OCUPADO}
+    assert _cantidad_reservas(db) == 1
+
+
+# S69: la ventana es estricta: justo a 2 horas de la otra reserva, antes o despues, se acepta
+@pytest.mark.parametrize("hora", ["19:30", "23:30"], ids=["120-antes", "120-despues"])
+def test_post_reservas_turno_justo_a_dos_horas_devuelve_201(
+    cliente: TestClient, db: Session, fabrica_reserva, hora: str
+) -> None:
+    fabrica_reserva(mesa_id=5, fecha=date(2026, 11, 2), hora=time(21, 30))
+
+    respuesta = cliente.post(RUTA, json=CUERPO | {"hora": hora})
+
+    assert respuesta.status_code == 201
+    assert respuesta.json()["hora"] == hora
+    assert _cantidad_reservas(db) == 2
+
+
+# S69: la ventana cruza la medianoche y una reserva ATENDIDA tambien ocupa la mesa
+def test_post_reservas_turno_del_dia_siguiente_dentro_de_la_ventana_devuelve_409(
+    cliente: TestClient, db: Session, fabrica_reserva
+) -> None:
+    fabrica_reserva(
+        mesa_id=5, fecha=date(2026, 11, 2), hora=time(23, 30), estado=EstadoReserva.ATENDIDA
+    )
+
+    respuesta = cliente.post(RUTA, json=CUERPO | {"fecha": "2026-11-03", "hora": "00:30"})
+
+    assert respuesta.status_code == 409
+    assert respuesta.json() == {
+        "detalle": "La mesa 5 ya tiene una reserva el 2026-11-02 a las 23:30; "
+        "cada reserva ocupa la mesa 2 horas"
+    }
     assert _cantidad_reservas(db) == 1
 
 
@@ -488,7 +540,7 @@ def test_put_reserva_no_activa_devuelve_409(cliente: TestClient, fabrica_reserva
 # CA 4
 def test_put_reserva_turno_ocupado_devuelve_409(cliente: TestClient, fabrica_reserva) -> None:
     _ocupar_turno(fabrica_reserva)
-    otra = _ocupar_turno(fabrica_reserva, hora=time(22, 0))
+    otra = _ocupar_turno(fabrica_reserva, hora=time(23, 30))
 
     respuesta = cliente.put(
         f"{RUTA}/{otra.id}", json=CUERPO_PUT | {"fecha": "2026-11-02", "hora": "21:30"}
@@ -496,6 +548,59 @@ def test_put_reserva_turno_ocupado_devuelve_409(cliente: TestClient, fabrica_res
 
     assert respuesta.status_code == 409
     assert respuesta.json() == {"detalle": TURNO_OCUPADO}
+
+
+# S69: mover la reserva a un turno que cae dentro de las 2 horas de otra tambien es 409
+def test_put_reserva_turno_dentro_de_la_ventana_devuelve_409(
+    cliente: TestClient, fabrica_reserva
+) -> None:
+    _ocupar_turno(fabrica_reserva)
+    otra = _ocupar_turno(fabrica_reserva, fecha=date(2026, 11, 3))
+
+    respuesta = cliente.put(
+        f"{RUTA}/{otra.id}", json=CUERPO_PUT | {"fecha": "2026-11-02", "hora": "22:30"}
+    )
+
+    assert respuesta.status_code == 409
+    assert respuesta.json() == {"detalle": TURNO_OCUPADO}
+    assert cliente.get(f"{RUTA}/{otra.id}").json()["fecha"] == "2026-11-03"
+
+
+# S69: justo a 2 horas de otra reserva se acepta; la propia reserva no cuenta contra si misma
+def test_put_reserva_justo_a_dos_horas_y_dentro_de_su_propia_ventana_devuelve_200(
+    cliente: TestClient, fabrica_reserva
+) -> None:
+    _ocupar_turno(fabrica_reserva)
+    otra = _ocupar_turno(fabrica_reserva, fecha=date(2026, 11, 3))
+    propia = _ocupar_turno(fabrica_reserva, mesa_id=6)
+
+    a_dos_horas = cliente.put(
+        f"{RUTA}/{otra.id}", json=CUERPO_PUT | {"fecha": "2026-11-02", "hora": "23:30"}
+    )
+    dentro_de_su_ventana = cliente.put(
+        f"{RUTA}/{propia.id}", json=CUERPO_PUT | {"fecha": "2026-11-02", "hora": "22:30"}
+    )
+
+    assert a_dos_horas.status_code == 200
+    assert a_dos_horas.json()["hora"] == "23:30"
+    assert dentro_de_su_ventana.status_code == 200
+    assert dentro_de_su_ventana.json()["hora"] == "22:30"
+
+
+# S69: la ventana solo se revisa si cambian fecha u hora; la superposicion de antes no bloquea
+def test_put_reserva_sin_cambiar_fecha_ni_hora_con_superposicion_previa_devuelve_200(
+    cliente: TestClient, fabrica_reserva
+) -> None:
+    _ocupar_turno(fabrica_reserva)
+    otra = _ocupar_turno(fabrica_reserva, hora=time(22, 0))  # ya se superpone con la primera
+
+    respuesta = cliente.put(
+        f"{RUTA}/{otra.id}",
+        json=CUERPO_PUT | {"fecha": "2026-11-02", "hora": "22:00", "cantidad_personas": 6},
+    )
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["cantidad_personas"] == 6
 
 
 # CA 3
@@ -584,6 +689,32 @@ def test_get_mesas_disponibles_no_se_confunde_con_la_consulta_por_id(
     assert no_numerico.status_code == 422
     assert por_id.status_code == 200
     assert por_id.json() == creada
+
+
+# S69: la lista usa la misma ventana de 2 horas que el alta: no ofrece una mesa que el alta rechaza
+@pytest.mark.parametrize("estado", [EstadoReserva.ACTIVA, EstadoReserva.ATENDIDA])
+def test_get_mesas_disponibles_excluye_la_mesa_con_reserva_dentro_de_la_ventana(
+    cliente: TestClient, fabrica_reserva, estado: EstadoReserva
+) -> None:
+    fabrica_reserva(mesa_id=5, fecha=date(2026, 11, 2), hora=time(22, 30), estado=estado)
+
+    lista = cliente.get(RUTA_MESAS, params=TURNO)
+    alta = cliente.post(RUTA, json=CUERPO)
+
+    assert _ids_de_mesas(lista) == [6]
+    assert alta.status_code == 409
+
+
+def test_get_mesas_disponibles_incluye_la_mesa_con_reserva_justo_a_dos_horas(
+    cliente: TestClient, fabrica_reserva
+) -> None:
+    fabrica_reserva(mesa_id=5, fecha=date(2026, 11, 2), hora=time(23, 30))
+
+    lista = cliente.get(RUTA_MESAS, params=TURNO)
+    alta = cliente.post(RUTA, json=CUERPO)
+
+    assert _ids_de_mesas(lista) == [5, 6]
+    assert alta.status_code == 201
 
 
 @pytest.mark.parametrize(
@@ -910,7 +1041,7 @@ def test_puente_real_carrera_por_el_indice_unico_no_deja_cliente_nuevo(
 ) -> None:
     mesa = mesas_en_m3(1)[0]
     fabrica_reserva(mesa_id=mesa.id, fecha=date(2026, 11, 2), hora=time(21, 30))
-    monkeypatch.setattr(repository, "existe_reserva_activa", lambda *_a, **_k: False)
+    monkeypatch.setattr(repository, "reserva_que_ocupa_la_mesa", lambda *_a, **_k: None)
 
     respuesta = cliente.post(
         RUTA, json=SIN_CLIENTE | {"mesa_id": mesa.id, "cliente_nuevo": CLIENTE_NUEVO}
@@ -918,7 +1049,8 @@ def test_puente_real_carrera_por_el_indice_unico_no_deja_cliente_nuevo(
 
     assert respuesta.status_code == 409
     assert respuesta.json() == {
-        "detalle": f"La mesa {mesa.id} ya tiene una reserva activa el 2026-11-02 a las 21:30"
+        "detalle": f"La mesa {mesa.id} ya tiene una reserva el 2026-11-02 a las 21:30; "
+        "cada reserva ocupa la mesa 2 horas"
     }
     assert _cantidad_reservas(db) == 1
     assert [c.id for c in _clientes_en_m4(db)] == [cliente_en_m4]
