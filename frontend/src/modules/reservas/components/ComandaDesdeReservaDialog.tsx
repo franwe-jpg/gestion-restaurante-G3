@@ -151,11 +151,7 @@ function useEstadoCampoMozo(comanda: Comanda, catalogo: CatalogoMozos): EstadoCa
   };
 }
 
-function EntradaMozo({
-  comanda,
-  catalogo,
-  estado,
-}: CampoMozoProps & { estado: EstadoCampoMozo }) {
+function EntradaMozo({ comanda, catalogo, estado }: CampoMozoProps & { estado: EstadoCampoMozo }) {
   return (
     <FormField id="comanda-mozo" label="Mozo" required error={comanda.errores.mozo}>
       <div className="relative" onBlur={estado.cerrar}>
@@ -185,17 +181,9 @@ function EntradaMozo({
   );
 }
 
-function OpcionesMozos({
-  estado,
-  mozoId,
-}: {
-  estado: EstadoCampoMozo;
-  mozoId: string;
-}) {
+function OpcionesMozos({ estado, mozoId }: { estado: EstadoCampoMozo; mozoId: string }) {
   if (!estado.mostrarOpciones) return null;
-  return (
-    <ListaMozos mozos={estado.opciones} mozoId={mozoId} onSeleccionar={estado.seleccionar} />
-  );
+  return <ListaMozos mozos={estado.opciones} mozoId={mozoId} onSeleccionar={estado.seleccionar} />;
 }
 
 function MensajeSinCoincidencias({
@@ -246,7 +234,11 @@ function coincideMozo(mozo: MozoSeleccionable, texto: string) {
 }
 
 function normalizarTexto(texto: string) {
-  return texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+  return texto
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
 }
 
 function cerrarOpciones(

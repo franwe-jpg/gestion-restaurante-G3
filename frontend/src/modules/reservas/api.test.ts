@@ -177,14 +177,8 @@ describe('api de reservas: selección de mozos habilitados para abrir una comand
 
     const resultado = await listarMozosHabilitados();
 
-    expect(get).toHaveBeenNthCalledWith(
-      1,
-      '/mozos?estado=HABILITADO&limit=100&offset=0',
-    );
-    expect(get).toHaveBeenNthCalledWith(
-      2,
-      '/mozos?estado=HABILITADO&limit=100&offset=1',
-    );
+    expect(get).toHaveBeenNthCalledWith(1, '/mozos?estado=HABILITADO&limit=100&offset=0');
+    expect(get).toHaveBeenNthCalledWith(2, '/mozos?estado=HABILITADO&limit=100&offset=1');
     expect(resultado).toEqual({ exito: true, datos: [mozo, otraPagina] });
   });
 });

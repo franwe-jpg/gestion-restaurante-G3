@@ -77,9 +77,7 @@ export function crearComandaDesdeReserva(
 
 const LIMITE_MOZOS = 100;
 
-async function listarPaginaMozos(
-  offset: number,
-): Promise<RespuestaApi<Pagina<MozoSeleccionable>>> {
+async function listarPaginaMozos(offset: number): Promise<RespuestaApi<Pagina<MozoSeleccionable>>> {
   const consulta = new URLSearchParams({
     estado: 'HABILITADO',
     limit: String(LIMITE_MOZOS),
@@ -107,7 +105,11 @@ export async function listarMozosHabilitados(): Promise<RespuestaApi<MozoSelecci
       return { exito: true, datos: mozos };
     }
     if (pagina.limit <= 0 || pagina.offset + pagina.limit <= offset) {
-      return { exito: false, datos: null, error: 'El backend devolvió una página de mozos inválida' };
+      return {
+        exito: false,
+        datos: null,
+        error: 'El backend devolvió una página de mozos inválida',
+      };
     }
     offset = pagina.offset + pagina.limit;
   }
