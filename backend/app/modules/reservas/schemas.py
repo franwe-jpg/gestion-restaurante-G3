@@ -14,6 +14,7 @@ from pydantic import (
 )
 
 from app.modules.reservas.models import EstadoReserva
+from app.shared.contratos.comanda import DetalleComandaCrear
 from app.shared.paginacion import ParametrosPaginacion
 
 
@@ -110,6 +111,15 @@ class MesaDisponible(BaseModel):
     numero: int
     capacidad: int
     sector: SectorResumenMesa
+
+
+class ComandaDesdeReservaCrear(BaseModel):
+    """Pedido de la comanda de una reserva: sin `mesa_id`, la mesa sale de la reserva (HU-M5-06)."""
+
+    model_config = ConfigDict(extra="forbid")  # S62: mesa, reserva, estado y cliente no se reciben
+
+    detalles: list[DetalleComandaCrear] = Field(min_length=1)
+    observaciones: str | None = None
 
 
 class ResumenReservas(BaseModel):

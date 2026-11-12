@@ -105,3 +105,25 @@ export interface Comprobante {
   total_factura: string;
   saldo_pendiente: string;
 }
+
+/** Cobros de un medio de pago en el período (HU-M6-08). */
+export interface CobradoPorMedio {
+  medio_pago_id: number;
+  nombre: string;
+  tipo: TipoMedioPago;
+  cantidad_cobros: number;
+  monto: string;
+}
+
+export interface Adeudado {
+  cantidad_facturas: number;
+  monto: string;
+}
+
+export interface ResumenRecaudacion {
+  fecha_desde: string;
+  fecha_hasta: string;
+  por_medio_pago: CobradoPorMedio[];
+  total_cobrado: string;
+  adeudado: Adeudado;
+}

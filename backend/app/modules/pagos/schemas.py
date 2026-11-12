@@ -177,7 +177,7 @@ class ComprobanteSalida(BaseModel):
 
 
 class CobradoPorMedio(BaseModel):
-    """Cobros de hoy de un medio de pago (S4-06)."""
+    """Cobros de un medio de pago en un intervalo (S4-06, HU-M6-08)."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -195,6 +195,16 @@ class AdeudadoSalida(BaseModel):
 
 class CajaDelDiaSalida(BaseModel):
     fecha: date
+    por_medio_pago: list[CobradoPorMedio]
+    total_cobrado: Importe
+    adeudado: AdeudadoSalida
+
+
+class ResumenRecaudacion(BaseModel):
+    """Recaudación de un período por medio de pago y deuda de sus facturas (HU-M6-08)."""
+
+    fecha_desde: date
+    fecha_hasta: date
     por_medio_pago: list[CobradoPorMedio]
     total_cobrado: Importe
     adeudado: AdeudadoSalida

@@ -117,10 +117,17 @@ def sumar_cobros_por_medio(db: Session, desde: datetime, hasta: datetime) -> lis
     return list(db.execute(consulta).all())
 
 
-def resumir_facturas_adeudadas(db: Session) -> tuple[int, Decimal]:
-    """Cantidad de facturas ADEUDADA de cualquier fecha y suma de su saldo pendiente."""
+def resumir_facturas_adeudadas(
+    db: Session, desde: datetime | None = None, hasta: datetime | None = None
+) -> tuple[int, Decimal]:
+    """Facturas ADEUDADA y suma de su saldo pendiente. Sin `desde`/`hasta`, de cualquier fecha
+    (S4-06); con ellos, solo las emitidas en [desde, hasta) (HU-M6-08)."""
     consulta = select(
         func.count(Factura.id), func.coalesce(func.sum(Factura.saldo_pendiente), 0)
     ).where(Factura.estado == EstadoFactura.ADEUDADA)
+    if desde is not None:
+        consulta = consulta.where(Factura.fecha_emision >= desde)
+    if hasta is not None:
+        consulta = consulta.where(Factura.fecha_emision < hasta)
     cantidad, saldo = db.execute(consulta).one()
     return cantidad, Decimal(str(saldo))

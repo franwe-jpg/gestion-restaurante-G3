@@ -6,6 +6,7 @@ import {
   buscarClientes,
   cancelarReservaAnticipada,
   cancelarReservaPorAusencia,
+  crearComandaDesdeReserva,
   crearReserva,
   descargarReporteReservasAusentismoPdf,
   listarMesasDisponibles,
@@ -13,7 +14,14 @@ import {
   modificarReserva,
   obtenerReporteReservasAusentismo,
 } from './api';
-import type { MesaDisponible, Reserva, ReservaCrear, ReservaModificar } from './types';
+import type {
+  ComandaCreada,
+  ComandaDesdeReservaCrear,
+  MesaDisponible,
+  Reserva,
+  ReservaCrear,
+  ReservaModificar,
+} from './types';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -102,6 +110,38 @@ describe('api de reservas: cancelaciones (HU-M5-04-05)', () => {
 
     expect(post).toHaveBeenCalledWith('/reservas/2/cancelar-por-ausencia', {});
     expect(resultado).toBe(respuesta);
+  });
+});
+
+describe('api de reservas: comanda desde una reserva (HU-M5-06)', () => {
+  const DATOS: ComandaDesdeReservaCrear = { detalles: [{ producto_id: 12, cantidad: 2 }] };
+
+  it('crea la comanda con POST /reservas/{id}/comanda y devuelve la comanda como éxito', async () => {
+    const comanda: ComandaCreada = { id: 31, mesa_id: 5, reserva_id: 10, estado: 'ABIERTA' };
+    const respuesta = { datos: comanda, exito: true };
+    const post = vi.spyOn(clienteHttp, 'post').mockResolvedValue(respuesta);
+
+    const resultado = await crearComandaDesdeReserva(10, DATOS);
+
+    expect(post).toHaveBeenCalledExactlyOnceWith('/reservas/10/comanda', DATOS);
+    expect(resultado).toBe(respuesta);
+  });
+
+  it('devuelve el error con el detalle del servidor sin cambiarlo', async () => {
+    const respuesta = {
+      datos: null,
+      exito: false,
+      error: 'La reserva 10 ya fue atendida',
+    };
+    vi.spyOn(clienteHttp, 'post').mockResolvedValue(respuesta);
+
+    const resultado = await crearComandaDesdeReserva(10, DATOS);
+
+    expect(resultado).toEqual({
+      datos: null,
+      exito: false,
+      error: 'La reserva 10 ya fue atendida',
+    });
   });
 });
 

@@ -1,7 +1,8 @@
-"""Pruebas del puente con Mesa (M3) y Cliente (M4): los dos lados son reales."""
+"""Pruebas del puente con Mesa (M3), Cliente y Comanda (M4): los lados reales usan la base."""
 
 import ast
 import importlib.util
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -9,10 +10,20 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.modules.atencion import service as atencion_service
-from app.modules.atencion.models import Cliente
+from app.modules.atencion.models import Cliente, Comanda
+
+# Los esquemas y el service de productos se importan solo en las pruebas (como los de salon).
+from app.modules.productos import service as productos_service
+from app.modules.productos.schemas import PlatoCrear, SeccionCrear
 from app.modules.reservas import puente
 from app.modules.salon import service as salon_service
-from app.shared.excepciones import DatosInvalidosError
+from app.shared.contratos.comanda import (
+    ComandaSalida,
+    DetalleComandaCrear,
+    EstadoComanda,
+    EstadoEntrega,
+)
+from app.shared.excepciones import DatosInvalidosError, NoEncontradoError, ReglaDeNegocioError
 from app.shared.models.enums import EstadoMesa
 from app.shared.paginacion import ParametrosPaginacion
 
@@ -137,6 +148,62 @@ def test_doble_puente_informa_el_mismo_estado_en_obtener_mesa_y_listar_mesas(
     assert listada.estado == EstadoMesa.FUERA_DE_SERVICIO
 
 
+# --- HU-M5-06: contrato del doble de la primitiva que crea la comanda de una reserva ---
+
+LINEAS = [
+    DetalleComandaCrear(producto_id=12, cantidad=2),
+    DetalleComandaCrear(menu_ejecutivo_id=5, cantidad=1),
+]
+
+
+def test_doble_puente_crear_comanda_de_reserva_devuelve_una_comanda_abierta_y_registra_la_llamada(
+    db: Session, puente_doble
+) -> None:
+    primera = puente.crear_comanda_de_reserva(db, 5, 10, LINEAS, "Sin sal")
+    segunda = puente.crear_comanda_de_reserva(db, 6, 11, LINEAS[:1], None)
+
+    assert isinstance(primera, ComandaSalida)
+    assert [primera.id, segunda.id] == [1, 2]  # ids consecutivos desde 1
+    assert primera.estado == EstadoComanda.ABIERTA
+    assert (primera.mesa_id, primera.reserva_id, primera.observaciones) == (5, 10, "Sin sal")
+    assert (segunda.mesa_id, segunda.reserva_id, segunda.observaciones) == (6, 11, None)
+    # un detalle por linea, en el mismo orden, con los importes y el estado del doble (D8)
+    assert [(d.producto_id, d.menu_ejecutivo_id, d.cantidad) for d in primera.detalles] == [
+        (12, None, 2),
+        (None, 5, 1),
+    ]
+    for detalle in primera.detalles:
+        assert detalle.precio_unitario == Decimal("100.00")
+        assert detalle.descuento == Decimal("0.00")
+        assert detalle.estado_entrega == EstadoEntrega.PENDIENTE
+    assert puente_doble.comandas == [(5, 10, LINEAS, "Sin sal"), (6, 11, LINEAS[:1], None)]
+
+
+def test_doble_puente_crear_comanda_de_reserva_lanza_la_falla_y_no_registra_la_llamada(
+    db: Session, puente_doble
+) -> None:
+    puente_doble.falla = ReglaDeNegocioError("La mesa 5 no está libre")
+
+    with pytest.raises(ReglaDeNegocioError, match="La mesa 5 no está libre"):
+        puente.crear_comanda_de_reserva(db, 5, 10, LINEAS, None)
+
+    assert puente_doble.comandas == []
+
+
+def test_doble_puente_crear_comanda_de_reserva_ejecuta_el_efecto_antes_de_fallar(
+    db: Session, puente_doble
+) -> None:
+    sesiones = []
+    puente_doble.efecto = sesiones.append  # el efecto recibe la sesion de quien llama
+    puente_doble.falla = ReglaDeNegocioError("La mesa 5 no está libre")
+
+    with pytest.raises(ReglaDeNegocioError):
+        puente.crear_comanda_de_reserva(db, 5, 10, LINEAS, None)
+
+    assert sesiones == [db]
+    assert puente_doble.comandas == []
+
+
 # S39 y S20: con el puente real, un cliente existe si M4 lo tiene
 def test_existe_cliente_real_conoce_al_cliente_de_m4(
     db: Session, puente_real, cliente_en_m4: int
@@ -175,6 +242,79 @@ def test_registrar_cliente_real_propaga_el_rechazo_de_m4(
     assert campo in str(error.value)
     assert not db.new
     assert db.scalars(select(Cliente)).all() == []
+
+
+# --- HU-M5-06: la comanda de una reserva con el puente real, sin doble (M4, M3 y M1) ---
+
+RESERVA_ID = 10
+
+
+def _sembrar_producto_habilitado(db: Session) -> int:
+    """Siembra un producto HABILITADO de M1 con los servicios reales y devuelve su id."""
+    seccion = productos_service.crear_seccion(db, SeccionCrear(nombre="Principales", orden=1))
+    plato = productos_service.crear_producto(
+        db,
+        PlatoCrear(
+            nombre="Milanesa",
+            seccion_id=seccion.id,
+            precio=Decimal("1500.50"),
+            ingredientes=["Carne"],
+        ),
+        None,
+    )
+    return plato.id
+
+
+# Decision 53: el puente arma el pedido de M4 con la mesa y pasa el vinculo con la reserva aparte
+def test_crear_comanda_de_reserva_real_arma_la_comanda_con_la_mesa_y_el_vinculo(
+    db: Session, puente_real, mesas_en_m3
+) -> None:
+    mesa = mesas_en_m3(1)[0]
+    producto_id = _sembrar_producto_habilitado(db)
+    lineas = [DetalleComandaCrear(producto_id=producto_id, cantidad=2)]
+
+    salida = puente.crear_comanda_de_reserva(db, mesa.id, RESERVA_ID, lineas, "Sin sal")
+    db.commit()
+    db.expire_all()
+
+    assert isinstance(salida, ComandaSalida)
+    assert (salida.mesa_id, salida.reserva_id) == (mesa.id, RESERVA_ID)
+    assert salida.estado == EstadoComanda.ABIERTA
+    assert [(d.producto_id, d.cantidad) for d in salida.detalles] == [(producto_id, 2)]
+    guardada = db.get(Comanda, salida.id)
+    assert (guardada.mesa_id, guardada.reserva_id) == (mesa.id, RESERVA_ID)
+    assert guardada.observaciones == "Sin sal"
+    assert salon_service.obtener_mesa(db, mesa.id).estado == EstadoMesa.OCUPADA
+
+
+# Decision 53: el puente no confirma; quien llama decide el commit o el rollback
+def test_crear_comanda_de_reserva_real_no_confirma(db: Session, puente_real, mesas_en_m3) -> None:
+    mesa = mesas_en_m3(1)[0]
+    producto_id = _sembrar_producto_habilitado(db)
+
+    puente.crear_comanda_de_reserva(
+        db, mesa.id, RESERVA_ID, [DetalleComandaCrear(producto_id=producto_id, cantidad=1)], None
+    )
+    db.rollback()
+
+    assert db.scalars(select(Comanda)).all() == []
+    assert salon_service.obtener_mesa(db, mesa.id).estado == EstadoMesa.LIBRE
+
+
+# Los errores de M4 suben tal cual, sin traducir ni escribir nada
+def test_crear_comanda_de_reserva_real_propaga_el_error_de_m4(
+    db: Session, puente_real, mesas_en_m3
+) -> None:
+    mesa = mesas_en_m3(1)[0]
+
+    with pytest.raises(NoEncontradoError, match="El producto 999 no existe"):
+        puente.crear_comanda_de_reserva(
+            db, mesa.id, RESERVA_ID, [DetalleComandaCrear(producto_id=999, cantidad=1)], None
+        )
+
+    assert not db.new
+    assert db.scalars(select(Comanda)).all() == []
+    assert salon_service.obtener_mesa(db, mesa.id).estado == EstadoMesa.LIBRE
 
 
 # --- Contratos de importacion (RNF-MAN-09): lint-imports no puede decir "solo desde el puente" ---

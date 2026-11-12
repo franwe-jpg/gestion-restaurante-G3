@@ -37,6 +37,27 @@ export type ReservaCrear = DatosDelAlta &
   ({ cliente_id: number } | { cliente_nuevo: ClienteNuevo });
 export type ReservaModificar = Pick<Reserva, 'fecha' | 'hora' | 'cantidad_personas'>;
 
+/** Línea del pedido desde una reserva: solo productos, por su número (HU-M5-06, S58). */
+export interface LineaComandaDesdeReserva {
+  producto_id: number;
+  cantidad: number;
+}
+
+/** Cuerpo de `POST /reservas/{id}/comanda`: sin mesa, porque sale de la reserva. */
+export interface ComandaDesdeReservaCrear {
+  detalles: LineaComandaDesdeReserva[];
+  /** La API la admite; la pantalla no la pide (S64). */
+  observaciones?: string;
+}
+
+/** Lo que la pantalla lee de la comanda creada; propio de `reservas` (AGENTS.md §9.4). */
+export interface ComandaCreada {
+  id: number;
+  mesa_id: number;
+  reserva_id: number | null;
+  estado: string;
+}
+
 /** Propios de `reservas`: no se importan del módulo `salon` (AGENTS.md §9.4, S34). */
 export interface SectorResumenMesa {
   id: number;

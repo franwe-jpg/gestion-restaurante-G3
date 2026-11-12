@@ -1,5 +1,6 @@
 """pagos: endpoints HTTP. Solo delega al service (D-02)."""
 
+from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Response, status
@@ -19,6 +20,7 @@ from app.modules.pagos.schemas import (
     MedioPagoCrear,
     MedioPagoModificar,
     MedioPagoSalida,
+    ResumenRecaudacion,
 )
 from app.shared.paginacion import Pagina, ParametrosPaginacion
 
@@ -96,3 +98,22 @@ def descargar_comprobante_pdf(numero_comprobante: int, db: Sesion) -> Response:
 @router.get("/reportes/caja-del-dia")
 def obtener_caja_del_dia(db: Sesion) -> CajaDelDiaSalida:
     return service.obtener_caja_del_dia(db)
+
+
+@router.get("/reportes/recaudacion-por-medio-de-pago")
+def reporte_recaudacion(
+    db: Sesion, fecha_desde: date | None = None, fecha_hasta: date | None = None
+) -> ResumenRecaudacion:
+    return service.generar_reporte_recaudacion(db, fecha_desde, fecha_hasta)
+
+
+@router.get("/reportes/recaudacion-por-medio-de-pago/pdf")
+def reporte_recaudacion_pdf(
+    db: Sesion, fecha_desde: date | None = None, fecha_hasta: date | None = None
+) -> Response:
+    archivo = service.generar_pdf_recaudacion(db, fecha_desde, fecha_hasta)
+    return Response(
+        content=archivo.contenido,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{archivo.nombre}"'},
+    )

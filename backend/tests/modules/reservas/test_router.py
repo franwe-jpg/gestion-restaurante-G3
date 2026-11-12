@@ -5,15 +5,18 @@ from datetime import date, time
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from app.main import app
 from app.modules.atencion.models import Cliente
+from app.modules.atencion.service import ComandaAbiertaError
 from app.modules.reservas import repository
 from app.modules.reservas.models import EstadoReserva, Reserva
 
 # El modelo de salon se importa solo en las pruebas (lint-imports controla `app`, no `tests`).
 from app.modules.salon.models import Mesa
+from app.shared.excepciones import NoEncontradoError, ReglaDeNegocioError
 from app.shared.models.enums import EstadoMesa
 
 RUTA = "/api/v1/reservas"
@@ -1093,3 +1096,471 @@ def test_puente_real_cancelar_no_cambia_el_estado_de_la_mesa_en_m3(
     assert respuesta.status_code == 200
     db.expire_all()
     assert db.get(Mesa, mesa.id).estado == EstadoMesa.LIBRE
+
+
+# --- HU-M5-06: POST /reservas/{reserva_id}/comanda ---
+# El reloj de las pruebas (conftest.py) marca el 2026-11-02 a las 12:00. Los ids de las reservas son
+# los que asigna la base: las pruebas usan `reserva.id`, no un numero fijo. M4 es el doble del
+# puente.
+
+PEDIDO = {"detalles": [{"producto_id": 12, "cantidad": 2}]}
+MENU_5 = {"menu_ejecutivo_id": 5, "cantidad": 1}
+MENU_6 = {"menu_ejecutivo_id": 6, "cantidad": 2}
+AL_MENOS_UN_PRODUCTO = "La comanda debe incluir al menos un producto"
+UNA_REFERENCIA = "Indique un producto o un menú ejecutivo, exclusivamente"
+CLAVES_DE_RESERVA = {"id", "mesa_id", "cliente_id", "fecha", "hora", "cantidad_personas", "estado"}
+
+
+def _ruta_comanda(reserva_id: object) -> str:
+    return f"{RUTA}/{reserva_id}/comanda"
+
+
+def _atender(cliente: TestClient, reserva_id: object, cuerpo: dict = PEDIDO):
+    return cliente.post(_ruta_comanda(reserva_id), json=cuerpo)
+
+
+def _de_hoy(fabrica_reserva, **cambios) -> Reserva:
+    """La reserva de referencia: ACTIVA, de hoy, en la mesa 5, para el cliente 7."""
+    cuerpo = {"mesa_id": 5, "cliente_id": 7, "fecha": date(2026, 11, 2), "hora": time(21, 30)}
+    return fabrica_reserva(**(cuerpo | cambios))
+
+
+def _estado_de(db: Session, reserva_id: int) -> EstadoReserva:
+    """Relee la reserva de la base (no del identity map) despues de la solicitud."""
+    db.expire_all()
+    return db.get(Reserva, reserva_id).estado
+
+
+# CA 1
+def test_post_comanda_de_reserva_devuelve_201_con_la_comanda_abierta_y_atiende_la_reserva(
+    cliente: TestClient, fabrica_reserva, puente_doble
+) -> None:
+    reserva = _de_hoy(fabrica_reserva)
+
+    respuesta = _atender(cliente, reserva.id)
+
+    assert respuesta.status_code == 201
+    comanda = respuesta.json()
+    assert comanda["estado"] == "ABIERTA"
+    assert (comanda["mesa_id"], comanda["reserva_id"]) == (5, reserva.id)
+    assert [(d["producto_id"], d["cantidad"]) for d in comanda["detalles"]] == [(12, 2)]
+    # A M4 se le pidio una sola comanda, con la mesa y el vinculo de la reserva
+    assert [(mesa, vinculo) for mesa, vinculo, _, _ in puente_doble.comandas] == [(5, reserva.id)]
+    assert cliente.get(f"{RUTA}/{reserva.id}").json() == {
+        "id": reserva.id,
+        "mesa_id": 5,
+        "cliente_id": 7,
+        "fecha": "2026-11-02",
+        "hora": "21:30",
+        "cantidad_personas": 4,
+        "estado": "ATENDIDA",
+    }
+
+
+def test_post_comanda_de_reserva_hereda_la_mesa_de_la_reserva(
+    cliente: TestClient, fabrica_reserva, puente_doble
+) -> None:
+    reserva = _de_hoy(fabrica_reserva, mesa_id=6)
+
+    respuesta = _atender(cliente, reserva.id)
+
+    assert respuesta.status_code == 201
+    assert respuesta.json()["mesa_id"] == 6
+    assert [llamada[0] for llamada in puente_doble.comandas] == [6]
+
+
+def test_post_comanda_de_reserva_varias_lineas_con_producto_y_menu(
+    cliente: TestClient, fabrica_reserva
+) -> None:
+    reserva = _de_hoy(fabrica_reserva)
+    lineas = [{"producto_id": 12, "cantidad": 2}, MENU_5, {"producto_id": 13, "cantidad": 1}]
+
+    respuesta = _atender(cliente, reserva.id, {"detalles": lineas})
+
+    assert respuesta.status_code == 201
+    assert [(d["producto_id"], d["menu_ejecutivo_id"]) for d in respuesta.json()["detalles"]] == [
+        (12, None),
+        (None, 5),
+        (13, None),
+    ]
+
+
+def test_post_comanda_de_reserva_observaciones_opcionales(
+    cliente: TestClient, fabrica_reserva
+) -> None:
+    con_observaciones = _de_hoy(fabrica_reserva, mesa_id=5)
+    sin_observaciones = _de_hoy(fabrica_reserva, mesa_id=6)
+
+    primera = _atender(cliente, con_observaciones.id, PEDIDO | {"observaciones": "Sin sal"})
+    segunda = _atender(cliente, sin_observaciones.id)
+
+    assert primera.json()["observaciones"] == "Sin sal"
+    assert segunda.json()["observaciones"] is None
+
+
+# Escenario "La reserva no gana ningun atributo"
+def test_post_comanda_de_reserva_no_trae_cliente_propio_ni_agrega_comanda_id_a_la_reserva(
+    cliente: TestClient, fabrica_reserva
+) -> None:
+    reserva = _de_hoy(fabrica_reserva)
+
+    respuesta = _atender(cliente, reserva.id)
+    reserva_atendida = cliente.get(f"{RUTA}/{reserva.id}").json()
+
+    assert respuesta.status_code == 201
+    assert not [clave for clave in respuesta.json() if "cliente" in clave]
+    assert set(reserva_atendida) == CLAVES_DE_RESERVA  # sin `comanda_id` (S54)
+    assert (reserva_atendida["cliente_id"], reserva_atendida["estado"]) == (7, "ATENDIDA")
+
+
+def test_post_reservas_no_crea_ninguna_comanda(cliente: TestClient, puente_doble) -> None:
+    respuesta = cliente.post(RUTA, json=CUERPO)
+
+    assert respuesta.status_code == 201
+    assert respuesta.json()["estado"] == "ACTIVA"
+    assert puente_doble.comandas == []
+
+
+# CA 2
+@pytest.mark.parametrize(
+    "estado", [EstadoReserva.CANCELADA_ANTICIPADA, EstadoReserva.CANCELADA_POR_AUSENCIA]
+)
+def test_post_comanda_de_reserva_cancelada_devuelve_409(
+    cliente: TestClient, db: Session, fabrica_reserva, puente_doble, estado: EstadoReserva
+) -> None:
+    reserva = _de_hoy(fabrica_reserva, estado=estado)
+
+    respuesta = _atender(cliente, reserva.id)
+
+    assert respuesta.status_code == 409
+    assert respuesta.json() == {"detalle": f"La reserva {reserva.id} ya fue cancelada"}
+    assert _estado_de(db, reserva.id) == estado
+    assert puente_doble.comandas == []
+
+
+def test_post_comanda_de_reserva_atendida_devuelve_409(
+    cliente: TestClient, db: Session, fabrica_reserva, puente_doble
+) -> None:
+    reserva = _de_hoy(fabrica_reserva, estado=EstadoReserva.ATENDIDA)
+
+    respuesta = _atender(cliente, reserva.id)
+
+    assert respuesta.status_code == 409
+    assert respuesta.json() == {"detalle": f"La reserva {reserva.id} ya fue atendida"}
+    assert _estado_de(db, reserva.id) == EstadoReserva.ATENDIDA
+    assert puente_doble.comandas == []
+
+
+def test_post_comanda_de_reserva_doble_envio_201_y_409(
+    cliente: TestClient, db: Session, fabrica_reserva, puente_doble
+) -> None:
+    reserva = _de_hoy(fabrica_reserva)
+
+    primera = _atender(cliente, reserva.id)
+    segunda = _atender(cliente, reserva.id)
+
+    assert primera.status_code == 201
+    assert segunda.status_code == 409
+    assert segunda.json() == {"detalle": f"La reserva {reserva.id} ya fue atendida"}
+    assert len(puente_doble.comandas) == 1
+    assert _estado_de(db, reserva.id) == EstadoReserva.ATENDIDA
+
+
+# CA 3 (S57)
+@pytest.mark.parametrize("fecha", [date(2026, 11, 3), date(2026, 11, 1)], ids=["manana", "ayer"])
+def test_post_comanda_de_reserva_de_otra_fecha_devuelve_409(
+    cliente: TestClient, db: Session, fabrica_reserva, puente_doble, fecha: date
+) -> None:
+    reserva = _de_hoy(fabrica_reserva, fecha=fecha)
+
+    respuesta = _atender(cliente, reserva.id)
+
+    assert respuesta.status_code == 409
+    assert respuesta.json() == {"detalle": f"La reserva {reserva.id} no corresponde al día de hoy"}
+    assert _estado_de(db, reserva.id) == EstadoReserva.ACTIVA
+    assert puente_doble.comandas == []
+
+
+# S28: "hoy" es el de la zona del restaurante (el servidor en UTC ya marca el 2 de noviembre)
+def test_post_comanda_de_reserva_hoy_es_el_de_la_zona_del_restaurante(
+    cliente: TestClient, fabrica_reserva, reloj_utc_fijo
+) -> None:
+    de_anoche = _de_hoy(fabrica_reserva, fecha=date(2026, 11, 1))
+    de_la_fecha_del_servidor = _de_hoy(fabrica_reserva, fecha=date(2026, 11, 2))
+
+    atendida = _atender(cliente, de_anoche.id)
+    rechazada = _atender(cliente, de_la_fecha_del_servidor.id)
+
+    assert atendida.status_code == 201
+    assert rechazada.status_code == 409
+    assert rechazada.json() == {
+        "detalle": f"La reserva {de_la_fecha_del_servidor.id} no corresponde al día de hoy"
+    }
+
+
+# S63: solo cuenta la fecha
+@pytest.mark.parametrize("hora", [time(21, 30), time(8, 0)], ids=["no-llego", "ya-paso"])
+def test_post_comanda_de_reserva_no_verifica_la_hora(
+    cliente: TestClient, fabrica_reserva, hora: time
+) -> None:
+    reserva = _de_hoy(fabrica_reserva, hora=hora)
+
+    assert _atender(cliente, reserva.id).status_code == 201
+
+
+# CA 4 y forma del pedido: el cuerpo se valida antes de leer la reserva (paso 1)
+def _sin_cambios(db: Session, reserva_id: int, puente_doble) -> None:
+    assert _estado_de(db, reserva_id) == EstadoReserva.ACTIVA
+    assert puente_doble.comandas == []
+
+
+@pytest.mark.parametrize("cantidad", [0, -3, 1.5, "2", True, None, "ausente"], ids=repr)
+def test_post_comanda_de_reserva_cantidad_invalida_devuelve_422(
+    cliente: TestClient, db: Session, fabrica_reserva, puente_doble, cantidad: object
+) -> None:
+    reserva = _de_hoy(fabrica_reserva)
+    linea = {"producto_id": 12}
+    if cantidad != "ausente":
+        linea["cantidad"] = cantidad
+
+    respuesta = _atender(cliente, reserva.id, {"detalles": [linea]})
+
+    assert respuesta.status_code == 422
+    assert respuesta.json()["detalle"].startswith("Datos invalidos.")
+    assert "detalles.0.cantidad" in respuesta.json()["detalle"]
+    _sin_cambios(db, reserva.id, puente_doble)
+
+
+def test_post_comanda_de_reserva_una_linea_invalida_anula_todo_el_pedido(
+    cliente: TestClient, db: Session, fabrica_reserva, puente_doble
+) -> None:
+    reserva = _de_hoy(fabrica_reserva)
+    lineas = [{"producto_id": 12, "cantidad": 2}, {"producto_id": 13, "cantidad": 0}]
+
+    respuesta = _atender(cliente, reserva.id, {"detalles": lineas})
+
+    assert respuesta.status_code == 422
+    assert "detalles.1.cantidad" in respuesta.json()["detalle"]
+    _sin_cambios(db, reserva.id, puente_doble)
+
+
+@pytest.mark.parametrize("cuerpo", [{}, {"detalles": []}, {"detalles": None}], ids=str)
+def test_post_comanda_de_reserva_sin_detalles_devuelve_422(
+    cliente: TestClient, db: Session, fabrica_reserva, puente_doble, cuerpo: dict
+) -> None:
+    reserva = _de_hoy(fabrica_reserva)
+
+    respuesta = _atender(cliente, reserva.id, cuerpo)
+
+    assert respuesta.status_code == 422
+    assert respuesta.json()["detalle"].startswith("Datos invalidos.")
+    assert "detalles" in respuesta.json()["detalle"]
+    _sin_cambios(db, reserva.id, puente_doble)
+
+
+@pytest.mark.parametrize(
+    "linea",
+    [{"producto_id": 12, "menu_ejecutivo_id": 5, "cantidad": 1}, {"cantidad": 1}],
+    ids=["ambos", "ninguno"],
+)
+def test_post_comanda_de_reserva_producto_y_menu_o_ninguno_devuelve_422(
+    cliente: TestClient, db: Session, fabrica_reserva, puente_doble, linea: dict
+) -> None:
+    reserva = _de_hoy(fabrica_reserva)
+
+    respuesta = _atender(cliente, reserva.id, {"detalles": [linea]})
+
+    assert respuesta.status_code == 422
+    assert UNA_REFERENCIA in respuesta.json()["detalle"]
+    _sin_cambios(db, reserva.id, puente_doble)
+
+
+@pytest.mark.parametrize("producto_id", [0, -1, 2.5, "12", True], ids=repr)
+def test_post_comanda_de_reserva_producto_id_invalido_devuelve_422(
+    cliente: TestClient, db: Session, fabrica_reserva, puente_doble, producto_id: object
+) -> None:
+    reserva = _de_hoy(fabrica_reserva)
+
+    respuesta = _atender(
+        cliente, reserva.id, {"detalles": [{"producto_id": producto_id, "cantidad": 1}]}
+    )
+
+    assert respuesta.status_code == 422
+    assert "detalles.0.producto_id" in respuesta.json()["detalle"]
+    _sin_cambios(db, reserva.id, puente_doble)
+
+
+def test_post_comanda_de_reserva_id_no_numerico_devuelve_422(
+    cliente: TestClient, puente_doble
+) -> None:
+    respuesta = _atender(cliente, "abc")
+
+    assert respuesta.status_code == 422
+    assert "reserva_id" in respuesta.json()["detalle"]
+    assert puente_doble.comandas == []
+
+
+# S62: el cuerpo no trae mesa, reserva, estado ni cliente
+@pytest.mark.parametrize(
+    ("campo", "valor"),
+    [("mesa_id", 6), ("reserva_id", 10), ("estado", "ATENDIDA"), ("cliente_id", 7)],
+)
+def test_post_comanda_de_reserva_con_campos_extra_devuelve_422(
+    cliente: TestClient, db: Session, fabrica_reserva, puente_doble, campo: str, valor: object
+) -> None:
+    reserva = _de_hoy(fabrica_reserva)
+
+    respuesta = _atender(cliente, reserva.id, PEDIDO | {campo: valor})
+
+    assert respuesta.status_code == 422
+    assert campo in respuesta.json()["detalle"]
+    _sin_cambios(db, reserva.id, puente_doble)
+
+
+# Existencia, S53 y orden de las verificaciones
+def test_post_comanda_de_reserva_inexistente_devuelve_404(
+    cliente: TestClient, puente_doble
+) -> None:
+    respuesta = _atender(cliente, 999)
+
+    assert respuesta.status_code == 404
+    assert respuesta.json() == {"detalle": "La reserva 999 no existe"}
+    assert puente_doble.comandas == []
+
+
+@pytest.mark.parametrize("lineas", [[MENU_5], [MENU_5, MENU_6]], ids=["una-linea", "varias"])
+def test_post_comanda_de_reserva_solo_menus_devuelve_422(
+    cliente: TestClient, db: Session, fabrica_reserva, puente_doble, lineas: list[dict]
+) -> None:
+    reserva = _de_hoy(fabrica_reserva)
+
+    respuesta = _atender(cliente, reserva.id, {"detalles": lineas})
+
+    assert respuesta.status_code == 422
+    assert respuesta.json() == {"detalle": AL_MENOS_UN_PRODUCTO}
+    _sin_cambios(db, reserva.id, puente_doble)
+
+
+def test_post_comanda_de_reserva_orden_de_las_verificaciones(
+    cliente: TestClient, fabrica_reserva, puente_doble
+) -> None:
+    manana = date(2026, 11, 3)
+    cancelada = _de_hoy(fabrica_reserva, estado=EstadoReserva.CANCELADA_ANTICIPADA)
+    atendida_de_manana = _de_hoy(fabrica_reserva, fecha=manana, estado=EstadoReserva.ATENDIDA)
+    de_manana = _de_hoy(fabrica_reserva, fecha=manana)
+    de_hoy = _de_hoy(fabrica_reserva, mesa_id=6)
+    sin_productos = {"detalles": [MENU_5]}
+    invocaciones = []
+    puente_doble.efecto = invocaciones.append  # queda anotado si se llamo, aunque falle
+    puente_doble.falla = ReglaDeNegocioError("La mesa 6 no está libre")
+
+    # el cuerpo invalido gana a la reserva inexistente y a la cancelada
+    vacio = _atender(cliente, 999, {"detalles": []})
+    sin_cantidad = {"detalles": [{"producto_id": 12, "cantidad": 0}]}
+    cantidad_cero = _atender(cliente, cancelada.id, sin_cantidad)
+    # atendida gana a otra fecha; otra fecha gana a un pedido sin productos
+    atendida = _atender(cliente, atendida_de_manana.id)
+    otra_fecha = _atender(cliente, de_manana.id, sin_productos)
+    # un pedido sin productos gana a los errores de M4
+    sin_producto = _atender(cliente, de_hoy.id, sin_productos)
+
+    assert vacio.status_code == 422
+    assert cantidad_cero.status_code == 422
+    assert atendida.json() == {"detalle": f"La reserva {atendida_de_manana.id} ya fue atendida"}
+    assert otra_fecha.json() == {
+        "detalle": f"La reserva {de_manana.id} no corresponde al día de hoy"
+    }
+    assert sin_producto.status_code == 422
+    assert sin_producto.json() == {"detalle": AL_MENOS_UN_PRODUCTO}
+    assert invocaciones == []
+
+
+# Errores de M4 (paso 7): llegan con su codigo y su detalle, sin cambios en la reserva
+ERRORES_DE_M4 = [
+    (NoEncontradoError("El producto 99 no existe"), 404),
+    (ReglaDeNegocioError("El producto Milanesa está deshabilitado"), 409),
+    (ReglaDeNegocioError("El menú ejecutivo Del día está deshabilitado"), 409),
+    (ReglaDeNegocioError("La mesa 5 no está libre"), 409),
+    (ComandaAbiertaError(31), 409),
+    (NoEncontradoError("La mesa 5 no existe"), 404),
+]
+
+
+@pytest.mark.parametrize(("falla", "codigo"), ERRORES_DE_M4, ids=lambda valor: str(valor)[:30])
+def test_post_comanda_de_reserva_error_de_m4_conserva_codigo_y_detalle(
+    cliente: TestClient,
+    db: Session,
+    fabrica_reserva,
+    puente_doble,
+    falla: Exception,
+    codigo: int,
+) -> None:
+    reserva = _de_hoy(fabrica_reserva)
+    puente_doble.falla = falla
+
+    respuesta = _atender(cliente, reserva.id)
+
+    assert respuesta.status_code == codigo
+    assert respuesta.json()["detalle"] == str(falla)
+    _sin_cambios(db, reserva.id, puente_doble)
+
+
+def test_post_comanda_de_reserva_se_atiende_cuando_la_mesa_se_libera(
+    cliente: TestClient, db: Session, fabrica_reserva, puente_doble
+) -> None:
+    reserva = _de_hoy(fabrica_reserva)
+    puente_doble.falla = ReglaDeNegocioError("La mesa 5 no está libre")
+    rechazada = _atender(cliente, reserva.id)
+    puente_doble.falla = None
+
+    atendida = _atender(cliente, reserva.id)
+
+    assert (rechazada.status_code, atendida.status_code) == (409, 201)
+    assert _estado_de(db, reserva.id) == EstadoReserva.ATENDIDA
+
+
+# Atomicidad: si falla el commit, la respuesta es 500 y la sesion se deshace
+def test_post_comanda_de_reserva_falla_el_commit_devuelve_500_y_deshace(
+    cliente: TestClient, db: Session, fabrica_reserva, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    reserva = _de_hoy(fabrica_reserva)
+    sin_relanzar = TestClient(app, raise_server_exceptions=False)
+
+    def commit_roto() -> None:
+        db.flush()  # el cambio llega a la transaccion, pero el commit falla
+        raise OperationalError("COMMIT", {}, Exception("disk I/O error"))
+
+    monkeypatch.setattr(db, "commit", commit_roto)
+
+    respuesta = sin_relanzar.post(_ruta_comanda(reserva.id), json=PEDIDO)
+
+    assert respuesta.status_code == 500
+    assert _estado_de(db, reserva.id) == EstadoReserva.ACTIVA
+
+
+# La atencion es terminal: la reserva atendida no se modifica ni se cancela y se lista con su estado
+def test_post_comanda_de_reserva_deja_la_reserva_terminal(
+    cliente: TestClient, fabrica_reserva
+) -> None:
+    reserva = _de_hoy(fabrica_reserva)
+    assert _atender(cliente, reserva.id).status_code == 201
+
+    modificacion = cliente.put(f"{RUTA}/{reserva.id}", json=CUERPO_PUT)
+    cancelaciones = [
+        cliente.post(f"{RUTA}/{reserva.id}/cancelar-anticipada"),
+        cliente.post(f"{RUTA}/{reserva.id}/cancelar-por-ausencia"),
+    ]
+    atendidas = cliente.get(RUTA, params={"fecha": "2026-11-02", "estado": "ATENDIDA"})
+    activas = cliente.get(RUTA, params={"fecha": "2026-11-02", "estado": "ACTIVA"})
+
+    assert modificacion.status_code == 409
+    assert modificacion.json() == {
+        "detalle": f"La reserva {reserva.id} no está activa y no se puede modificar"
+    }
+    for cancelacion in cancelaciones:
+        assert cancelacion.status_code == 409
+        assert cancelacion.json() == {
+            "detalle": f"La reserva {reserva.id} ya fue atendida y no se puede cancelar"
+        }
+    assert [item["id"] for item in atendidas.json()["items"]] == [reserva.id]
+    assert activas.json()["items"] == []
