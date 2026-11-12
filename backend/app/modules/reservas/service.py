@@ -223,11 +223,24 @@ def cancelar_por_ausencia(db: Session, reserva_id: int) -> ReservaSalida:
     return ReservaSalida.model_validate(reserva)
 
 
-def _obtener_atendible(db: Session, reserva_id: int) -> Reserva:
-    """Existe (404), no esta cancelada ni atendida y es de hoy (409), en ese orden (HU-M5-06).
+def _validar_horario_de_atencion(reserva: Reserva) -> None:
+    """S68 (revierte S63): la reserva de hoy no se atiende antes de su hora, sin tolerancia.
 
-    Solo cuenta la fecha: la hora de la reserva no se verifica (S63). Mismo orden de estados que
-    `_obtener_cancelable`, con mensajes propios porque aqui se atiende, no se cancela.
+    Se llama despues de verificar que la fecha es la de hoy: solo compara la hora. Desde la hora
+    exacta ya se puede atender.
+    """
+    if reserva.hora > ahora().time():
+        raise ReglaDeNegocioError(
+            f"La reserva {reserva.id} todavía no está en su horario: es a las {reserva.hora:%H:%M}"
+        )
+
+
+def _obtener_atendible(db: Session, reserva_id: int) -> Reserva:
+    """Existe (404), no esta cancelada ni atendida, es de hoy y ya es su hora (409), en ese orden.
+
+    HU-M5-06. La hora se verifica en una regla propia (S68, que revierte S63), despues de la fecha.
+    Mismo orden de estados que `_obtener_cancelable`, con mensajes propios porque aqui se atiende,
+    no se cancela.
     """
     reserva = _obtener(db, reserva_id)
     if reserva.estado in _CANCELADAS:
@@ -236,6 +249,7 @@ def _obtener_atendible(db: Session, reserva_id: int) -> Reserva:
         raise ReglaDeNegocioError(f"La reserva {reserva_id} ya fue atendida")
     if reserva.fecha != ahora().date():  # S57: la de otra fecha se rechaza, no solo se advierte
         raise ReglaDeNegocioError(f"La reserva {reserva_id} no corresponde al día de hoy")
+    _validar_horario_de_atencion(reserva)
     return reserva
 
 
@@ -263,7 +277,8 @@ def crear_comanda(db: Session, reserva_id: int, datos: ComandaDesdeReservaCrear)
     """HU-M5-06: crea la comanda ABIERTA en la mesa de la reserva y la pasa a ATENDIDA.
 
     Un solo commit: la comanda, la mesa ocupada (M4/M3) y la reserva atendida, o nada. Las
-    verificaciones previas no escriben, asi que quedan fuera del `try`.
+    verificaciones previas no escriben, asi que quedan fuera del `try`: primero la reserva
+    atendible (existencia, estado, fecha y horario, 404 o 409) y despues el pedido (422).
     """
     reserva = _obtener_atendible(db, reserva_id)
     _validar_al_menos_un_producto(datos.detalles)

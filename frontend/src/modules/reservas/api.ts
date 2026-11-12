@@ -6,6 +6,7 @@ import type {
   ComandaDesdeReservaCrear,
   FiltroEstadoReserva,
   MesaDisponible,
+  ProductoHabilitado,
   Reserva,
   ReservaCrear,
   ReservaModificar,
@@ -72,6 +73,45 @@ export function crearComandaDesdeReserva(
     `/reservas/${reservaId}/comanda`,
     datos,
   );
+}
+
+/** Tamaño de página al leer los productos: el máximo que admite la API (D-27). */
+export const LIMITE_PRODUCTOS = 100;
+
+function aProductoHabilitado({ id, nombre, precio }: ProductoHabilitado): ProductoHabilitado {
+  return { id, nombre, precio };
+}
+
+function porNombre(a: ProductoHabilitado, b: ProductoHabilitado): number {
+  return a.nombre.localeCompare(b.nombre, 'es') || a.id - b.id;
+}
+
+/**
+ * HU-M5-06: todos los productos habilitados, para el desplegable del modal «Crear comanda».
+ * `GET /productos` pagina y no tiene búsqueda, así que lee las páginas de a 100 hasta cubrir el
+ * `total`. Una página vacía antes de completarlo corta la lectura y devuelve lo leído, para no
+ * girar sin fin si el catálogo se achicó mientras se leía. Si falla cualquier página devuelve el
+ * error y descarta lo leído. Un producto que aparece en dos páginas porque el catálogo cambió se
+ * ofrece una sola vez. El resultado sale ordenado por nombre.
+ */
+export async function listarProductosHabilitados(): Promise<RespuestaApi<ProductoHabilitado[]>> {
+  const productos = new Map<number, ProductoHabilitado>();
+  let leidos = 0;
+  let hayMas = true;
+  while (hayMas) {
+    const respuesta = await clienteHttp.get<Pagina<ProductoHabilitado>>(
+      `/productos?estado=HABILITADO&limit=${LIMITE_PRODUCTOS}&offset=${leidos}`,
+    );
+    if (!respuesta.exito || respuesta.datos === null) {
+      return { datos: null, exito: false, error: respuesta.error };
+    }
+    const { items, total } = respuesta.datos;
+    items.forEach((item) => productos.set(item.id, aProductoHabilitado(item)));
+    leidos += items.length;
+    // Una página vacía corta la lectura aunque no se haya llegado al total.
+    hayMas = items.length > 0 && leidos < total;
+  }
+  return { datos: [...productos.values()].sort(porNombre), exito: true };
 }
 
 /** Resultados de la búsqueda de clientes: la primera página, sin paginar en pantalla (S43). */

@@ -1332,8 +1332,8 @@ def _atender(cliente: TestClient, reserva_id: object, cuerpo: dict = PEDIDO):
 
 
 def _de_hoy(fabrica_reserva, **cambios) -> Reserva:
-    """La reserva de referencia: ACTIVA, de hoy, en la mesa 5, para el cliente 7."""
-    cuerpo = {"mesa_id": 5, "cliente_id": 7, "fecha": date(2026, 11, 2), "hora": time(21, 30)}
+    """La reserva de referencia: ACTIVA, hoy a las 11:30 (ya cumplida, S68), mesa 5, cliente 7."""
+    cuerpo = {"mesa_id": 5, "cliente_id": 7, "fecha": date(2026, 11, 2), "hora": time(11, 30)}
     return fabrica_reserva(**(cuerpo | cambios))
 
 
@@ -1363,7 +1363,7 @@ def test_post_comanda_de_reserva_devuelve_201_con_la_comanda_abierta_y_atiende_l
         "mesa_id": 5,
         "cliente_id": 7,
         "fecha": "2026-11-02",
-        "hora": "21:30",
+        "hora": "11:30",
         "cantidad_personas": 4,
         "estado": "ATENDIDA",
     }
@@ -1510,14 +1510,76 @@ def test_post_comanda_de_reserva_hoy_es_el_de_la_zona_del_restaurante(
     }
 
 
-# S63: solo cuenta la fecha
-@pytest.mark.parametrize("hora", [time(21, 30), time(8, 0)], ids=["no-llego", "ya-paso"])
-def test_post_comanda_de_reserva_no_verifica_la_hora(
-    cliente: TestClient, fabrica_reserva, hora: time
+# S68 (revierte S63): la reserva de hoy no se atiende antes de su hora, sin tolerancia
+@pytest.mark.parametrize(
+    ("hora", "texto"),
+    [(time(12, 1), "12:01"), (time(21, 30), "21:30")],
+    ids=["un-minuto-antes", "a-la-noche"],
+)
+def test_post_comanda_de_reserva_antes_de_su_hora_devuelve_409(
+    cliente: TestClient, db: Session, fabrica_reserva, puente_doble, hora: time, texto: str
+) -> None:
+    reserva = _de_hoy(fabrica_reserva, hora=hora)
+
+    respuesta = _atender(cliente, reserva.id)
+
+    assert respuesta.status_code == 409
+    assert respuesta.json() == {
+        "detalle": f"La reserva {reserva.id} todavía no está en su horario: es a las {texto}"
+    }
+    assert _estado_de(db, reserva.id) == EstadoReserva.ACTIVA
+    assert puente_doble.comandas == []
+
+
+@pytest.mark.parametrize(
+    "hora",
+    [time(12, 0), time(11, 59), time(8, 0)],
+    ids=["en-punto", "un-minuto-despues", "ya-paso"],
+)
+def test_post_comanda_de_reserva_desde_su_hora_devuelve_201(
+    cliente: TestClient, db: Session, fabrica_reserva, hora: time
 ) -> None:
     reserva = _de_hoy(fabrica_reserva, hora=hora)
 
     assert _atender(cliente, reserva.id).status_code == 201
+    assert _estado_de(db, reserva.id) == EstadoReserva.ATENDIDA
+
+
+# S68: cancelada, atendida y otra fecha ganan al horario; el horario gana al pedido sin productos
+def test_post_comanda_de_reserva_orden_del_horario(
+    cliente: TestClient, fabrica_reserva, puente_doble
+) -> None:
+    sin_llegar = time(21, 30)
+    cancelada = _de_hoy(fabrica_reserva, hora=sin_llegar, estado=EstadoReserva.CANCELADA_ANTICIPADA)
+    atendida = _de_hoy(fabrica_reserva, hora=sin_llegar, estado=EstadoReserva.ATENDIDA)
+    de_ayer = _de_hoy(fabrica_reserva, fecha=date(2026, 11, 1), hora=sin_llegar)
+    de_manana = _de_hoy(fabrica_reserva, fecha=date(2026, 11, 3), hora=sin_llegar)
+    de_hoy = _de_hoy(fabrica_reserva, mesa_id=6, hora=sin_llegar)
+
+    respuestas = {
+        "cancelada": _atender(cliente, cancelada.id),
+        "atendida": _atender(cliente, atendida.id),
+        "de_ayer": _atender(cliente, de_ayer.id),
+        "de_manana": _atender(cliente, de_manana.id),
+        "sin_productos": _atender(cliente, de_hoy.id, {"detalles": [MENU_5]}),
+    }
+
+    codigos = {clave: respuesta.status_code for clave, respuesta in respuestas.items()}
+    assert codigos == dict.fromkeys(respuestas, 409)
+    assert respuestas["cancelada"].json() == {
+        "detalle": f"La reserva {cancelada.id} ya fue cancelada"
+    }
+    assert respuestas["atendida"].json() == {"detalle": f"La reserva {atendida.id} ya fue atendida"}
+    assert respuestas["de_ayer"].json() == {
+        "detalle": f"La reserva {de_ayer.id} no corresponde al día de hoy"
+    }
+    assert respuestas["de_manana"].json() == {
+        "detalle": f"La reserva {de_manana.id} no corresponde al día de hoy"
+    }
+    assert respuestas["sin_productos"].json() == {
+        "detalle": f"La reserva {de_hoy.id} todavía no está en su horario: es a las 21:30"
+    }
+    assert puente_doble.comandas == []
 
 
 # CA 4 y forma del pedido: el cuerpo se valida antes de leer la reserva (paso 1)

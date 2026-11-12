@@ -37,7 +37,7 @@ export type ReservaCrear = DatosDelAlta &
   ({ cliente_id: number } | { cliente_nuevo: ClienteNuevo });
 export type ReservaModificar = Pick<Reserva, 'fecha' | 'hora' | 'cantidad_personas'>;
 
-/** Línea del pedido desde una reserva: solo productos, por su número (HU-M5-06, S58). */
+/** Línea del pedido desde una reserva: solo productos, por su `id` (HU-M5-06, S58). */
 export interface LineaComandaDesdeReserva {
   producto_id: number;
   cantidad: number;
@@ -56,6 +56,17 @@ export interface ComandaCreada {
   mesa_id: number;
   reserva_id: number | null;
   estado: string;
+}
+
+/**
+ * Producto habilitado que ofrece el desplegable de la comanda, tal como lo devuelve `GET /productos`
+ * (solo los campos que usa la pantalla); propio de `reservas` (AGENTS.md §9.4).
+ */
+export interface ProductoHabilitado {
+  id: number;
+  nombre: string;
+  /** Texto decimal con punto y 2 decimales ("1500.50"); se convierte solo para mostrarlo. */
+  precio: string;
 }
 
 /** Propios de `reservas`: no se importan del módulo `salon` (AGENTS.md §9.4, S34). */

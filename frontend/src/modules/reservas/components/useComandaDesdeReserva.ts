@@ -13,7 +13,7 @@ export interface OpcionesComandaDesdeReserva {
   onCreada: () => void;
 }
 
-/** Campos de texto de una línea: producto (su número) y cantidad. */
+/** Campos de una línea, ambos como texto: el `id` del producto elegido y la cantidad. */
 export type CampoLinea = 'producto' | 'cantidad';
 
 /** Errores por línea (validación local) y uno general (el `detalle` que devuelve la API). */

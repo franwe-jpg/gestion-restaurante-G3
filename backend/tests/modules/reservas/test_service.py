@@ -1644,10 +1644,13 @@ def test_cancelar_por_ausencia_libera_la_mesa_en_repository(db: Session, fabrica
 # --- HU-M5-06: crear una comanda a partir de una reserva ---
 # El reloj de las pruebas (conftest.py) marca el 2026-11-02 a las 12:00 (HOY). Los ids de las
 # reservas son los que asigna la base: las pruebas usan `reserva.id`, no un numero fijo.
+# La reserva de referencia es de las 11:30: su hora ya se cumplio (S68), asi que las pruebas de
+# atencion no chocan con la regla del horario; las del horario fijan la hora que necesitan.
 
 AYER = date(2026, 11, 1)
 YA_ATENDIDA = "La reserva {id} ya fue atendida"
 NO_ES_DE_HOY = "La reserva {id} no corresponde al día de hoy"
+NO_EN_HORARIO = "La reserva {id} todavía no está en su horario: es a las {hora}"
 
 
 def _pedido(*lineas: dict, observaciones: str | None = None) -> ComandaDesdeReservaCrear:
@@ -1657,12 +1660,12 @@ def _pedido(*lineas: dict, observaciones: str | None = None) -> ComandaDesdeRese
 
 
 def _de_hoy(fabrica_reserva, **cambios) -> Reserva:
-    """La reserva de referencia: ACTIVA, de hoy, en la mesa 5, para el cliente 7."""
-    cuerpo = {"mesa_id": 5, "cliente_id": 7, "fecha": HOY, "hora": time(21, 30)}
+    """La reserva de referencia: ACTIVA, de hoy a las 11:30 (ya cumplida), mesa 5, cliente 7."""
+    cuerpo = {"mesa_id": 5, "cliente_id": 7, "fecha": HOY, "hora": time(11, 30)}
     return fabrica_reserva(**(cuerpo | cambios))
 
 
-# --- guarda para atender (pasos 2 a 5) ---
+# --- guarda para atender (existencia, estado y fecha; el horario va aparte, S68) ---
 
 
 def test_crear_comanda_reserva_inexistente_responde_404(db: Session, puente_doble) -> None:
@@ -1810,6 +1813,19 @@ def test_crear_comanda_otra_fecha_con_solo_menus_responde_409(
     assert puente_doble.comandas == []
 
 
+# S68: el horario (409) tambien va antes que el pedido sin productos (422), igual que la fecha
+def test_crear_comanda_antes_de_su_hora_con_solo_menus_responde_409_del_horario(
+    db: Session, fabrica_reserva, puente_doble
+) -> None:
+    reserva = _de_hoy(fabrica_reserva, hora=time(21, 30))
+
+    with pytest.raises(ReglaDeNegocioError) as error:
+        service.crear_comanda(db, reserva.id, _pedido(MENU_5))
+
+    assert str(error.value) == NO_EN_HORARIO.format(id=reserva.id, hora="21:30")
+    assert puente_doble.comandas == []
+
+
 # --- camino feliz y atomicidad (pasos 7 y 8) ---
 
 PRODUCTO_12 = {"producto_id": 12, "cantidad": 2}
@@ -1831,7 +1847,7 @@ def test_crear_comanda_reserva_activa_de_hoy_queda_atendida_y_devuelve_la_comand
     guardada = _reserva_guardada(db, reserva.id)
     assert guardada.estado == EstadoReserva.ATENDIDA
     assert (guardada.mesa_id, guardada.cliente_id, guardada.fecha) == (5, 7, HOY)
-    assert (guardada.hora, guardada.cantidad_personas) == (time(21, 30), 4)
+    assert (guardada.hora, guardada.cantidad_personas) == (time(11, 30), 4)
 
 
 def test_crear_comanda_hace_un_unico_commit_despues_del_puente_y_de_atender(
@@ -1930,16 +1946,116 @@ def test_crear_comanda_no_consulta_la_mesa_al_puente(
     assert consultas == []
 
 
-# S63: solo cuenta la fecha; la hora de la reserva no se verifica
-@pytest.mark.parametrize("hora", [time(21, 30), time(8, 0)], ids=["no-llego", "ya-paso"])
-def test_crear_comanda_no_verifica_la_hora_de_la_reserva(
-    db: Session, fabrica_reserva, hora: time
+# S68 (revierte S63): la reserva de hoy no se atiende antes de su hora, sin tolerancia
+@pytest.mark.parametrize(
+    ("hora", "texto"),
+    [(time(12, 1), "12:01"), (time(21, 30), "21:30"), (time(23, 59), "23:59")],
+    ids=["un-minuto-antes", "a-la-noche", "ultimo-minuto-del-dia"],
+)
+def test_crear_comanda_de_hoy_antes_de_su_hora_responde_409(
+    db: Session, fabrica_reserva, puente_doble, hora: time, texto: str
 ) -> None:
     reserva = _de_hoy(fabrica_reserva, hora=hora)
 
-    service.crear_comanda(db, reserva.id, _pedido())
+    with pytest.raises(ReglaDeNegocioError) as error:
+        service.crear_comanda(db, reserva.id, _pedido())
 
+    assert str(error.value) == NO_EN_HORARIO.format(id=reserva.id, hora=texto)
+    assert puente_doble.comandas == []
+    assert _reserva_guardada(db, reserva.id).estado == EstadoReserva.ACTIVA
+
+
+@pytest.mark.parametrize(
+    "hora",
+    [time(12, 0), time(11, 59), time(8, 0)],
+    ids=["en-punto", "un-minuto-despues", "ya-paso"],
+)
+def test_crear_comanda_de_hoy_desde_su_hora_queda_atendida(
+    db: Session, fabrica_reserva, puente_doble, hora: time
+) -> None:
+    reserva = _de_hoy(fabrica_reserva, hora=hora)
+
+    comanda = service.crear_comanda(db, reserva.id, _pedido())
+
+    assert comanda.reserva_id == reserva.id
+    assert len(puente_doble.comandas) == 1
     assert _reserva_guardada(db, reserva.id).estado == EstadoReserva.ATENDIDA
+
+
+def test_crear_comanda_antes_de_su_hora_no_llama_al_puente_ni_escribe(
+    db: Session, fabrica_reserva, puente_doble, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    reserva = _de_hoy(fabrica_reserva, hora=time(21, 30))
+    invocaciones: list[Session] = []
+    commits: list[str] = []
+    puente_doble.efecto = invocaciones.append  # queda anotado si se llamo, aunque falle
+    monkeypatch.setattr(db, "commit", lambda: commits.append("commit"))
+
+    with pytest.raises(ReglaDeNegocioError, match="todavía no está en su horario"):
+        service.crear_comanda(db, reserva.id, _pedido())
+
+    assert invocaciones == []
+    assert puente_doble.comandas == []
+    assert commits == []
+    assert not db.new
+    assert not db.dirty
+    assert _reserva_guardada(db, reserva.id).estado == EstadoReserva.ACTIVA
+
+
+# Orden de las verificaciones: cancelada, atendida y la fecha van antes que el horario
+def test_crear_comanda_cancelada_antes_de_su_hora_responde_ya_fue_cancelada(
+    db: Session, fabrica_reserva, puente_doble
+) -> None:
+    reserva = _de_hoy(fabrica_reserva, hora=time(21, 30), estado=EstadoReserva.CANCELADA_ANTICIPADA)
+
+    with pytest.raises(ReglaDeNegocioError) as error:
+        service.crear_comanda(db, reserva.id, _pedido())
+
+    assert str(error.value) == YA_FUE_CANCELADA.format(id=reserva.id)
+    assert puente_doble.comandas == []
+
+
+def test_crear_comanda_atendida_antes_de_su_hora_responde_ya_fue_atendida(
+    db: Session, fabrica_reserva, puente_doble
+) -> None:
+    reserva = _de_hoy(fabrica_reserva, hora=time(21, 30), estado=EstadoReserva.ATENDIDA)
+
+    with pytest.raises(ReglaDeNegocioError) as error:
+        service.crear_comanda(db, reserva.id, _pedido())
+
+    assert str(error.value) == YA_ATENDIDA.format(id=reserva.id)
+    assert puente_doble.comandas == []
+
+
+@pytest.mark.parametrize("fecha", [MANANA, AYER], ids=["manana", "ayer"])
+def test_crear_comanda_otra_fecha_con_la_hora_sin_cumplir_responde_el_409_de_la_fecha(
+    db: Session, fabrica_reserva, puente_doble, fecha: date
+) -> None:
+    reserva = _de_hoy(fabrica_reserva, fecha=fecha, hora=time(21, 30))
+
+    with pytest.raises(ReglaDeNegocioError) as error:
+        service.crear_comanda(db, reserva.id, _pedido())
+
+    assert str(error.value) == NO_ES_DE_HOY.format(id=reserva.id)
+    assert puente_doble.comandas == []
+    assert _reserva_guardada(db, reserva.id).estado == EstadoReserva.ACTIVA
+
+
+# S28 y S68: el horario se compara con la hora del restaurante (23:30), no con la del servidor
+def test_crear_comanda_el_horario_es_el_de_la_zona_del_restaurante(
+    db: Session, fabrica_reserva, puente_doble, reloj_utc_fijo
+) -> None:
+    cumplida = _de_hoy(fabrica_reserva, fecha=ANOCHE, hora=time(23, 0))
+    pendiente = _de_hoy(fabrica_reserva, mesa_id=6, fecha=ANOCHE, hora=time(23, 45))
+
+    service.crear_comanda(db, cumplida.id, _pedido())
+    with pytest.raises(ReglaDeNegocioError) as error:
+        service.crear_comanda(db, pendiente.id, _pedido())
+
+    assert _reserva_guardada(db, cumplida.id).estado == EstadoReserva.ATENDIDA
+    assert str(error.value) == NO_EN_HORARIO.format(id=pendiente.id, hora="23:45")
+    assert _reserva_guardada(db, pendiente.id).estado == EstadoReserva.ACTIVA
+    assert len(puente_doble.comandas) == 1
 
 
 # S28 y D9: "hoy" es el de la zona del restaurante (el servidor en UTC ya marca el 2 de noviembre)
