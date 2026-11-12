@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ConfirmContext } from '../../../shared/components/ui/confirm-context';
@@ -29,7 +29,12 @@ function pagina<T>(items: T[]) {
   return { datos: { items, total: items.length, limit: 50, offset: 0 }, exito: true };
 }
 
+/**
+ * Desmonta antes de resetear los mocks: si una recarga pendiente (por ejemplo, tras «Guardar»)
+ * llega después del reset, la API simulada devuelve `undefined` y `useApi` falla.
+ */
 afterEach(() => {
+  cleanup();
   vi.resetAllMocks();
 });
 
