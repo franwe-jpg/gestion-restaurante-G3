@@ -1272,9 +1272,9 @@ def test_modificar_reserva_sin_cambiar_fecha_ni_hora_no_se_bloquea_por_una_super
     _ocupar_turno(fabrica_reserva)
     b = _ocupar_turno(fabrica_reserva, hora=time(22, 0))  # ya se superpone con la anterior
 
-    salida = _modificar(db, b.id, cantidad_personas=6)
+    salida = _modificar(db, b.id, cantidad_personas=3)
 
-    assert (salida.fecha, salida.hora, salida.cantidad_personas) == (HOY, time(22, 0), 6)
+    assert (salida.fecha, salida.hora, salida.cantidad_personas) == (HOY, time(22, 0), 3)
     assert _guardada(db, b.id) == salida
 
 
@@ -1285,7 +1285,7 @@ def test_modificar_reserva_cambiando_la_hora_a_otro_turno_superpuesto_si_se_bloq
     b = _ocupar_turno(fabrica_reserva, hora=time(22, 0))  # ya se superpone con la anterior
 
     with pytest.raises(ReglaDeNegocioError) as error:
-        _modificar(db, b.id, hora=time(22, 30), cantidad_personas=6)
+        _modificar(db, b.id, hora=time(22, 30), cantidad_personas=3)
 
     assert str(error.value) == TURNO_OCUPADO
     assert _guardada(db, b.id).hora == time(22, 0)

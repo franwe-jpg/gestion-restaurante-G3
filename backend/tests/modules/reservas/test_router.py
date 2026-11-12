@@ -693,11 +693,11 @@ def test_put_reserva_sin_cambiar_fecha_ni_hora_con_superposicion_previa_devuelve
 
     respuesta = cliente.put(
         f"{RUTA}/{otra.id}",
-        json=CUERPO_PUT | {"fecha": "2026-11-02", "hora": "22:00", "cantidad_personas": 6},
+        json=CUERPO_PUT | {"fecha": "2026-11-02", "hora": "22:00", "cantidad_personas": 3},
     )
 
     assert respuesta.status_code == 200
-    assert respuesta.json()["cantidad_personas"] == 6
+    assert respuesta.json()["cantidad_personas"] == 3
 
 
 # CA 3
