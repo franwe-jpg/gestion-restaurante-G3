@@ -35,6 +35,7 @@ from app.shared.models.enums import EstadoMesa
 
 RUTA = "/api/v1/reservas"
 HOY = date(2026, 11, 2)  # el reloj de las pruebas (conftest.py) marca el 2026-11-02 a las 12:00
+HORA_CUMPLIDA = time(11, 30)  # la reserva ya esta en su horario (S68), como la de referencia
 PRODUCTO_INEXISTENTE = 999
 
 
@@ -77,10 +78,10 @@ def armar(
 ) -> Callable[..., Escenario]:
     """Fabrica del escenario base; `puente_real` deja a M5 hablando con M4 de verdad."""
 
-    def crear(estado_mesa: EstadoMesa = EstadoMesa.LIBRE) -> Escenario:
+    def crear(estado_mesa: EstadoMesa = EstadoMesa.LIBRE, hora: time = HORA_CUMPLIDA) -> Escenario:
         mesa = mesas_en_m3(1, estado_mesa)[0]
         producto_id = _sembrar_producto_habilitado(db)
-        reserva = fabrica_reserva(mesa_id=mesa.id, cliente_id=1, fecha=HOY, hora=time(21, 30))
+        reserva = fabrica_reserva(mesa_id=mesa.id, cliente_id=1, fecha=HOY, hora=hora)
         return Escenario(
             mesa=mesa, mozo_id=mozo_habilitado_en_m3, producto_id=producto_id, reserva=reserva
         )
@@ -162,6 +163,38 @@ def test_post_comanda_de_reserva_persiste_la_comanda_con_el_vinculo_y_ocupa_la_m
         escenario.mozo_id,
     )
     assert _estado_de_la_mesa(db, escenario.mesa.id) == EstadoMesa.OCUPADA
+    assert _estado_de_la_reserva(db, escenario.reserva.id) == EstadoReserva.ATENDIDA
+
+
+# S68: antes de la hora de la reserva M5 rechaza sin llegar a M4: ninguna escritura
+def test_post_comanda_de_reserva_antes_de_su_hora_devuelve_409_sin_cambios(
+    cliente: TestClient, db: Session, armar
+) -> None:
+    escenario = armar(hora=time(12, 1))
+
+    respuesta = _atender(cliente, escenario)
+
+    assert respuesta.status_code == 409
+    reserva_id = escenario.reserva.id
+    assert respuesta.json() == {
+        "detalle": f"La reserva {reserva_id} todavía no está en su horario: es a las 12:01"
+    }
+    assert _comandas(db) == []
+    assert _cantidad_de_detalles(db) == 0
+    assert _estado_de_la_mesa(db, escenario.mesa.id) == EstadoMesa.LIBRE
+    assert _estado_de_la_reserva(db, escenario.reserva.id) == EstadoReserva.ACTIVA
+
+
+# S68: a la hora exacta ya se puede atender
+def test_post_comanda_de_reserva_a_la_hora_exacta_persiste_la_comanda(
+    cliente: TestClient, db: Session, armar
+) -> None:
+    escenario = armar(hora=time(12, 0))
+
+    respuesta = _atender(cliente, escenario)
+
+    assert respuesta.status_code == 201
+    assert [comanda.reserva_id for comanda in _comandas(db)] == [escenario.reserva.id]
     assert _estado_de_la_reserva(db, escenario.reserva.id) == EstadoReserva.ATENDIDA
 
 

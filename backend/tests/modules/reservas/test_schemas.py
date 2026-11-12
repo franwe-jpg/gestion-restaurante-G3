@@ -91,9 +91,9 @@ def test_reserva_crear_rechaza_cantidad_no_positiva(cantidad: int) -> None:
         ("cliente_id", -1),
         ("cliente_nuevo", "Luis"),
         ("cliente_nuevo", [CLIENTE_NUEVO]),
-        ("cliente_nuevo", {"telefono": "123"}),
+        ("cliente_nuevo", {"telefono": "280123456"}),
         ("cliente_nuevo", {"nombre": "Luis"}),
-        ("cliente_nuevo", {"nombre": 123, "telefono": "123"}),
+        ("cliente_nuevo", {"nombre": 123, "telefono": "280123456"}),
         ("cliente_nuevo", {"nombre": "Luis", "telefono": 123}),
         ("cliente_nuevo", CLIENTE_NUEVO | {"dni": "1"}),
     ],
@@ -142,12 +142,111 @@ def test_reserva_crear_toma_null_del_cliente_como_ausente(campo: str) -> None:
     assert getattr(_reserva(**{campo: None}), campo) is None
 
 
-# S42: las reglas de contenido son de M4; la forma deja pasar vacios y simbolos
-@pytest.mark.parametrize("nombre, telefono", [("", "abc"), ("   ", "   "), ("Luis3", "280+456")])
-def test_reserva_crear_deja_las_reglas_de_contenido_a_m4(nombre: str, telefono: str) -> None:
-    datos = _reserva(cliente_id=None, cliente_nuevo={"nombre": nombre, "telefono": telefono})
+# S42: las reglas de contenido del nombre son de M4; la forma deja pasar vacios y simbolos.
+# El telefono ya no: lo valida el esquema propio (Supuesto S66, mas abajo).
+@pytest.mark.parametrize("nombre", ["", "   ", "Luis3"])
+def test_reserva_crear_deja_las_reglas_de_contenido_del_nombre_a_m4(nombre: str) -> None:
+    datos = _reserva(cliente_id=None, cliente_nuevo={"nombre": nombre, "telefono": "280123456"})
 
-    assert (datos.cliente_nuevo.nombre, datos.cliente_nuevo.telefono) == (nombre, telefono)
+    assert datos.cliente_nuevo.nombre == nombre
+
+
+# Supuesto S66 (correccion de HU-M5-01-02-03, 2026-11-11, pendiente de validacion del equipo):
+# el telefono del cliente nuevo admite un `+` opcional solo al inicio, digitos, espacios y
+# guiones; entre 6 y 15 digitos (15 es el maximo de E.164) y hasta 20 caracteres en total. Los
+# espacios de los extremos se recortan antes de validar y de guardar. Lo valida este esquema,
+# antes de llamar a M4, porque la regla de M4 no acota el largo.
+MENSAJE_TELEFONO_OBLIGATORIO = "telefono es obligatorio"
+MENSAJE_TELEFONO_CARACTERES = "telefono solo admite dígitos, espacios, guiones y + al inicio"
+MENSAJE_TELEFONO_LARGO = "telefono admite hasta 20 caracteres"
+MENSAJE_TELEFONO_DIGITOS = "telefono debe tener entre 6 y 15 dígitos"
+
+
+def _telefono_guardado(telefono: str) -> str:
+    datos = _reserva(cliente_id=None, cliente_nuevo=CLIENTE_NUEVO | {"telefono": telefono})
+    return datos.cliente_nuevo.telefono
+
+
+def _mensaje_del_telefono(telefono: str) -> str:
+    """Mensaje del unico error que produce el telefono, ubicado en `cliente_nuevo.telefono`."""
+    with pytest.raises(ValidationError) as error:
+        _reserva(cliente_id=None, cliente_nuevo=CLIENTE_NUEVO | {"telefono": telefono})
+    (falla,) = error.value.errors()
+    assert falla["loc"] == ("cliente_nuevo", "telefono")
+    return falla["msg"]
+
+
+@pytest.mark.parametrize(
+    "telefono",
+    [
+        "123456",  # 6 digitos: limite inferior
+        "123456789012345",  # 15 digitos: limite superior
+        "+123 456 789 012 345",  # 20 caracteres con 15 digitos: limite del largo total
+        "+54 280 1234567",
+        "280-4556677",
+        "28 04 12 34 56",
+        "1-2-3-4-5-6",
+        "+ 54 280 123456",
+    ],
+)
+def test_cliente_nuevo_acepta_telefonos_dentro_de_los_limites(telefono: str) -> None:
+    assert _telefono_guardado(telefono) == telefono
+
+
+@pytest.mark.parametrize(
+    "telefono, esperado",
+    [
+        ("  2804123456", "2804123456"),
+        ("2804123456   ", "2804123456"),
+        ("\t+54 280 1234567\n", "+54 280 1234567"),
+        ("  +123 456 789 012 345  ", "+123 456 789 012 345"),  # el largo se mide ya recortado
+    ],
+)
+def test_cliente_nuevo_recorta_los_espacios_de_los_extremos_del_telefono(
+    telefono: str, esperado: str
+) -> None:
+    assert _telefono_guardado(telefono) == esperado
+
+
+@pytest.mark.parametrize("telefono", ["", "   ", "\t\n"])
+def test_cliente_nuevo_rechaza_telefono_vacio(telefono: str) -> None:
+    assert _mensaje_del_telefono(telefono) == MENSAJE_TELEFONO_OBLIGATORIO
+
+
+@pytest.mark.parametrize(
+    "telefono", ["abc123", "2804abc123", "+", "280+456", "(280) 123456", "1.23"]
+)
+def test_cliente_nuevo_rechaza_telefono_con_caracteres_no_permitidos(telefono: str) -> None:
+    assert _mensaje_del_telefono(telefono) == MENSAJE_TELEFONO_CARACTERES
+
+
+@pytest.mark.parametrize(
+    "telefono",
+    [
+        "12345",  # 5 digitos: justo por debajo del minimo
+        "1",
+        "- - -",  # sin ningun digito
+        "+--",
+        "12 34 5",
+        "1234567890123456",  # 16 digitos: justo por encima del maximo, pero dentro de 20 caracteres
+        "+1234567890123456",
+    ],
+)
+def test_cliente_nuevo_rechaza_telefono_con_menos_de_6_o_mas_de_15_digitos(telefono: str) -> None:
+    assert _mensaje_del_telefono(telefono) == MENSAJE_TELEFONO_DIGITOS
+
+
+@pytest.mark.parametrize(
+    "telefono",
+    [
+        "+123  456 789 012 345",  # 21 caracteres con 15 digitos: justo por encima del limite
+        "1" * 21,
+        "1" * 300,
+        "1 " * 150,
+    ],
+)
+def test_cliente_nuevo_rechaza_telefono_de_mas_de_20_caracteres(telefono: str) -> None:
+    assert _mensaje_del_telefono(telefono) == MENSAJE_TELEFONO_LARGO
 
 
 @pytest.mark.parametrize(

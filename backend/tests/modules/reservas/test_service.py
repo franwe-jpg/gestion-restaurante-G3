@@ -27,7 +27,25 @@ from app.shared.paginacion import Pagina
 # El reloj de las pruebas (conftest.py) marca el 2026-11-02 a las 12:00.
 HOY = date(2026, 11, 2)
 MANANA = date(2026, 11, 3)
-TURNO_OCUPADO = "La mesa 5 ya tiene una reserva activa el 2026-11-02 a las 21:30"
+# S69: una reserva ACTIVA o ATENDIDA ocupa la mesa 2 horas desde su hora; el mensaje nombra la
+# reserva que conflicta, no el turno pedido.
+TURNO_OCUPADO = (
+    "La mesa 5 ya tiene una reserva el 2026-11-02 a las 21:30; cada reserva ocupa la mesa 2 horas"
+)
+
+
+def _conflicto(fecha: date, hora: time, mesa_id: int = 5) -> str:
+    """Mensaje 409 del conflicto con la reserva de `mesa_id` en esa `fecha` y `hora` (S69)."""
+    return (
+        f"La mesa {mesa_id} ya tiene una reserva el {fecha} a las {hora:%H:%M}; "
+        "cada reserva ocupa la mesa 2 horas"
+    )
+
+
+def _desplazar(minutos: int, fecha: date = HOY, hora: time = time(21, 30)) -> dict:
+    """`fecha` y `hora` del turno que queda `minutos` despues (o antes, si es negativo) del dado."""
+    momento = datetime.combine(fecha, hora) + timedelta(minutes=minutos)
+    return {"fecha": momento.date(), "hora": momento.time()}
 
 
 def _datos(**cambios) -> ReservaCrear:
@@ -282,7 +300,7 @@ def test_crear_reserva_dos_altas_con_cliente_nuevo_crean_dos_clientes(
     db: Session, puente_doble
 ) -> None:
     primera = service.crear_reserva(db, _datos_con_cliente_nuevo())
-    segunda = service.crear_reserva(db, _datos_con_cliente_nuevo(hora=time(22, 30)))
+    segunda = service.crear_reserva(db, _datos_con_cliente_nuevo(hora=time(23, 30)))
 
     assert primera.cliente_id != segunda.cliente_id
     assert len(puente_doble.registrados) == 2
@@ -291,30 +309,23 @@ def test_crear_reserva_dos_altas_con_cliente_nuevo_crean_dos_clientes(
 def test_crear_reserva_acepta_cliente_nuevo_con_acentos_y_prefijo(
     db: Session, puente_doble
 ) -> None:
-    datos = _datos(cliente_id=None, cliente_nuevo={"nombre": "María José", "telefono": "+54 280"})
+    telefono = "+54 280 123456"  # S66: antes "+54 280", de 5 digitos, que el esquema ya no admite
+    datos = _datos(cliente_id=None, cliente_nuevo={"nombre": "María José", "telefono": telefono})
 
     service.crear_reserva(db, datos)
 
-    assert [(n, t) for _, n, t in puente_doble.registrados] == [("María José", "+54 280")]
+    assert [(n, t) for _, n, t in puente_doble.registrados] == [("María José", telefono)]
 
 
-@pytest.mark.parametrize(
-    "nombre, telefono, campo",
-    [
-        ("", "123", "nombre"),
-        ("   ", "123", "nombre"),
-        ("Luis3", "123", "nombre"),
-        ("Luis", "", "telefono"),
-        ("Luis", "abc", "telefono"),
-        ("Luis", "280+456", "telefono"),
-    ],
-)
-def test_crear_reserva_rechaza_datos_invalidos_del_cliente_nuevo(
-    db: Session, puente_doble, nombre: str, telefono: str, campo: str
+# El nombre lo valida M4 (S42). El telefono ya no llega hasta M4 con datos invalidos: lo rechaza el
+# esquema propio de M5 con 422 antes del service (S66; ver test_schemas.py y test_router.py).
+@pytest.mark.parametrize("nombre", ["", "   ", "Luis3"])
+def test_crear_reserva_rechaza_nombre_invalido_del_cliente_nuevo(
+    db: Session, puente_doble, nombre: str
 ) -> None:
-    datos = _datos(cliente_id=None, cliente_nuevo={"nombre": nombre, "telefono": telefono})
+    datos = _datos(cliente_id=None, cliente_nuevo={"nombre": nombre, "telefono": "280123456"})
 
-    with pytest.raises(DatosInvalidosError, match=f"{campo}:"):
+    with pytest.raises(DatosInvalidosError, match="nombre:"):
         service.crear_reserva(db, datos)
 
     assert puente_doble.registrados == []
@@ -330,6 +341,7 @@ def test_crear_reserva_rechaza_datos_invalidos_del_cliente_nuevo(
         ({"fecha": date(2026, 11, 1)}, DatosInvalidosError),
         ({"hora": time(11, 0)}, DatosInvalidosError),
         ({}, ReglaDeNegocioError),
+        ({"mesa_id": 5, "hora": time(23, 0), "cantidad_personas": 5}, ReglaDeNegocioError),
     ],
     ids=[
         "mesa-inexistente",
@@ -337,6 +349,7 @@ def test_crear_reserva_rechaza_datos_invalidos_del_cliente_nuevo(
         "fecha-pasada",
         "hora-pasada",
         "turno-ocupado",
+        "capacidad-excedida",
     ],
 )
 def test_crear_reserva_fallida_con_cliente_nuevo_no_registra_al_cliente(
@@ -357,21 +370,92 @@ def test_crear_reserva_mesa_inexistente_con_cliente_nuevo_invalido_informa_la_me
     db: Session, puente_sin_mesa
 ) -> None:
     datos = _datos(
-        mesa_id=99, cliente_id=None, cliente_nuevo={"nombre": "Luis3", "telefono": "123"}
+        mesa_id=99, cliente_id=None, cliente_nuevo={"nombre": "Luis3", "telefono": "280123456"}
     )
 
     with pytest.raises(NoEncontradoError, match="La mesa 99 no existe"):
         service.crear_reserva(db, datos)
 
 
-# CA 7, S5 (issue #61): la cantidad solo debe ser un entero mayor a cero; no se la compara con
-# la capacidad de la mesa (se resuelve en forma presencial)
-def test_crear_reserva_acepta_una_cantidad_muy_grande_de_personas(db: Session) -> None:
-    salida = service.crear_reserva(db, _datos(cantidad_personas=100))
+# CA 7, S67 (correccion 2026-11-11, pendiente de validacion del equipo). Esta prueba antes se
+# llamaba `test_crear_reserva_acepta_una_cantidad_muy_grande_de_personas` y comprobaba el S5 del
+# issue #61 (la cantidad no se compara con la capacidad). La responsable del modulo pidio revertir
+# esa regla: ahora la cantidad no puede superar la capacidad de la mesa. Se conserva el caso (100
+# personas) con el resultado invertido.
+def test_crear_reserva_rechaza_una_cantidad_muy_grande_de_personas(db: Session) -> None:
+    with pytest.raises(ReglaDeNegocioError) as error:
+        service.crear_reserva(db, _datos(cantidad_personas=100))
 
-    assert salida.cantidad_personas == 100
+    assert str(error.value) == "La mesa 5 admite hasta 4 personas"
+    assert _reservas(db) == []
+
+
+def test_crear_reserva_acepta_la_capacidad_exacta_de_la_mesa(db: Session) -> None:
+    salida = service.crear_reserva(db, _datos(cantidad_personas=4))
+
+    assert salida.cantidad_personas == 4
     db.expire_all()
-    assert db.get(Reserva, salida.id).cantidad_personas == 100
+    assert db.get(Reserva, salida.id).cantidad_personas == 4
+
+
+def test_crear_reserva_rechaza_una_persona_mas_que_la_capacidad(db: Session) -> None:
+    with pytest.raises(ReglaDeNegocioError) as error:
+        service.crear_reserva(db, _datos(cantidad_personas=5))
+
+    assert str(error.value) == "La mesa 5 admite hasta 4 personas"
+    assert _reservas(db) == []
+    assert not db.new
+
+
+@pytest.mark.parametrize("cantidad", [8, 500])
+def test_crear_reserva_rechaza_mucho_mas_que_la_capacidad_de_una_mesa_chica(
+    db: Session, puente_doble, cantidad: int
+) -> None:
+    puente_doble.poner(5, capacidad=2)
+
+    with pytest.raises(ReglaDeNegocioError, match="La mesa 5 admite hasta 2 personas"):
+        service.crear_reserva(db, _datos(cantidad_personas=cantidad))
+
+    assert _reservas(db) == []
+
+
+def test_crear_reserva_usa_la_capacidad_de_la_mesa_pedida(db: Session, puente_doble) -> None:
+    puente_doble.poner(5, capacidad=2)
+    puente_doble.poner(6, capacidad=10)
+
+    assert service.crear_reserva(db, _datos(mesa_id=6, cantidad_personas=10)).mesa_id == 6
+    with pytest.raises(ReglaDeNegocioError, match="La mesa 5 admite hasta 2 personas"):
+        service.crear_reserva(db, _datos(mesa_id=5, cantidad_personas=3))
+
+
+# Una mesa de capacidad 1 se nombra en singular
+def test_crear_reserva_en_una_mesa_de_una_persona_dice_persona_en_singular(
+    db: Session, puente_doble
+) -> None:
+    puente_doble.poner(5, capacidad=1)
+
+    with pytest.raises(ReglaDeNegocioError) as error:
+        service.crear_reserva(db, _datos(cantidad_personas=2))
+
+    assert str(error.value) == "La mesa 5 admite hasta 1 persona"
+
+
+# La capacidad se lee de la misma consulta de la mesa: una sola llamada al puente
+def test_crear_reserva_consulta_la_mesa_una_sola_vez(
+    db: Session, puente_doble, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    llamadas: list[int] = []
+    original = puente_doble.obtener_mesa
+
+    def contar(db_: Session, mesa_id: int):
+        llamadas.append(mesa_id)
+        return original(db_, mesa_id)
+
+    monkeypatch.setattr(puente, "obtener_mesa", contar)
+
+    service.crear_reserva(db, _datos(cantidad_personas=4))
+
+    assert llamadas == [5]
 
 
 # CA 9
@@ -390,23 +474,35 @@ def test_crear_reserva_rechaza_turno_ocupado(db: Session, fabrica_reserva, puent
     assert reservas[0].estado == EstadoReserva.ACTIVA
 
 
+# S69: la reserva cancelada libera la mesa, tambien dentro de la ventana de 2 horas
+@pytest.mark.parametrize("minutos", [0, 60], ids=["misma-hora", "una-hora-despues"])
 @pytest.mark.parametrize(
     "estado",
-    [
-        EstadoReserva.ATENDIDA,
-        EstadoReserva.CANCELADA_ANTICIPADA,
-        EstadoReserva.CANCELADA_POR_AUSENCIA,
-    ],
+    [EstadoReserva.CANCELADA_ANTICIPADA, EstadoReserva.CANCELADA_POR_AUSENCIA],
 )
-def test_crear_reserva_permite_turno_de_reserva_no_activa(
-    db: Session, fabrica_reserva, estado: EstadoReserva
+def test_crear_reserva_permite_turno_de_reserva_cancelada(
+    db: Session, fabrica_reserva, estado: EstadoReserva, minutos: int
 ) -> None:
     _ocupar_turno(fabrica_reserva, estado=estado)
 
-    salida = service.crear_reserva(db, _datos())
+    salida = service.crear_reserva(db, _datos(**_desplazar(minutos)))
 
     assert salida.estado == EstadoReserva.ACTIVA
     assert len(_reservas(db)) == 2
+
+
+# S69: una reserva ATENDIDA sigue ocupando la mesa durante su ventana
+@pytest.mark.parametrize("minutos", [-90, 0, 90], ids=["antes", "misma-hora", "despues"])
+def test_crear_reserva_rechaza_turno_de_reserva_atendida(
+    db: Session, fabrica_reserva, minutos: int
+) -> None:
+    existente = _ocupar_turno(fabrica_reserva, estado=EstadoReserva.ATENDIDA)
+
+    with pytest.raises(ReglaDeNegocioError) as error:
+        service.crear_reserva(db, _datos(**_desplazar(minutos)))
+
+    assert str(error.value) == TURNO_OCUPADO
+    assert [reserva.id for reserva in _reservas(db)] == [existente.id]
 
 
 def test_crear_reserva_permite_misma_hora_en_otra_mesa(db: Session, fabrica_reserva) -> None:
@@ -417,20 +513,126 @@ def test_crear_reserva_permite_misma_hora_en_otra_mesa(db: Session, fabrica_rese
     assert salida.mesa_id == 6
 
 
-@pytest.mark.parametrize(
-    "cambios",
-    [{"hora": time(22, 0)}, {"fecha": MANANA}],
-    ids=["otra-hora", "otra-fecha"],
-)
-def test_crear_reserva_permite_otra_hora_u_otra_fecha_en_la_misma_mesa(
-    db: Session, fabrica_reserva, cambios: dict
-) -> None:
+# S69: la ventana es de la mesa; otra mesa no conflicta ni dentro de las 2 horas
+def test_crear_reserva_permite_otra_mesa_dentro_de_la_ventana(db: Session, fabrica_reserva) -> None:
     _ocupar_turno(fabrica_reserva)
 
-    salida = service.crear_reserva(db, _datos(**cambios))
+    salida = service.crear_reserva(db, _datos(mesa_id=6, **_desplazar(60)))
 
-    assert salida.mesa_id == 5
+    assert (salida.mesa_id, salida.hora) == (6, time(22, 30))
     assert len(_reservas(db)) == 2
+
+
+# --- S69: ventana de ocupacion de 2 horas (reemplaza a S4, que solo miraba la hora exacta) ---
+
+
+@pytest.mark.parametrize(
+    "minutos",
+    [-119, -1, 0, 1, 119],
+    ids=["119-antes", "1-antes", "misma-hora", "1-despues", "119-despues"],
+)
+def test_crear_reserva_rechaza_turno_dentro_de_la_ventana(
+    db: Session, fabrica_reserva, minutos: int
+) -> None:
+    existente = _ocupar_turno(fabrica_reserva)
+
+    with pytest.raises(ReglaDeNegocioError) as error:
+        service.crear_reserva(db, _datos(**_desplazar(minutos)))
+
+    assert str(error.value) == TURNO_OCUPADO  # nombra la reserva que conflicta, no el pedido
+    assert [reserva.id for reserva in _reservas(db)] == [existente.id]
+
+
+@pytest.mark.parametrize("minutos", [-120, 120], ids=["120-antes", "120-despues"])
+@pytest.mark.parametrize("estado", [EstadoReserva.ACTIVA, EstadoReserva.ATENDIDA])
+def test_crear_reserva_permite_turno_justo_a_dos_horas(
+    db: Session, fabrica_reserva, estado: EstadoReserva, minutos: int
+) -> None:
+    _ocupar_turno(fabrica_reserva, estado=estado)
+
+    salida = service.crear_reserva(db, _datos(**_desplazar(minutos)))
+
+    assert salida.estado == EstadoReserva.ACTIVA
+    assert len(_reservas(db)) == 2
+
+
+def test_crear_reserva_permite_la_misma_hora_otro_dia(db: Session, fabrica_reserva) -> None:
+    _ocupar_turno(fabrica_reserva)
+
+    salida = service.crear_reserva(db, _datos(fecha=MANANA))
+
+    assert (salida.mesa_id, salida.fecha) == (5, MANANA)
+    assert len(_reservas(db)) == 2
+
+
+# La ventana compara instantes reales: tambien rige entre un dia y el siguiente
+CRUZA_LA_MEDIANOCHE = [
+    pytest.param(
+        {"fecha": HOY, "hora": time(23, 30)},
+        {"fecha": MANANA, "hora": time(0, 30)},
+        id="pedido-pasada-la-medianoche",
+    ),
+    pytest.param(
+        {"fecha": MANANA, "hora": time(0, 30)},
+        {"fecha": HOY, "hora": time(23, 30)},
+        id="pedido-antes-de-la-medianoche",
+    ),
+]
+
+
+@pytest.mark.parametrize(("existente", "pedido"), CRUZA_LA_MEDIANOCHE)
+def test_crear_reserva_rechaza_turno_dentro_de_la_ventana_al_cruzar_la_medianoche(
+    db: Session, fabrica_reserva, existente: dict, pedido: dict
+) -> None:
+    _ocupar_turno(fabrica_reserva, **existente)
+
+    with pytest.raises(ReglaDeNegocioError) as error:
+        service.crear_reserva(db, _datos(**pedido))
+
+    assert str(error.value) == _conflicto(existente["fecha"], existente["hora"])
+    assert len(_reservas(db)) == 1
+
+
+@pytest.mark.parametrize(
+    ("existente", "pedido"),
+    [
+        pytest.param(
+            {"fecha": HOY, "hora": time(23, 30)},
+            {"fecha": MANANA, "hora": time(1, 30)},
+            id="pedido-pasada-la-medianoche",
+        ),
+        pytest.param(
+            {"fecha": MANANA, "hora": time(1, 30)},
+            {"fecha": HOY, "hora": time(23, 30)},
+            id="pedido-antes-de-la-medianoche",
+        ),
+    ],
+)
+def test_crear_reserva_permite_dos_horas_exactas_al_cruzar_la_medianoche(
+    db: Session, fabrica_reserva, existente: dict, pedido: dict
+) -> None:
+    _ocupar_turno(fabrica_reserva, **existente)
+
+    salida = service.crear_reserva(db, _datos(**pedido))
+
+    assert (salida.fecha, salida.hora) == (pedido["fecha"], pedido["hora"])
+    assert len(_reservas(db)) == 2
+
+
+# La duracion vive en una sola constante: el limite y el texto del mensaje salen de ella
+def test_crear_reserva_toma_la_ventana_de_la_constante(
+    db: Session, fabrica_reserva, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    assert timedelta(hours=2) == service.VENTANA_DE_OCUPACION
+    monkeypatch.setattr(service, "VENTANA_DE_OCUPACION", timedelta(hours=3))
+    _ocupar_turno(fabrica_reserva)
+
+    with pytest.raises(ReglaDeNegocioError) as error:
+        service.crear_reserva(db, _datos(**_desplazar(150)))  # 2 h 30 min: ya no alcanza con 2 h
+    salida = service.crear_reserva(db, _datos(**_desplazar(180)))
+
+    assert str(error.value).endswith("; cada reserva ocupa la mesa 3 horas")
+    assert salida.hora == time(0, 30)
 
 
 # S21: la unica regla de conflicto es la de mesa
@@ -452,7 +654,7 @@ def test_crear_reserva_conflicto_no_depende_del_puente(
     _ocupar_turno(fabrica_reserva)
 
     assert puente.obtener_mesa(db, 5) == puente_doble.mesas[5]
-    with pytest.raises(ReglaDeNegocioError, match="ya tiene una reserva activa"):
+    with pytest.raises(ReglaDeNegocioError, match="ya tiene una reserva el"):
         service.crear_reserva(db, _datos())
 
 
@@ -472,9 +674,13 @@ def test_crear_reserva_orden_de_validacion(
 
     puente_doble.poner(5, estado=EstadoMesa.FUERA_DE_SERVICIO)
     with pytest.raises(ReglaDeNegocioError, match="La mesa 5 está fuera de servicio"):
-        service.crear_reserva(db, _datos(fecha=ayer))
+        service.crear_reserva(db, _datos(fecha=ayer, cantidad_personas=5))
 
+    # S67: la capacidad se comprueba con la mesa, antes que el cliente, la fecha y la hora
     puente_doble.poner(5, estado=EstadoMesa.LIBRE)
+    with pytest.raises(ReglaDeNegocioError, match="La mesa 5 admite hasta 4 personas"):
+        service.crear_reserva(db, _datos(fecha=ayer, cantidad_personas=5))
+
     with pytest.raises(NoEncontradoError, match="El cliente 7 no existe"):
         service.crear_reserva(db, _datos(fecha=ayer))
 
@@ -485,7 +691,7 @@ def test_crear_reserva_orden_de_validacion(
     with pytest.raises(DatosInvalidosError, match="La hora de la reserva"):
         service.crear_reserva(db, _datos(hora=time(11, 0)))
 
-    with pytest.raises(ReglaDeNegocioError, match="ya tiene una reserva activa"):
+    with pytest.raises(ReglaDeNegocioError, match="ya tiene una reserva el"):
         service.crear_reserva(db, _datos())
 
 
@@ -512,7 +718,7 @@ def test_crear_reserva_dato_invalido_no_guarda_nada(db: Session, cambios: dict) 
 
 def _sin_verificacion_previa(monkeypatch: pytest.MonkeyPatch) -> None:
     """Simula dos altas simultaneas: la consulta previa no ve la reserva de la otra."""
-    monkeypatch.setattr(repository, "existe_reserva_activa", lambda *_args, **_kwargs: False)
+    monkeypatch.setattr(repository, "reserva_que_ocupa_la_mesa", lambda *_args, **_kwargs: None)
 
 
 def test_crear_reserva_traduce_conflicto_del_indice_en_409(
@@ -537,7 +743,7 @@ def test_crear_reserva_dos_altas_iguales_sin_verificacion_previa_deja_una_sola_a
     _sin_verificacion_previa(monkeypatch)
 
     primera = service.crear_reserva(db, _datos(cliente_id=7))
-    with pytest.raises(ReglaDeNegocioError, match="ya tiene una reserva activa"):
+    with pytest.raises(ReglaDeNegocioError, match="ya tiene una reserva el"):
         service.crear_reserva(db, _datos(cliente_id=8))
 
     activas = [reserva for reserva in _reservas(db) if reserva.estado == EstadoReserva.ACTIVA]
@@ -720,7 +926,7 @@ def test_listar_reservas_no_modifica_datos(db: Session, fabrica_reserva) -> None
 
 
 def _modificacion(**cambios) -> ReservaModificar:
-    cuerpo = {"fecha": HOY, "hora": time(22, 0), "cantidad_personas": 5}
+    cuerpo = {"fecha": HOY, "hora": time(22, 0), "cantidad_personas": 3}
     return ReservaModificar(**(cuerpo | cambios))
 
 
@@ -766,16 +972,16 @@ def test_modificar_reserva_cambia_fecha_hora_y_personas(db: Session, fabrica_res
 
     salida = _modificar(db, reserva.id, fecha=MANANA)
 
-    assert (salida.fecha, salida.hora, salida.cantidad_personas) == (MANANA, time(22, 0), 5)
+    assert (salida.fecha, salida.hora, salida.cantidad_personas) == (MANANA, time(22, 0), 3)
     assert _guardada(db, reserva.id) == salida
 
 
 def test_modificar_reserva_cambia_un_solo_valor(db: Session, fabrica_reserva) -> None:
     reserva = _ocupar_turno(fabrica_reserva)
 
-    salida = _modificar(db, reserva.id, hora=time(21, 30), cantidad_personas=6)
+    salida = _modificar(db, reserva.id, hora=time(21, 30), cantidad_personas=2)
 
-    assert (salida.fecha, salida.hora, salida.cantidad_personas) == (HOY, time(21, 30), 6)
+    assert (salida.fecha, salida.hora, salida.cantidad_personas) == (HOY, time(21, 30), 2)
 
 
 # S7: sin control de concurrencia, gana la ultima
@@ -783,9 +989,9 @@ def test_modificar_reserva_la_ultima_modificacion_prevalece(db: Session, fabrica
     reserva = _ocupar_turno(fabrica_reserva)
 
     _modificar(db, reserva.id, cantidad_personas=3)
-    _modificar(db, reserva.id, cantidad_personas=5)
+    _modificar(db, reserva.id, cantidad_personas=2)
 
-    assert _guardada(db, reserva.id).cantidad_personas == 5
+    assert _guardada(db, reserva.id).cantidad_personas == 2
 
 
 # CA 2
@@ -821,30 +1027,111 @@ def test_modificar_reserva_rechaza_hora_pasada_de_hoy(db: Session, fabrica_reser
     assert _guardada(db, reserva.id) == antes
 
 
-# CA 3, S5 (issue #61): la cantidad no se compara con la capacidad de la mesa
-def test_modificar_reserva_acepta_una_cantidad_muy_grande_de_personas(
+# CA 3, S67 (correccion 2026-11-11, pendiente de validacion del equipo). Esta prueba antes se
+# llamaba `test_modificar_reserva_acepta_una_cantidad_muy_grande_de_personas` y comprobaba el S5 del
+# issue #61. Se conserva el caso (100 personas) con el resultado invertido: ahora la cantidad no
+# puede superar la capacidad de la mesa de la reserva, tambien al modificar.
+def test_modificar_reserva_rechaza_una_cantidad_muy_grande_de_personas(
     db: Session, fabrica_reserva
 ) -> None:
     reserva = _ocupar_turno(fabrica_reserva)
+    antes = _guardada(db, reserva.id)
 
-    salida = _modificar(db, reserva.id, cantidad_personas=100)
+    with pytest.raises(ReglaDeNegocioError) as error:
+        _modificar(db, reserva.id, cantidad_personas=100)
 
-    assert salida.cantidad_personas == 100
+    assert str(error.value) == "La mesa 5 admite hasta 4 personas"
+    assert _guardada(db, reserva.id) == antes
+
+
+def test_modificar_reserva_acepta_la_capacidad_exacta_de_la_mesa(
+    db: Session, fabrica_reserva
+) -> None:
+    reserva = _ocupar_turno(fabrica_reserva, cantidad_personas=2)
+
+    salida = _modificar(db, reserva.id, cantidad_personas=4)
+
+    assert salida.cantidad_personas == 4
     assert _guardada(db, reserva.id) == salida
 
 
-# S27: la modificacion no consulta al puente: ninguna de sus tres operaciones se llama
-def test_modificar_reserva_no_consulta_mesa_ni_cliente(
-    db: Session, fabrica_reserva, monkeypatch: pytest.MonkeyPatch
+def test_modificar_reserva_rechaza_una_persona_mas_que_la_capacidad(
+    db: Session, fabrica_reserva
+) -> None:
+    reserva = _ocupar_turno(fabrica_reserva)
+    antes = _guardada(db, reserva.id)
+
+    with pytest.raises(ReglaDeNegocioError, match="La mesa 5 admite hasta 4 personas"):
+        _modificar(db, reserva.id, fecha=MANANA, cantidad_personas=5)
+
+    assert _guardada(db, reserva.id) == antes
+
+
+def test_modificar_reserva_rechaza_nueve_personas_en_una_mesa_de_dos(
+    db: Session, fabrica_reserva, puente_doble
+) -> None:
+    puente_doble.poner(5, capacidad=2)
+    reserva = _ocupar_turno(fabrica_reserva, cantidad_personas=2)
+    antes = _guardada(db, reserva.id)
+
+    with pytest.raises(ReglaDeNegocioError) as error:
+        _modificar(db, reserva.id, cantidad_personas=9)
+
+    assert str(error.value) == "La mesa 5 admite hasta 2 personas"
+    assert _guardada(db, reserva.id) == antes
+
+
+# La mesa no se edita: la capacidad es la de la mesa de la reserva, no la de otra mesa del puente
+def test_modificar_reserva_usa_la_capacidad_de_la_mesa_de_la_reserva(
+    db: Session, fabrica_reserva, puente_doble
+) -> None:
+    puente_doble.poner(5, capacidad=2)
+    puente_doble.poner(6, capacidad=10)
+    en_la_5 = _ocupar_turno(fabrica_reserva, mesa_id=5, cantidad_personas=2)
+    en_la_6 = _ocupar_turno(fabrica_reserva, mesa_id=6, cantidad_personas=2)
+
+    with pytest.raises(ReglaDeNegocioError, match="La mesa 5 admite hasta 2 personas"):
+        _modificar(db, en_la_5.id, cantidad_personas=3)
+
+    assert _modificar(db, en_la_6.id, cantidad_personas=10).cantidad_personas == 10
+
+
+# Supuesto: si M3 ya no tiene la mesa de la reserva, no hay capacidad contra la cual comparar y se
+# responde 404 como en el alta, en vez de aceptar la cantidad sin control.
+def test_modificar_reserva_con_mesa_que_m3_ya_no_tiene_responde_404(
+    db: Session, fabrica_reserva, puente_sin_mesa
+) -> None:
+    reserva = _ocupar_turno(fabrica_reserva)
+    antes = _guardada(db, reserva.id)
+
+    with pytest.raises(NoEncontradoError, match="La mesa 5 no existe"):
+        _modificar(db, reserva.id)
+
+    assert _guardada(db, reserva.id) == antes
+
+
+# S27 (acotado por S67): al modificar solo se consulta la mesa de la reserva, una vez y para leer
+# su capacidad; no se lista ninguna otra mesa ni se consulta al cliente
+def test_modificar_reserva_solo_consulta_la_mesa_de_la_reserva(
+    db: Session, fabrica_reserva, puente_doble, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     def falla(*_args, **_kwargs):
-        raise AssertionError("la modificacion no debe consultar al puente")
+        raise AssertionError("la modificacion solo debe consultar la mesa de la reserva")
 
-    for operacion in ("obtener_mesa", "listar_mesas", "existe_cliente"):
+    llamadas: list[int] = []
+    original = puente_doble.obtener_mesa
+
+    def contar(db_: Session, mesa_id: int):
+        llamadas.append(mesa_id)
+        return original(db_, mesa_id)
+
+    for operacion in ("listar_mesas", "existe_cliente", "registrar_cliente"):
         monkeypatch.setattr(puente, operacion, falla)
-    reserva = _ocupar_turno(fabrica_reserva)
+    monkeypatch.setattr(puente, "obtener_mesa", contar)
+    reserva = _ocupar_turno(fabrica_reserva, mesa_id=6)
 
-    assert _modificar(db, reserva.id, cantidad_personas=6).cantidad_personas == 6
+    assert _modificar(db, reserva.id, cantidad_personas=4).cantidad_personas == 4
+    assert llamadas == [6]
 
 
 # S27: la modificacion no mira el estado de la mesa, aunque ahora este fuera de servicio
@@ -871,9 +1158,21 @@ def test_modificar_reserva_no_choca_consigo_misma(db: Session, fabrica_reserva) 
     assert _guardada(db, reserva.id) == antes
 
 
+# S69: la propia reserva no cuenta, tampoco cuando el turno nuevo cae dentro de su ventana vieja
+def test_modificar_reserva_no_choca_con_su_propio_turno_anterior(
+    db: Session, fabrica_reserva
+) -> None:
+    reserva = _ocupar_turno(fabrica_reserva)
+
+    salida = _modificar(db, reserva.id, hora=time(22, 30))
+
+    assert salida.hora == time(22, 30)
+    assert _guardada(db, reserva.id) == salida
+
+
 def test_modificar_reserva_rechaza_turno_de_otra_reserva(db: Session, fabrica_reserva) -> None:
     a = _ocupar_turno(fabrica_reserva)
-    b = _ocupar_turno(fabrica_reserva, hora=time(22, 0))
+    b = _ocupar_turno(fabrica_reserva, hora=time(23, 30))
     antes = (_guardada(db, a.id), _guardada(db, b.id))
 
     with pytest.raises(ReglaDeNegocioError) as error:
@@ -883,9 +1182,68 @@ def test_modificar_reserva_rechaza_turno_de_otra_reserva(db: Session, fabrica_re
     assert (_guardada(db, a.id), _guardada(db, b.id)) == antes
 
 
+# S69: mover la reserva a un turno que se superpone con otra de la mesa se rechaza
+@pytest.mark.parametrize(
+    "minutos", [-119, -1, 1, 119], ids=["119-antes", "1-antes", "1-despues", "119-despues"]
+)
+def test_modificar_reserva_rechaza_mover_a_un_turno_dentro_de_la_ventana_de_otra(
+    db: Session, fabrica_reserva, minutos: int
+) -> None:
+    a = _ocupar_turno(fabrica_reserva)
+    b = _ocupar_turno(fabrica_reserva, fecha=MANANA)
+    antes = (_guardada(db, a.id), _guardada(db, b.id))
+
+    with pytest.raises(ReglaDeNegocioError) as error:
+        _modificar(db, b.id, **_desplazar(minutos))
+
+    assert str(error.value) == TURNO_OCUPADO
+    assert (_guardada(db, a.id), _guardada(db, b.id)) == antes
+
+
+@pytest.mark.parametrize("minutos", [-120, 120], ids=["120-antes", "120-despues"])
+def test_modificar_reserva_permite_mover_a_dos_horas_de_otra(
+    db: Session, fabrica_reserva, minutos: int
+) -> None:
+    _ocupar_turno(fabrica_reserva)
+    b = _ocupar_turno(fabrica_reserva, fecha=MANANA)
+
+    turno = _desplazar(minutos)
+
+    salida = _modificar(db, b.id, **turno)
+
+    assert (salida.fecha, salida.hora) == (turno["fecha"], turno["hora"])
+    assert _guardada(db, b.id) == salida
+
+
+def test_modificar_reserva_rechaza_mover_dentro_de_la_ventana_al_cruzar_la_medianoche(
+    db: Session, fabrica_reserva
+) -> None:
+    _ocupar_turno(fabrica_reserva, hora=time(23, 30))
+    b = _ocupar_turno(fabrica_reserva, fecha=date(2026, 11, 5))
+
+    with pytest.raises(ReglaDeNegocioError) as error:
+        _modificar(db, b.id, fecha=MANANA, hora=time(0, 30))
+
+    assert str(error.value) == _conflicto(HOY, time(23, 30))
+    assert _guardada(db, b.id).fecha == date(2026, 11, 5)
+
+
+# S69: una reserva ATENDIDA tambien ocupa la mesa; una cancelada no
+def test_modificar_reserva_rechaza_mover_a_la_ventana_de_una_atendida(
+    db: Session, fabrica_reserva
+) -> None:
+    _ocupar_turno(fabrica_reserva, estado=EstadoReserva.ATENDIDA)
+    b = _ocupar_turno(fabrica_reserva, fecha=MANANA)
+
+    with pytest.raises(ReglaDeNegocioError) as error:
+        _modificar(db, b.id, hora=time(22, 30))
+
+    assert str(error.value) == TURNO_OCUPADO
+
+
 def test_modificar_reserva_permite_turno_de_reserva_no_activa(db: Session, fabrica_reserva) -> None:
     _ocupar_turno(fabrica_reserva, estado=EstadoReserva.CANCELADA_ANTICIPADA)
-    b = _ocupar_turno(fabrica_reserva, hora=time(22, 0))
+    b = _ocupar_turno(fabrica_reserva, hora=time(23, 30))
 
     assert _modificar(db, b.id, hora=time(21, 30)).hora == time(21, 30)
 
@@ -900,10 +1258,37 @@ def test_modificar_reserva_permite_turno_libre_de_otra_mesa(db: Session, fabrica
 def test_modificar_reserva_libera_el_turno_anterior(db: Session, fabrica_reserva) -> None:
     b = _ocupar_turno(fabrica_reserva, hora=time(22, 0))
 
-    _modificar(db, b.id, hora=time(22, 30))
+    _modificar(db, b.id, fecha=MANANA)
     nueva = service.crear_reserva(db, _datos(hora=time(22, 0)))
 
     assert nueva.hora == time(22, 0)
+
+
+# S69: la ventana se revisa solo si cambian `fecha` u `hora`. Una modificacion que no las toca no se
+# bloquea por una superposicion que ya existia (datos de antes de esta regla).
+def test_modificar_reserva_sin_cambiar_fecha_ni_hora_no_se_bloquea_por_una_superposicion_previa(
+    db: Session, fabrica_reserva
+) -> None:
+    _ocupar_turno(fabrica_reserva)
+    b = _ocupar_turno(fabrica_reserva, hora=time(22, 0))  # ya se superpone con la anterior
+
+    salida = _modificar(db, b.id, cantidad_personas=3)
+
+    assert (salida.fecha, salida.hora, salida.cantidad_personas) == (HOY, time(22, 0), 3)
+    assert _guardada(db, b.id) == salida
+
+
+def test_modificar_reserva_cambiando_la_hora_a_otro_turno_superpuesto_si_se_bloquea(
+    db: Session, fabrica_reserva
+) -> None:
+    _ocupar_turno(fabrica_reserva)
+    b = _ocupar_turno(fabrica_reserva, hora=time(22, 0))  # ya se superpone con la anterior
+
+    with pytest.raises(ReglaDeNegocioError) as error:
+        _modificar(db, b.id, hora=time(22, 30), cantidad_personas=3)
+
+    assert str(error.value) == TURNO_OCUPADO
+    assert _guardada(db, b.id).hora == time(22, 0)
 
 
 # CA 5
@@ -933,7 +1318,7 @@ def test_modificar_reserva_activa_con_fecha_pasada(db: Session, fabrica_reserva)
     reserva = _ocupar_turno(fabrica_reserva, fecha=date(2026, 11, 1))
 
     with pytest.raises(DatosInvalidosError, match="La fecha de la reserva no puede ser anterior"):
-        _modificar(db, reserva.id, fecha=date(2026, 11, 1), cantidad_personas=6)
+        _modificar(db, reserva.id, fecha=date(2026, 11, 1), cantidad_personas=3)
     salida = _modificar(db, reserva.id, fecha=MANANA)
 
     assert salida.fecha == MANANA
@@ -952,7 +1337,7 @@ def test_modificar_reserva_traduce_conflicto_del_indice_en_409(
     db: Session, fabrica_reserva, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     a = _ocupar_turno(fabrica_reserva)
-    b = _ocupar_turno(fabrica_reserva, hora=time(22, 0))
+    b = _ocupar_turno(fabrica_reserva, hora=time(23, 30))
     antes = (_guardada(db, a.id), _guardada(db, b.id))
     _sin_verificacion_previa(monkeypatch)
 
@@ -966,7 +1351,7 @@ def test_modificar_reserva_traduce_conflicto_del_indice_en_409(
 # S17: orden de validacion. Cada paso corrige el error anterior y deja el siguiente.
 def test_modificar_reserva_orden_de_validacion(db: Session, fabrica_reserva) -> None:
     _ocupar_turno(fabrica_reserva)
-    b = _ocupar_turno(fabrica_reserva, hora=time(22, 0))
+    b = _ocupar_turno(fabrica_reserva, hora=time(23, 30))
     atendida = _ocupar_turno(fabrica_reserva, mesa_id=6, estado=EstadoReserva.ATENDIDA)
     ayer = date(2026, 11, 1)
     todo_mal = {"fecha": ayer, "hora": time(11, 0)}
@@ -975,7 +1360,11 @@ def test_modificar_reserva_orden_de_validacion(db: Session, fabrica_reserva) -> 
         _modificar(db, 999, **todo_mal)
 
     with pytest.raises(ReglaDeNegocioError, match="no está activa"):
-        _modificar(db, atendida.id, **todo_mal)
+        _modificar(db, atendida.id, cantidad_personas=5, **todo_mal)
+
+    # S67: la capacidad de la mesa se comprueba despues del estado y antes de la fecha y la hora
+    with pytest.raises(ReglaDeNegocioError, match="La mesa 5 admite hasta 4 personas"):
+        _modificar(db, b.id, cantidad_personas=5, **todo_mal)
 
     with pytest.raises(DatosInvalidosError, match="La fecha de la reserva"):
         _modificar(db, b.id, **todo_mal)
@@ -983,7 +1372,7 @@ def test_modificar_reserva_orden_de_validacion(db: Session, fabrica_reserva) -> 
     with pytest.raises(DatosInvalidosError, match="La hora de la reserva"):
         _modificar(db, b.id, **(todo_mal | {"fecha": HOY}))
 
-    with pytest.raises(ReglaDeNegocioError, match="ya tiene una reserva activa"):
+    with pytest.raises(ReglaDeNegocioError, match="ya tiene una reserva el"):
         _modificar(db, b.id, hora=time(21, 30))
 
 
@@ -1032,30 +1421,119 @@ def test_listar_mesas_disponibles_excluye_la_mesa_con_reserva_activa_en_el_turno
     assert _ids_disponibles(db) == [6]
 
 
-# S4: no se modela duracion, solo cuenta la misma fecha y la misma hora
-def test_listar_mesas_disponibles_no_excluye_reservas_de_otra_hora_u_otra_fecha(
+# S69: una reserva ACTIVA o ATENDIDA saca la mesa de la lista durante sus 2 horas (ventana estricta)
+@pytest.mark.parametrize("estado", [EstadoReserva.ACTIVA, EstadoReserva.ATENDIDA])
+@pytest.mark.parametrize(
+    "minutos", [-119, -1, 1, 119], ids=["119-antes", "1-antes", "1-despues", "119-despues"]
+)
+def test_listar_mesas_disponibles_excluye_la_mesa_con_reserva_dentro_de_la_ventana(
+    db: Session, fabrica_reserva, estado: EstadoReserva, minutos: int
+) -> None:
+    _ocupar_turno(fabrica_reserva, estado=estado, **_desplazar(minutos))
+
+    assert _ids_disponibles(db) == [6]
+
+
+@pytest.mark.parametrize("estado", [EstadoReserva.ACTIVA, EstadoReserva.ATENDIDA])
+@pytest.mark.parametrize("minutos", [-120, 120], ids=["120-antes", "120-despues"])
+def test_listar_mesas_disponibles_incluye_la_mesa_con_reserva_justo_a_dos_horas(
+    db: Session, fabrica_reserva, estado: EstadoReserva, minutos: int
+) -> None:
+    _ocupar_turno(fabrica_reserva, estado=estado, **_desplazar(minutos))
+
+    assert _ids_disponibles(db) == [5, 6]
+
+
+def test_listar_mesas_disponibles_no_excluye_reservas_de_otra_fecha(
     db: Session, fabrica_reserva
 ) -> None:
-    _ocupar_turno(fabrica_reserva, hora=time(22, 0))
     _ocupar_turno(fabrica_reserva, fecha=MANANA)
 
     assert _ids_disponibles(db) == [5, 6]
 
 
+@pytest.mark.parametrize("minutos", [0, 60], ids=["misma-hora", "una-hora-despues"])
 @pytest.mark.parametrize(
     "estado",
-    [
-        EstadoReserva.ATENDIDA,
-        EstadoReserva.CANCELADA_ANTICIPADA,
-        EstadoReserva.CANCELADA_POR_AUSENCIA,
-    ],
+    [EstadoReserva.CANCELADA_ANTICIPADA, EstadoReserva.CANCELADA_POR_AUSENCIA],
 )
-def test_listar_mesas_disponibles_no_excluye_reservas_no_activas(
-    db: Session, fabrica_reserva, estado: EstadoReserva
+def test_listar_mesas_disponibles_no_excluye_reservas_canceladas(
+    db: Session, fabrica_reserva, estado: EstadoReserva, minutos: int
 ) -> None:
-    _ocupar_turno(fabrica_reserva, estado=estado)
+    _ocupar_turno(fabrica_reserva, estado=estado, **_desplazar(minutos))
 
     assert _ids_disponibles(db) == [5, 6]
+
+
+# La ventana tambien se mide entre un dia y el siguiente: se mira el dia anterior y el posterior
+@pytest.mark.parametrize(
+    ("existente", "pedido", "ids"),
+    [
+        pytest.param(
+            {"fecha": HOY, "hora": time(23, 30)},
+            {"fecha": MANANA, "hora": time(0, 30)},
+            [6],
+            id="reserva-del-dia-anterior",
+        ),
+        pytest.param(
+            {"fecha": MANANA, "hora": time(0, 30)},
+            {"fecha": HOY, "hora": time(23, 30)},
+            [6],
+            id="reserva-del-dia-siguiente",
+        ),
+        pytest.param(
+            {"fecha": HOY, "hora": time(23, 30)},
+            {"fecha": MANANA, "hora": time(1, 30)},
+            [5, 6],
+            id="dos-horas-exactas-del-dia-anterior",
+        ),
+        pytest.param(
+            {"fecha": MANANA, "hora": time(1, 30)},
+            {"fecha": HOY, "hora": time(23, 30)},
+            [5, 6],
+            id="dos-horas-exactas-del-dia-siguiente",
+        ),
+    ],
+)
+def test_listar_mesas_disponibles_mide_la_ventana_al_cruzar_la_medianoche(
+    db: Session, fabrica_reserva, existente: dict, pedido: dict, ids: list[int]
+) -> None:
+    _ocupar_turno(fabrica_reserva, **existente)
+
+    assert _ids_disponibles(db, **pedido) == ids
+
+
+# S69: la lista y el alta usan la misma definicion de mesa ocupada: nunca se ofrece una mesa que
+# el alta rechazaria, ni se esconde una que el alta aceptaria
+@pytest.mark.parametrize(
+    ("minutos", "libre"),
+    [
+        (-121, True),
+        (-120, True),
+        (-119, False),
+        (-1, False),
+        (0, False),
+        (1, False),
+        (119, False),
+        (120, True),
+        (121, True),
+    ],
+)
+def test_listar_mesas_disponibles_coincide_con_el_alta(
+    db: Session, fabrica_reserva, minutos: int, libre: bool
+) -> None:
+    _ocupar_turno(fabrica_reserva)
+    turno = _desplazar(minutos)
+
+    figura = 5 in _ids_disponibles(db, **turno)
+    if libre:
+        service.crear_reserva(db, _datos(**turno))
+    else:
+        with pytest.raises(ReglaDeNegocioError):
+            service.crear_reserva(db, _datos(**turno))
+
+    assert figura is libre
+    assert len(_reservas(db)) == (2 if libre else 1)
 
 
 # S30: OCUPADA describe el momento presente, no el turno pedido
@@ -1468,8 +1946,11 @@ def test_cancelar_anticipada_libera_la_mesa_en_repository(db: Session, fabrica_r
 
     service.cancelar_anticipada(db, reserva.id)
 
-    assert 5 not in repository.ids_de_mesas_con_reserva_activa(db, HOY, time(21, 30))
-    assert repository.existe_reserva_activa(db, 5, HOY, time(21, 30)) is False
+    instante = datetime.combine(HOY, time(21, 30))
+    assert 5 not in repository.ids_de_mesas_ocupadas(db, instante, service.VENTANA_DE_OCUPACION)
+    assert (
+        repository.reserva_que_ocupa_la_mesa(db, 5, instante, service.VENTANA_DE_OCUPACION) is None
+    )
 
     nueva = service.crear_reserva(
         db, ReservaCrear(mesa_id=5, cliente_id=7, fecha=HOY, hora=time(21, 30), cantidad_personas=2)
@@ -1482,17 +1963,23 @@ def test_cancelar_por_ausencia_libera_la_mesa_en_repository(db: Session, fabrica
 
     service.cancelar_por_ausencia(db, reserva.id)
 
-    assert 6 not in repository.ids_de_mesas_con_reserva_activa(db, HOY, time(11, 30))
-    assert repository.existe_reserva_activa(db, 6, HOY, time(11, 30)) is False
+    instante = datetime.combine(HOY, time(11, 30))
+    assert 6 not in repository.ids_de_mesas_ocupadas(db, instante, service.VENTANA_DE_OCUPACION)
+    assert (
+        repository.reserva_que_ocupa_la_mesa(db, 6, instante, service.VENTANA_DE_OCUPACION) is None
+    )
 
 
 # --- HU-M5-06: crear una comanda a partir de una reserva ---
 # El reloj de las pruebas (conftest.py) marca el 2026-11-02 a las 12:00 (HOY). Los ids de las
 # reservas son los que asigna la base: las pruebas usan `reserva.id`, no un numero fijo.
+# La reserva de referencia es de las 11:30: su hora ya se cumplio (S68), asi que las pruebas de
+# atencion no chocan con la regla del horario; las del horario fijan la hora que necesitan.
 
 AYER = date(2026, 11, 1)
 YA_ATENDIDA = "La reserva {id} ya fue atendida"
 NO_ES_DE_HOY = "La reserva {id} no corresponde al día de hoy"
+NO_EN_HORARIO = "La reserva {id} todavía no está en su horario: es a las {hora}"
 
 
 def _pedido(*lineas: dict, observaciones: str | None = None) -> ComandaDesdeReservaCrear:
@@ -1502,12 +1989,12 @@ def _pedido(*lineas: dict, observaciones: str | None = None) -> ComandaDesdeRese
 
 
 def _de_hoy(fabrica_reserva, **cambios) -> Reserva:
-    """La reserva de referencia: ACTIVA, de hoy, en la mesa 5, para el cliente 7."""
-    cuerpo = {"mesa_id": 5, "cliente_id": 7, "fecha": HOY, "hora": time(21, 30)}
+    """La reserva de referencia: ACTIVA, de hoy a las 11:30 (ya cumplida), mesa 5, cliente 7."""
+    cuerpo = {"mesa_id": 5, "cliente_id": 7, "fecha": HOY, "hora": time(11, 30)}
     return fabrica_reserva(**(cuerpo | cambios))
 
 
-# --- guarda para atender (pasos 2 a 5) ---
+# --- guarda para atender (existencia, estado y fecha; el horario va aparte, S68) ---
 
 
 def test_crear_comanda_reserva_inexistente_responde_404(db: Session, puente_doble) -> None:
@@ -1655,6 +2142,19 @@ def test_crear_comanda_otra_fecha_con_solo_menus_responde_409(
     assert puente_doble.comandas == []
 
 
+# S68: el horario (409) tambien va antes que el pedido sin productos (422), igual que la fecha
+def test_crear_comanda_antes_de_su_hora_con_solo_menus_responde_409_del_horario(
+    db: Session, fabrica_reserva, puente_doble
+) -> None:
+    reserva = _de_hoy(fabrica_reserva, hora=time(21, 30))
+
+    with pytest.raises(ReglaDeNegocioError) as error:
+        service.crear_comanda(db, reserva.id, _pedido(MENU_5))
+
+    assert str(error.value) == NO_EN_HORARIO.format(id=reserva.id, hora="21:30")
+    assert puente_doble.comandas == []
+
+
 # --- camino feliz y atomicidad (pasos 7 y 8) ---
 
 PRODUCTO_12 = {"producto_id": 12, "cantidad": 2}
@@ -1677,7 +2177,7 @@ def test_crear_comanda_reserva_activa_de_hoy_queda_atendida_y_devuelve_la_comand
     guardada = _reserva_guardada(db, reserva.id)
     assert guardada.estado == EstadoReserva.ATENDIDA
     assert (guardada.mesa_id, guardada.cliente_id, guardada.fecha) == (5, 7, HOY)
-    assert (guardada.hora, guardada.cantidad_personas) == (time(21, 30), 4)
+    assert (guardada.hora, guardada.cantidad_personas) == (time(11, 30), 4)
 
 
 def test_crear_comanda_hace_un_unico_commit_despues_del_puente_y_de_atender(
@@ -1776,16 +2276,116 @@ def test_crear_comanda_no_consulta_la_mesa_al_puente(
     assert consultas == []
 
 
-# S63: solo cuenta la fecha; la hora de la reserva no se verifica
-@pytest.mark.parametrize("hora", [time(21, 30), time(8, 0)], ids=["no-llego", "ya-paso"])
-def test_crear_comanda_no_verifica_la_hora_de_la_reserva(
-    db: Session, fabrica_reserva, hora: time
+# S68 (revierte S63): la reserva de hoy no se atiende antes de su hora, sin tolerancia
+@pytest.mark.parametrize(
+    ("hora", "texto"),
+    [(time(12, 1), "12:01"), (time(21, 30), "21:30"), (time(23, 59), "23:59")],
+    ids=["un-minuto-antes", "a-la-noche", "ultimo-minuto-del-dia"],
+)
+def test_crear_comanda_de_hoy_antes_de_su_hora_responde_409(
+    db: Session, fabrica_reserva, puente_doble, hora: time, texto: str
 ) -> None:
     reserva = _de_hoy(fabrica_reserva, hora=hora)
 
-    service.crear_comanda(db, reserva.id, _pedido())
+    with pytest.raises(ReglaDeNegocioError) as error:
+        service.crear_comanda(db, reserva.id, _pedido())
 
+    assert str(error.value) == NO_EN_HORARIO.format(id=reserva.id, hora=texto)
+    assert puente_doble.comandas == []
+    assert _reserva_guardada(db, reserva.id).estado == EstadoReserva.ACTIVA
+
+
+@pytest.mark.parametrize(
+    "hora",
+    [time(12, 0), time(11, 59), time(8, 0)],
+    ids=["en-punto", "un-minuto-despues", "ya-paso"],
+)
+def test_crear_comanda_de_hoy_desde_su_hora_queda_atendida(
+    db: Session, fabrica_reserva, puente_doble, hora: time
+) -> None:
+    reserva = _de_hoy(fabrica_reserva, hora=hora)
+
+    comanda = service.crear_comanda(db, reserva.id, _pedido())
+
+    assert comanda.reserva_id == reserva.id
+    assert len(puente_doble.comandas) == 1
     assert _reserva_guardada(db, reserva.id).estado == EstadoReserva.ATENDIDA
+
+
+def test_crear_comanda_antes_de_su_hora_no_llama_al_puente_ni_escribe(
+    db: Session, fabrica_reserva, puente_doble, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    reserva = _de_hoy(fabrica_reserva, hora=time(21, 30))
+    invocaciones: list[Session] = []
+    commits: list[str] = []
+    puente_doble.efecto = invocaciones.append  # queda anotado si se llamo, aunque falle
+    monkeypatch.setattr(db, "commit", lambda: commits.append("commit"))
+
+    with pytest.raises(ReglaDeNegocioError, match="todavía no está en su horario"):
+        service.crear_comanda(db, reserva.id, _pedido())
+
+    assert invocaciones == []
+    assert puente_doble.comandas == []
+    assert commits == []
+    assert not db.new
+    assert not db.dirty
+    assert _reserva_guardada(db, reserva.id).estado == EstadoReserva.ACTIVA
+
+
+# Orden de las verificaciones: cancelada, atendida y la fecha van antes que el horario
+def test_crear_comanda_cancelada_antes_de_su_hora_responde_ya_fue_cancelada(
+    db: Session, fabrica_reserva, puente_doble
+) -> None:
+    reserva = _de_hoy(fabrica_reserva, hora=time(21, 30), estado=EstadoReserva.CANCELADA_ANTICIPADA)
+
+    with pytest.raises(ReglaDeNegocioError) as error:
+        service.crear_comanda(db, reserva.id, _pedido())
+
+    assert str(error.value) == YA_FUE_CANCELADA.format(id=reserva.id)
+    assert puente_doble.comandas == []
+
+
+def test_crear_comanda_atendida_antes_de_su_hora_responde_ya_fue_atendida(
+    db: Session, fabrica_reserva, puente_doble
+) -> None:
+    reserva = _de_hoy(fabrica_reserva, hora=time(21, 30), estado=EstadoReserva.ATENDIDA)
+
+    with pytest.raises(ReglaDeNegocioError) as error:
+        service.crear_comanda(db, reserva.id, _pedido())
+
+    assert str(error.value) == YA_ATENDIDA.format(id=reserva.id)
+    assert puente_doble.comandas == []
+
+
+@pytest.mark.parametrize("fecha", [MANANA, AYER], ids=["manana", "ayer"])
+def test_crear_comanda_otra_fecha_con_la_hora_sin_cumplir_responde_el_409_de_la_fecha(
+    db: Session, fabrica_reserva, puente_doble, fecha: date
+) -> None:
+    reserva = _de_hoy(fabrica_reserva, fecha=fecha, hora=time(21, 30))
+
+    with pytest.raises(ReglaDeNegocioError) as error:
+        service.crear_comanda(db, reserva.id, _pedido())
+
+    assert str(error.value) == NO_ES_DE_HOY.format(id=reserva.id)
+    assert puente_doble.comandas == []
+    assert _reserva_guardada(db, reserva.id).estado == EstadoReserva.ACTIVA
+
+
+# S28 y S68: el horario se compara con la hora del restaurante (23:30), no con la del servidor
+def test_crear_comanda_el_horario_es_el_de_la_zona_del_restaurante(
+    db: Session, fabrica_reserva, puente_doble, reloj_utc_fijo
+) -> None:
+    cumplida = _de_hoy(fabrica_reserva, fecha=ANOCHE, hora=time(23, 0))
+    pendiente = _de_hoy(fabrica_reserva, mesa_id=6, fecha=ANOCHE, hora=time(23, 45))
+
+    service.crear_comanda(db, cumplida.id, _pedido())
+    with pytest.raises(ReglaDeNegocioError) as error:
+        service.crear_comanda(db, pendiente.id, _pedido())
+
+    assert _reserva_guardada(db, cumplida.id).estado == EstadoReserva.ATENDIDA
+    assert str(error.value) == NO_EN_HORARIO.format(id=pendiente.id, hora="23:45")
+    assert _reserva_guardada(db, pendiente.id).estado == EstadoReserva.ACTIVA
+    assert len(puente_doble.comandas) == 1
 
 
 # S28 y D9: "hoy" es el de la zona del restaurante (el servidor en UTC ya marca el 2 de noviembre)

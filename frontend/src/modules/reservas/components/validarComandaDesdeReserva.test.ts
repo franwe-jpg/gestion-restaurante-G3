@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { validarComandaDesdeReserva } from './validarComandaDesdeReserva';
 import type { LineaEscrita } from './validarComandaDesdeReserva';
 
-const ERROR_PRODUCTO = 'El producto debe ser un número entero mayor que cero';
+const ERROR_PRODUCTO = 'Seleccione un producto';
 const ERROR_CANTIDAD = 'La cantidad debe ser un número entero mayor que cero';
 
 function linea(producto: string, cantidad: string, clave = 1): LineaEscrita {
@@ -22,15 +22,22 @@ describe('validarComandaDesdeReserva: cantidad', () => {
   });
 });
 
-describe('validarComandaDesdeReserva: producto', () => {
-  it.each(['', '   ', '0', '-1', '2.5', 'abc'])('rechaza el producto «%s»', (producto) => {
+describe('validarComandaDesdeReserva: producto elegido', () => {
+  it.each(['', '   '])('rechaza la línea sin producto elegido («%s»)', (producto) => {
     expect(validarComandaDesdeReserva([linea(producto, '1')])).toEqual({
       1: { producto: ERROR_PRODUCTO },
     });
   });
 
-  it.each(['1', '12', '1000', ' 7 '])('acepta el producto «%s»', (producto) => {
+  it.each(['1', '12', '1000'])('acepta la línea con el producto %s elegido', (producto) => {
     expect(validarComandaDesdeReserva([linea(producto, '1')])).toEqual({});
+  });
+
+  it('el error de producto ya no habla de números enteros: se elige de una lista', () => {
+    const errores = validarComandaDesdeReserva([linea('', '1')]);
+
+    expect(errores[1]?.producto).toBe('Seleccione un producto');
+    expect(errores[1]?.producto).not.toMatch(/entero/);
   });
 });
 
@@ -46,7 +53,7 @@ describe('validarComandaDesdeReserva: varias líneas', () => {
     const errores = validarComandaDesdeReserva([
       linea('', '0', 1),
       linea('13', '1', 2),
-      linea('x', '1', 3),
+      linea('', '1', 3),
     ]);
 
     expect(errores).toEqual({

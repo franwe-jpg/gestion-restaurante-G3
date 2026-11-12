@@ -14,9 +14,12 @@ import { Spinner } from '../../../shared/components/ui/spinner';
 
 import type { MozoSeleccionable, Reserva } from '../types';
 
+import { SelectorProducto } from './SelectorProducto';
 import { useComandaDesdeReserva } from './useComandaDesdeReserva';
 import type { CampoLinea } from './useComandaDesdeReserva';
 import { useMozosDisponibles } from './useMozosDisponibles';
+import { puedeElegirProducto, useProductosHabilitados } from './useProductosHabilitados';
+import type { EstadoProductosHabilitados } from './useProductosHabilitados';
 import type { ErroresDeLinea, LineaEscrita } from './validarComandaDesdeReserva';
 
 export interface ComandaDesdeReservaDialogProps {
@@ -33,33 +36,35 @@ interface LineaProductoProps {
   linea: LineaEscrita;
   /** Posición de la línea, desde 1: numera las etiquetas y los nombres de las acciones. */
   numero: number;
+  /** La lista de productos habilitados, cargada una vez por el modal y común a todas las líneas. */
+  productos: EstadoProductosHabilitados;
   errores?: ErroresDeLinea;
   puedeQuitarse: boolean;
   onCambiar: (campo: CampoLinea, valor: string) => void;
   onQuitar: () => void;
 }
 
-/** Una línea del pedido: producto por su número (ID), cantidad y la acción de quitarla. */
+/** Una línea del pedido: producto elegido por su nombre, cantidad y la acción de quitarla. */
 function LineaProducto({
   linea,
   numero,
+  productos,
   errores,
   puedeQuitarse,
   onCambiar,
   onQuitar,
 }: LineaProductoProps) {
-  const idProducto = `comanda-producto-${linea.clave}`;
   const idCantidad = `comanda-cantidad-${linea.clave}`;
   return (
     <div className="grid grid-cols-[1fr_7rem_auto] items-start gap-3">
-      <FormField id={idProducto} label={`Producto ${numero} (ID)`} error={errores?.producto}>
-        <Input
-          id={idProducto}
-          inputMode="numeric"
-          value={linea.producto}
-          onChange={(evento) => onCambiar('producto', evento.target.value)}
-        />
-      </FormField>
+      <SelectorProducto
+        id={`comanda-producto-${linea.clave}`}
+        numero={numero}
+        estado={productos}
+        valor={linea.producto}
+        error={errores?.producto}
+        onCambiar={(valor) => onCambiar('producto', valor)}
+      />
       <FormField id={idCantidad} label={`Cantidad ${numero}`} error={errores?.cantidad}>
         <Input
           id={idCantidad}
@@ -88,6 +93,7 @@ interface FormularioComandaProps {
   reserva: Reserva;
   comanda: Comanda;
   catalogoMozos: ReturnType<typeof useMozosDisponibles>;
+  productos: EstadoProductosHabilitados;
 }
 
 type CatalogoMozos = ReturnType<typeof useMozosDisponibles>;
@@ -299,7 +305,12 @@ function ListaMozos({
   );
 }
 
-function FormularioComanda({ reserva, comanda, catalogoMozos }: FormularioComandaProps) {
+/**
+ * Los avisos de error (la carga de productos y la respuesta de la API), la mesa de solo lectura, las
+ * líneas del pedido y «Agregar producto». Sin una lista de productos que se pueda usar no se puede
+ * elegir ninguno, así que la validación local frena el envío aunque el formulario se envíe.
+ */
+function FormularioComanda({ reserva, comanda, catalogoMozos, productos }: FormularioComandaProps) {
   const { lineas, errores } = comanda;
 
   const alEnviar = (evento: FormEvent<HTMLFormElement>) => {
@@ -309,6 +320,11 @@ function FormularioComanda({ reserva, comanda, catalogoMozos }: FormularioComand
 
   return (
     <form id={ID_FORMULARIO_COMANDA} noValidate onSubmit={alEnviar} className="space-y-4">
+      {productos.tipo === 'error' && (
+        <Alert variant="danger" titulo="No se pudieron cargar los productos">
+          {productos.mensaje}
+        </Alert>
+      )}
       {errores.general && (
         <Alert variant="danger" titulo="No se pudo crear la comanda">
           {errores.general}
@@ -323,6 +339,7 @@ function FormularioComanda({ reserva, comanda, catalogoMozos }: FormularioComand
           key={linea.clave}
           linea={linea}
           numero={indice + 1}
+          productos={productos}
           errores={errores.lineas[linea.clave]}
           puedeQuitarse={lineas.length > 1}
           onCambiar={(campo, valor) => comanda.cambiarLinea(linea.clave, campo, valor)}
@@ -339,8 +356,10 @@ function FormularioComanda({ reserva, comanda, catalogoMozos }: FormularioComand
 
 /**
  * HU-M5-06: modal «Crear comanda» de una reserva `ACTIVA`. La mesa sale de la reserva (solo
- * lectura, no se envía) y el pedido son líneas de producto por su número. Se monta solo mientras
- * debe verse: la página decide si se muestra, con una clave por reserva para que arranque limpio.
+ * lectura, no se envía) y el pedido son líneas de producto que se eligen por su nombre. La lista de
+ * productos habilitados se carga una vez al abrirse y se comparte entre las líneas. Se monta solo
+ * mientras debe verse: la página decide si se muestra, con una clave por reserva para que arranque
+ * limpio.
  */
 export function ComandaDesdeReservaDialog({
   reserva,
@@ -349,8 +368,10 @@ export function ComandaDesdeReservaDialog({
 }: ComandaDesdeReservaDialogProps) {
   const comanda = useComandaDesdeReserva({ reserva, onCreada });
   const catalogoMozos = useMozosDisponibles();
+  const productos = useProductosHabilitados();
   const guardarDeshabilitado =
     comanda.enviando ||
+    !puedeElegirProducto(productos) ||
     catalogoMozos.cargando ||
     catalogoMozos.error !== null ||
     catalogoMozos.mozos.length === 0 ||
@@ -372,7 +393,12 @@ export function ComandaDesdeReservaDialog({
         </>
       }
     >
-      <FormularioComanda reserva={reserva} comanda={comanda} catalogoMozos={catalogoMozos} />
+      <FormularioComanda
+        reserva={reserva}
+        comanda={comanda}
+        catalogoMozos={catalogoMozos}
+        productos={productos}
+      />
     </Dialog>
   );
 }
