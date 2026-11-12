@@ -114,10 +114,11 @@ class MesaDisponible(BaseModel):
 
 
 class ComandaDesdeReservaCrear(BaseModel):
-    """Pedido de la comanda de una reserva: sin `mesa_id`, la mesa sale de la reserva (HU-M5-06)."""
+    """Pedido de la comanda de una reserva: Mozo elegido y sin mesa (sale de la reserva)."""
 
     model_config = ConfigDict(extra="forbid")  # S62: mesa, reserva, estado y cliente no se reciben
 
+    mozo_id: StrictInt = Field(gt=0)
     detalles: list[DetalleComandaCrear] = Field(min_length=1)
     observaciones: str | None = None
 

@@ -20,6 +20,7 @@ export type CampoLinea = 'producto' | 'cantidad';
 export interface ErroresComanda {
   lineas: ErroresDeLineas;
   general?: string;
+  mozo?: string;
 }
 
 const MENSAJE_ERROR = 'No se pudo crear la comanda';
@@ -29,8 +30,9 @@ function lineaNueva(clave: number): LineaEscrita {
 }
 
 /** Una línea `{producto_id, cantidad}` por cada línea escrita; sin mesa y sin observaciones (S64). */
-function aComandaCrear(lineas: LineaEscrita[]): ComandaDesdeReservaCrear {
+function aComandaCrear(lineas: LineaEscrita[], mozoId: number): ComandaDesdeReservaCrear {
   return {
+    mozo_id: mozoId,
     detalles: lineas.map(({ producto, cantidad }) => ({
       producto_id: Number(producto),
       cantidad: Number(cantidad),
@@ -64,19 +66,18 @@ function useLineas() {
   return { lineas, agregarLinea, quitarLinea, cambiarLinea };
 }
 
-/**
- * HU-M5-06: estado del pedido, validación local, envío y avisos del modal «Crear comanda». Ante un
- * error de la API el modal queda abierto con las líneas escritas. Una respuesta que llega con el
- * modal ya cerrado no toca nada (guarda de vigencia, como `useFormularioReserva`, S38).
- */
-export function useComandaDesdeReserva({ reserva, onCreada }: OpcionesComandaDesdeReserva) {
+interface OpcionesEnvioComanda {
+  lineas: LineaEscrita[];
+  mozoId: string;
+  reservaId: number;
+  onCreada: () => void;
+}
+
+function useEnvioComanda({ lineas, mozoId, reservaId, onCreada }: OpcionesEnvioComanda) {
   const { mostrarToast } = useToast();
-  const { lineas, agregarLinea, quitarLinea, cambiarLinea } = useLineas();
   const [errores, setErrores] = useState<ErroresComanda>({ lineas: {} });
   const [enviando, setEnviando] = useState(false);
-  /** `true` mientras el modal que creó este hook sigue montado (S38). */
   const vigente = useRef(false);
-  /** Corta un segundo `enviar()` antes de que el estado `enviando` llegue a pintarse. */
   const enCurso = useRef(false);
 
   useEffect(() => {
@@ -89,16 +90,19 @@ export function useComandaDesdeReserva({ reserva, onCreada }: OpcionesComandaDes
   const enviar = async () => {
     if (enCurso.current) return;
     const locales = validarComandaDesdeReserva(lineas);
-    setErrores({ lineas: locales });
-    if (Object.keys(locales).length > 0) return;
+    const errorMozo = mozoId ? undefined : 'Seleccioná un mozo habilitado';
+    setErrores({ lineas: locales, mozo: errorMozo });
+    if (Object.keys(locales).length > 0 || errorMozo) return;
 
     enCurso.current = true;
     setEnviando(true);
-    const respuesta = await crearComandaDesdeReserva(reserva.id, aComandaCrear(lineas));
+    const respuesta = await crearComandaDesdeReserva(
+      reservaId,
+      aComandaCrear(lineas, Number(mozoId)),
+    );
     enCurso.current = false;
-    if (!vigente.current) return; // el modal se cerró: la respuesta no toca nada (S38)
+    if (!vigente.current) return;
     setEnviando(false);
-
     if (respuesta.exito && respuesta.datos !== null) {
       mostrarToast({ titulo: `Comanda n.º ${respuesta.datos.id} creada`, variante: 'success' });
       onCreada();
@@ -107,5 +111,33 @@ export function useComandaDesdeReserva({ reserva, onCreada }: OpcionesComandaDes
     setErrores({ lineas: {}, general: respuesta.error ?? MENSAJE_ERROR });
   };
 
-  return { lineas, agregarLinea, quitarLinea, cambiarLinea, errores, enviando, enviar };
+  return { errores, setErrores, enviando, enviar };
+}
+
+/**
+ * HU-M5-06: estado del pedido, validación local, envío y avisos del modal «Crear comanda». Ante un
+ * error de la API el modal queda abierto con las líneas escritas. Una respuesta que llega con el
+ * modal ya cerrado no toca nada (guarda de vigencia, como `useFormularioReserva`, S38).
+ */
+export function useComandaDesdeReserva({ reserva, onCreada }: OpcionesComandaDesdeReserva) {
+  const { lineas, agregarLinea, quitarLinea, cambiarLinea } = useLineas();
+  const [mozoId, setMozoId] = useState('');
+  const envio = useEnvioComanda({ lineas, mozoId, reservaId: reserva.id, onCreada });
+
+  const elegirMozo = (id: string) => {
+    setMozoId(id);
+    envio.setErrores((actuales) => ({ ...actuales, mozo: undefined }));
+  };
+
+  return {
+    lineas,
+    agregarLinea,
+    quitarLinea,
+    cambiarLinea,
+    mozoId,
+    elegirMozo,
+    errores: envio.errores,
+    enviando: envio.enviando,
+    enviar: envio.enviar,
+  };
 }

@@ -389,21 +389,24 @@ def test_mesa_disponible_no_expone_el_estado() -> None:
 
 PRODUCTO_12 = {"producto_id": 12, "cantidad": 2}
 MENU_5 = {"menu_ejecutivo_id": 5, "cantidad": 1}
+MOZO_ID = 31
 UNA_REFERENCIA = "Indique un producto o un menú ejecutivo, exclusivamente"
 
 
 def _fallas_de_la_comanda(cuerpo: dict) -> list[tuple]:
     """Ubicacion (`loc`) de cada falla que el esquema encuentra en el cuerpo."""
     with pytest.raises(ValidationError) as error:
-        ComandaDesdeReservaCrear.model_validate(cuerpo)
+        ComandaDesdeReservaCrear.model_validate({"mozo_id": MOZO_ID, **cuerpo})
     return [tuple(falla["loc"]) for falla in error.value.errors()]
 
 
 # CA 1: las observaciones son opcionales y las lineas pueden ser de producto o de menu
 def test_comanda_desde_reserva_acepta_detalles_con_observaciones_opcionales() -> None:
-    sin_observaciones = ComandaDesdeReservaCrear.model_validate({"detalles": [PRODUCTO_12]})
+    sin_observaciones = ComandaDesdeReservaCrear.model_validate(
+        {"mozo_id": MOZO_ID, "detalles": [PRODUCTO_12]}
+    )
     con_observaciones = ComandaDesdeReservaCrear.model_validate(
-        {"detalles": [PRODUCTO_12, MENU_5], "observaciones": "Sin sal"}
+        {"mozo_id": MOZO_ID, "detalles": [PRODUCTO_12, MENU_5], "observaciones": "Sin sal"}
     )
 
     assert sin_observaciones.observaciones is None
@@ -419,6 +422,13 @@ def test_comanda_desde_reserva_acepta_detalles_con_observaciones_opcionales() ->
 @pytest.mark.parametrize("cuerpo", [{}, {"detalles": []}, {"detalles": None}], ids=str)
 def test_comanda_desde_reserva_rechaza_detalles_ausentes_vacios_o_nulos(cuerpo: dict) -> None:
     assert _fallas_de_la_comanda(cuerpo) == [("detalles",)]
+
+
+def test_comanda_desde_reserva_requiere_mozo_id() -> None:
+    with pytest.raises(ValidationError) as error:
+        ComandaDesdeReservaCrear.model_validate({"detalles": [PRODUCTO_12]})
+
+    assert [tuple(falla["loc"]) for falla in error.value.errors()] == [("mozo_id",)]
 
 
 # CA 4: la cantidad es un entero estricto mayor que cero
@@ -457,7 +467,7 @@ def test_comanda_desde_reserva_rechaza_producto_no_positivo_o_no_entero(
 )
 def test_comanda_desde_reserva_rechaza_producto_y_menu_a_la_vez_o_ninguno(linea: dict) -> None:
     with pytest.raises(ValidationError, match=UNA_REFERENCIA) as error:
-        ComandaDesdeReservaCrear.model_validate({"detalles": [linea]})
+        ComandaDesdeReservaCrear.model_validate({"mozo_id": MOZO_ID, "detalles": [linea]})
 
     assert [tuple(falla["loc"]) for falla in error.value.errors()] == [("detalles", 0)]
 
@@ -475,4 +485,4 @@ def test_comanda_desde_reserva_prohibe_campos_extra(campo: str, valor: object) -
 
 def test_comanda_desde_reserva_no_declara_mesa_id() -> None:
     assert "mesa_id" not in ComandaDesdeReservaCrear.model_fields  # la mesa sale de la reserva
-    assert set(ComandaDesdeReservaCrear.model_fields) == {"detalles", "observaciones"}
+    assert set(ComandaDesdeReservaCrear.model_fields) == {"mozo_id", "detalles", "observaciones"}

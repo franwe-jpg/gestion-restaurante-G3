@@ -6,6 +6,7 @@ import type {
   ComandaDesdeReservaCrear,
   FiltroEstadoReserva,
   MesaDisponible,
+  MozoSeleccionable,
   Reserva,
   ReservaCrear,
   ReservaModificar,
@@ -72,6 +73,44 @@ export function crearComandaDesdeReserva(
     `/reservas/${reservaId}/comanda`,
     datos,
   );
+}
+
+const LIMITE_MOZOS = 100;
+
+async function listarPaginaMozos(
+  offset: number,
+): Promise<RespuestaApi<Pagina<MozoSeleccionable>>> {
+  const consulta = new URLSearchParams({
+    estado: 'HABILITADO',
+    limit: String(LIMITE_MOZOS),
+    offset: String(offset),
+  });
+  return clienteHttp.get<Pagina<MozoSeleccionable>>(`/mozos?${consulta.toString()}`);
+}
+
+/** Lee todas las páginas del catálogo público M3; no incluye mozos deshabilitados. */
+export async function listarMozosHabilitados(): Promise<RespuestaApi<MozoSeleccionable[]>> {
+  const mozos: MozoSeleccionable[] = [];
+  let offset = 0;
+  while (true) {
+    const respuesta = await listarPaginaMozos(offset);
+    if (!respuesta.exito || !respuesta.datos) {
+      return {
+        exito: false,
+        datos: null,
+        error: respuesta.error ?? 'No se pudieron cargar los mozos habilitados',
+      };
+    }
+    const pagina = respuesta.datos;
+    mozos.push(...pagina.items.filter((mozo) => mozo.estado === 'HABILITADO'));
+    if (!pagina.items.length || pagina.offset + pagina.items.length >= pagina.total) {
+      return { exito: true, datos: mozos };
+    }
+    if (pagina.limit <= 0 || pagina.offset + pagina.limit <= offset) {
+      return { exito: false, datos: null, error: 'El backend devolvió una página de mozos inválida' };
+    }
+    offset = pagina.offset + pagina.limit;
+  }
 }
 
 /** Resultados de la búsqueda de clientes: la primera página, sin paginar en pantalla (S43). */

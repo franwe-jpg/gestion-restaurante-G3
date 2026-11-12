@@ -26,6 +26,7 @@ from app.modules.reservas.puente import MesaReservable, SectorDeMesa
 # Los modelos de salon se importan solo en las pruebas: lint-imports controla `app`, no `tests`.
 from app.modules.salon import service as salon_service
 from app.modules.salon.models import Mesa, Sector
+from app.modules.salon.schemas import MozoCrear
 from app.shared.contratos.comanda import (
     ComandaSalida,
     DetalleComandaCrear,
@@ -85,6 +86,7 @@ class DoblePuente:
         self.registrados: list[tuple[int, str, str]] = []
         self.poner_cliente(7, "Ana Pérez", "+54 280 1234567")
         self.comandas: list[tuple[int, int, list[DetalleComandaCrear], str | None]] = []
+        self.mozos_asignados: list[int] = []
         self.falla: Exception | None = None
         self.efecto: Callable[[Session], None] | None = None
 
@@ -132,6 +134,7 @@ class DoblePuente:
         db: Session,
         mesa_id: int,
         reserva_id: int,
+        mozo_id: int,
         detalles: list[DetalleComandaCrear],
         observaciones: str | None,
     ) -> ComandaSalida:
@@ -140,9 +143,11 @@ class DoblePuente:
         if self.falla is not None:
             raise self.falla
         self.comandas.append((mesa_id, reserva_id, detalles, observaciones))
+        self.mozos_asignados.append(mozo_id)
         return ComandaSalida(
             id=len(self.comandas),
             mesa_id=mesa_id,
+            mozo_id=mozo_id,
             estado=EstadoComanda.ABIERTA,
             fecha_hora=AHORA,
             reserva_id=reserva_id,
@@ -286,6 +291,13 @@ def mesas_en_m3(db: Session) -> FabricaMesasM3:
         return mesas
 
     return crear
+
+
+@pytest.fixture
+def mozo_habilitado_en_m3(db: Session) -> int:
+    """Crea un mozo HABILITADO real en M3 y devuelve el id que se selecciona al abrir comanda."""
+    mozo = salon_service.crear_mozo(db, MozoCrear(dni="30123456", nombre="Ana", apellido="Paz"))
+    return mozo.id
 
 
 @pytest.fixture

@@ -1498,7 +1498,7 @@ NO_ES_DE_HOY = "La reserva {id} no corresponde al día de hoy"
 def _pedido(*lineas: dict, observaciones: str | None = None) -> ComandaDesdeReservaCrear:
     """El pedido de referencia (producto 12 por 2) o el de las lineas que se indiquen."""
     lineas = lineas or ({"producto_id": 12, "cantidad": 2},)
-    return ComandaDesdeReservaCrear(detalles=list(lineas), observaciones=observaciones)
+    return ComandaDesdeReservaCrear(mozo_id=31, detalles=list(lineas), observaciones=observaciones)
 
 
 def _de_hoy(fabrica_reserva, **cambios) -> Reserva:
@@ -1671,6 +1671,7 @@ def test_crear_comanda_reserva_activa_de_hoy_queda_atendida_y_devuelve_la_comand
 
     # D1: el puente recibe argumentos sueltos (mesa, reserva, lineas, observaciones), no un DTO
     assert puente_doble.comandas == [(5, reserva.id, pedido.detalles, "Sin sal")]
+    assert puente_doble.mozos_asignados == [pedido.mozo_id]
     assert comanda.estado == EstadoComanda.ABIERTA
     assert (comanda.mesa_id, comanda.reserva_id) == (5, reserva.id)
     guardada = _reserva_guardada(db, reserva.id)

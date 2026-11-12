@@ -1,14 +1,27 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ToastContext } from '../../../shared/components/ui/toast-context';
 import type { RespuestaApi } from '../../../shared/types';
-import { crearComandaDesdeReserva } from '../api';
-import type { ComandaCreada, Reserva } from '../types';
+import { crearComandaDesdeReserva, listarMozosHabilitados } from '../api';
+import type { ComandaCreada, MozoSeleccionable, Reserva } from '../types';
 
 import { ComandaDesdeReservaDialog } from './ComandaDesdeReservaDialog';
 
 vi.mock('../api');
+
+const MOZO: MozoSeleccionable = {
+  id: 31,
+  nombre: 'Lucía',
+  apellido: 'Paz',
+  estado: 'HABILITADO',
+};
+const OTRO_MOZO: MozoSeleccionable = {
+  id: 32,
+  nombre: 'Ana',
+  apellido: 'Sosa',
+  estado: 'HABILITADO',
+};
 
 const RESERVA: Reserva = {
   id: 10,
@@ -50,6 +63,12 @@ function guardar() {
   fireEvent.click(screen.getByRole('button', { name: 'Guardar comanda' }));
 }
 
+async function seleccionarMozo() {
+  fireEvent.focus(screen.getByRole('combobox', { name: /Mozo/ }));
+  await screen.findByRole('option', { name: 'Lucía Paz' });
+  fireEvent.click(screen.getByRole('option', { name: 'Lucía Paz' }));
+}
+
 /** Deja que terminen las respuestas simuladas pendientes antes de seguir. */
 async function asentar() {
   await act(async () => undefined);
@@ -73,17 +92,28 @@ afterEach(() => {
   vi.resetAllMocks();
 });
 
+beforeEach(() => {
+  vi.mocked(listarMozosHabilitados).mockResolvedValue({
+    exito: true,
+    datos: [MOZO, OTRO_MOZO],
+  });
+});
+
 describe('ComandaDesdeReservaDialog: contenido inicial', () => {
-  it('muestra el título, la mesa de la reserva, una línea vacía y los botones', () => {
+  it('muestra el título, mesa, selector obligatorio, una línea vacía y los botones', async () => {
     abrir();
+    fireEvent.focus(screen.getByRole('combobox', { name: /Mozo/ }));
+    await screen.findByRole('option', { name: 'Lucía Paz' });
 
     expect(screen.getByRole('dialog', { name: 'Crear comanda' })).toBeInTheDocument();
     expect(screen.getByLabelText('Mesa')).toHaveValue('Mesa n.º 5');
+    expect(screen.getByRole('combobox', { name: /Mozo/ })).toBeRequired();
+    expect(screen.getByRole('combobox', { name: /Mozo/ })).toHaveValue('');
     expect(screen.getByLabelText('Producto 1 (ID)')).toHaveValue('');
     expect(screen.getByLabelText('Cantidad 1')).toHaveValue('1');
     expect(screen.getByRole('button', { name: 'Agregar producto' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cancelar' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Guardar comanda' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Guardar comanda' })).toBeDisabled();
   });
 
   it('muestra la mesa de la reserva que recibe, no una fija', () => {
@@ -178,6 +208,7 @@ describe('ComandaDesdeReservaDialog: validación local', () => {
     const { onCreada } = abrir();
     escribir('Producto 1 (ID)', '12');
     escribir('Cantidad 1', '0');
+    await seleccionarMozo();
 
     guardar();
     await asentar();
@@ -191,6 +222,7 @@ describe('ComandaDesdeReservaDialog: validación local', () => {
 
   it('un producto vacío muestra su error bajo el campo y no llama a la API', async () => {
     abrir();
+    await seleccionarMozo();
 
     guardar();
     await asentar();
@@ -204,6 +236,7 @@ describe('ComandaDesdeReservaDialog: validación local', () => {
     abrir();
     llenarDosLineas();
     escribir('Cantidad 2', '0');
+    await seleccionarMozo();
 
     guardar();
     await asentar();
@@ -216,15 +249,45 @@ describe('ComandaDesdeReservaDialog: validación local', () => {
 });
 
 describe('ComandaDesdeReservaDialog: envío con éxito', () => {
+  it('filtra los mozos por nombre y el texto escrito no equivale a una selección', async () => {
+    abrir();
+    const selector = screen.getByRole('combobox', { name: /Mozo/ });
+    fireEvent.change(selector, { target: { value: 'Ana' } });
+
+    expect(await screen.findByRole('option', { name: 'Ana Sosa' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'Lucía Paz' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Guardar comanda' })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole('option', { name: 'Ana Sosa' }));
+
+    expect(selector).toHaveValue('Ana Sosa');
+    expect(screen.getByRole('button', { name: 'Guardar comanda' })).toBeEnabled();
+  });
+
+  it('no envía si no se seleccionó un mozo habilitado', async () => {
+    abrir();
+    llenarDosLineas();
+    fireEvent.focus(screen.getByRole('combobox', { name: /Mozo/ }));
+    await screen.findByRole('option', { name: 'Lucía Paz' });
+
+    fireEvent.submit(document.getElementById('formulario-comanda-desde-reserva')!);
+    await asentar();
+
+    expect(crearComandaDesdeReserva).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent('Seleccioná un mozo habilitado');
+  });
+
   it('con líneas válidas llama a la API con la reserva y las líneas, avisa y llama a onCreada', async () => {
     vi.mocked(crearComandaDesdeReserva).mockResolvedValue({ datos: COMANDA, exito: true });
     const { onCreada } = abrir();
     llenarDosLineas();
+    await seleccionarMozo();
 
     guardar();
     await asentar();
 
     expect(crearComandaDesdeReserva).toHaveBeenCalledExactlyOnceWith(10, {
+      mozo_id: 31,
       detalles: [
         { producto_id: 12, cantidad: 2 },
         { producto_id: 13, cantidad: 1 },
@@ -247,6 +310,7 @@ describe('ComandaDesdeReservaDialog: error del backend y solicitud en curso', ()
     });
     const { onOpenChange, onCreada } = abrir();
     llenarDosLineas();
+    await seleccionarMozo();
 
     guardar();
     await asentar();
@@ -271,6 +335,7 @@ describe('ComandaDesdeReservaDialog: error del backend y solicitud en curso', ()
     );
     abrir();
     escribir('Producto 1 (ID)', '12');
+    await seleccionarMozo();
 
     guardar();
     await asentar();

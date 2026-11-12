@@ -43,8 +43,17 @@ export interface LineaComandaDesdeReserva {
   cantidad: number;
 }
 
-/** Cuerpo de `POST /reservas/{id}/comanda`: sin mesa, porque sale de la reserva. */
+/** Mozo de M3 disponible para asignar al abrir una comanda desde la reserva. */
+export interface MozoSeleccionable {
+  id: number;
+  nombre: string;
+  apellido: string;
+  estado: 'HABILITADO' | 'DESHABILITADO';
+}
+
+/** Cuerpo de `POST /reservas/{id}/comanda`: Mozo elegido y sin mesa, porque sale de la reserva. */
 export interface ComandaDesdeReservaCrear {
+  mozo_id: number;
   detalles: LineaComandaDesdeReserva[];
   /** La API la admite; la pantalla no la pide (S64). */
   observaciones?: string;

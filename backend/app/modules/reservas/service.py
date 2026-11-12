@@ -250,7 +250,7 @@ def crear_comanda(db: Session, reserva_id: int, datos: ComandaDesdeReservaCrear)
     mesa_id = reserva.mesa_id  # se lee antes: el rollback expira la reserva
     try:
         comanda = puente.crear_comanda_de_reserva(
-            db, mesa_id, reserva.id, datos.detalles, datos.observaciones
+            db, mesa_id, reserva.id, datos.mozo_id, datos.detalles, datos.observaciones
         )
         reserva.estado = EstadoReserva.ATENDIDA
         db.commit()

@@ -43,12 +43,16 @@ class Escenario:
     """Una mesa de M3, un producto habilitado de M1 y una reserva ACTIVA de hoy en esa mesa."""
 
     mesa: Mesa
+    mozo_id: int
     producto_id: int
     reserva: Reserva
 
     @property
     def pedido(self) -> dict:
-        return {"detalles": [{"producto_id": self.producto_id, "cantidad": 2}]}
+        return {
+            "mozo_id": self.mozo_id,
+            "detalles": [{"producto_id": self.producto_id, "cantidad": 2}],
+        }
 
 
 def _sembrar_producto_habilitado(db: Session) -> int:
@@ -68,14 +72,18 @@ def _sembrar_producto_habilitado(db: Session) -> int:
 
 
 @pytest.fixture
-def armar(db: Session, puente_real, mesas_en_m3, fabrica_reserva) -> Callable[..., Escenario]:
+def armar(
+    db: Session, puente_real, mesas_en_m3, mozo_habilitado_en_m3, fabrica_reserva
+) -> Callable[..., Escenario]:
     """Fabrica del escenario base; `puente_real` deja a M5 hablando con M4 de verdad."""
 
     def crear(estado_mesa: EstadoMesa = EstadoMesa.LIBRE) -> Escenario:
         mesa = mesas_en_m3(1, estado_mesa)[0]
         producto_id = _sembrar_producto_habilitado(db)
         reserva = fabrica_reserva(mesa_id=mesa.id, cliente_id=1, fecha=HOY, hora=time(21, 30))
-        return Escenario(mesa=mesa, producto_id=producto_id, reserva=reserva)
+        return Escenario(
+            mesa=mesa, mozo_id=mozo_habilitado_en_m3, producto_id=producto_id, reserva=reserva
+        )
 
     return crear
 
@@ -106,7 +114,7 @@ def entre_la_verificacion_y_el_insert_de_m4(
 
 
 def _atender(cliente: TestClient, escenario: Escenario, cuerpo: dict | None = None):
-    cuerpo = escenario.pedido if cuerpo is None else cuerpo
+    cuerpo = escenario.pedido if cuerpo is None else {"mozo_id": escenario.mozo_id, **cuerpo}
     return cliente.post(f"{RUTA}/{escenario.reserva.id}/comanda", json=cuerpo)
 
 
@@ -144,12 +152,14 @@ def test_post_comanda_de_reserva_persiste_la_comanda_con_el_vinculo_y_ocupa_la_m
         escenario.mesa.id,
         escenario.reserva.id,
     )
+    assert comanda.mozo_id == escenario.mozo_id
     assert [(d.producto_id, d.cantidad) for d in comanda.detalles] == [(escenario.producto_id, 2)]
     salida = respuesta.json()
-    assert (salida["id"], salida["mesa_id"], salida["reserva_id"]) == (
+    assert (salida["id"], salida["mesa_id"], salida["reserva_id"], salida["mozo_id"]) == (
         comanda.id,
         escenario.mesa.id,
         escenario.reserva.id,
+        escenario.mozo_id,
     )
     assert _estado_de_la_mesa(db, escenario.mesa.id) == EstadoMesa.OCUPADA
     assert _estado_de_la_reserva(db, escenario.reserva.id) == EstadoReserva.ATENDIDA
@@ -292,7 +302,8 @@ def test_post_comanda_de_reserva_dos_solicitudes_para_la_misma_reserva_una_201_y
     escenario = armar()
     reserva_id = escenario.reserva.id
     pedido = ComandaDesdeReservaCrear(
-        detalles=[DetalleComandaCrear(producto_id=escenario.producto_id, cantidad=2)]
+        mozo_id=escenario.mozo_id,
+        detalles=[DetalleComandaCrear(producto_id=escenario.producto_id, cantidad=2)],
     )
     ganadora: list[ComandaSalida] = []
 
