@@ -67,7 +67,8 @@ backend/
 │   │   │   ├── models.py        # tablas del módulo
 │   │   │   └── schemas.py       # entrada y salida de la API
 │   │   ├── menus/           # M2 Menús y Promociones   (misma estructura)
-│   │   ├── salon/           # M3 Salón y Mozos
+│   │   ├── salon/           # M3 Salón, Mozos y Chefs
+│   │   ├── usuarios/        # Usuario, roles y Sesion (HU-TR-01, transversal)
 │   │   ├── atencion/        # M4 Atención al Público
 │   │   ├── reservas/        # M5 Reservas
 │   │   └── pagos/           # M6 Pagos
@@ -77,7 +78,8 @@ backend/
 │       ├── base_repository.py   # operaciones CRUD genéricas
 │       ├── excepciones.py   # errores de negocio comunes
 │       ├── paginacion.py    # parámetros y respuesta paginada
-│       └── seguridad.py     # punto de enganche de la autenticación (ver D-13)
+│       ├── permisos.py      # matriz rol → permisos, sin FastAPI
+│       └── seguridad.py     # autenticación y permisos por rol (ver D-13)
 │
 ├── tests/                   # replica la estructura de modules/
 ├── scripts/                 # carga de la base de datos de referencia
@@ -135,7 +137,7 @@ Los errores de negocio se señalan con excepciones propias (`NoEncontradoError`,
 | D-10 | **Transacciones cortas, abiertas y cerradas en el `service`**, sin llamadas externas ni cálculos pesados dentro. `database.py` registra la duración de cada transacción de escritura. | Transacciones abiertas en el router o durante toda la solicitud. | Con una sola escritura simultánea, una transacción larga bloquea a todos los demás usuarios. El registro de duración es la forma de verificar el umbral de 200 ms. | RNF-REN-03 |
 | D-11 | **Reportes con agregación en la base** (`GROUP BY`, `SUM`, `COUNT`) e índices en las columnas de filtro. Cada reporte vive en el repositorio y el servicio de su módulo. | Traer los registros y calcular en memoria. | Mueve el trabajo al motor y mantiene el tiempo de los reportes dentro del umbral. | RNF-REN-05 |
 | D-12 | **Configuración y secretos por variables de entorno** leídas en `config.py`. `.env` fuera del repositorio y un `.env.example` versionado. | Valores fijos en el código. | Evita subir secretos al repositorio y permite cambiar de ambiente sin tocar el código. | RNF-SEG-04 |
-| D-13 | **La autenticación se enchufa sin tocar los `service`**: `shared/seguridad.py` expone una dependencia de FastAPI que cada `router` puede aplicar a los endpoints que modifican datos. Mientras no se implemente, no restringe nada. | Controlar el acceso dentro de cada `service`, o no prever nada. | El RNF-SEG-02 pide que agregar autenticación no obligue a reescribir la lógica de negocio. Con la dependencia en el router, activar el control es un cambio en la capa HTTP. | RNF-SEG-02, RNF-SEG-03 |
+| D-13 | **La autenticación se enchufa sin tocar los `service`**: `shared/seguridad.py` expone una dependencia de FastAPI que cada `router` puede aplicar a los endpoints que modifican datos. Implementada en HU-TR-01: lee `Authorization: Bearer`, resuelve el usuario con `usuarios.service` y verifica un permiso de la matriz rol → permisos (`shared/permisos.py`). | Controlar el acceso dentro de cada `service`, o no prever nada. | El RNF-SEG-02 pide que agregar autenticación no obligue a reescribir la lógica de negocio. Con la dependencia en el router, activar el control es un cambio en la capa HTTP. | RNF-SEG-02, RNF-SEG-03 |
 | D-14 | **Pruebas en `tests/`**, que replica la estructura de `modules/`, con una base SQLite temporal por prueba. Un script en `scripts/` carga la base de referencia. | Probar contra la base de desarrollo. | Las pruebas no deben alterar datos reales y tienen que poder repetirse. El script de carga es la verificación del RNF-REN-06. | RNF-MAN-04, RNF-REN-06 |
 
 ## 4. Frontend
@@ -194,7 +196,7 @@ frontend/
 | D-22 | **Versión en la ruta** (`/api/v1`). | Sin versión. | Deja evolucionar el contrato sin romper al frontend. Cuesta un prefijo. | RNF-MAN-07 |
 | D-23 | **Verbos HTTP según la operación**: `GET` para listar y consultar, `POST` para crear, `PUT` o `PATCH` para modificar, `DELETE` para eliminar. | Un único `POST` para todo. | Es el uso estándar y permite que las herramientas y las pruebas entiendan cada operación. | RNF-MAN-07 |
 | D-24 | **Acciones de negocio como `POST` sobre un subrecurso verbal**: `POST /comandas/{id}/cerrar`, `/reabrir`, `POST /reservas/{id}/cancelar`. | Modificar el estado con un `PUT` genérico. | El cambio de estado tiene reglas propias (por ejemplo, no cerrar una comanda ya cerrada) y debe ser explícito en la API y en los servicios. | RNF-MAN-01 |
-| D-25 | **Códigos de estado**: `200` consulta o modificación, `201` creación, `204` eliminación, `404` recurso inexistente, `409` conflicto con una regla de negocio (por ejemplo, eliminar una mesa con comandas abiertas), `422` datos inválidos. | Devolver `200` siempre con un campo de error. | Permite al frontend y a las pruebas distinguir el resultado sin leer el cuerpo. | RNF-SEG-01, RNF-SEG-06 |
+| D-25 | **Códigos de estado**: `200` consulta o modificación, `201` creación, `204` eliminación, `401` sin sesión o sesión vencida, `403` el rol no tiene el permiso, `404` recurso inexistente, `409` conflicto con una regla de negocio (por ejemplo, eliminar una mesa con comandas abiertas), `422` datos inválidos. | Devolver `200` siempre con un campo de error. | Permite al frontend y a las pruebas distinguir el resultado sin leer el cuerpo. | RNF-SEG-01, RNF-SEG-06 |
 | D-26 | **Formato de error uniforme**: `{"detalle": "mensaje legible"}`, sin trazas, rutas internas ni SQL. Los registros (logs) no incluyen datos personales de clientes ni de pago. | Dejar el formato por defecto de cada excepción. | Un solo formato simplifica el frontend. No filtrar detalles internos es un requisito de seguridad. | RNF-SEG-09 |
 | D-27 | **Paginación en todos los listados** con `limit` (por defecto 50, máximo 100) y `offset`, implementada una sola vez en `shared/paginacion.py`. | Devolver la tabla completa. | Mantiene el tiempo de respuesta estable a medida que crece la base. | RNF-REN-07, RNF-REN-01 |
 | D-28 | **Los reportes son recursos de solo lectura** bajo `/api/v1/reportes/...`, con los filtros (período, mozo, medio de pago) como parámetros de consulta. | Calcularlos en el frontend. | La agregación se hace en la base (D-11) y el frontend solo muestra el resultado. | RNF-REN-05 |
