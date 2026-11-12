@@ -45,7 +45,11 @@ Backend de este lote: 53 archivos, +3148 -179 líneas (código ≈ 1250 y prueba
 - `pytest` (suite completa): 2649 passed, cobertura 98,55 % (mínimo 70 %).
 - `alembic upgrade head` / `downgrade -1` / `upgrade head`: sin errores; `alembic heads`: una sola cabeza (`b8d0f2a4c6e8`).
 
-## Lote 2: frontend, unidades 8 a 11 (completo, 28 de 28 tareas)
+## Excepción de evidencia de Strict TDD (decisión de la persona, 2026-11-12)
+
+El verificador marcó como CRITICAL que este archivo no tiene la tabla «TDD Cycle Evidence» por tarea. Se hizo un commit por unidad, así que el orden RED→GREEN de cada tarea no se puede reconstruir desde git, y no se inventa evidencia. La persona aceptó la evidencia en prosa de cada lote; el veredicto se trata como PASS con advertencias. Las pruebas existen y pasan (backend 2649, frontend 1550).
+
+## Lote 2: frontend, unidades 8 a 11 (completo, 24 de 24 tareas)
 
 Modo: Strict TDD (RED con módulo inexistente o prueba nueva que falla, GREEN, refactor de lint). Commits: unidad 8 `2aaf68c`, 9 `8755fc1`, 10 `b180471`, 11 el commit de salón.
 

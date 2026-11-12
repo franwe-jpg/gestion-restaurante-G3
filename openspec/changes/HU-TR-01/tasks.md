@@ -146,11 +146,11 @@ Nota: la persona decidió un solo PR sin importar el tamaño. AGENTS.md §4 fija
 
 ## Fase 4: Verificación final y notas del PR
 
-- [ ] 4.1 Backend desde `backend/`: `ruff check . && ruff format --check . && lint-imports && pytest` (cobertura ≥ 70 %); `alembic upgrade head`, `alembic downgrade -1`, `alembic heads` con una sola cabeza.
-- [ ] 4.2 Frontend desde `frontend/`: `npm run lint && npm run format:check && npm run typecheck && npm run test:coverage && npm run build` (cobertura ≥ 60 %, 0 advertencias).
-- [ ] 4.3 Antes del PR: `git pull origin develop`, `alembic heads` y resolver conflictos en la rama; con otros PR abiertos, revisar los routers compartidos.
-- [ ] 4.4 Contrastar los criterios CA-1 a CA-4 con el texto real del issue #172 (S12) y anotar diferencias.
-- [ ] 4.5 Reunir notas del PR (sin crear issues ni comentarios):
+- [x] 4.1 Backend desde `backend/`: `ruff check . && ruff format --check . && lint-imports && pytest` (cobertura ≥ 70 %); `alembic upgrade head`, `alembic downgrade -1`, `alembic heads` con una sola cabeza.
+- [x] 4.2 Frontend desde `frontend/`: `npm run lint && npm run format:check && npm run typecheck && npm run test:coverage && npm run build` (cobertura ≥ 60 %, 0 advertencias).
+- [x] 4.3 Antes del PR: `git pull origin develop`, `alembic heads` y resolver conflictos en la rama; con otros PR abiertos, revisar los routers compartidos.
+- [x] 4.4 Contrastar los criterios CA-1 a CA-4 con el texto real del issue #172 (S12) y anotar diferencias.
+- [x] 4.5 Reunir notas del PR (sin crear issues ni comentarios):
   - Nota transversal autorizada (§9.3): `shared/`, los seis módulos y la entidad `Chef` en M3.
   - Archivos compartidos tocados: `shared/{seguridad,permisos,credenciales,excepciones}.py`, `shared/models/enums.py`, `main.py`, `config.py`, `alembic/env.py`, `pyproject.toml`, `requirements.txt`, routers de M1, M2, M4, M5 y M6, `client.ts`, `App.tsx`, layout y páginas.
   - Supuestos S1 a S12 para que el equipo los valide, en especial S3 (sin vía de interfaz para varios roles), S5 y S11 (`bcrypt`).
