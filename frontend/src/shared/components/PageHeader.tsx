@@ -12,15 +12,21 @@ export function PageHeader({ titulo, descripcion, acciones, className }: PageHea
   return (
     <header
       className={cn(
-        'mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between',
+        'mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between',
         className,
       )}
     >
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">{titulo}</h1>
-        {descripcion && <p className="mt-1 text-sm text-slate-500">{descripcion}</p>}
+      <div className="min-w-0">
+        <h1 className="text-xl font-bold tracking-tight text-balance text-slate-900 sm:text-2xl">
+          {titulo}
+        </h1>
+        {descripcion && (
+          <p className="mt-1 max-w-2xl text-sm text-pretty text-slate-500">{descripcion}</p>
+        )}
       </div>
-      {acciones && <div className="flex items-center gap-2 shrink-0">{acciones}</div>}
+      {acciones && (
+        <div className="flex flex-wrap items-center gap-2 lg:justify-end">{acciones}</div>
+      )}
     </header>
   );
 }

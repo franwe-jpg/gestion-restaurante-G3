@@ -97,7 +97,7 @@ export function MesaDelMapa({
         data-forma={forma}
         className={cn(
           'relative flex flex-col items-center justify-center group-hover:ring-4 group-hover:ring-slate-900/10',
-          'group-focus-visible:outline-3 group-focus-visible:outline-offset-4 group-focus-visible:outline-amber-600',
+          'group-focus-visible:outline-3 group-focus-visible:outline-offset-4 group-focus-visible:outline-primary',
           MEDIDAS[forma],
           ESTILO_DEL_ESTADO[mesa.estadoVisible],
           seleccionada && 'outline-3 outline-offset-4 outline-slate-900',
