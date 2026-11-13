@@ -1845,7 +1845,7 @@ Al guardar, DEBE enviar `cliente_id` si hay un cliente elegido, o `cliente_nuevo
 
 > Nota 2026-11-13 (corrección de HU-M5-01-02-03, **pendiente de validación del equipo**): a pedido de la responsable del módulo, además del buscador hay un desplegable con los clientes registrados. Es solo frontend: no cambia el contrato de M4 ni agrega endpoints a M5 (S71).
 
-El modal «Nueva reserva» DEBE ofrecer, junto a la caja de búsqueda y a la opción «Cliente nuevo», un desplegable «Clientes registrados» con los clientes que devuelve `GET /clientes?limit=100&offset=0` de M4 (la ruta exige el permiso `CLIENTES_GESTIONAR`), pedido a través del `api.ts` de `reservas` (S43). El frontend DEBE ordenarlos por nombre y mostrar como mucho 100, cada uno como «Nombre · Teléfono». Si hay más de 100 clientes (el `total` de la respuesta supera lo recibido), DEBE avisar que se muestran solo los primeros 100 y que para los demás hay que usar el buscador. Elegir un cliente del desplegable equivale a elegirlo en el buscador: queda elegido y visible en el campo, descarta «Cliente nuevo» y al guardar se envía solo `cliente_id`. Si la consulta falla, DEBE mostrar el mensaje de la API junto al campo Cliente, sin ofrecer clientes en el desplegable, y la búsqueda y «Cliente nuevo» siguen disponibles. El modal de edición NO muestra el desplegable (Cliente sigue deshabilitado) ni pide `GET /clientes`.
+El modal «Nueva reserva» DEBE ofrecer, junto a la caja de búsqueda y a la opción «Cliente nuevo», un desplegable «Clientes registrados» con los clientes que devuelve `GET /clientes?limit=100&offset=0` de M4 (la ruta exige el permiso `CLIENTES_GESTIONAR`), pedido a través del `api.ts` de `reservas` (S43). El frontend DEBE ordenarlos por nombre y mostrar como mucho 100, cada uno como «Nombre · Teléfono». Si hay más de 100 clientes (el `total` de la respuesta supera lo recibido), DEBE avisar que se muestran solo los primeros 100 y que para los demás hay que usar el buscador. Elegir un cliente del desplegable equivale a elegirlo en el buscador: queda elegido y visible en el campo, descarta «Cliente nuevo» y al guardar se envía solo `cliente_id`. Elegir la opción inicial («Elegir de la lista») limpia la selección. Si la consulta falla, DEBE mostrar bajo el desplegable «No se pudo cargar la lista de clientes. Se puede buscar por nombre o teléfono.», sin ofrecer clientes en el desplegable, y la búsqueda y «Cliente nuevo» siguen disponibles. El modal de edición NO muestra el desplegable (Cliente sigue deshabilitado) ni pide `GET /clientes`.
 
 #### Escenario: Lista de clientes registrados ordenada por nombre
 
@@ -1871,7 +1871,7 @@ El modal «Nueva reserva» DEBE ofrecer, junto a la caja de búsqueda y a la opc
 
 - DADO una API que responde con error al pedir `GET /clientes?limit=100&offset=0`
 - CUANDO termina la consulta
-- ENTONCES se muestra el mensaje de la API junto al campo Cliente, el desplegable no ofrece clientes y la búsqueda y «Cliente nuevo» siguen disponibles
+- ENTONCES se muestra bajo el desplegable «No se pudo cargar la lista de clientes. Se puede buscar por nombre o teléfono.», el desplegable no ofrece clientes y la búsqueda y «Cliente nuevo» siguen disponibles
 
 #### Escenario: La edición no muestra el desplegable
 

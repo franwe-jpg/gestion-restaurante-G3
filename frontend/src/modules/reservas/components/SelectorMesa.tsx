@@ -8,7 +8,10 @@ export interface SelectorMesaProps {
   estado: EstadoMesasDisponibles;
   /** `id` de la mesa elegida como texto, o `''` si no hay ninguna. */
   valor: string;
-  /** Error de la validación local; gana sobre el mensaje de la consulta. */
+  /**
+   * Error del campo: la validación local o el 409 de capacidad del servidor (S72); gana sobre el
+   * mensaje de la consulta.
+   */
   error?: string;
   onCambiar: (valor: string) => void;
 }
@@ -57,6 +60,8 @@ export function SelectorMesa({ estado, valor, error, onCambiar }: SelectorMesaPr
         id={ID_SELECTOR}
         value={valor}
         disabled={!estaHabilitado(estado)}
+        aria-invalid={errorDelCampo ? true : undefined}
+        aria-describedby={errorDelCampo ? `${ID_SELECTOR}-error` : undefined}
         onChange={(evento) => onCambiar(evento.target.value)}
       >
         <Opciones estado={estado} />

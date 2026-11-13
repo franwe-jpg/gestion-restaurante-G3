@@ -123,10 +123,31 @@ describe('SelectorMesa: error del campo', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('La mesa es obligatoria.');
   });
 
-  it('sin error no muestra ningún aviso', () => {
-    mostrar(listo(MESA_5));
+  it('sin error no muestra ningún aviso ni marca el campo', () => {
+    const { selector } = mostrar(listo(MESA_5));
 
     expect(screen.queryByRole('alert')).toBeNull();
+    expect(selector).not.toHaveAttribute('aria-invalid');
+    expect(selector).not.toHaveAttribute('aria-describedby');
+  });
+
+  it.each([
+    [
+      'el de la validación local o el 409 de capacidad (S72)',
+      listo(MESA_5),
+      'La mesa elegida admite hasta 4 personas.',
+    ],
+    [
+      'el de la consulta de mesas',
+      { tipo: 'error', mensaje: 'La consulta falló' } as const,
+      undefined,
+    ],
+  ])('con %s asocia el mensaje al campo', (_caso, estado, error) => {
+    const { selector } = mostrar(estado, { error });
+
+    expect(selector).toHaveAttribute('aria-invalid', 'true');
+    expect(selector).toHaveAttribute('aria-describedby', 'reserva-mesa-error');
+    expect(screen.getByRole('alert')).toHaveAttribute('id', 'reserva-mesa-error');
   });
 
   it('con el error recibido y el de la consulta, gana el recibido (validación local)', () => {

@@ -9,6 +9,8 @@ import {
   crearComandaDesdeReserva,
   crearReserva,
   descargarReporteReservasAusentismoPdf,
+  LIMITE_LISTA_CLIENTES,
+  listarClientes,
   listarMesasDisponibles,
   listarMozosHabilitados,
   listarProductosHabilitados,
@@ -258,6 +260,26 @@ describe('api de reservas: cliente de la reserva', () => {
     await buscarClientes('Ana & Luis');
 
     expect(get).toHaveBeenCalledWith('/clientes?q=Ana+%26+Luis&limit=10&offset=0');
+  });
+});
+
+describe('api de reservas: clientes registrados (S71)', () => {
+  it('lista los clientes registrados con GET /clientes?limit=100&offset=0 y devuelve la página (S71)', async () => {
+    const respuesta = { datos: { items: [], total: 0, limit: 100, offset: 0 }, exito: true };
+    const get = vi.spyOn(clienteHttp, 'get').mockResolvedValue(respuesta);
+
+    const resultado = await listarClientes();
+
+    expect(LIMITE_LISTA_CLIENTES).toBe(100);
+    expect(get).toHaveBeenCalledExactlyOnceWith('/clientes?limit=100&offset=0');
+    expect(resultado).toBe(respuesta);
+  });
+
+  it('la lista de clientes registrados devuelve el error de la API sin lanzar', async () => {
+    const respuesta = { datos: null, exito: false, error: 'Sin permiso' };
+    vi.spyOn(clienteHttp, 'get').mockResolvedValue(respuesta);
+
+    await expect(listarClientes()).resolves.toBe(respuesta);
   });
 });
 
