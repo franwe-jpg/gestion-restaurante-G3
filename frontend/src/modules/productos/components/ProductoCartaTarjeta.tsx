@@ -43,6 +43,7 @@ export function ProductoCartaTarjeta({
       </div>
       {producto.descripcion && <p className="text-sm text-slate-600">{producto.descripcion}</p>}
       <div className="flex flex-wrap gap-1">
+        {producto.categoria === 'MENU_DEL_DIA' && <Badge>Menú del día</Badge>}
         {producto.etiquetas.map((etiqueta) => (
           <Badge key={etiqueta}>{etiqueta}</Badge>
         ))}
