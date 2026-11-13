@@ -10,6 +10,7 @@ vi.mock('../api', () => ({
   crearComanda: vi.fn(),
   cerrarComanda: vi.fn(),
   anularComanda: vi.fn(),
+  asignarMozoComanda: vi.fn(),
   consultarPendientes: vi.fn(),
   consultarEntregas: vi.fn(),
   registrarEntrega: vi.fn(),
@@ -388,6 +389,31 @@ it('confirma anulación, informa éxito y recarga conservando la fila histórica
   await waitFor(() => expect(api.anularComanda).toHaveBeenCalledWith(3));
   expect(await screen.findByText('Comanda anulada')).toBeInTheDocument();
   expect(await screen.findByText('Comanda #3')).toBeInTheDocument();
+  await waitFor(() => expect(api.listarComandas).toHaveBeenCalledTimes(2));
+});
+
+it('cambia el mozo desde la fila, informa éxito y recarga el listado', async () => {
+  const pedro = { id: 33, nombre: 'Pedro', apellido: 'Ruiz', estado: 'HABILITADO' as const };
+  vi.mocked(api.listarMozosHabilitados).mockResolvedValue({
+    exito: true,
+    datos: [{ id: 31, nombre: 'Lucía', apellido: 'Fernández', estado: 'HABILITADO' }, pedro],
+  });
+  vi.mocked(api.asignarMozoComanda).mockResolvedValue({
+    exito: true,
+    datos: { ...COMANDA, mozo_id: 33, detalles: [] },
+  });
+  render(<AtencionPage />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Cambiar mozo de la comanda #3' }));
+  const dialogo = screen.getByRole('dialog', { name: 'Cambiar mozo de la comanda #3' });
+  await waitFor(() =>
+    expect(within(dialogo).getByRole('combobox', { name: /^Mozo/ })).toHaveValue('Lucía Fernández'),
+  );
+  fireEvent.focus(within(dialogo).getByRole('combobox', { name: /^Mozo/ }));
+  fireEvent.click(await within(dialogo).findByRole('option', { name: 'Pedro Ruiz' }));
+  fireEvent.click(within(dialogo).getByRole('button', { name: 'Guardar mozo' }));
+  await waitFor(() => expect(api.asignarMozoComanda).toHaveBeenCalledWith(3, 33));
+  expect(await screen.findByText('Mozo de la comanda actualizado')).toBeInTheDocument();
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   await waitFor(() => expect(api.listarComandas).toHaveBeenCalledTimes(2));
 });
 

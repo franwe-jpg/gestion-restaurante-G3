@@ -3,6 +3,7 @@ import type { Pagina, RespuestaApi } from '../../shared/types';
 import type {
   Comanda,
   ComandaCrear,
+  ComandaMozoAsignar,
   ComandaModificar,
   ComandaResumen,
   EntregaDetalle,
@@ -44,6 +45,10 @@ export function modificarComanda(
   datos: ComandaModificar,
 ): Promise<RespuestaApi<Comanda>> {
   return clienteHttp.put<Comanda, ComandaModificar>(`/comandas/${id}`, datos);
+}
+
+export function asignarMozoComanda(id: number, mozoId: number): Promise<RespuestaApi<Comanda>> {
+  return clienteHttp.put<Comanda, ComandaMozoAsignar>(`/comandas/${id}/mozo`, { mozo_id: mozoId });
 }
 
 export function reabrirComanda(id: number): Promise<RespuestaApi<Comanda>> {

@@ -12,6 +12,7 @@ import { useComandas } from '../components/useComandas';
 import { useEntregasModal } from '../components/useEntregasModal';
 import { useReabrirComanda } from '../components/useReabrirComanda';
 import { useAnularComanda } from '../components/useAnularComanda';
+import { useCambioDeMozo } from '../components/useCambioDeMozo';
 
 function accionesAtencion(
   recargar: () => void,
@@ -56,6 +57,7 @@ function useEnlacesAtencion() {
     );
   }, [parametros, setParametros]);
   const [alta, setAlta] = useState(mesaInicial !== undefined);
+  useAbrirDesdeUrl('nueva', () => setAlta(true));
   return {
     alta,
     setAlta,
@@ -92,13 +94,13 @@ export function AtencionPage() {
   const opera = puede('COMANDAS_OPERAR');
   const comandas = useComandas();
   const enlaces = useEnlacesAtencion();
-  useAbrirDesdeUrl('nueva', () => enlaces.setAlta(true));
   const [cierreId, setCierreId] = useState<number | null>(null);
   const [modificarId, setModificarId] = useState<number | null>(null);
   const [aviso, setAviso] = useState('');
   const { entregas, irAEntregas, salirDeEntregas } = useEntregasModal(setCierreId);
   const reabrir = useReabrirComanda(comandas.recargar, setAviso);
   const anular = useAnularComanda(comandas.recargar, setAviso);
+  const cambioMozo = useCambioDeMozo(comandas.recargar, setAviso);
   const acciones = accionesAtencion(comandas.recargar, enlaces.setAlta, setCierreId, setAviso);
   return (
     <div className="space-y-6">
@@ -115,6 +117,7 @@ export function AtencionPage() {
         onReabrir={(id) => void reabrir(id)}
         onAnular={(id) => void anular(id)}
         onFacturar={enlaces.irAFacturar}
+        onCambiarMozo={cambioMozo.abrir}
       />
       <AtencionDialogs
         alta={opera && enlaces.alta}
@@ -122,14 +125,13 @@ export function AtencionPage() {
         cierreId={cierreId}
         modificarId={modificarId}
         entregas={entregas}
+        cambioMozo={cambioMozo}
         {...permisosDeEntregas(puede)}
         onAlta={enlaces.setAlta}
         onCreada={acciones.creada}
         onSalirCierre={() => setCierreId(null)}
         onCerrada={acciones.cerrada}
-        onEntregasDesdeCierre={() => {
-          if (cierreId !== null) irAEntregas(cierreId, true);
-        }}
+        onEntregasDesdeCierre={(id) => irAEntregas(id, true)}
         onSalirEntregas={salirDeEntregas}
         onSalirModificar={() => setModificarId(null)}
         onModificada={acciones.modificada}
