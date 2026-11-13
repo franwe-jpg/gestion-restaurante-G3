@@ -159,7 +159,7 @@ describe('DetalleDeMesaDialog', () => {
     const dialogo = abrir('FUERA_DE_SERVICIO');
 
     expect(dialogo).toHaveTextContent(
-      'La mesa está fuera de servicio. Se habilita desde Salón y Mozos.',
+      'La mesa está fuera de servicio. Se habilita desde Salón, Mozos y Chefs.',
     );
   });
 });

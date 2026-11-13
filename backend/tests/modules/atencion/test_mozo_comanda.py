@@ -62,10 +62,24 @@ def test_asignar_y_corregir_mozo_historico_registra_valores_en_log(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     primero_id = salon_service.crear_mozo(
-        db, MozoCrear(dni="35987654", nombre="Ana", apellido="Paz")
+        db,
+        MozoCrear(
+            dni="35987654",
+            nombre="Ana",
+            apellido="Paz",
+            correo="mozo35987654@resto.com",
+            contrasena="Clave1234",
+        ),
     ).id
     segundo_id = salon_service.crear_mozo(
-        db, MozoCrear(dni="40123456", nombre="Eva", apellido="Ríos")
+        db,
+        MozoCrear(
+            dni="40123456",
+            nombre="Eva",
+            apellido="Ríos",
+            correo="mozo40123456@resto.com",
+            contrasena="Clave1234",
+        ),
     ).id
     monkeypatch.setattr(service.logger, "disabled", False)
     caplog.set_level(logging.INFO, logger=service.logger.name)
@@ -98,7 +112,14 @@ def test_corregir_mozo_historico_invalido_no_muta_ni_registra_cambio(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     original_id = salon_service.crear_mozo(
-        db, MozoCrear(dni="35987654", nombre="Ana", apellido="Paz")
+        db,
+        MozoCrear(
+            dni="35987654",
+            nombre="Ana",
+            apellido="Paz",
+            correo="mozo35987654@resto.com",
+            contrasena="Clave1234",
+        ),
     ).id
     comanda.mozo_id = original_id
     db.commit()
@@ -119,7 +140,14 @@ def test_corregir_mozo_historico_invalido_no_muta_ni_registra_cambio(
 
 def test_asignar_mozo_a_comanda_inexistente_lanza_no_encontrado(db: Session) -> None:
     mozo_id = salon_service.crear_mozo(
-        db, MozoCrear(dni="35987654", nombre="Ana", apellido="Paz")
+        db,
+        MozoCrear(
+            dni="35987654",
+            nombre="Ana",
+            apellido="Paz",
+            correo="mozo35987654@resto.com",
+            contrasena="Clave1234",
+        ),
     ).id
 
     with pytest.raises(NoEncontradoError, match="La comanda 999 no existe"):
@@ -132,7 +160,16 @@ def test_corregir_comanda_historica_con_mozo_deshabilitado_lanza_conflicto(
     caplog: pytest.LogCaptureFixture,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    mozo = salon_service.crear_mozo(db, MozoCrear(dni="35987654", nombre="Ana", apellido="Paz"))
+    mozo = salon_service.crear_mozo(
+        db,
+        MozoCrear(
+            dni="35987654",
+            nombre="Ana",
+            apellido="Paz",
+            correo="mozo35987654@resto.com",
+            contrasena="Clave1234",
+        ),
+    )
     salon_service.dar_de_baja_mozo(db, mozo.id)
     monkeypatch.setattr(service.logger, "disabled", False)
     caplog.set_level(logging.INFO, logger=service.logger.name)

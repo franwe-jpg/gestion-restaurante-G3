@@ -13,11 +13,15 @@ export interface MenuDelDiaTablaProps {
   cargando?: boolean;
   error?: string | null;
   onReintentar?: () => void;
+  /** Sin `onEditar` y `onDarDeBaja` (rol sin permiso de gestion) no hay columna de acciones. */
+  onEditar?: (menu: MenuDelDiaListado) => void;
+  onDarDeBaja?: (menu: MenuDelDiaListado) => void;
+}
+
+interface Acciones {
   onEditar: (menu: MenuDelDiaListado) => void;
   onDarDeBaja: (menu: MenuDelDiaListado) => void;
 }
-
-type Acciones = Pick<MenuDelDiaTablaProps, 'onEditar' | 'onDarDeBaja'>;
 
 function columnasDeDatos(): ColumnaTabla<MenuDelDiaListado>[] {
   return [
@@ -85,7 +89,11 @@ export function MenuDelDiaTabla({
 }: MenuDelDiaTablaProps) {
   return (
     <DataTable
-      columnas={[...columnasDeDatos(), columnaAcciones({ onEditar, onDarDeBaja })]}
+      columnas={
+        onEditar && onDarDeBaja
+          ? [...columnasDeDatos(), columnaAcciones({ onEditar, onDarDeBaja })]
+          : columnasDeDatos()
+      }
       filas={menus}
       obtenerClave={(menu) => menu.id}
       cargando={cargando}

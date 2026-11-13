@@ -18,6 +18,7 @@ MODULOS_CON_MODELOS = [
     "app.modules.atencion.models",
     "app.modules.reservas.models",
     "app.modules.pagos.models",
+    "app.modules.usuarios.models",
 ]
 for nombre in MODULOS_CON_MODELOS:
     import_module(nombre)

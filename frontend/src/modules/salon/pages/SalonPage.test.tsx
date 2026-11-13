@@ -296,7 +296,7 @@ describe('SalonPage: alta de sector', () => {
   it('muestra el encabezado, la acción de alta y el listado vacío', async () => {
     render(<SalonPage />);
 
-    expect(screen.getByRole('heading', { name: 'Salón y Mozos' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Salón, Mozos y Chefs' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Nuevo sector' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Nueva mesa' })).toBeInTheDocument();
     expect(await screen.findByText('No hay sectores disponibles')).toBeInTheDocument();
@@ -637,6 +637,7 @@ const JUAN: Mozo = {
   apellido: 'Fernández',
   telefono: '280 412-3456',
   estado: 'HABILITADO',
+  correo: 'juan@resto.com',
 };
 
 const ANA: Mozo = {
@@ -646,6 +647,7 @@ const ANA: Mozo = {
   apellido: 'Romero',
   telefono: null,
   estado: 'DESHABILITADO',
+  correo: null,
 };
 
 const MOZO_CREADO: Mozo = {
@@ -655,6 +657,7 @@ const MOZO_CREADO: Mozo = {
   apellido: 'Castro',
   telefono: null,
   estado: 'HABILITADO',
+  correo: 'luis@resto.com',
 };
 
 async function abrirAltaDeMozo() {
@@ -673,6 +676,8 @@ function completarMozo(dni = '40111222', nombre = 'Luis', apellido = 'Castro') {
   fireEvent.change(screen.getByLabelText(/DNI/), { target: { value: dni } });
   fireEvent.change(screen.getByLabelText(/Nombre/), { target: { value: nombre } });
   fireEvent.change(screen.getByLabelText(/Apellido/), { target: { value: apellido } });
+  fireEvent.change(screen.getByLabelText(/Correo/), { target: { value: 'luis@resto.com' } });
+  fireEvent.change(screen.getByLabelText(/Contraseña/), { target: { value: 'clave-1234' } });
 }
 
 describe('SalonPage: listado de mozos', () => {
@@ -685,7 +690,7 @@ describe('SalonPage: listado de mozos', () => {
     );
   });
 
-  it('en «Mozos» muestra DNI, apellido y nombre, teléfono y estado (CA 1 y 3 de #46)', async () => {
+  it('en «Mozos» muestra DNI, apellido y nombre, teléfono, correo y estado (CA 1 y 3 de #46)', async () => {
     vi.mocked(listarMozos).mockResolvedValue(paginaMozos([JUAN, ANA]));
     render(<SalonPage />);
 
@@ -696,12 +701,12 @@ describe('SalonPage: listado de mozos', () => {
     const celdas = filas.map((fila) =>
       within(fila)
         .getAllByRole('cell')
-        .slice(0, 4)
+        .slice(0, 5)
         .map((celda) => celda.textContent),
     );
     expect(celdas).toEqual([
-      ['30123456', 'Fernández, Juan', '280 412-3456', 'Habilitado'],
-      ['35987654', 'Romero, Ana', '—', 'Deshabilitado'],
+      ['30123456', 'Fernández, Juan', '280 412-3456', 'juan@resto.com', 'Habilitado'],
+      ['35987654', 'Romero, Ana', '—', 'Sin usuario', 'Deshabilitado'],
     ]);
   });
 
@@ -787,6 +792,7 @@ describe('SalonPage: edición de mozo', () => {
       nombre: 'Juan',
       apellido: 'Gómez',
       telefono: '280 412-3456',
+      correo: 'juan@resto.com',
     });
     await waitFor(() => expect(listarMozos).toHaveBeenCalledTimes(2));
   });

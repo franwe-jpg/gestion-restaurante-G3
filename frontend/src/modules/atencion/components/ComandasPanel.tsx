@@ -1,3 +1,5 @@
+import type { ComponentProps } from 'react';
+
 import { Card, CardContent } from '../../../shared/components/ui/card';
 import { Alert } from '../../../shared/components/ui/alert';
 import { ErrorState } from '../../../shared/components/ui/error-state';
@@ -6,6 +8,18 @@ import { ComandasTabla } from './ComandasTabla';
 import { FiltrosComandas } from './FiltrosComandas';
 import type { useComandas } from './useComandas';
 import { useCatalogoComanda } from './useCatalogoComanda';
+
+type AccionesDelListado = Omit<
+  ComponentProps<typeof ComandasTabla>,
+  'pagina' | 'mozos' | 'hayFiltros' | 'ocupado' | 'onPagina'
+>;
+
+type MozosDelCatalogo = ReturnType<typeof useCatalogoComanda>['mozos'];
+
+interface Props extends AccionesDelListado {
+  comandas: ReturnType<typeof useComandas>;
+  aviso: string;
+}
 
 function EstadoCatalogoMozos({ cargando, error }: { cargando: boolean; error: string | null }) {
   if (cargando) return <Spinner etiqueta="Cargando mozos…" />;
@@ -19,63 +33,29 @@ function EstadoCatalogoMozos({ cargando, error }: { cargando: boolean; error: st
   return null;
 }
 
-interface ComandasPanelProps {
-  comandas: ReturnType<typeof useComandas>;
-  aviso: string;
-  onCerrar: (id: number) => void;
-  onEntregas: (id: number) => void;
-  onModificar: (id: number) => void;
-  onReabrir: (id: number) => void;
-  onAnular: (id: number) => void;
-  onFacturar: (id: number) => void;
-}
-
-function ContenidoComandas({
+function ResultadoComandas({
   comandas,
-  aviso,
   mozos,
-  cargandoMozos,
-  errorMozos,
-  onCerrar,
-  onEntregas,
-  onModificar,
-  onReabrir,
-  onAnular,
-  onFacturar,
-}: ComandasPanelProps & {
-  mozos: ReturnType<typeof useCatalogoComanda>['mozos'];
-  cargandoMozos: boolean;
-  errorMozos: string | null;
-}) {
+  ...acciones
+}: AccionesDelListado & { comandas: ReturnType<typeof useComandas>; mozos: MozosDelCatalogo }) {
+  if (comandas.cargando) return <Spinner etiqueta="Cargando comandas…" />;
+  if (comandas.error) {
+    return <ErrorState descripcion={comandas.error} onReintentar={comandas.recargar} />;
+  }
+  if (!comandas.pagina) return null;
   return (
-    <div className="space-y-4">
-      <FiltrosComandas ocupado={comandas.cargando} onFiltrar={comandas.filtrar} />
-      {aviso && <p role="status">{aviso}</p>}
-      <EstadoCatalogoMozos cargando={cargandoMozos} error={errorMozos} />
-      {comandas.cargando && <Spinner etiqueta="Cargando comandas…" />}
-      {!comandas.cargando && comandas.error && (
-        <ErrorState descripcion={comandas.error} onReintentar={comandas.recargar} />
-      )}
-      {!comandas.cargando && !comandas.error && comandas.pagina && (
-        <ComandasTabla
-          pagina={comandas.pagina}
-          mozos={mozos}
-          hayFiltros={comandas.hayFiltros}
-          ocupado={comandas.cargando}
-          onCerrar={onCerrar}
-          onEntregas={onEntregas}
-          onModificar={onModificar}
-          onReabrir={onReabrir}
-          onAnular={onAnular}
-          onFacturar={onFacturar}
-          onPagina={comandas.cambiarPagina}
-        />
-      )}
-    </div>
+    <ComandasTabla
+      pagina={comandas.pagina}
+      mozos={mozos}
+      hayFiltros={comandas.hayFiltros}
+      ocupado={comandas.cargando}
+      onPagina={comandas.cambiarPagina}
+      {...acciones}
+    />
   );
 }
 
-export function ComandasPanel(props: ComandasPanelProps) {
+export function ComandasPanel({ comandas, aviso, ...acciones }: Props) {
   const catalogoMozos = useCatalogoComanda({
     conMozos: true,
     soloMozos: true,
@@ -84,12 +64,12 @@ export function ComandasPanel(props: ComandasPanelProps) {
   return (
     <Card>
       <CardContent className="pt-6">
-        <ContenidoComandas
-          {...props}
-          mozos={catalogoMozos.mozos}
-          cargandoMozos={catalogoMozos.cargando}
-          errorMozos={catalogoMozos.error}
-        />
+        <div className="space-y-4">
+          <FiltrosComandas ocupado={comandas.cargando} onFiltrar={comandas.filtrar} />
+          {aviso && <p role="status">{aviso}</p>}
+          <EstadoCatalogoMozos cargando={catalogoMozos.cargando} error={catalogoMozos.error} />
+          <ResultadoComandas comandas={comandas} mozos={catalogoMozos.mozos} {...acciones} />
+        </div>
       </CardContent>
     </Card>
   );

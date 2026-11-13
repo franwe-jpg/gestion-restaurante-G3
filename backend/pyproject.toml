@@ -59,6 +59,7 @@ source_modules = [
     "app.modules.productos",
     "app.modules.reservas",
     "app.modules.salon",
+    "app.modules.usuarios",
 ]
 forbidden_modules = [
     "app.modules.atencion.router",
@@ -76,6 +77,7 @@ source_modules = [
     "app.modules.productos",
     "app.modules.reservas",
     "app.modules.salon",
+    "app.modules.usuarios",
 ]
 forbidden_modules = [
     "app.modules.menus.router",
@@ -93,6 +95,7 @@ source_modules = [
     "app.modules.productos",
     "app.modules.reservas",
     "app.modules.salon",
+    "app.modules.usuarios",
 ]
 forbidden_modules = [
     "app.modules.pagos.router",
@@ -110,6 +113,7 @@ source_modules = [
     "app.modules.pagos",
     "app.modules.reservas",
     "app.modules.salon",
+    "app.modules.usuarios",
 ]
 forbidden_modules = [
     "app.modules.productos.router",
@@ -127,6 +131,7 @@ source_modules = [
     "app.modules.pagos",
     "app.modules.productos",
     "app.modules.salon",
+    "app.modules.usuarios",
 ]
 forbidden_modules = [
     "app.modules.reservas.router",
@@ -144,6 +149,7 @@ source_modules = [
     "app.modules.pagos",
     "app.modules.productos",
     "app.modules.reservas",
+    "app.modules.usuarios",
 ]
 forbidden_modules = [
     "app.modules.salon.router",
@@ -184,3 +190,45 @@ forbidden_modules = [
     "app.modules.*.schemas",
 ]
 allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "Otros modulos solo usan el service de usuarios (RNF-MAN-09)"
+type = "forbidden"
+source_modules = [
+    "app.modules.atencion",
+    "app.modules.menus",
+    "app.modules.pagos",
+    "app.modules.productos",
+    "app.modules.reservas",
+    "app.modules.salon",
+    "app.shared",
+]
+forbidden_modules = [
+    "app.modules.usuarios.router",
+    "app.modules.usuarios.repository",
+    "app.modules.usuarios.models",
+    "app.modules.usuarios.schemas",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "Solo los router usan seguridad (D-13)"
+type = "forbidden"
+source_modules = [
+    "app.modules.*.service",
+    "app.modules.*.repository",
+    "app.modules.*.models",
+    "app.modules.*.schemas",
+]
+forbidden_modules = ["app.shared.seguridad"]
+allow_indirect_imports = true
+
+# shared no depende de los modulos; la unica excepcion es el adaptador de seguridad (D-13), que
+# resuelve el usuario de la sesion con usuarios.service.
+[[tool.importlinter.contracts]]
+name = "shared no importa modulos (S0-05, 3.3)"
+type = "forbidden"
+source_modules = ["app.shared"]
+forbidden_modules = ["app.modules"]
+allow_indirect_imports = true
+ignore_imports = ["app.shared.seguridad -> app.modules.usuarios.service"]

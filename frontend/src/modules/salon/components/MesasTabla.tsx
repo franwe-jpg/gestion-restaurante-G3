@@ -22,8 +22,9 @@ const VARIANTES: Record<EstadoMesa, BadgeVariant> = {
 
 interface AccionesMesaProps {
   mesa: Mesa;
-  onEditar: (mesa: Mesa) => void;
-  onEliminar: (mesa: Mesa) => void;
+  /** Sin `onEditar` y `onEliminar` (rol sin `SALON_GESTIONAR`) solo queda «Abrir comanda». */
+  onEditar?: (mesa: Mesa) => void;
+  onEliminar?: (mesa: Mesa) => void;
   onAbrirComanda?: (mesa: Mesa) => void;
 }
 
@@ -41,16 +42,18 @@ function AccionesMesa({ mesa, onEditar, onEliminar, onAbrirComanda }: AccionesMe
           Abrir comanda
         </Button>
       )}
-      <Button
-        variant="ghost"
-        size="sm"
-        aria-label={`Editar la mesa ${mesa.numero}`}
-        onClick={() => onEditar(mesa)}
-      >
-        <Pencil className="h-4 w-4" aria-hidden="true" />
-        <span className="sr-only">Editar</span>
-      </Button>
-      {mesa.estado !== 'OCUPADA' && (
+      {onEditar && (
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-label={`Editar la mesa ${mesa.numero}`}
+          onClick={() => onEditar(mesa)}
+        >
+          <Pencil className="h-4 w-4" aria-hidden="true" />
+          <span className="sr-only">Editar</span>
+        </Button>
+      )}
+      {onEliminar && mesa.estado !== 'OCUPADA' && (
         <Button
           variant="ghost"
           size="sm"
@@ -70,7 +73,7 @@ function columnas({
   onEliminar,
   onAbrirComanda,
 }: Pick<AccionesMesaProps, 'onEditar' | 'onEliminar' | 'onAbrirComanda'>): ColumnaTabla<Mesa>[] {
-  return [
+  const base: ColumnaTabla<Mesa>[] = [
     {
       clave: 'numero',
       encabezado: 'Número',
@@ -89,6 +92,11 @@ function columnas({
       encabezado: 'Estado',
       render: (mesa) => <Badge variant={VARIANTES[mesa.estado]}>{ETIQUETAS[mesa.estado]}</Badge>,
     },
+  ];
+  // Sin ninguna acción disponible (solo lectura y sin permiso de operar comandas) no hay columna.
+  if (!onEditar && !onEliminar && !onAbrirComanda) return base;
+  return [
+    ...base,
     {
       clave: 'acciones',
       encabezado: <span className="sr-only">Acciones</span>,
@@ -110,8 +118,8 @@ export interface MesasTablaProps {
   cargando?: boolean;
   error?: string | null;
   onReintentar?: () => void;
-  onEditar: (mesa: Mesa) => void;
-  onEliminar: (mesa: Mesa) => void;
+  onEditar?: (mesa: Mesa) => void;
+  onEliminar?: (mesa: Mesa) => void;
   onAbrirComanda?: (mesa: Mesa) => void;
 }
 

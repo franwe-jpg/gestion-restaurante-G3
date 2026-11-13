@@ -58,5 +58,20 @@ Levanta backend y frontend con un solo comando, sin instalar Python ni Node. Req
 8. Dependencias:        npm install
 9. Configuración:       Copy-Item .env.example .env
 
+## Inicio de sesión y roles
+
+Todo el sistema pide inicio de sesión (HU-TR-01). Una base nueva, o una base anterior a esta HU, queda **sin usuarios**: hay que crear el primer encargado desde `backend/`, con el entorno virtual activo y después de `alembic upgrade head`:
+
+```bash
+python -m scripts.crear_encargado --correo encargado@ejemplo.com
+```
+
+El script pide la contraseña por la terminal (de 8 a 72 bytes) y no la muestra. Pide la contraseña dos veces; si el correo ya existe, informa el error y no cambia nada. Después se entra a la pantalla de inicio de sesión del frontend con ese correo.
+
+- Roles: **encargado** (todo, y es el único que gestiona mozos y chefs), **mozo** (salón, atención, reservas y pagos, sin reportes) y **chef** (carta, menús y comandas en solo lectura).
+- Los mozos cargados antes de esta HU no tienen usuario: el encargado debe editarlos y asignarles correo y contraseña (si queda vacía, se conserva la actual cuando ya tiene usuario). Los chefs se crean desde la pestaña «Chefs» de Salón.
+- `BCRYPT_RONDAS` (en `backend/.env`, ejemplo en `.env.example`) fija el costo del cifrado de las contraseñas. El valor de ejemplo es 12; las pruebas usan un valor bajo para ir rápido. No subir el `.env` al repositorio.
+- La sesión dura mientras la pestaña esté abierta y se cierra desde el menú del encabezado.
+
 Después de un git pull, si cambiaron dependencias o migraciones, repetir los pasos 4, 6 y 8.
 

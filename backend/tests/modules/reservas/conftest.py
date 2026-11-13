@@ -296,7 +296,16 @@ def mesas_en_m3(db: Session) -> FabricaMesasM3:
 @pytest.fixture
 def mozo_habilitado_en_m3(db: Session) -> int:
     """Crea un mozo HABILITADO real en M3 y devuelve el id que se selecciona al abrir comanda."""
-    mozo = salon_service.crear_mozo(db, MozoCrear(dni="30123456", nombre="Ana", apellido="Paz"))
+    mozo = salon_service.crear_mozo(
+        db,
+        MozoCrear(
+            dni="30123456",
+            nombre="Ana",
+            apellido="Paz",
+            correo="mozo30123456@resto.com",
+            contrasena="Clave1234",
+        ),
+    )
     return mozo.id
 
 

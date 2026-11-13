@@ -12,6 +12,7 @@ import {
   modificarProducto,
   obtenerProducto,
 } from '../api';
+import { usarRoles } from '../../../test/sesionDePrueba';
 import type { ProductoListado, ProductoSalida } from '../types';
 
 import { ProductosTab } from './ProductosTab';
@@ -282,4 +283,34 @@ describe('ProductosTab: baja desde el diálogo de edición', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(darDeBajaProducto).toHaveBeenCalledWith('PLATO', 7);
   });
+});
+
+describe('ProductosTab: según el rol', () => {
+  it('el encargado ve los botones de alta y las acciones de fila', async () => {
+    usarRoles(['ENCARGADO']);
+    vi.mocked(listarProductos).mockResolvedValue(pagina([MILANESA]));
+    abrir();
+
+    expect(await screen.findByText('Milanesa')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Nuevo plato' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Editar «Milanesa»' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Dar de baja «Milanesa»' })).toBeInTheDocument();
+  });
+
+  it.each([['MOZO'], ['CHEF']] as const)(
+    'el %s ve el listado sin altas, modificar ni baja',
+    async (rol) => {
+      usarRoles([rol]);
+      vi.mocked(listarProductos).mockResolvedValue(pagina([MILANESA]));
+      abrir();
+
+      expect(await screen.findByText('Milanesa')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Nuevo plato' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Nuevo postre' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Nueva bebida' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Editar/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Dar de baja/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole('columnheader', { name: 'Acciones' })).not.toBeInTheDocument();
+    },
+  );
 });

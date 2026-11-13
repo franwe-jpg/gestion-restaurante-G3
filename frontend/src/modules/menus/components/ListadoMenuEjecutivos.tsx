@@ -12,8 +12,8 @@ interface ListadoMenuEjecutivosProps {
   error: string | null;
   onReintentar: () => void;
   onCambiarPagina: (pagina: number) => void;
-  onEditar: (menu: MenuEjecutivo) => void;
-  onDadoDeBaja: () => void;
+  onEditar?: (menu: MenuEjecutivo) => void;
+  onDadoDeBaja?: () => void;
 }
 
 export function ListadoMenuEjecutivos({

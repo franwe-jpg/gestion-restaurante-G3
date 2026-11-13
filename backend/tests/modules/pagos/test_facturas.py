@@ -587,7 +587,16 @@ def test_previsualizar_factura_de_comanda_con_promocion_conserva_el_descuento(
             }
         ),
     )
-    mozo = salon_service.crear_mozo(db, MozoCrear(dni="30123456", nombre="Ana", apellido="Paz"))
+    mozo = salon_service.crear_mozo(
+        db,
+        MozoCrear(
+            dni="30123456",
+            nombre="Ana",
+            apellido="Paz",
+            correo="mozo30123456@resto.com",
+            contrasena="Clave1234",
+        ),
+    )
     comanda = atencion_service.crear_comanda(
         db,
         ComandaCrear(

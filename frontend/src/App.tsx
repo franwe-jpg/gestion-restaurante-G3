@@ -1,6 +1,10 @@
-import { lazy } from 'react';
+import { lazy, type ReactNode } from 'react';
 import { Route, Routes } from 'react-router-dom';
 
+import { LoginPage } from './shared/auth/LoginPage';
+import type { Permiso } from './shared/auth/permisos';
+import { RutaConPermiso } from './shared/auth/RutaConPermiso';
+import { RutaProtegida } from './shared/auth/RutaProtegida';
 import { ComponentesPage } from './shared/components/ComponentesPage';
 import { AppProviders } from './shared/components/AppProviders';
 import { EstadoBackend } from './shared/components/EstadoBackend';
@@ -83,34 +87,53 @@ const ReporteRecaudacionPage = lazy(() =>
   })),
 );
 
+function conPermiso(permiso: Permiso, pantalla: ReactNode) {
+  return <RutaConPermiso permiso={permiso}>{pantalla}</RutaConPermiso>;
+}
+
 export default function App() {
   return (
     <AppProviders>
       <Routes>
-        <Route path="/" element={<AppShell />}>
-          <Route index element={<Inicio />} />
-          <Route path="productos" element={<ProductosPage />} />
-          <Route path="productos/carta" element={<CartaPage />} />
-          <Route path="reportes/productos-mas-vendidos" element={<ReporteMasVendidosPage />} />
-          <Route path="reportes/mesas-ventas-por-mozo" element={<ReporteMozosPage />} />
-          <Route path="reportes/impacto-promociones" element={<ReporteImpactoPromocionesPage />} />
-          <Route path="menus" element={<MenusPage />} />
-          <Route path="salon" element={<SalonPage />} />
-          <Route path="atencion" element={<AtencionPage />} />
-          <Route path="reservas" element={<ReservasPage />} />
-          <Route path="reportes/reservas-ausentismo" element={<ReporteReservasAusentismoPage />} />
-          <Route path="pagos" element={<PagosPage />} />
-          <Route
-            path="reportes/recaudacion-por-medio-de-pago"
-            element={<ReporteRecaudacionPage />}
-          />
-          <Route path="reportes" element={<ReportesPage />} />
-          <Route path="componentes" element={<ComponentesPage />} />
-          <Route path="salud" element={<EstadoBackend />} />
-          <Route path="403" element={<ForbiddenPage />} />
-          <Route path="500" element={<ServerErrorPage />} />
-          <Route path="503" element={<ServiceUnavailablePage />} />
-          <Route path="*" element={<NotFoundPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route element={<RutaProtegida />}>
+          <Route path="/" element={<AppShell />}>
+            <Route index element={<Inicio />} />
+            <Route path="productos" element={conPermiso('CARTA_VER', <ProductosPage />)} />
+            <Route path="productos/carta" element={conPermiso('CARTA_VER', <CartaPage />)} />
+            <Route
+              path="reportes/productos-mas-vendidos"
+              element={conPermiso('REPORTES_VER', <ReporteMasVendidosPage />)}
+            />
+            <Route
+              path="reportes/mesas-ventas-por-mozo"
+              element={conPermiso('REPORTES_VER', <ReporteMozosPage />)}
+            />
+            <Route
+              path="reportes/impacto-promociones"
+              element={conPermiso('REPORTES_VER', <ReporteImpactoPromocionesPage />)}
+            />
+            <Route path="menus" element={conPermiso('MENUS_VER', <MenusPage />)} />
+            <Route path="salon" element={conPermiso('SALON_VER', <SalonPage />)} />
+            <Route path="atencion" element={conPermiso('COMANDAS_VER', <AtencionPage />)} />
+            <Route path="reservas" element={conPermiso('RESERVAS_VER', <ReservasPage />)} />
+            <Route
+              path="reportes/reservas-ausentismo"
+              element={conPermiso('REPORTES_VER', <ReporteReservasAusentismoPage />)}
+            />
+            <Route path="pagos" element={conPermiso('PAGOS_OPERAR', <PagosPage />)} />
+            <Route
+              path="reportes/recaudacion-por-medio-de-pago"
+              element={conPermiso('REPORTES_VER', <ReporteRecaudacionPage />)}
+            />
+            <Route path="reportes" element={conPermiso('REPORTES_VER', <ReportesPage />)} />
+            <Route path="componentes" element={<ComponentesPage />} />
+            <Route path="salud" element={<EstadoBackend />} />
+            <Route path="403" element={<ForbiddenPage />} />
+            <Route path="500" element={<ServerErrorPage />} />
+            <Route path="503" element={<ServiceUnavailablePage />} />
+            <Route path="*" element={<NotFoundPage />} />
+          </Route>
         </Route>
       </Routes>
     </AppProviders>

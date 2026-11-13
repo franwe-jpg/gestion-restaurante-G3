@@ -14,8 +14,8 @@ export interface MenuDelDiaListaProps {
   onPagina: (pagina: number) => void;
   estado: FiltroEstado;
   onCambiarEstado: (estado: FiltroEstado) => void;
-  onEditar: (menu: MenuDelDiaListado) => void;
-  onDarDeBaja: (menu: MenuDelDiaListado) => void;
+  onEditar?: (menu: MenuDelDiaListado) => void;
+  onDarDeBaja?: (menu: MenuDelDiaListado) => void;
 }
 
 /** Tarjeta con la tabla paginada de menús del día. */

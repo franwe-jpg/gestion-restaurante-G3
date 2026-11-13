@@ -19,6 +19,8 @@ from app.modules.atencion.schemas import (
 )
 from app.shared.contratos.comanda import ComandaCrear, ComandaResumen, ComandaSalida, EstadoComanda
 from app.shared.paginacion import LIMIT_MAXIMO, LIMIT_POR_DEFECTO, Pagina, ParametrosPaginacion
+from app.shared.permisos import Permiso
+from app.shared.seguridad import requiere
 
 router = APIRouter(tags=["Atención al Público"])
 Sesion = Annotated[Session, Depends(get_db)]
@@ -36,7 +38,7 @@ def obtener_mozos_port() -> service.MozosPort:
     return adaptadores.MozosDeSalon()
 
 
-@router.post("/comandas", status_code=201)
+@router.post("/comandas", status_code=201, dependencies=[requiere(Permiso.COMANDAS_OPERAR)])
 def crear_comanda(
     datos: ComandaCrear,
     db: Sesion,
@@ -47,7 +49,7 @@ def crear_comanda(
     return service.crear_comanda(db, datos, mesas, catalogo, mozos)
 
 
-@router.get("/comandas")
+@router.get("/comandas", dependencies=[requiere(Permiso.COMANDAS_VER)])
 def listar_comandas(
     db: Sesion,
     mesa_id: Annotated[int | None, Query(gt=0)] = None,
@@ -60,7 +62,7 @@ def listar_comandas(
     )
 
 
-@router.post("/comandas/{comanda_id}/cerrar")
+@router.post("/comandas/{comanda_id}/cerrar", dependencies=[requiere(Permiso.COMANDAS_OPERAR)])
 def cerrar_comanda(
     comanda_id: Annotated[int, Path(gt=0)],
     db: Sesion,
@@ -69,7 +71,7 @@ def cerrar_comanda(
     return service.cerrar_comanda(db, comanda_id, mesas)
 
 
-@router.post("/comandas/{comanda_id}/anular")
+@router.post("/comandas/{comanda_id}/anular", dependencies=[requiere(Permiso.COMANDAS_OPERAR)])
 def anular_comanda(
     comanda_id: Annotated[int, Path(gt=0)],
     db: Sesion,
@@ -78,17 +80,20 @@ def anular_comanda(
     return service.anular_comanda(db, comanda_id, mesas)
 
 
-@router.get("/comandas/{comanda_id}/pendientes")
+@router.get("/comandas/{comanda_id}/pendientes", dependencies=[requiere(Permiso.COMANDAS_VER)])
 def consultar_pendientes(comanda_id: Annotated[int, Path(gt=0)], db: Sesion) -> PendientesComanda:
     return service.consultar_pendientes(db, comanda_id)
 
 
-@router.get("/comandas/{comanda_id}/detalles")
+@router.get("/comandas/{comanda_id}/detalles", dependencies=[requiere(Permiso.COMANDAS_VER)])
 def consultar_entregas(comanda_id: Annotated[int, Path(gt=0)], db: Sesion) -> EntregasComanda:
     return service.consultar_entregas(db, comanda_id)
 
 
-@router.put("/comandas/{comanda_id}/detalles/{detalle_id}/entrega")
+@router.put(
+    "/comandas/{comanda_id}/detalles/{detalle_id}/entrega",
+    dependencies=[requiere(Permiso.COMANDAS_OPERAR)],
+)
 def registrar_entrega(
     comanda_id: Annotated[int, Path(gt=0)],
     detalle_id: Annotated[int, Path(gt=0)],
@@ -98,7 +103,7 @@ def registrar_entrega(
     return service.registrar_entrega(db, comanda_id, detalle_id, datos)
 
 
-@router.put("/comandas/{comanda_id}")
+@router.put("/comandas/{comanda_id}", dependencies=[requiere(Permiso.COMANDAS_OPERAR)])
 def modificar_comanda(
     comanda_id: Annotated[int, Path(gt=0)],
     datos: ComandaModificar,
@@ -108,7 +113,7 @@ def modificar_comanda(
     return service.modificar_comanda(db, comanda_id, datos, catalogo)
 
 
-@router.put("/comandas/{comanda_id}/mozo")
+@router.put("/comandas/{comanda_id}/mozo", dependencies=[requiere(Permiso.COMANDAS_OPERAR)])
 def asignar_mozo_comanda(
     comanda_id: Annotated[int, Path(gt=0)],
     datos: ComandaMozoAsignar,
@@ -118,7 +123,7 @@ def asignar_mozo_comanda(
     return service.asignar_mozo_comanda(db, comanda_id, datos.mozo_id, mozos)
 
 
-@router.post("/comandas/{comanda_id}/reabrir")
+@router.post("/comandas/{comanda_id}/reabrir", dependencies=[requiere(Permiso.COMANDAS_OPERAR)])
 def reabrir_comanda(
     comanda_id: Annotated[int, Path(gt=0)],
     db: Sesion,
@@ -127,17 +132,17 @@ def reabrir_comanda(
     return service.reabrir_comanda(db, comanda_id, mesas)
 
 
-@router.get("/comandas/{comanda_id}")
+@router.get("/comandas/{comanda_id}", dependencies=[requiere(Permiso.COMANDAS_VER)])
 def obtener_comanda(comanda_id: Annotated[int, Path(gt=0)], db: Sesion) -> ComandaSalida:
     return service.obtener_comanda(db, comanda_id)
 
 
-@router.put("/clientes/{cliente_id}")
+@router.put("/clientes/{cliente_id}", dependencies=[requiere(Permiso.CLIENTES_GESTIONAR)])
 def modificar_cliente(cliente_id: int, datos: ClienteModificar, db: Sesion) -> ClienteSalida:
     return service.modificar_cliente(db, cliente_id, datos)
 
 
-@router.get("/clientes")
+@router.get("/clientes", dependencies=[requiere(Permiso.CLIENTES_GESTIONAR)])
 def listar_clientes(
     db: Sesion, filtro: Annotated[FiltroClientes, Query()]
 ) -> Pagina[ClienteSalida]:

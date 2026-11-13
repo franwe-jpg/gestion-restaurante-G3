@@ -43,7 +43,7 @@ function ContenidoDeMesa({ mesa }: { mesa: MesaDelMapa }) {
       {libre && <MesaLibre mesaId={mesa.id} />}
       {mesa.estadoVisible === 'FUERA_DE_SERVICIO' && (
         <p className="text-sm text-slate-600">
-          La mesa está fuera de servicio. Se habilita desde Salón y Mozos.
+          La mesa está fuera de servicio. Se habilita desde Salón, Mozos y Chefs.
         </p>
       )}
     </div>

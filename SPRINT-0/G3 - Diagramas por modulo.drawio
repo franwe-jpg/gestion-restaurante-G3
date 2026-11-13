@@ -534,6 +534,42 @@
         <mxCell id="5n5GiY-VNpu3zC1-ANBS-17" parent="qeNgY0bLfJr8R1RWYmU5-1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="1..n" vertex="1">
           <mxGeometry height="30" width="60" x="240" y="200" as="geometry" />
         </mxCell>
+        <mxCell id="hu-tr-01-Chef" parent="qeNgY0bLfJr8R1RWYmU5-1" style="swimlane;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;" value="&lt;b&gt;Chef&lt;/b&gt;" vertex="1">
+          <mxGeometry height="138" width="140" x="720" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="hu-tr-01-Chef-a" parent="hu-tr-01-Chef" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;" value="&lt;div&gt;- nombre&lt;/div&gt;&lt;div&gt;- apellido&lt;/div&gt;&lt;div&gt;- dni&lt;/div&gt;&lt;div&gt;- telefono&lt;/div&gt;" vertex="1">
+          <mxGeometry height="98" width="140" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="hu-tr-01-Usuario" parent="qeNgY0bLfJr8R1RWYmU5-1" style="swimlane;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;" value="&lt;b&gt;Usuario&lt;/b&gt;" vertex="1">
+          <mxGeometry height="138" width="200" x="560" y="300" as="geometry" />
+        </mxCell>
+        <mxCell id="hu-tr-01-Usuario-a" parent="hu-tr-01-Usuario" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;" value="&lt;div&gt;- correo&lt;/div&gt;&lt;div&gt;- contrasenaHash&lt;/div&gt;&lt;div&gt;- roles&lt;/div&gt;&lt;div&gt;- estado&lt;/div&gt;" vertex="1">
+          <mxGeometry height="98" width="200" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="hu-tr-01-Sesion" parent="qeNgY0bLfJr8R1RWYmU5-1" style="swimlane;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;" value="&lt;b&gt;Sesion&lt;/b&gt;" vertex="1">
+          <mxGeometry height="116" width="170" x="300" y="300" as="geometry" />
+        </mxCell>
+        <mxCell id="hu-tr-01-Sesion-a" parent="hu-tr-01-Sesion" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;" value="&lt;div&gt;- tokenHash&lt;/div&gt;&lt;div&gt;- creadaEn&lt;/div&gt;&lt;div&gt;- venceEn&lt;/div&gt;" vertex="1">
+          <mxGeometry height="76" width="170" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="hu-tr-01-eMozo" edge="1" parent="qeNgY0bLfJr8R1RWYmU5-1" source="5n5GiY-VNpu3zC1-ANBS-11" style="endArrow=classic;startArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.25;entryY=0;entryDx=0;entryDy=0;edgeStyle=orthogonalEdgeStyle;endArrow=none;startArrow=none;" target="hu-tr-01-Usuario" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="hu-tr-01-eChef" edge="1" parent="qeNgY0bLfJr8R1RWYmU5-1" source="hu-tr-01-Chef" style="endArrow=classic;startArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.75;entryY=0;entryDx=0;entryDy=0;edgeStyle=orthogonalEdgeStyle;endArrow=none;startArrow=none;" target="hu-tr-01-Usuario" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="hu-tr-01-eSesion" edge="1" parent="qeNgY0bLfJr8R1RWYmU5-1" source="hu-tr-01-Usuario" style="endArrow=classic;startArrow=classic;html=1;rounded=0;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;edgeStyle=orthogonalEdgeStyle;endArrow=none;startArrow=none;" target="hu-tr-01-Sesion" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="hu-tr-01-l1" parent="qeNgY0bLfJr8R1RWYmU5-1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="0..1" vertex="1">
+          <mxGeometry height="30" width="60" x="530" y="220" as="geometry" />
+        </mxCell>
+        <mxCell id="hu-tr-01-l2" parent="qeNgY0bLfJr8R1RWYmU5-1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="0..1" vertex="1">
+          <mxGeometry height="30" width="60" x="780" y="220" as="geometry" />
+        </mxCell>
+        <mxCell id="hu-tr-01-l3" parent="qeNgY0bLfJr8R1RWYmU5-1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="1 — 0..*" vertex="1">
+          <mxGeometry height="30" width="60" x="470" y="350" as="geometry" />
+        </mxCell>
       </root>
     </mxGraphModel>
   </diagram>

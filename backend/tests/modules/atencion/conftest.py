@@ -131,7 +131,13 @@ def salon(db: Session) -> Salon:
     )
     mozo = salon_service.crear_mozo(
         db,
-        MozoCrear(dni="30123456", nombre="Ana", apellido="Paz"),
+        MozoCrear(
+            dni="30123456",
+            nombre="Ana",
+            apellido="Paz",
+            correo="mozo30123456@resto.com",
+            contrasena="Clave1234",
+        ),
     )
     return Salon(mesa_id=mesa.id, plato_id=plato.id, menu_id=menu.id, mozo_id=mozo.id)
 
