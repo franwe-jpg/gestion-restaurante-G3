@@ -80,6 +80,7 @@ class ComandaFake:
         comanda = ComandaSalida(
             id=comanda_id,
             mesa_id=datos.mesa_id,
+            mozo_id=datos.mozo_id,
             estado=EstadoComanda.ABIERTA,
             fecha_hora=self.reloj(),
             observaciones=datos.observaciones,
@@ -132,7 +133,7 @@ class ComandaFake:
         return cerrada.model_copy(deep=True)
 
     def crear_desde_reserva(
-        self, reserva_id: int, detalles: list[DetalleComandaCrear]
+        self, reserva_id: int, detalles: list[DetalleComandaCrear], mozo_id: int
     ) -> ComandaSalida:
         reserva = self.reservas.get(reserva_id)
         if reserva is None:
@@ -143,7 +144,7 @@ class ComandaFake:
             raise ReglaDeNegocioError("La fecha de la reserva no corresponde a hoy")
         if not any(d.producto_id is not None for d in detalles):
             raise DatosInvalidosError("El pedido de reserva necesita al menos un producto")
-        datos = ComandaCrear(mesa_id=reserva.mesa_id, detalles=detalles)
+        datos = ComandaCrear(mesa_id=reserva.mesa_id, mozo_id=mozo_id, detalles=detalles)
         creada = self.crear_comanda(datos)
         self._comandas[creada.id] = creada.model_copy(update={"reserva_id": reserva_id}, deep=True)
         reserva.estado = "ATENDIDA"

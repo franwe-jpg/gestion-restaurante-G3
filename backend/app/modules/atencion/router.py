@@ -13,6 +13,7 @@ from app.modules.atencion.schemas import (
     ClienteModificar,
     ClienteSalida,
     ComandaModificar,
+    ComandaMozoAsignar,
     EntregaDetalle,
     EntregasComanda,
     FiltroClientes,
@@ -34,14 +35,19 @@ def obtener_catalogo_port() -> service.CatalogoPort:
     return adaptadores.CatalogoDeCarta()
 
 
+def obtener_mozos_port() -> service.MozosPort:
+    return adaptadores.MozosDeSalon()
+
+
 @router.post("/comandas", status_code=201)
 def crear_comanda(
     datos: ComandaCrear,
     db: Sesion,
     mesas: Annotated[service.MesasPort, Depends(obtener_mesas_port)],
     catalogo: Annotated[service.CatalogoPort, Depends(obtener_catalogo_port)],
+    mozos: Annotated[service.MozosPort, Depends(obtener_mozos_port)],
 ) -> ComandaSalida:
-    return service.crear_comanda(db, datos, mesas, catalogo)
+    return service.crear_comanda(db, datos, mesas, catalogo, mozos)
 
 
 @router.get("/comandas")
@@ -113,6 +119,16 @@ def modificar_comanda(
     catalogo: Annotated[service.CatalogoPort, Depends(obtener_catalogo_port)],
 ) -> ComandaSalida:
     return service.modificar_comanda(db, comanda_id, datos, catalogo)
+
+
+@router.put("/comandas/{comanda_id}/mozo")
+def asignar_mozo_comanda(
+    comanda_id: Annotated[int, Path(gt=0)],
+    datos: ComandaMozoAsignar,
+    db: Sesion,
+    mozos: Annotated[service.MozosPort, Depends(obtener_mozos_port)],
+) -> ComandaSalida:
+    return service.asignar_mozo_comanda(db, comanda_id, datos.mozo_id, mozos)
 
 
 @router.post("/comandas/{comanda_id}/reabrir")

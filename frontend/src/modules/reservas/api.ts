@@ -6,6 +6,8 @@ import type {
   ComandaDesdeReservaCrear,
   FiltroEstadoReserva,
   MesaDisponible,
+  MozoSeleccionable,
+  ProductoHabilitado,
   Reserva,
   ReservaCrear,
   ReservaModificar,
@@ -72,6 +74,85 @@ export function crearComandaDesdeReserva(
     `/reservas/${reservaId}/comanda`,
     datos,
   );
+}
+
+const LIMITE_MOZOS = 100;
+
+async function listarPaginaMozos(offset: number): Promise<RespuestaApi<Pagina<MozoSeleccionable>>> {
+  const consulta = new URLSearchParams({
+    estado: 'HABILITADO',
+    limit: String(LIMITE_MOZOS),
+    offset: String(offset),
+  });
+  return clienteHttp.get<Pagina<MozoSeleccionable>>(`/mozos?${consulta.toString()}`);
+}
+
+/** Lee todas las páginas del catálogo público M3; no incluye mozos deshabilitados. */
+export async function listarMozosHabilitados(): Promise<RespuestaApi<MozoSeleccionable[]>> {
+  const mozos: MozoSeleccionable[] = [];
+  let offset = 0;
+  while (true) {
+    const respuesta = await listarPaginaMozos(offset);
+    if (!respuesta.exito || !respuesta.datos) {
+      return {
+        exito: false,
+        datos: null,
+        error: respuesta.error ?? 'No se pudieron cargar los mozos habilitados',
+      };
+    }
+    const pagina = respuesta.datos;
+    mozos.push(...pagina.items.filter((mozo) => mozo.estado === 'HABILITADO'));
+    if (!pagina.items.length || pagina.offset + pagina.items.length >= pagina.total) {
+      return { exito: true, datos: mozos };
+    }
+    if (pagina.limit <= 0 || pagina.offset + pagina.limit <= offset) {
+      return {
+        exito: false,
+        datos: null,
+        error: 'El backend devolvió una página de mozos inválida',
+      };
+    }
+    offset = pagina.offset + pagina.limit;
+  }
+}
+
+/** Tamaño de página al leer los productos: el máximo que admite la API (D-27). */
+export const LIMITE_PRODUCTOS = 100;
+
+function aProductoHabilitado({ id, nombre, precio }: ProductoHabilitado): ProductoHabilitado {
+  return { id, nombre, precio };
+}
+
+function porNombre(a: ProductoHabilitado, b: ProductoHabilitado): number {
+  return a.nombre.localeCompare(b.nombre, 'es') || a.id - b.id;
+}
+
+/**
+ * HU-M5-06: todos los productos habilitados, para el desplegable del modal «Crear comanda».
+ * `GET /productos` pagina y no tiene búsqueda, así que lee las páginas de a 100 hasta cubrir el
+ * `total`. Una página vacía antes de completarlo corta la lectura y devuelve lo leído, para no
+ * girar sin fin si el catálogo se achicó mientras se leía. Si falla cualquier página devuelve el
+ * error y descarta lo leído. Un producto que aparece en dos páginas porque el catálogo cambió se
+ * ofrece una sola vez. El resultado sale ordenado por nombre.
+ */
+export async function listarProductosHabilitados(): Promise<RespuestaApi<ProductoHabilitado[]>> {
+  const productos = new Map<number, ProductoHabilitado>();
+  let leidos = 0;
+  let hayMas = true;
+  while (hayMas) {
+    const respuesta = await clienteHttp.get<Pagina<ProductoHabilitado>>(
+      `/productos?estado=HABILITADO&limit=${LIMITE_PRODUCTOS}&offset=${leidos}`,
+    );
+    if (!respuesta.exito || respuesta.datos === null) {
+      return { datos: null, exito: false, error: respuesta.error };
+    }
+    const { items, total } = respuesta.datos;
+    items.forEach((item) => productos.set(item.id, aProductoHabilitado(item)));
+    leidos += items.length;
+    // Una página vacía corta la lectura aunque no se haya llegado al total.
+    hayMas = items.length > 0 && leidos < total;
+  }
+  return { datos: [...productos.values()].sort(porNombre), exito: true };
 }
 
 /** Resultados de la búsqueda de clientes: la primera página, sin paginar en pantalla (S43). */

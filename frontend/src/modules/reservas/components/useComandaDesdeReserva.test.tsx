@@ -48,6 +48,10 @@ function llenarDosLineas(result: Hook) {
   escribir(result, 1, '13', '1');
 }
 
+function elegirMozo(result: Hook) {
+  act(() => result.current.elegirMozo('31'));
+}
+
 function exito(): RespuestaApi<ComandaCreada> {
   return { datos: COMANDA, exito: true };
 }
@@ -113,17 +117,19 @@ describe('useComandaDesdeReserva: envío con éxito', () => {
     vi.mocked(crearComandaDesdeReserva).mockResolvedValue(exito());
     const { result, onCreada } = preparar();
     llenarDosLineas(result);
+    elegirMozo(result);
 
     await act(() => result.current.enviar());
 
     expect(crearComandaDesdeReserva).toHaveBeenCalledExactlyOnceWith(10, {
+      mozo_id: 31,
       detalles: [
         { producto_id: 12, cantidad: 2 },
         { producto_id: 13, cantidad: 1 },
       ],
     });
     const enviado = vi.mocked(crearComandaDesdeReserva).mock.calls[0]?.[1];
-    expect(Object.keys(enviado ?? {})).toEqual(['detalles']);
+    expect(Object.keys(enviado ?? {})).toEqual(['mozo_id', 'detalles']);
     expect(mostrarToast).toHaveBeenCalledExactlyOnceWith({
       titulo: 'Comanda n.º 31 creada',
       variante: 'success',
@@ -151,6 +157,19 @@ describe('useComandaDesdeReserva: error local', () => {
     expect(result.current.enviando).toBe(false);
   });
 
+  it('sin producto elegido no llama a la API y deja «Seleccione un producto» en la línea', async () => {
+    const { result, onCreada } = preparar();
+    escribir(result, 0, '', '2');
+    const clave = result.current.lineas[0]!.clave;
+
+    await act(() => result.current.enviar());
+
+    expect(crearComandaDesdeReserva).not.toHaveBeenCalled();
+    expect(onCreada).not.toHaveBeenCalled();
+    expect(result.current.errores.lineas[clave]).toEqual({ producto: 'Seleccione un producto' });
+    expect(result.current.enviando).toBe(false);
+  });
+
   it('limpia el error general anterior al volver a enviar', async () => {
     vi.mocked(crearComandaDesdeReserva).mockResolvedValue({
       datos: null,
@@ -159,6 +178,7 @@ describe('useComandaDesdeReserva: error local', () => {
     });
     const { result } = preparar();
     escribir(result, 0, '12', '2');
+    elegirMozo(result);
     await act(() => result.current.enviar());
     expect(result.current.errores.general).toBe('La reserva 10 ya fue atendida');
 
@@ -184,6 +204,7 @@ describe('useComandaDesdeReserva: error de la API', () => {
       });
       const { result, onCreada } = preparar();
       llenarDosLineas(result);
+      elegirMozo(result);
       const escritas = result.current.lineas;
 
       await act(() => result.current.enviar());
@@ -201,6 +222,7 @@ describe('useComandaDesdeReserva: error de la API', () => {
     vi.mocked(crearComandaDesdeReserva).mockResolvedValue({ datos: null, exito: false });
     const { result } = preparar();
     escribir(result, 0, '12', '2');
+    elegirMozo(result);
 
     await act(() => result.current.enviar());
 
@@ -216,6 +238,7 @@ describe('useComandaDesdeReserva: solicitud en curso', () => {
     );
     const { result, onCreada } = preparar();
     escribir(result, 0, '12', '2');
+    elegirMozo(result);
 
     act(() => {
       void result.current.enviar();
@@ -238,6 +261,7 @@ describe('useComandaDesdeReserva: solicitud en curso', () => {
     );
     const { result, unmount, onCreada } = preparar();
     escribir(result, 0, '12', '2');
+    elegirMozo(result);
     act(() => {
       void result.current.enviar();
     });

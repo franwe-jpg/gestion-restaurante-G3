@@ -223,6 +223,44 @@ def test_listar_mozos_respeta_limit_y_offset(db: Session, fabrica_mozo) -> None:
     assert pagina.offset == 1
 
 
+def test_validar_mozo_habilitado_devuelve_su_proyeccion_publica(db: Session, fabrica_mozo) -> None:
+    mozo = fabrica_mozo(nombre="Lucía", apellido="Paz")
+
+    salida = service.validar_mozo_habilitado(db, mozo.id)
+
+    assert (salida.id, salida.nombre, salida.apellido, salida.estado) == (
+        mozo.id,
+        "Lucía",
+        "Paz",
+        Estado.HABILITADO,
+    )
+
+
+def test_validar_mozo_inexistente_lanza_no_encontrado(db: Session) -> None:
+    with pytest.raises(NoEncontradoError, match="El mozo 999 no existe"):
+        service.validar_mozo_habilitado(db, 999)
+
+
+def test_validar_mozo_deshabilitado_lanza_conflicto(db: Session, fabrica_mozo) -> None:
+    mozo = fabrica_mozo(estado=Estado.DESHABILITADO)
+
+    with pytest.raises(ReglaDeNegocioError, match="deshabilitado"):
+        service.validar_mozo_habilitado(db, mozo.id)
+
+
+def test_listar_mozos_busca_por_nombre_con_estado_y_paginacion(db: Session, fabrica_mozo) -> None:
+    fabrica_mozo(dni="30123456", nombre="Ana", apellido="Paz")
+    fabrica_mozo(dni="35987654", nombre="Ana", apellido="Ríos")
+    fabrica_mozo(dni="40111222", nombre="Ana", apellido="Ruiz", estado=Estado.DESHABILITADO)
+
+    pagina = service.listar_mozos(
+        db, ParametrosPaginacion(limit=1, offset=1), Estado.HABILITADO, q="Ana"
+    )
+
+    assert [(item.nombre, item.apellido) for item in pagina.items] == [("Ana", "Ríos")]
+    assert (pagina.total, pagina.limit, pagina.offset) == (2, 1, 1)
+
+
 def test_modificar_mozo_convierte_la_carrera_en_conflicto_y_deshace(
     db: Session, fabrica_mozo, monkeypatch: pytest.MonkeyPatch
 ) -> None:

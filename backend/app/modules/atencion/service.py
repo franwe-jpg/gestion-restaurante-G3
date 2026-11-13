@@ -1,5 +1,6 @@
 """Servicios de Comanda y Cliente del módulo Atención."""
 
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -37,6 +38,8 @@ from app.shared.contratos.comanda import (
 from app.shared.excepciones import DatosInvalidosError, NoEncontradoError, ReglaDeNegocioError
 from app.shared.paginacion import Pagina, ParametrosPaginacion
 
+logger = logging.getLogger(__name__)
+
 
 class MesasPort(Protocol):
     """M4-owned requirement, not an existing M3 service. Never commit or change sessions."""
@@ -48,6 +51,12 @@ class MesasPort(Protocol):
     def liberar(self, db: Session, mesa_id: int) -> None:
         """OCUPADA -> LIBRE when a comanda closes or is annulled; caller owns commit."""
         ...
+
+
+class MozosPort(Protocol):
+    """M4-owned boundary backed only by M3's public service."""
+
+    def validar_habilitado(self, db: Session, mozo_id: int) -> None: ...
 
 
 class CatalogoPort(Protocol):
@@ -143,11 +152,18 @@ def _rechazar_entrega(db: Session, comanda_id: int, detalle_id: int, cantidad: i
 
 
 def crear_comanda(
-    db: Session, datos: ComandaCrear, mesas: MesasPort, catalogo: CatalogoPort
+    db: Session,
+    datos: ComandaCrear,
+    mesas: MesasPort,
+    catalogo: CatalogoPort,
+    mozos: MozosPort | None = None,
 ) -> ComandaSalida:
     """Own the transaction; callers must supply real providers before HTTP wiring."""
+    if mozos is None:
+        adaptadores = import_module("app.modules.atencion.adaptadores")
+        mozos = adaptadores.MozosDeSalon()
     try:
-        salida = _registrar_comanda(db, datos, mesas, catalogo)
+        salida = _registrar_comanda(db, datos, mesas, catalogo, mozos)
         db.commit()
     except IntegrityError as error:
         db.rollback()
@@ -174,7 +190,12 @@ def crear_comanda_para_reserva(db: Session, datos: ComandaCrear, reserva_id: int
     # Import diferido: productos y menús importan este service y los adaptadores a ellos.
     adaptadores = import_module("app.modules.atencion.adaptadores")
     return _registrar_comanda(
-        db, datos, adaptadores.MesasDeSalon(), adaptadores.CatalogoDeCarta(), reserva_id
+        db,
+        datos,
+        adaptadores.MesasDeSalon(),
+        adaptadores.CatalogoDeCarta(),
+        adaptadores.MozosDeSalon(),
+        reserva_id,
     )
 
 
@@ -183,6 +204,7 @@ def _registrar_comanda(
     datos: ComandaCrear,
     mesas: MesasPort,
     catalogo: CatalogoPort,
+    mozos: MozosPort,
     reserva_id: int | None = None,
 ) -> ComandaSalida:
     """Valida, cotiza, inserta y ocupa la mesa sin confirmar; el llamador cierra la transacción."""
@@ -190,6 +212,7 @@ def _registrar_comanda(
     existente = repository.obtener_abierta_por_mesa(db, datos.mesa_id)
     if existente is not None:
         raise ComandaAbiertaError(existente.id)
+    mozos.validar_habilitado(db, datos.mozo_id)
     mesas.validar_disponibilidad(db, datos.mesa_id)
     detalles = [_cotizar(db, detalle, catalogo) for detalle in datos.detalles]
     comanda = repository.crear_comanda(db, datos, detalles, reserva_id)
@@ -230,6 +253,7 @@ def listar_comandas(
             ComandaResumen(
                 id=comanda.id,
                 mesa_id=comanda.mesa_id,
+                mozo_id=comanda.mozo_id,
                 estado=EstadoComanda(comanda.estado),
                 fecha_hora=comanda.fecha_hora,
             )
@@ -331,6 +355,35 @@ def obtener_comanda(db: Session, comanda_id: int) -> ComandaSalida:
     comanda = repository.obtener_comanda(db, comanda_id)
     if comanda is None:
         raise NoEncontradoError(f"La comanda {comanda_id} no existe")
+    return ComandaSalida.model_validate(comanda, from_attributes=True)
+
+
+def asignar_mozo_comanda(
+    db: Session, comanda_id: int, mozo_id: int, mozos: MozosPort
+) -> ComandaSalida:
+    """Assign or correct the waiter of one Comanda and log its previous/new IDs."""
+    comanda = repository.obtener_comanda(db, comanda_id)
+    if comanda is None:
+        raise NoEncontradoError(f"La comanda {comanda_id} no existe")
+    mozos.validar_habilitado(db, mozo_id)
+    mozo_anterior_id = comanda.mozo_id
+    try:
+        comanda.mozo_id = mozo_id
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    logger.info(
+        "Mozo de comanda actualizado: comanda_id=%s, mozo_anterior_id=%s, mozo_nuevo_id=%s",
+        comanda.id,
+        mozo_anterior_id,
+        mozo_id,
+        extra={
+            "comanda_id": comanda.id,
+            "mozo_anterior_id": mozo_anterior_id,
+            "mozo_nuevo_id": mozo_id,
+        },
+    )
     return ComandaSalida.model_validate(comanda, from_attributes=True)
 
 

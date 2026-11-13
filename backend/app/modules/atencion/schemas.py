@@ -68,6 +68,14 @@ class ComandaModificar(BaseModel):
         return self
 
 
+class ComandaMozoAsignar(BaseModel):
+    """Explicit waiter assignment/correction request for one existing Comanda."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    mozo_id: StrictInt = Field(gt=0)
+
+
 class ClienteNuevo(BaseModel):
     """Datos del cliente nuevo; no registra clientes sin reserva."""
 

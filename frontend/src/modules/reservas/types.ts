@@ -37,14 +37,23 @@ export type ReservaCrear = DatosDelAlta &
   ({ cliente_id: number } | { cliente_nuevo: ClienteNuevo });
 export type ReservaModificar = Pick<Reserva, 'fecha' | 'hora' | 'cantidad_personas'>;
 
-/** Línea del pedido desde una reserva: solo productos, por su número (HU-M5-06, S58). */
+/** Línea del pedido desde una reserva: solo productos, por su `id` (HU-M5-06, S58). */
 export interface LineaComandaDesdeReserva {
   producto_id: number;
   cantidad: number;
 }
 
-/** Cuerpo de `POST /reservas/{id}/comanda`: sin mesa, porque sale de la reserva. */
+/** Mozo de M3 disponible para asignar al abrir una comanda desde la reserva. */
+export interface MozoSeleccionable {
+  id: number;
+  nombre: string;
+  apellido: string;
+  estado: 'HABILITADO' | 'DESHABILITADO';
+}
+
+/** Cuerpo de `POST /reservas/{id}/comanda`: Mozo elegido y sin mesa, porque sale de la reserva. */
 export interface ComandaDesdeReservaCrear {
+  mozo_id: number;
   detalles: LineaComandaDesdeReserva[];
   /** La API la admite; la pantalla no la pide (S64). */
   observaciones?: string;
@@ -56,6 +65,17 @@ export interface ComandaCreada {
   mesa_id: number;
   reserva_id: number | null;
   estado: string;
+}
+
+/**
+ * Producto habilitado que ofrece el desplegable de la comanda, tal como lo devuelve `GET /productos`
+ * (solo los campos que usa la pantalla); propio de `reservas` (AGENTS.md §9.4).
+ */
+export interface ProductoHabilitado {
+  id: number;
+  nombre: string;
+  /** Texto decimal con punto y 2 decimales ("1500.50"); se convierte solo para mostrarlo. */
+  precio: string;
 }
 
 /** Propios de `reservas`: no se importan del módulo `salon` (AGENTS.md §9.4, S34). */

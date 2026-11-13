@@ -3,6 +3,7 @@ export type EstadoComanda = 'ABIERTA' | 'CERRADA' | 'ANULADA';
 export interface ComandaResumen {
   id: number;
   mesa_id: number;
+  mozo_id: number | null;
   estado: EstadoComanda;
   fecha_hora: string;
 }
@@ -13,6 +14,7 @@ export interface DetalleComandaCrear {
 }
 export interface ComandaCrear {
   mesa_id: number;
+  mozo_id: number;
   detalles: DetalleComandaCrear[];
   observaciones: string | null;
 }
@@ -98,12 +100,19 @@ export interface MenuEjecutivoSeleccionable {
   precio_fijo: string;
   estado: 'HABILITADO' | 'DESHABILITADO';
 }
+export interface MozoSeleccionable {
+  id: number;
+  nombre: string;
+  apellido: string;
+  estado: 'HABILITADO' | 'DESHABILITADO';
+}
 export interface NombresCatalogo {
   productos: Record<number, string>;
   menus: Record<number, string>;
 }
 export interface CatalogoComanda {
   mesasLibres: MesaSeleccionable[];
+  mozos: MozoSeleccionable[];
   productos: ProductoSeleccionable[];
   menus: MenuEjecutivoSeleccionable[];
   nombres: NombresCatalogo;

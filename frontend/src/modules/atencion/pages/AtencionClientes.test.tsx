@@ -3,7 +3,13 @@ import type { ReactElement } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { listarClientes, listarComandas, modificarCliente } from '../api';
+import {
+  listarClientes,
+  listarComandas,
+  listarMozosHabilitados,
+  listarTodosMozos,
+  modificarCliente,
+} from '../api';
 import type { Cliente } from '../types';
 import { AtencionPage } from './AtencionPage';
 
@@ -19,6 +25,8 @@ beforeEach(() => {
     exito: true,
     datos: { items: [], total: 0, limit: 50, offset: 0 },
   });
+  vi.mocked(listarMozosHabilitados).mockResolvedValue({ exito: true, datos: [] });
+  vi.mocked(listarTodosMozos).mockResolvedValue({ exito: true, datos: [] });
 });
 
 const CLIENTES: Cliente[] = [

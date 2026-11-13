@@ -210,6 +210,7 @@ def test_finalizar_promocion_no_cambia_la_comanda_ya_cotizada(db: Session, salon
         db,
         ComandaCrear(
             mesa_id=salon.mesa_id,
+            mozo_id=salon.mozo_id,
             detalles=[DetalleComandaCrear(producto_id=salon.plato_id, cantidad=2)],
         ),
         MesasDeSalon(),

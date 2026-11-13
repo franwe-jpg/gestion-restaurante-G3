@@ -11,10 +11,12 @@ import {
   TableRow,
 } from '../../../shared/components/ui/table';
 import type { Pagina } from '../../../shared/types';
-import type { ComandaResumen } from '../types';
+import type { ComandaResumen, MozoSeleccionable } from '../types';
+import { nombreDeMozo } from './catalogoComanda';
 
 interface Props {
   pagina: Pagina<ComandaResumen>;
+  mozos: MozoSeleccionable[];
   hayFiltros: boolean;
   ocupado: boolean;
   onCerrar: (id: number) => void;
@@ -28,6 +30,7 @@ interface Props {
 
 export function ComandasTabla({
   pagina,
+  mozos,
   hayFiltros,
   ocupado,
   onCerrar,
@@ -48,26 +51,25 @@ export function ComandasTabla({
             <TableRow>
               <TableHead>Comanda</TableHead>
               <TableHead>Mesa</TableHead>
+              <TableHead>Mozo</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead>Fecha local</TableHead>
               <TableHead>Acciones</TableHead>
             </TableRow>
           </TableHeader>
-          <TableBody>
-            {pagina.items.map((comanda) => (
-              <ComandaFila
-                key={comanda.id}
-                comanda={comanda}
-                ocupado={ocupado}
-                onCerrar={onCerrar}
-                onEntregas={onEntregas}
-                onModificar={onModificar}
-                onReabrir={onReabrir}
-                onAnular={onAnular}
-                onFacturar={onFacturar}
-              />
-            ))}
-          </TableBody>
+          <ComandasFilas
+            pagina={pagina}
+            mozos={mozos}
+            acciones={{
+              onCerrar,
+              onEntregas,
+              onModificar,
+              onReabrir,
+              onAnular,
+              onFacturar,
+              ocupado,
+            }}
+          />
         </Table>
       )}
       <PaginacionComandas pagina={pagina} ocupado={ocupado} onPagina={onPagina} />
@@ -143,6 +145,24 @@ interface AccionesProps {
   onFacturar: (id: number) => void;
 }
 
+function ComandasFilas({
+  pagina,
+  mozos,
+  acciones,
+}: {
+  pagina: Pagina<ComandaResumen>;
+  mozos: MozoSeleccionable[];
+  acciones: Omit<AccionesProps, 'comanda'>;
+}) {
+  return (
+    <TableBody>
+      {pagina.items.map((comanda) => (
+        <ComandaFila key={comanda.id} comanda={comanda} mozos={mozos} {...acciones} />
+      ))}
+    </TableBody>
+  );
+}
+
 function AccionFacturar({
   id,
   ocupado,
@@ -215,11 +235,16 @@ function AccionesComanda({ comanda, ocupado, ...acciones }: AccionesProps) {
   );
 }
 
-function ComandaFila({ comanda, ...acciones }: AccionesProps) {
+function ComandaFila({
+  comanda,
+  mozos,
+  ...acciones
+}: AccionesProps & { mozos: MozoSeleccionable[] }) {
   return (
     <TableRow>
       <TableCell>Comanda #{comanda.id}</TableCell>
       <TableCell>{comanda.mesa_id}</TableCell>
+      <TableCell>{nombreDeMozo(mozos, comanda.mozo_id)}</TableCell>
       <TableCell>{comanda.estado}</TableCell>
       <TableCell>{new Date(comanda.fecha_hora).toLocaleString()}</TableCell>
       <AccionesComanda comanda={comanda} {...acciones} />

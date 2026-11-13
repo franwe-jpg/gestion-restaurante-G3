@@ -4,6 +4,29 @@ import pytest
 from pydantic import ValidationError
 
 from app.modules.atencion import schemas
+from app.shared.contratos.comanda import ComandaCrear, ComandaResumen, DetalleComandaCrear
+
+
+def test_comanda_crear_exige_mozo_id_positivo() -> None:
+    detalle = [DetalleComandaCrear(producto_id=1, cantidad=1)]
+
+    with pytest.raises(ValidationError):
+        ComandaCrear(mesa_id=1, detalles=detalle)
+
+    with pytest.raises(ValidationError):
+        ComandaCrear(mesa_id=1, mozo_id=0, detalles=detalle)
+
+
+def test_comanda_resumen_expone_mozo_id_nullable_para_historicos() -> None:
+    resumen = ComandaResumen(
+        id=3,
+        mesa_id=1,
+        estado="ABIERTA",
+        fecha_hora="2026-11-11T12:00:00Z",
+        mozo_id=None,
+    )
+
+    assert resumen.model_dump()["mozo_id"] is None
 
 
 @pytest.mark.parametrize("campo", ["nombre", "telefono"])

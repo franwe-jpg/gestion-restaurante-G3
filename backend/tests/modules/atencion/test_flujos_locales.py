@@ -58,7 +58,7 @@ def test_alta_http_con_dobles_solo_de_prueba_y_a01(cliente, comanda):
 
     app.dependency_overrides[obtener_mesas_port] = MesasPrueba
     app.dependency_overrides[obtener_catalogo_port] = CatalogoPrueba
-    pedido = {"mesa_id": 2, "detalles": [{"producto_id": 1, "cantidad": 2}]}
+    pedido = {"mesa_id": 2, "mozo_id": 1, "detalles": [{"producto_id": 1, "cantidad": 2}]}
     creada = cliente.post("/api/v1/comandas", json=pedido)
     assert creada.status_code == 201
     assert creada.json()["estado"] == "ABIERTA"

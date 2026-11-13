@@ -10,6 +10,7 @@ import type {
   FiltroComandas,
   MenuEjecutivoSeleccionable,
   MesaSeleccionable,
+  MozoSeleccionable,
   ProductoSeleccionable,
   PendientesComanda,
   ReporteComandasTicketPromedio,
@@ -122,4 +123,59 @@ export function obtenerReporteComandas(
   return clienteHttp.get<ReporteComandasTicketPromedio>(
     `/reportes/comandas-ticket-promedio?${parametros}`,
   );
+}
+
+async function listarPaginaMozos(
+  offset: number,
+  estado?: 'HABILITADO',
+  q?: string,
+): Promise<RespuestaApi<Pagina<MozoSeleccionable>>> {
+  const parametros = new URLSearchParams();
+  if (estado) parametros.set('estado', estado);
+  if (q?.trim()) parametros.set('q', q.trim());
+  parametros.set('limit', String(LIMITE_CATALOGO));
+  parametros.set('offset', String(offset));
+  return clienteHttp.get<Pagina<MozoSeleccionable>>(`/mozos?${parametros}`);
+}
+
+async function listarMozos(
+  estado?: 'HABILITADO',
+  q?: string,
+): Promise<RespuestaApi<MozoSeleccionable[]>> {
+  const mozos: MozoSeleccionable[] = [];
+  let offset = 0;
+  while (true) {
+    const respuesta = await listarPaginaMozos(offset, estado, q);
+    if (!respuesta.exito || !respuesta.datos) {
+      return {
+        exito: false,
+        datos: null,
+        error: respuesta.error ?? 'No se pudieron cargar los mozos habilitados',
+      };
+    }
+    const pagina = respuesta.datos;
+    const items = estado
+      ? pagina.items.filter((mozo) => mozo.estado === 'HABILITADO')
+      : pagina.items;
+    mozos.push(...items);
+    if (offset + pagina.items.length >= pagina.total || pagina.items.length === 0) break;
+    if (pagina.limit <= 0) {
+      return {
+        exito: false,
+        datos: null,
+        error: 'El backend devolvió una página de mozos inválida',
+      };
+    }
+    offset = pagina.offset + pagina.limit;
+  }
+
+  return { exito: true, datos: mozos };
+}
+
+export function listarMozosHabilitados(q?: string): Promise<RespuestaApi<MozoSeleccionable[]>> {
+  return listarMozos('HABILITADO', q);
+}
+
+export function listarTodosMozos(): Promise<RespuestaApi<MozoSeleccionable[]>> {
+  return listarMozos();
 }
