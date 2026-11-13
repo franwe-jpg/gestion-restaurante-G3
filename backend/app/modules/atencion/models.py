@@ -83,6 +83,10 @@ class DetalleComanda(Base):
             "cantidad_entregada >= 0 AND cantidad_entregada <= cantidad",
             name="ck_detalles_comanda_cantidad_entregada_rango",
         ),
+        sa.CheckConstraint(
+            "cantidad_lista >= 0 AND cantidad_lista <= cantidad",
+            name="ck_detalles_comanda_cantidad_lista_rango",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -95,6 +99,7 @@ class DetalleComanda(Base):
     )
     cantidad: Mapped[int] = mapped_column()
     cantidad_entregada: Mapped[int] = mapped_column(default=0, server_default="0")
+    cantidad_lista: Mapped[int] = mapped_column(default=0, server_default="0")
     estado_entrega: Mapped[str] = mapped_column(sa.String(20), default="PENDIENTE")
     precio_unitario: Mapped[Decimal] = mapped_column(sa.Numeric(10, 2))
     descuento: Mapped[Decimal] = mapped_column(sa.Numeric(10, 2))

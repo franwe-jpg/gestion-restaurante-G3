@@ -15,6 +15,7 @@ class Permiso(StrEnum):
     SALON_GESTIONAR = "SALON_GESTIONAR"
     COMANDAS_VER = "COMANDAS_VER"
     COMANDAS_OPERAR = "COMANDAS_OPERAR"
+    COMANDAS_MARCAR_LISTO = "COMANDAS_MARCAR_LISTO"
     CLIENTES_GESTIONAR = "CLIENTES_GESTIONAR"
     RESERVAS_VER = "RESERVAS_VER"
     RESERVAS_OPERAR = "RESERVAS_OPERAR"
@@ -32,6 +33,7 @@ PERMISOS_POR_ROL: dict[Rol, frozenset[Permiso]] = {
             Permiso.SALON_VER,
             Permiso.COMANDAS_VER,
             Permiso.COMANDAS_OPERAR,
+            Permiso.COMANDAS_MARCAR_LISTO,
             Permiso.CLIENTES_GESTIONAR,
             Permiso.RESERVAS_VER,
             Permiso.RESERVAS_OPERAR,
@@ -43,6 +45,7 @@ PERMISOS_POR_ROL: dict[Rol, frozenset[Permiso]] = {
             Permiso.CARTA_VER,
             Permiso.MENUS_VER,
             Permiso.COMANDAS_VER,
+            Permiso.COMANDAS_MARCAR_LISTO,
             Permiso.RESERVAS_VER,
         }
     ),

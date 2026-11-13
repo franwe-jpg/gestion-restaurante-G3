@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { consultarEntregas, registrarEntrega } from '../api';
+import { consultarEntregas, marcarListo, registrarEntrega } from '../api';
+import type { RespuestaApi } from '../../../shared/types';
 import type { EntregasComanda } from '../types';
 
 /** Carga las entregas de una comanda y registra cambios de a una llamada por vez. */
@@ -21,20 +22,24 @@ export function useEntregas(id: number) {
       montado.current = false;
     };
   }, [id]);
-  async function registrar(detalleId: number, valor: number) {
+  async function enviar(llamada: () => Promise<RespuestaApi<EntregasComanda>>, mensaje: string) {
     if (enviando) return;
     setEnviando(true);
     setError('');
-    const respuesta = await registrarEntrega(id, detalleId, valor);
+    const respuesta = await llamada();
     if (!montado.current) return;
     if (respuesta.exito && respuesta.datos) {
       setDatos(respuesta.datos);
     } else {
-      setError(respuesta.error ?? 'No se pudo registrar la entrega');
+      setError(respuesta.error ?? mensaje);
       const actual = await consultarEntregas(id);
       if (montado.current && actual.exito && actual.datos) setDatos(actual.datos);
     }
     if (montado.current) setEnviando(false);
   }
-  return { datos, error, enviando, registrar };
+  const registrar = (detalleId: number, valor: number) =>
+    enviar(() => registrarEntrega(id, detalleId, valor), 'No se pudo registrar la entrega');
+  const marcar = (detalleId: number, valor: number) =>
+    enviar(() => marcarListo(id, detalleId, valor), 'No se pudo marcar el producto como listo');
+  return { datos, error, enviando, registrar, marcarListo: marcar };
 }

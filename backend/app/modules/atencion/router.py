@@ -17,6 +17,7 @@ from app.modules.atencion.schemas import (
     EntregaDetalle,
     EntregasComanda,
     FiltroClientes,
+    ListoDetalle,
     PendientesComanda,
     ReporteComandasTicketPromedio,
 )
@@ -114,6 +115,19 @@ def registrar_entrega(
     db: Sesion,
 ) -> EntregasComanda:
     return service.registrar_entrega(db, comanda_id, detalle_id, datos)
+
+
+@router.put(
+    "/comandas/{comanda_id}/detalles/{detalle_id}/listo",
+    dependencies=[requiere(Permiso.COMANDAS_MARCAR_LISTO)],
+)
+def marcar_listo(
+    comanda_id: Annotated[int, Path(gt=0)],
+    detalle_id: Annotated[int, Path(gt=0)],
+    datos: ListoDetalle,
+    db: Sesion,
+) -> EntregasComanda:
+    return service.marcar_listo(db, comanda_id, detalle_id, datos)
 
 
 @router.put("/comandas/{comanda_id}", dependencies=[requiere(Permiso.COMANDAS_OPERAR)])

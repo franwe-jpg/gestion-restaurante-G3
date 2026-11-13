@@ -1,6 +1,6 @@
 """Contratos HTTP de Cliente y Comanda en M4."""
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from datetime import timedelta
 
 import pytest
@@ -764,6 +764,7 @@ def test_put_entrega_parcial_responde_200_con_forma(
         "menu_ejecutivo_id": None,
         "cantidad": 10,
         "cantidad_entregada": 4,
+        "cantidad_lista": 0,
         "estado_entrega": "PENDIENTE",
     }
     listado = cliente.get(f"/api/v1/comandas/{comanda_con_lineas.id}/detalles")
@@ -976,3 +977,250 @@ def test_ciclo_desmarcar_una_unidad_y_cerrar_responde_409(
     assert cierre.status_code == 409
     assert cierre.json()["pendientes"][0]["id"] == detalle["id"]
     assert _estado_mesa(db, salon.mesa_id) == "OCUPADA"
+
+
+# Listo en cocina (HU-M4-12)
+
+
+def _ruta_listo(comanda: Comanda, indice: int = 0) -> str:
+    return f"/api/v1/comandas/{comanda.id}/detalles/{comanda.detalles[indice].id}/listo"
+
+
+def test_put_listo_total_responde_200_con_forma_y_cantidad_lista(
+    cliente: TestClient, comanda_con_lineas: Comanda
+) -> None:
+    respuesta = cliente.put(_ruta_listo(comanda_con_lineas), json={"cantidad_lista": 3})
+
+    assert respuesta.status_code == 200
+    primero, segundo = comanda_con_lineas.detalles
+    assert respuesta.json() == {
+        "comanda_id": comanda_con_lineas.id,
+        "estado": "ABIERTA",
+        "detalles": [
+            {
+                "id": primero.id,
+                "producto_id": 1,
+                "menu_ejecutivo_id": None,
+                "cantidad": 3,
+                "cantidad_entregada": 0,
+                "cantidad_lista": 3,
+                "estado_entrega": "PENDIENTE",
+            },
+            {
+                "id": segundo.id,
+                "producto_id": 1,
+                "menu_ejecutivo_id": None,
+                "cantidad": 10,
+                "cantidad_entregada": 0,
+                "cantidad_lista": 0,
+                "estado_entrega": "PENDIENTE",
+            },
+        ],
+    }
+
+
+@pytest.mark.parametrize("valor", [4, 1, 0])
+def test_put_listo_parcial_baja_y_cero_responde_200(
+    cliente: TestClient, comanda_con_lineas: Comanda, valor: int
+) -> None:
+    cliente.put(_ruta_listo(comanda_con_lineas, 1), json={"cantidad_lista": 7})
+
+    respuesta = cliente.put(_ruta_listo(comanda_con_lineas, 1), json={"cantidad_lista": valor})
+
+    assert respuesta.status_code == 200
+    assert _linea(respuesta, comanda_con_lineas.detalles[1])["cantidad_lista"] == valor
+
+
+def test_put_listo_repetido_responde_200_igual(
+    cliente: TestClient, comanda_con_lineas: Comanda
+) -> None:
+    primera = cliente.put(_ruta_listo(comanda_con_lineas, 1), json={"cantidad_lista": 4})
+    segunda = cliente.put(_ruta_listo(comanda_con_lineas, 1), json={"cantidad_lista": 4})
+
+    assert (primera.status_code, segunda.status_code) == (200, 200)
+    assert primera.json() == segunda.json()
+
+
+def test_put_listo_con_entrega_parcial_responde_200(
+    cliente: TestClient, comanda_con_lineas: Comanda
+) -> None:
+    cliente.put(_ruta_entrega(comanda_con_lineas, 1), json={"cantidad_entregada": 2})
+
+    respuesta = cliente.put(_ruta_listo(comanda_con_lineas, 1), json={"cantidad_lista": 7})
+
+    assert respuesta.status_code == 200
+    linea = _linea(respuesta, comanda_con_lineas.detalles[1])
+    assert (linea["cantidad_lista"], linea["cantidad_entregada"]) == (7, 2)
+
+
+def test_put_listo_linea_entregada_responde_409_con_detalle(
+    cliente: TestClient, comanda_con_lineas: Comanda
+) -> None:
+    cliente.put(_ruta_entrega(comanda_con_lineas), json={"cantidad_entregada": 3})
+
+    respuesta = cliente.put(_ruta_listo(comanda_con_lineas), json={"cantidad_lista": 2})
+
+    assert respuesta.status_code == 409
+    assert respuesta.json() == {"detalle": "La línea ya se entregó por completo"}
+
+
+def test_put_listo_cantidad_mayor_responde_422_con_detalle(
+    cliente: TestClient, comanda_con_lineas: Comanda
+) -> None:
+    respuesta = cliente.put(_ruta_listo(comanda_con_lineas), json={"cantidad_lista": 4})
+
+    assert respuesta.status_code == 422
+    assert set(respuesta.json()) == {"detalle"}
+    assert "3" in respuesta.json()["detalle"]
+
+
+@pytest.mark.parametrize(
+    "cuerpo",
+    [
+        {"cantidad_lista": -1},
+        {"cantidad_lista": "2"},
+        {"cantidad_lista": 2.5},
+        {"cantidad_lista": True},
+        {"cantidad_lista": None},
+        {},
+        {"cantidad_lista": 1, "otro": 1},
+    ],
+    ids=["negativo", "texto", "decimal", "booleano", "nulo", "vacio", "extra"],
+)
+def test_put_listo_cuerpo_invalido_responde_422(
+    cliente: TestClient, comanda_con_lineas: Comanda, cuerpo: dict
+) -> None:
+    respuesta = cliente.put(_ruta_listo(comanda_con_lineas), json=cuerpo)
+
+    assert respuesta.status_code == 422
+    assert set(respuesta.json()) == {"detalle"}
+    detalle = cliente.get(f"/api/v1/comandas/{comanda_con_lineas.id}/detalles")
+    assert _linea(detalle, comanda_con_lineas.detalles[0])["cantidad_lista"] == 0
+
+
+@pytest.mark.parametrize(
+    ("comanda_id", "detalle_id"), [("0", "1"), ("1", "0"), ("abc", "1"), ("1", "abc")]
+)
+def test_put_listo_id_cero_o_no_numerico_responde_422(
+    cliente: TestClient, comanda_id: str, detalle_id: str
+) -> None:
+    respuesta = cliente.put(
+        f"/api/v1/comandas/{comanda_id}/detalles/{detalle_id}/listo",
+        json={"cantidad_lista": 1},
+    )
+
+    assert respuesta.status_code == 422
+    assert set(respuesta.json()) == {"detalle"}
+
+
+def test_put_listo_comanda_inexistente_responde_404(
+    cliente: TestClient, comanda_con_lineas: Comanda
+) -> None:
+    respuesta = cliente.put(
+        f"/api/v1/comandas/999/detalles/{comanda_con_lineas.detalles[0].id}/listo",
+        json={"cantidad_lista": 1},
+    )
+
+    assert respuesta.status_code == 404
+    assert respuesta.json() == {"detalle": "La comanda 999 no existe"}
+
+
+def test_put_listo_detalle_de_otra_comanda_responde_404(
+    cliente: TestClient, comanda: Comanda, comanda_con_lineas: Comanda
+) -> None:
+    ajeno = comanda.detalles[0].id
+
+    respuesta = cliente.put(
+        f"/api/v1/comandas/{comanda_con_lineas.id}/detalles/{ajeno}/listo",
+        json={"cantidad_lista": 1},
+    )
+
+    assert respuesta.status_code == 404
+    assert set(respuesta.json()) == {"detalle"}
+
+
+@pytest.mark.parametrize("estado", [EstadoComanda.CERRADA, EstadoComanda.ANULADA])
+def test_put_listo_comanda_cerrada_o_anulada_responde_409(
+    cliente: TestClient, db: Session, comanda_con_lineas: Comanda, estado: EstadoComanda
+) -> None:
+    comanda_con_lineas.estado = estado
+    db.commit()
+
+    respuesta = cliente.put(_ruta_listo(comanda_con_lineas), json={"cantidad_lista": 1})
+
+    assert respuesta.status_code == 409
+    assert set(respuesta.json()) == {"detalle"}
+
+
+def test_put_listo_sin_sesion_responde_401(
+    cliente_sin_sesion: TestClient, comanda_con_lineas: Comanda
+) -> None:
+    respuesta = cliente_sin_sesion.put(_ruta_listo(comanda_con_lineas), json={"cantidad_lista": 1})
+
+    assert respuesta.status_code == 401
+
+
+@pytest.mark.parametrize("rol", [Rol.CHEF, Rol.MOZO, Rol.ENCARGADO])
+def test_put_listo_chef_mozo_y_encargado_responden_200(
+    cliente_con_rol: Callable[[Rol], TestClient], comanda_con_lineas: Comanda, rol: Rol
+) -> None:
+    respuesta = cliente_con_rol(rol).put(
+        _ruta_listo(comanda_con_lineas), json={"cantidad_lista": 2}
+    )
+
+    assert respuesta.status_code == 200
+    assert _linea(respuesta, comanda_con_lineas.detalles[0])["cantidad_lista"] == 2
+
+
+def test_get_detalles_incluye_cantidad_lista_ordenado_por_id(
+    cliente: TestClient, comanda_con_lineas: Comanda
+) -> None:
+    cliente.put(_ruta_listo(comanda_con_lineas, 1), json={"cantidad_lista": 6})
+
+    respuesta = cliente.get(f"/api/v1/comandas/{comanda_con_lineas.id}/detalles")
+
+    assert respuesta.status_code == 200
+    assert [d["cantidad_lista"] for d in respuesta.json()["detalles"]] == [0, 6]
+    ids = [d["id"] for d in respuesta.json()["detalles"]]
+    assert ids == sorted(ids)
+
+
+def test_get_detalles_chef_responde_200_con_cantidad_lista(
+    cliente: TestClient,
+    cliente_con_rol: Callable[[Rol], TestClient],
+    comanda_con_lineas: Comanda,
+) -> None:
+    cliente.put(_ruta_listo(comanda_con_lineas, 1), json={"cantidad_lista": 6})
+
+    respuesta = cliente_con_rol(Rol.CHEF).get(f"/api/v1/comandas/{comanda_con_lineas.id}/detalles")
+
+    assert respuesta.status_code == 200
+    assert [d["cantidad_lista"] for d in respuesta.json()["detalles"]] == [0, 6]
+
+
+def test_ciclo_listo_entregar_y_cerrar_responde_200(cliente: TestClient, salon) -> None:
+    comanda_id = _abrir_comanda(cliente, salon)
+    detalle = cliente.get(f"/api/v1/comandas/{comanda_id}/detalles").json()["detalles"][0]
+    base = f"/api/v1/comandas/{comanda_id}/detalles/{detalle['id']}"
+
+    listo = cliente.put(f"{base}/listo", json={"cantidad_lista": detalle["cantidad"]})
+    entrega = cliente.put(f"{base}/entrega", json={"cantidad_entregada": detalle["cantidad"]})
+    cierre = cliente.post(f"/api/v1/comandas/{comanda_id}/cerrar")
+
+    assert (listo.status_code, entrega.status_code, cierre.status_code) == (200, 200, 200)
+
+
+def test_ciclo_listo_sin_entregar_no_permite_cerrar_responde_409(
+    cliente: TestClient, salon
+) -> None:
+    comanda_id = _abrir_comanda(cliente, salon)
+    detalle = cliente.get(f"/api/v1/comandas/{comanda_id}/detalles").json()["detalles"][0]
+
+    listo = cliente.put(
+        f"/api/v1/comandas/{comanda_id}/detalles/{detalle['id']}/listo",
+        json={"cantidad_lista": detalle["cantidad"]},
+    )
+    cierre = cliente.post(f"/api/v1/comandas/{comanda_id}/cerrar")
+
+    assert listo.status_code == 200
+    assert cierre.status_code == 409
