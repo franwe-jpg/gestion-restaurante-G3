@@ -110,6 +110,12 @@ export function ReservaFormDialog({ reserva, onGuardado, onOpenChange }: Reserva
       open
       onOpenChange={onOpenChange}
       title={edicion ? 'Modificar reserva' : 'Nueva reserva'}
+      description={
+        edicion
+          ? 'Cambiá la fecha, la hora y la cantidad de personas. La mesa y el cliente no cambian.'
+          : 'Completá el cliente, la fecha, la hora, las personas y la mesa del turno.'
+      }
+      size="lg"
       footer={
         <>
           <Button variant="brand-outline" onClick={() => onOpenChange(false)}>
@@ -128,10 +134,11 @@ export function ReservaFormDialog({ reserva, onGuardado, onOpenChange }: Reserva
       <form id={ID_FORMULARIO_RESERVA} noValidate onSubmit={alEnviar} className="space-y-4">
         {errores.general && <Alert variant="danger">{errores.general}</Alert>}
         <CampoCliente formulario={formulario} reserva={reserva} />
-        <div className="grid grid-cols-2 gap-3">
+        <fieldset className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <legend className="sr-only">Día y horario</legend>
           <CampoReserva formulario={formulario} campo="fecha" etiqueta="Fecha" tipo="date" />
           <CampoReserva formulario={formulario} campo="hora" etiqueta="Hora" tipo="time" />
-        </div>
+        </fieldset>
         <CampoReserva formulario={formulario} campo="cantidad" etiqueta="Cantidad de personas" />
         <CampoMesa formulario={formulario} edicion={edicion} />
       </form>

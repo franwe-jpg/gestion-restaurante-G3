@@ -3,7 +3,13 @@ import { useCallback, useState } from 'react';
 import { useSesion } from '../../../shared/auth/useSesion';
 import { PageHeader } from '../../../shared/components/PageHeader';
 import { Button } from '../../../shared/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader } from '../../../shared/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '../../../shared/components/ui/card';
 import { ExportButton } from '../../../shared/components/ui/export-button';
 import { FilterBar } from '../../../shared/components/ui/filter-bar';
 import { Pagination } from '../../../shared/components/ui/pagination';
@@ -81,16 +87,26 @@ function ListadoDelDia({
   const { fecha, estado, paginacion, reservas } = listado;
   const filas = reservas.datos?.items ?? [];
   const total = reservas.datos?.total ?? 0;
+  const personas = filas.reduce((suma, fila) => suma + fila.cantidad_personas, 0);
   return (
-    <Card>
+    <Card aria-label="Listado de reservas del día">
       <CardHeader>
+        <CardTitle>Próximas reservas</CardTitle>
         <CardDescription>Reservas del {formatearFechaReserva(fecha)}</CardDescription>
+        <p aria-live="polite" className="text-sm text-slate-500">
+          {total === 0
+            ? 'Sin reservas para los filtros elegidos.'
+            : `${total} ${total === 1 ? 'reserva' : 'reservas'} · ${personas} ${personas === 1 ? 'persona' : 'personas'}`}
+        </p>
       </CardHeader>
       <CardContent className="space-y-4">
         <TableToolbar acciones={<ExportButton filas={filas} nombreArchivo="reservas" />}>
           <FilterBar className="border-0 p-0">
-            <NavegadorFecha fecha={fecha} onCambiar={listado.cambiarFecha} />
-            <SelectorEstadoReserva estado={estado} onCambiar={listado.cambiarEstado} />
+            <fieldset className="contents">
+              <legend className="sr-only">Filtros del listado</legend>
+              <NavegadorFecha fecha={fecha} onCambiar={listado.cambiarFecha} />
+              <SelectorEstadoReserva estado={estado} onCambiar={listado.cambiarEstado} />
+            </fieldset>
           </FilterBar>
         </TableToolbar>
 

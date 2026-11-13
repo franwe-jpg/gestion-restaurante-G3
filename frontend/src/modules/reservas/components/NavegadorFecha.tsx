@@ -13,10 +13,10 @@ export interface NavegadorFechaProps {
 /** Botones de día anterior y siguiente, campo de fecha y «Hoy», como la maqueta. */
 export function NavegadorFecha({ fecha, onCambiar }: NavegadorFechaProps) {
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div role="group" aria-label="Elegir día" className="flex min-w-0 flex-wrap items-center gap-2">
       <Button
         variant="brand-outline"
-        className="w-9 px-0"
+        className="w-9 shrink-0 px-0"
         aria-label="Día anterior"
         onClick={() => onCambiar(sumarDias(fecha, -1))}
       >
@@ -25,7 +25,7 @@ export function NavegadorFecha({ fecha, onCambiar }: NavegadorFechaProps) {
       <Input
         type="date"
         aria-label="Día"
-        className="w-44"
+        className="w-full min-w-0 sm:w-44"
         value={fecha}
         onChange={(evento) => {
           if (evento.target.value !== '') onCambiar(evento.target.value);
@@ -33,7 +33,7 @@ export function NavegadorFecha({ fecha, onCambiar }: NavegadorFechaProps) {
       />
       <Button
         variant="brand-outline"
-        className="w-9 px-0"
+        className="w-9 shrink-0 px-0"
         aria-label="Día siguiente"
         onClick={() => onCambiar(sumarDias(fecha, 1))}
       >

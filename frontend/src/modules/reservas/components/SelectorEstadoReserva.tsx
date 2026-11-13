@@ -17,7 +17,7 @@ export function SelectorEstadoReserva({ estado, onCambiar }: SelectorEstadoReser
   return (
     <Select
       aria-label="Filtrar por estado"
-      className="sm:w-56"
+      className="w-full sm:w-56"
       value={estado}
       onChange={(evento) => {
         if (esFiltroEstado(evento.target.value)) onCambiar(evento.target.value);

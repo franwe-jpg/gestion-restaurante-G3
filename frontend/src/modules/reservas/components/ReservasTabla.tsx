@@ -37,11 +37,27 @@ const COLUMNAS: ColumnaTabla<Reserva>[] = [
   {
     clave: 'hora',
     encabezado: 'Hora',
+    className: 'whitespace-nowrap',
     render: (r) => <span className="font-bold tabular-nums">{r.hora}</span>,
   },
-  { clave: 'cliente', encabezado: 'Cliente', render: (r) => `Cliente n.º ${r.cliente_id}` },
-  { clave: 'personas', encabezado: 'Personas', render: (r) => r.cantidad_personas },
-  { clave: 'mesa', encabezado: 'Mesa', render: (r) => `Mesa n.º ${r.mesa_id}` },
+  {
+    clave: 'cliente',
+    encabezado: 'Cliente',
+    className: 'min-w-36',
+    render: (r) => <span className="font-medium text-slate-900">Cliente n.º {r.cliente_id}</span>,
+  },
+  {
+    clave: 'personas',
+    encabezado: 'Personas',
+    className: 'tabular-nums',
+    render: (r) => <span className="tabular-nums">{r.cantidad_personas}</span>,
+  },
+  {
+    clave: 'mesa',
+    encabezado: 'Mesa',
+    className: 'min-w-32 whitespace-nowrap',
+    render: (r) => `Mesa n.º ${r.mesa_id}`,
+  },
   {
     clave: 'estado',
     encabezado: 'Estado',
@@ -64,8 +80,8 @@ interface BotonCrearComandaProps {
 
 /**
  * Deshabilitado, con el motivo a la vista, mientras la reserva no se puede atender (HU-M5-06). El
- * `Button` deshabilitado no recibe el puntero (`pointer-events-none`), así que el contenedor
- * repite el `title` para que el motivo aparezca al pasar el mouse.
+ * `Button` deshabilitado se ve gris y lavado (`saturate-0`, `opacity-40`) con cursor de prohibido;
+ * el contenedor repite el `title` y expone el motivo a lectores de pantalla.
  */
 function BotonCrearComanda({ reserva, ahora, onCrearComanda }: BotonCrearComandaProps) {
   const atencion = atencionDeReserva(reserva, ahora);

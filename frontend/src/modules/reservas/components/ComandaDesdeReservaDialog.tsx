@@ -56,7 +56,7 @@ function LineaProducto({
 }: LineaProductoProps) {
   const idCantidad = `comanda-cantidad-${linea.clave}`;
   return (
-    <div className="grid grid-cols-[1fr_7rem_auto] items-start gap-3">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_7rem_auto] sm:items-start">
       <SelectorProducto
         id={`comanda-producto-${linea.clave}`}
         numero={numero}
@@ -76,7 +76,7 @@ function LineaProducto({
       <Button
         variant="ghost"
         size="sm"
-        className="mt-6"
+        className="justify-self-end sm:mt-6"
         aria-label={`Quitar producto ${numero}`}
         disabled={!puedeQuitarse}
         onClick={onQuitar}
@@ -381,6 +381,8 @@ export function ComandaDesdeReservaDialog({
       open
       onOpenChange={onOpenChange}
       title="Crear comanda"
+      description="La mesa sale de la reserva. Elegí el mozo y los productos del pedido."
+      size="lg"
       footer={
         <>
           <Button variant="brand-outline" onClick={() => onOpenChange(false)}>
