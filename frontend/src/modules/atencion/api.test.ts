@@ -59,6 +59,19 @@ it('asigna o corrige el mozo de una comanda por PUT /comandas/{id}/mozo', async 
   expect(put).toHaveBeenCalledWith('/comandas/3/mozo', { mozo_id: 9 });
 });
 
+it('marca la cantidad lista absoluta por PUT .../listo', async () => {
+  const respuesta = { exito: true, datos: { comanda_id: 3, estado: 'ABIERTA', detalles: [] } };
+  const put = vi.spyOn(clienteHttp, 'put').mockResolvedValue(respuesta);
+  expect(await api.marcarListo(3, 81, 4)).toBe(respuesta);
+  expect(put).toHaveBeenCalledWith('/comandas/3/detalles/81/listo', { cantidad_lista: 4 });
+});
+
+it('devuelve el error de la API al marcar listo sin lanzar', async () => {
+  const error = { exito: false, datos: null, error: 'La línea ya se entregó por completo' };
+  vi.spyOn(clienteHttp, 'put').mockResolvedValue(error);
+  expect(await api.marcarListo(3, 81, 2)).toEqual(error);
+});
+
 describe('API de clientes', () => {
   it('consulta la primera página sin filtro', async () => {
     const respuesta = { exito: true, datos: { items: [], total: 0, limit: 50, offset: 0 } };

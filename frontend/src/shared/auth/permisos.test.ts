@@ -11,6 +11,7 @@ const TODOS: Permiso[] = [
   'SALON_GESTIONAR',
   'COMANDAS_VER',
   'COMANDAS_OPERAR',
+  'COMANDAS_MARCAR_LISTO',
   'CLIENTES_GESTIONAR',
   'RESERVAS_VER',
   'RESERVAS_OPERAR',
@@ -38,8 +39,20 @@ describe('permisosDe', () => {
 
   it('el chef solo ve carta, menús, comandas y reservas', () => {
     expect([...permisosDe(['CHEF'])].sort()).toEqual(
-      ['CARTA_VER', 'COMANDAS_VER', 'MENUS_VER', 'RESERVAS_VER'].sort(),
+      ['CARTA_VER', 'COMANDAS_MARCAR_LISTO', 'COMANDAS_VER', 'MENUS_VER', 'RESERVAS_VER'].sort(),
     );
+  });
+
+  it('el chef marca listo en cocina pero no opera comandas', () => {
+    const permisos = permisosDe(['CHEF']);
+
+    expect(permisos.has('COMANDAS_MARCAR_LISTO')).toBe(true);
+    expect(permisos.has('COMANDAS_OPERAR')).toBe(false);
+  });
+
+  it('el mozo y el encargado marcan listo en cocina', () => {
+    expect(permisosDe(['MOZO']).has('COMANDAS_MARCAR_LISTO')).toBe(true);
+    expect(permisosDe(['ENCARGADO']).has('COMANDAS_MARCAR_LISTO')).toBe(true);
   });
 
   it('un usuario con dos roles recibe la unión de sus permisos', () => {

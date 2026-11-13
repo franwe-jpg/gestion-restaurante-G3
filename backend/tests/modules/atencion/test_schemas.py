@@ -160,6 +160,7 @@ def test_entregas_comanda_serializa_detalles_y_estado() -> None:
                 producto_id=1,
                 cantidad=5,
                 cantidad_entregada=2,
+                cantidad_lista=4,
                 estado_entrega="PENDIENTE",
             )
         ],
@@ -175,7 +176,50 @@ def test_entregas_comanda_serializa_detalles_y_estado() -> None:
                 "menu_ejecutivo_id": None,
                 "cantidad": 5,
                 "cantidad_entregada": 2,
+                "cantidad_lista": 4,
                 "estado_entrega": "PENDIENTE",
             }
         ],
     }
+
+
+# Listo en cocina (HU-M4-12)
+
+
+@pytest.mark.parametrize("valor", [0, 1, 250])
+def test_listo_detalle_acepta_entero_valido(valor: int) -> None:
+    assert schemas.ListoDetalle(cantidad_lista=valor).cantidad_lista == valor
+
+
+@pytest.mark.parametrize("valor", ["2", "dos", 2.5, 2.0, True, None])
+def test_listo_detalle_rechaza_texto_decimal_booleano_y_nulo(valor: object) -> None:
+    with pytest.raises(ValidationError) as error:
+        schemas.ListoDetalle(cantidad_lista=valor)
+
+    assert error.value.errors()[0]["loc"] == ("cantidad_lista",)
+
+
+def test_listo_detalle_rechaza_negativo() -> None:
+    with pytest.raises(ValidationError) as error:
+        schemas.ListoDetalle(cantidad_lista=-1)
+
+    assert error.value.errors()[0]["type"] == "greater_than_equal"
+
+
+@pytest.mark.parametrize("datos", [{}, {"cantidad_lista": 1, "otro": 2}])
+def test_listo_detalle_rechaza_campos_extra_y_ausente(datos: dict) -> None:
+    with pytest.raises(ValidationError):
+        schemas.ListoDetalle(**datos)
+
+
+def test_detalle_entrega_serializa_cantidad_lista() -> None:
+    detalle = schemas.DetalleEntrega(
+        id=9,
+        producto_id=1,
+        cantidad=5,
+        cantidad_entregada=2,
+        cantidad_lista=4,
+        estado_entrega="PENDIENTE",
+    )
+
+    assert detalle.model_dump(mode="json")["cantidad_lista"] == 4

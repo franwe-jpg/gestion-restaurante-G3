@@ -10,7 +10,7 @@ from collections.abc import Callable
 import pytest
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from app.config import API_PREFIX
@@ -73,7 +73,8 @@ _filas(
 )
 _filas("GET", ["/reportes/impacto-promociones"], SOLO_ENCARGADO)
 # M3 Salon, Mozos y Chefs
-_filas("GET", ["/mesas", "/sectores", "/mozos"], ENCARGADO_Y_MOZO)
+_filas("GET", ["/mesas", "/sectores"], ENCARGADO_Y_MOZO)
+_filas("GET", ["/mozos"], TODOS)
 _filas("POST", ["/sectores", "/sectores/1/baja", "/mesas"], SOLO_ENCARGADO)
 _filas("PUT", ["/sectores/1", "/mesas/1"], SOLO_ENCARGADO)
 _filas("DELETE", ["/mesas/1"], SOLO_ENCARGADO)
@@ -96,6 +97,7 @@ _filas(
     ["/comandas/1", "/comandas/1/mozo", "/comandas/1/detalles/1/entrega", "/clientes/1"],
     ENCARGADO_Y_MOZO,
 )
+_filas("PUT", ["/comandas/1/detalles/1/listo"], TODOS)
 _filas("GET", ["/clientes"], ENCARGADO_Y_MOZO)
 # M5 Reservas
 _filas("GET", ["/reservas", "/reservas/1", "/reservas/mesas-disponibles"], TODOS)
@@ -198,20 +200,30 @@ def test_el_chef_no_entra_a_pagos_ni_salon(cliente_con_rol: ClienteConRol) -> No
     assert chef.get(f"{API_PREFIX}/facturas").status_code == 403
     assert chef.get(f"{API_PREFIX}/medios-de-pago").status_code == 403
     assert chef.get(f"{API_PREFIX}/mesas").status_code == 403
-    assert chef.get(f"{API_PREFIX}/mozos").status_code == 403
 
 
-def test_el_chef_ve_comandas_y_su_detalle_pero_no_las_modifica(
-    cliente_con_rol: ClienteConRol, comanda: Comanda
+def test_el_chef_lista_los_mozos_porque_solo_exige_sesion(cliente_con_rol: ClienteConRol) -> None:
+    chef = cliente_con_rol(C)
+
+    assert chef.get(f"{API_PREFIX}/mozos").status_code == 200
+
+
+def test_el_chef_marca_listo_pero_no_opera_comandas(
+    cliente_con_rol: ClienteConRol, db: Session, comanda: Comanda
 ) -> None:
+    # La línea sembrada está entregada por completo (no admite marcar listo): se reabre.
+    db.execute(text("UPDATE detalles_comanda SET cantidad_entregada=0, estado_entrega='PENDIENTE'"))
+    db.commit()
     chef = cliente_con_rol(C)
     base = f"{API_PREFIX}/comandas/{comanda.id}"
+    detalle = f"{base}/detalles/{comanda.detalles[0].id}"
 
     assert chef.get(base).status_code == 200
     assert chef.get(f"{base}/detalles").status_code == 200
+    assert chef.put(f"{detalle}/listo", json={"cantidad_lista": 1}).status_code == 200
+    assert chef.put(f"{detalle}/entrega", json={"cantidad_entregada": 1}).status_code == 403
     assert chef.post(f"{base}/cerrar").status_code == 403
-    entrega = f"{base}/detalles/{comanda.detalles[0].id}/entrega"
-    assert chef.put(entrega, json={"cantidad_entregada": 1}).status_code == 403
+    assert chef.post(f"{base}/anular").status_code == 403
 
 
 def test_el_mozo_cierra_una_comanda_de_otro_mozo(
@@ -278,7 +290,11 @@ def test_el_usuario_con_mozo_y_chef_recibe_la_union_de_permisos(
 # --- Completitud (P5) ---
 
 PUBLICAS = {("POST", f"{API_PREFIX}/sesion"), ("GET", f"{API_PREFIX}/salud")}
-SOLO_SESION = {("GET", f"{API_PREFIX}/sesion"), ("DELETE", f"{API_PREFIX}/sesion")}
+SOLO_SESION = {
+    ("GET", f"{API_PREFIX}/sesion"),
+    ("DELETE", f"{API_PREFIX}/sesion"),
+    ("GET", f"{API_PREFIX}/mozos"),
+}
 
 
 def _rutas_de_la_api() -> list[tuple[str, APIRoute]]:
@@ -303,7 +319,7 @@ def test_cada_ruta_protegida_declara_un_permiso() -> None:
     assert sin_permiso == []
 
 
-def test_get_y_delete_de_sesion_solo_exigen_una_sesion_valida() -> None:
+def test_las_rutas_de_solo_sesion_exigen_una_sesion_valida() -> None:
     for metodo, ruta in _rutas_de_la_api():
         if (metodo, ruta.path) in SOLO_SESION:
             llamadas = [d.call for d in ruta.dependant.dependencies]

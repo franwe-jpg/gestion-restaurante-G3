@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import type { Permiso } from '../../../shared/auth/permisos';
 import { useSesion } from '../../../shared/auth/useSesion';
 import { PageHeader } from '../../../shared/components/PageHeader';
 import { Button } from '../../../shared/components/ui/button';
@@ -80,6 +81,14 @@ function EncabezadoAtencion({ onNueva }: { onNueva?: () => void }) {
   );
 }
 
+/** Permisos que gobiernan los botones del diálogo de entregas. */
+function permisosDeEntregas(puede: (permiso: Permiso) => boolean) {
+  return {
+    puedeEntregar: puede('COMANDAS_OPERAR'),
+    puedeMarcarListo: puede('COMANDAS_MARCAR_LISTO'),
+  };
+}
+
 export function AtencionPage() {
   const { puede } = useSesion();
   const opera = puede('COMANDAS_OPERAR');
@@ -117,7 +126,7 @@ export function AtencionPage() {
         modificarId={modificarId}
         entregas={entregas}
         cambioMozo={cambioMozo}
-        soloLectura={!opera}
+        {...permisosDeEntregas(puede)}
         onAlta={enlaces.setAlta}
         onCreada={acciones.creada}
         onSalirCierre={() => setCierreId(null)}

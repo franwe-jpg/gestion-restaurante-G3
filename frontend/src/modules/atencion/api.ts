@@ -8,6 +8,7 @@ import type {
   ComandaResumen,
   EntregaDetalle,
   EntregasComanda,
+  ListoDetalle,
   FiltroComandas,
   MenuEjecutivoSeleccionable,
   MesaSeleccionable,
@@ -70,6 +71,17 @@ export function registrarEntrega(
   return clienteHttp.put<EntregasComanda, EntregaDetalle>(
     `/comandas/${id}/detalles/${detalleId}/entrega`,
     { cantidad_entregada: cantidadEntregada },
+  );
+}
+
+export function marcarListo(
+  id: number,
+  detalleId: number,
+  cantidadLista: number,
+): Promise<RespuestaApi<EntregasComanda>> {
+  return clienteHttp.put<EntregasComanda, ListoDetalle>(
+    `/comandas/${id}/detalles/${detalleId}/listo`,
+    { cantidad_lista: cantidadLista },
   );
 }
 

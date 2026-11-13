@@ -37,8 +37,17 @@ class EntregaDetalle(BaseModel):
     cantidad_entregada: StrictInt = Field(ge=0)
 
 
+class ListoDetalle(BaseModel):
+    """Cantidad lista para servir absoluta de una línea; el tope depende del detalle (service)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    cantidad_lista: StrictInt = Field(ge=0)
+
+
 class DetalleEntrega(DetallePendiente):
     cantidad_entregada: int
+    cantidad_lista: int
     estado_entrega: EstadoEntrega
 
 

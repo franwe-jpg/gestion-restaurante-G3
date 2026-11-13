@@ -23,6 +23,7 @@ from app.modules.atencion.schemas import (
     EntregaDetalle,
     EntregasComanda,
     GrupoReporteComandas,
+    ListoDetalle,
     PendientesComanda,
     ReporteComandasTicketPromedio,
 )
@@ -147,6 +148,42 @@ def _rechazar_entrega(db: Session, comanda_id: int, detalle_id: int, cantidad: i
     if cantidad > detalle.cantidad:
         raise DatosInvalidosError(
             f"La cantidad entregada no puede superar la cantidad pedida ({detalle.cantidad})"
+        )
+    raise ReglaDeNegocioError("El detalle cambió; vuelva a consultar las entregas")
+
+
+def marcar_listo(
+    db: Session, comanda_id: int, detalle_id: int, datos: ListoDetalle
+) -> EntregasComanda:
+    """Fija la cantidad lista para servir de un detalle de una comanda ABIERTA (HU-M4-12)."""
+    try:
+        marcada = repository.marcar_listo(db, comanda_id, detalle_id, datos.cantidad_lista)
+        if marcada:
+            db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    if not marcada:
+        db.rollback()
+        _rechazar_listo(db, comanda_id, detalle_id, datos.cantidad_lista)
+    return consultar_entregas(db, comanda_id)
+
+
+def _rechazar_listo(db: Session, comanda_id: int, detalle_id: int, cantidad: int) -> None:
+    """Explica con lecturas por qué el UPDATE condicional no afectó ninguna fila."""
+    comanda = repository.obtener_comanda(db, comanda_id)
+    if comanda is None:
+        raise NoEncontradoError(f"La comanda {comanda_id} no existe")
+    detalle = next((d for d in comanda.detalles if d.id == detalle_id), None)
+    if detalle is None:
+        raise NoEncontradoError(f"El detalle {detalle_id} no existe en la comanda {comanda_id}")
+    if comanda.estado != EstadoComanda.ABIERTA:
+        raise ReglaDeNegocioError("Solo se puede marcar listo en una comanda ABIERTA")
+    if detalle.cantidad_entregada >= detalle.cantidad:
+        raise ReglaDeNegocioError("La línea ya se entregó por completo")
+    if cantidad > detalle.cantidad:
+        raise DatosInvalidosError(
+            f"La cantidad lista no puede superar la cantidad pedida ({detalle.cantidad})"
         )
     raise ReglaDeNegocioError("El detalle cambió; vuelva a consultar las entregas")
 

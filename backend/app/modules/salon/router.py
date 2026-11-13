@@ -28,7 +28,7 @@ from app.modules.salon.schemas import (
 )
 from app.shared.paginacion import Pagina, ParametrosPaginacion
 from app.shared.permisos import Permiso
-from app.shared.seguridad import requiere
+from app.shared.seguridad import requiere, usuario_actual
 
 router = APIRouter()
 
@@ -94,7 +94,8 @@ def crear_mozo(datos: MozoCrear, db: Sesion) -> MozoSalida:
     return service.crear_mozo(db, datos)
 
 
-@router.get("/mozos", dependencies=[requiere(Permiso.SALON_VER)])
+# Cualquier usuario con sesion ve los nombres de los mozos (comandas, reservas).
+@router.get("/mozos", dependencies=[Depends(usuario_actual)])
 def listar_mozos(db: Sesion, filtro: Annotated[FiltroMozos, Query()]) -> Pagina[MozoSalida]:
     return service.listar_mozos(db, filtro, filtro.estado, filtro.q)
 

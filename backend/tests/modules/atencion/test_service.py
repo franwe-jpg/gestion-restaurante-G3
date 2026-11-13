@@ -11,7 +11,12 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.modules.atencion import repository, service
 from app.modules.atencion.adaptadores import CatalogoDeCarta, MesasDeSalon
 from app.modules.atencion.models import Cliente, Comanda, DetalleComanda
-from app.modules.atencion.schemas import ClienteModificar, ComandaModificar, EntregaDetalle
+from app.modules.atencion.schemas import (
+    ClienteModificar,
+    ComandaModificar,
+    EntregaDetalle,
+    ListoDetalle,
+)
 from app.modules.pagos.models import EstadoFactura, Factura
 from app.shared.contratos.comanda import ComandaSalida, EstadoComanda, EstadoEntrega
 from app.shared.excepciones import DatosInvalidosError, NoEncontradoError, ReglaDeNegocioError
@@ -864,3 +869,260 @@ def test_sumar_productos_pedidos_no_hace_commit(db: Session, sembrar_pedidos) ->
     db.rollback()
 
     assert db.execute(text("SELECT COUNT(*) FROM comandas")).scalar_one() == 0
+
+
+# Listo en cocina (HU-M4-12). `comanda_con_lineas`: líneas de cantidad 3 y 10.
+
+
+def _marcar(db: Session, comanda: Comanda, indice: int, n: int) -> service.EntregasComanda:
+    detalle = comanda.detalles[indice]
+    return service.marcar_listo(db, comanda.id, detalle.id, ListoDetalle(cantidad_lista=n))
+
+
+def _lista(salida: service.EntregasComanda, detalle: DetalleComanda) -> tuple[int, int, str]:
+    d = next(d for d in salida.detalles if d.id == detalle.id)
+    return d.cantidad_lista, d.cantidad_entregada, d.estado_entrega
+
+
+def _persistido_listo(db: Session, detalle: DetalleComanda) -> tuple[int, int, str]:
+    fila = db.execute(
+        text(
+            "SELECT cantidad_lista, cantidad_entregada, estado_entrega "
+            "FROM detalles_comanda WHERE id=:id"
+        ),
+        {"id": detalle.id},
+    ).one()
+    return tuple(fila)
+
+
+def test_marcar_listo_total_actualiza_cantidad_lista(
+    db: Session, comanda_con_lineas: Comanda
+) -> None:
+    salida = _marcar(db, comanda_con_lineas, 0, 3)
+
+    assert _lista(salida, comanda_con_lineas.detalles[0]) == (3, 0, "PENDIENTE")
+    assert _persistido_listo(db, comanda_con_lineas.detalles[0]) == (3, 0, "PENDIENTE")
+    assert _lista(salida, comanda_con_lineas.detalles[1]) == (0, 0, "PENDIENTE")
+
+
+def test_marcar_listo_parcial_deja_pendientes(db: Session, comanda_con_lineas: Comanda) -> None:
+    salida = _marcar(db, comanda_con_lineas, 1, 4)
+
+    assert _lista(salida, comanda_con_lineas.detalles[1]) == (4, 0, "PENDIENTE")
+
+
+def test_marcar_listo_baja_cantidad(db: Session, comanda_con_lineas: Comanda) -> None:
+    _marcar(db, comanda_con_lineas, 1, 6)
+
+    salida = _marcar(db, comanda_con_lineas, 1, 5)
+
+    assert _lista(salida, comanda_con_lineas.detalles[1]) == (5, 0, "PENDIENTE")
+
+
+def test_marcar_listo_fija_cero(db: Session, comanda_con_lineas: Comanda) -> None:
+    _marcar(db, comanda_con_lineas, 1, 6)
+
+    salida = _marcar(db, comanda_con_lineas, 1, 0)
+
+    assert _lista(salida, comanda_con_lineas.detalles[1]) == (0, 0, "PENDIENTE")
+
+
+def test_marcar_listo_repetido_es_idempotente(db: Session, comanda_con_lineas: Comanda) -> None:
+    primera = _marcar(db, comanda_con_lineas, 1, 4)
+
+    segunda = _marcar(db, comanda_con_lineas, 1, 4)
+
+    assert primera == segunda
+    assert _lista(segunda, comanda_con_lineas.detalles[1]) == (4, 0, "PENDIENTE")
+
+
+def test_marcar_listo_con_entrega_parcial_conserva_cantidad_entregada(
+    db: Session, comanda_con_lineas: Comanda
+) -> None:
+    _entregar(db, comanda_con_lineas, 1, 2)
+
+    salida = _marcar(db, comanda_con_lineas, 1, 7)
+
+    assert _lista(salida, comanda_con_lineas.detalles[1]) == (7, 2, "PENDIENTE")
+
+
+def test_marcar_listo_menor_que_entregado_es_valido(
+    db: Session, comanda_con_lineas: Comanda
+) -> None:
+    _entregar(db, comanda_con_lineas, 1, 6)
+
+    salida = _marcar(db, comanda_con_lineas, 1, 2)
+
+    assert _lista(salida, comanda_con_lineas.detalles[1]) == (2, 6, "PENDIENTE")
+
+
+def test_marcar_listo_no_cambia_estado_entrega_ni_permite_cerrar(
+    db: Session, comanda_con_lineas: Comanda, mesas: MesasEspia
+) -> None:
+    _marcar(db, comanda_con_lineas, 0, 3)
+    _marcar(db, comanda_con_lineas, 1, 10)
+
+    with pytest.raises(service.EntregasPendientesError):
+        service.cerrar_comanda(db, comanda_con_lineas.id, mesas)
+
+    assert _persistido_listo(db, comanda_con_lineas.detalles[0]) == (3, 0, "PENDIENTE")
+    assert mesas.liberadas == []
+
+
+@pytest.mark.parametrize("valor", [0, 2, 3])
+def test_marcar_listo_linea_entregada_lanza_conflicto_sin_cambios(
+    db: Session, comanda_con_lineas: Comanda, valor: int
+) -> None:
+    _marcar(db, comanda_con_lineas, 0, 2)
+    _entregar(db, comanda_con_lineas, 0, 3)
+
+    with pytest.raises(ReglaDeNegocioError, match="ya se entregó por completo"):
+        _marcar(db, comanda_con_lineas, 0, valor)
+
+    assert _persistido_listo(db, comanda_con_lineas.detalles[0]) == (2, 3, "ENTREGADO")
+
+
+def test_marcar_listo_mayor_que_cantidad_lanza_datos_invalidos_sin_cambios(
+    db: Session, comanda_con_lineas: Comanda
+) -> None:
+    with pytest.raises(DatosInvalidosError, match="cantidad pedida"):
+        _marcar(db, comanda_con_lineas, 0, 4)
+
+    assert _persistido_listo(db, comanda_con_lineas.detalles[0]) == (0, 0, "PENDIENTE")
+
+
+def test_marcar_listo_comanda_inexistente_lanza_no_encontrado(
+    db: Session, comanda_con_lineas: Comanda
+) -> None:
+    with pytest.raises(NoEncontradoError, match="comanda 999"):
+        service.marcar_listo(
+            db, 999, comanda_con_lineas.detalles[0].id, ListoDetalle(cantidad_lista=1)
+        )
+
+
+def test_marcar_listo_detalle_inexistente_lanza_no_encontrado(
+    db: Session, comanda_con_lineas: Comanda
+) -> None:
+    with pytest.raises(NoEncontradoError, match="detalle 999"):
+        service.marcar_listo(db, comanda_con_lineas.id, 999, ListoDetalle(cantidad_lista=1))
+
+
+def test_marcar_listo_detalle_de_otra_comanda_lanza_no_encontrado_y_no_cambia(
+    db: Session, comanda: Comanda, comanda_con_lineas: Comanda
+) -> None:
+    ajeno = comanda.detalles[0]
+    antes = _persistido_listo(db, ajeno)
+
+    with pytest.raises(NoEncontradoError, match="detalle"):
+        service.marcar_listo(db, comanda_con_lineas.id, ajeno.id, ListoDetalle(cantidad_lista=1))
+
+    assert _persistido_listo(db, ajeno) == antes
+
+
+@pytest.mark.parametrize("estado", [EstadoComanda.CERRADA, EstadoComanda.ANULADA])
+def test_marcar_listo_comanda_no_abierta_lanza_conflicto(
+    db: Session, comanda_con_lineas: Comanda, estado: EstadoComanda
+) -> None:
+    comanda_con_lineas.estado = estado
+    db.commit()
+
+    with pytest.raises(ReglaDeNegocioError, match="ABIERTA"):
+        _marcar(db, comanda_con_lineas, 0, 3)
+
+    assert _persistido_listo(db, comanda_con_lineas.detalles[0]) == (0, 0, "PENDIENTE")
+
+
+def test_marcar_listo_orden_de_diagnostico(db: Session, comanda_con_lineas: Comanda) -> None:
+    primero = comanda_con_lineas.detalles[0].id
+    datos = ListoDetalle(cantidad_lista=99)  # excede el tope en todos los casos
+    comanda_con_lineas.estado = EstadoComanda.CERRADA
+    db.commit()
+
+    with pytest.raises(NoEncontradoError, match="comanda"):  # comanda antes que detalle
+        service.marcar_listo(db, 999, 999, datos)
+    with pytest.raises(NoEncontradoError, match="detalle"):  # detalle antes que estado
+        service.marcar_listo(db, comanda_con_lineas.id, 999, datos)
+    with pytest.raises(ReglaDeNegocioError, match="ABIERTA"):  # estado antes que entregada
+        service.marcar_listo(db, comanda_con_lineas.id, primero, datos)
+    comanda_con_lineas.estado = EstadoComanda.ABIERTA
+    db.commit()
+    _entregar(db, comanda_con_lineas, 0, 3)
+    with pytest.raises(ReglaDeNegocioError, match="ya se entregó"):  # entregada antes que tope
+        service.marcar_listo(db, comanda_con_lineas.id, primero, datos)
+    with pytest.raises(DatosInvalidosError):
+        service.marcar_listo(db, comanda_con_lineas.id, comanda_con_lineas.detalles[1].id, datos)
+
+
+def test_marcar_listo_otra_sesion_entrega_todo_antes_lanza_conflicto_sin_cambios(
+    db: Session, comanda_con_lineas: Comanda
+) -> None:
+    detalle = comanda_con_lineas.detalles[0]
+    with sessionmaker(bind=db.get_bind())() as otra:
+        service.registrar_entrega(
+            otra, comanda_con_lineas.id, detalle.id, EntregaDetalle(cantidad_entregada=3)
+        )
+
+    with pytest.raises(ReglaDeNegocioError, match="ya se entregó por completo"):
+        _marcar(db, comanda_con_lineas, 0, 2)
+
+    assert _persistido_listo(db, detalle) == (0, 3, "ENTREGADO")
+
+
+def test_marcar_listo_sin_causa_visible_lanza_conflicto_detalle_cambio(
+    db: Session, comanda_con_lineas: Comanda, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(repository, "marcar_listo", lambda *_args: False)
+
+    with pytest.raises(ReglaDeNegocioError, match="El detalle cambió; vuelva a consultar"):
+        _marcar(db, comanda_con_lineas, 0, 1)
+
+
+def test_registrar_entrega_de_linea_lista_pasa_a_entregado(
+    db: Session, comanda_con_lineas: Comanda
+) -> None:
+    _marcar(db, comanda_con_lineas, 0, 3)
+
+    salida = _entregar(db, comanda_con_lineas, 0, 3)
+
+    assert _lista(salida, comanda_con_lineas.detalles[0]) == (3, 3, "ENTREGADO")
+
+
+def test_registrar_entrega_sin_listo_no_exige_marcar_ni_altera_cantidad_lista(
+    db: Session, comanda_con_lineas: Comanda
+) -> None:
+    salida = _entregar(db, comanda_con_lineas, 1, 10)
+
+    assert _lista(salida, comanda_con_lineas.detalles[1]) == (0, 10, "ENTREGADO")
+
+
+def test_consultar_entregas_incluye_cantidad_lista_con_entregados_listos_y_pendientes(
+    db: Session, comanda_con_lineas: Comanda
+) -> None:
+    a, b = comanda_con_lineas.detalles
+    c = DetalleComanda(
+        comanda_id=comanda_con_lineas.id,
+        producto_id=1,
+        cantidad=5,
+        precio_unitario=Decimal("29.90"),
+        descuento=Decimal("0.00"),
+    )
+    db.add(c)
+    db.commit()
+    _entregar(db, comanda_con_lineas, 0, 3)
+    _marcar(db, comanda_con_lineas, 1, 7)
+
+    salida = service.consultar_entregas(db, comanda_con_lineas.id)
+
+    assert [_lista(salida, d) for d in (a, b, c)] == [
+        (0, 3, "ENTREGADO"),
+        (7, 0, "PENDIENTE"),
+        (0, 0, "PENDIENTE"),
+    ]
+
+
+def test_consultar_entregas_detalle_sin_marcar_tiene_cantidad_lista_cero(
+    db: Session, comanda_con_lineas: Comanda
+) -> None:
+    salida = service.consultar_entregas(db, comanda_con_lineas.id)
+
+    assert [d.cantidad_lista for d in salida.detalles] == [0, 0]

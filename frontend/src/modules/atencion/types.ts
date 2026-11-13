@@ -56,6 +56,7 @@ export interface PendientesComanda {
 /** HU-M4-08: entrega por cantidad de cada línea; el estado lo deriva el servidor. */
 export interface DetalleEntrega extends DetallePendiente {
   cantidad_entregada: number;
+  cantidad_lista: number;
   estado_entrega: 'PENDIENTE' | 'ENTREGADO';
 }
 export interface EntregasComanda {
@@ -65,6 +66,10 @@ export interface EntregasComanda {
 }
 export interface EntregaDetalle {
   cantidad_entregada: number;
+}
+/** HU-M4-12: cantidad de unidades listas para servir de una línea (valor absoluto). */
+export interface ListoDetalle {
+  cantidad_lista: number;
 }
 
 export interface Cliente {
