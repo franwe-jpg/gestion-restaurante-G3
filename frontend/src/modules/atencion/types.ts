@@ -108,3 +108,23 @@ export interface CatalogoComanda {
   menus: MenuEjecutivoSeleccionable[];
   nombres: NombresCatalogo;
 }
+
+export type TurnoReporteComandas = 'ALMUERZO' | 'NOCHE';
+
+export interface GrupoReporteComandas {
+  fecha: string;
+  turno: TurnoReporteComandas;
+  cantidad_comandas: number;
+  importe_total: string;
+  ticket_promedio: string;
+}
+
+export interface ReporteComandasTicketPromedio {
+  fecha_desde: string;
+  fecha_hasta: string;
+  turno: TurnoReporteComandas | null;
+  grupos: GrupoReporteComandas[];
+  total_comandas: number;
+  importe_total: string;
+  ticket_promedio: string;
+}

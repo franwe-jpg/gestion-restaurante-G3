@@ -16,6 +16,7 @@ function renderizar(inicial = '/reportes') {
         <Route path="/reportes/productos-mas-vendidos" element={<p>Pantalla M1</p>} />
         <Route path="/reportes/reservas-ausentismo" element={<p>Pantalla M5</p>} />
         <Route path="/reportes/recaudacion-por-medio-de-pago" element={<p>Pantalla M6</p>} />
+        <Route path="/reportes/comandas-ticket-promedio" element={<p>Pantalla M4</p>} />
       </Routes>
     </MemoryRouter>,
   );
@@ -62,6 +63,17 @@ describe('ReportesPage', () => {
     fireEvent.click(within(tarjeta).getByRole('link', { name: 'Generar' }));
 
     expect(screen.getByText('Pantalla M6')).toBeInTheDocument();
+  });
+
+  it('muestra la tarjeta del reporte de comandas y navega a su pantalla', () => {
+    renderizar();
+    const tarjeta = screen.getAllByRole('listitem')[5]!;
+    expect(
+      within(tarjeta).getByText('Comandas y ticket promedio por día/turno'),
+    ).toBeInTheDocument();
+    fireEvent.click(within(tarjeta).getByRole('link', { name: 'Generar' }));
+
+    expect(screen.getByText('Pantalla M4')).toBeInTheDocument();
   });
 
   it('muestra las tarjetas en una fila', () => {

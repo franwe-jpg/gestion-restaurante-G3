@@ -227,3 +227,41 @@ def sumar_productos_pedidos(
         .group_by(DetalleComanda.producto_id, dia, hora)
     )
     return [tuple(fila) for fila in db.execute(consulta)]
+
+
+def resumir_comandas_por_dia_turno(
+    db: Session,
+    desde: datetime,
+    hasta: datetime,
+    turno: str | None,
+) -> list[tuple[str, str, int, Decimal]]:
+    """Agrega comandas CERRADA por fecha/turno local; ignora horarios fuera de turno."""
+    hora_local = cast(func.strftime("%H", Comanda.fecha_hora, "-3 hours"), Integer)
+    turno_local = case(
+        (hora_local.between(12, 15), "ALMUERZO"),
+        (hora_local.between(20, 23), "NOCHE"),
+        else_=None,
+    )
+    fecha_local = func.date(Comanda.fecha_hora, "-3 hours")
+    cantidad = func.count(func.distinct(Comanda.id))
+    importe = func.coalesce(
+        func.sum(
+            DetalleComanda.cantidad * DetalleComanda.precio_unitario - DetalleComanda.descuento
+        ),
+        0,
+    )
+    consulta = (
+        select(fecha_local, turno_local, cantidad, importe)
+        .join(DetalleComanda, DetalleComanda.comanda_id == Comanda.id)
+        .where(
+            Comanda.estado == EstadoComanda.CERRADA,
+            Comanda.fecha_hora >= desde,
+            Comanda.fecha_hora < hasta,
+            or_(hora_local.between(12, 15), hora_local.between(20, 23)),
+        )
+        .group_by(fecha_local, turno_local)
+        .order_by(fecha_local, turno_local)
+    )
+    if turno is not None:
+        consulta = consulta.where(turno_local == turno)
+    return [tuple(fila) for fila in db.execute(consulta).all()]

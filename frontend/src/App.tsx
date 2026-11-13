@@ -60,6 +60,12 @@ const AtencionPage = lazy(() =>
   })),
 );
 
+const ReporteComandasPage = lazy(() =>
+  import('./modules/atencion/pages/ReporteComandasPage').then((modulo) => ({
+    default: modulo.ReporteComandasPage,
+  })),
+);
+
 const ReservasPage = lazy(() =>
   import('./modules/reservas/pages/ReservasPage').then((modulo) => ({
     default: modulo.ReservasPage,
@@ -97,6 +103,7 @@ export default function App() {
           <Route path="menus" element={<MenusPage />} />
           <Route path="salon" element={<SalonPage />} />
           <Route path="atencion" element={<AtencionPage />} />
+          <Route path="reportes/comandas-ticket-promedio" element={<ReporteComandasPage />} />
           <Route path="reservas" element={<ReservasPage />} />
           <Route path="reportes/reservas-ausentismo" element={<ReporteReservasAusentismoPage />} />
           <Route path="pagos" element={<PagosPage />} />

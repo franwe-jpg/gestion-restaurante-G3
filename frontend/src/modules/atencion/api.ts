@@ -12,6 +12,8 @@ import type {
   MesaSeleccionable,
   ProductoSeleccionable,
   PendientesComanda,
+  ReporteComandasTicketPromedio,
+  TurnoReporteComandas,
 } from './types';
 import type { Cliente, ClienteModificar, PaginaCliente } from './types';
 
@@ -107,5 +109,17 @@ export function listarProductos(): Promise<RespuestaApi<Pagina<ProductoSeleccion
 export function listarMenusEjecutivos(): Promise<RespuestaApi<Pagina<MenuEjecutivoSeleccionable>>> {
   return clienteHttp.get<Pagina<MenuEjecutivoSeleccionable>>(
     `/menus-ejecutivos?limit=${LIMITE_CATALOGO}`,
+  );
+}
+
+export function obtenerReporteComandas(
+  fechaDesde: string,
+  fechaHasta: string,
+  turno: TurnoReporteComandas | null,
+): Promise<RespuestaApi<ReporteComandasTicketPromedio>> {
+  const parametros = new URLSearchParams({ fecha_desde: fechaDesde, fecha_hasta: fechaHasta });
+  if (turno) parametros.set('turno', turno);
+  return clienteHttp.get<ReporteComandasTicketPromedio>(
+    `/reportes/comandas-ticket-promedio?${parametros}`,
   );
 }
