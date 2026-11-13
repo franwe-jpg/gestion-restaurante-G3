@@ -1,5 +1,6 @@
 import { useState } from 'react';
 
+import { useSesion } from '../../../shared/auth/useSesion';
 import type { MenuEjecutivo } from '../types';
 import { BarraMenusEjecutivos } from './BarraMenusEjecutivos';
 import { DialogoMenuEjecutivo } from './DialogoMenuEjecutivo';
@@ -58,13 +59,14 @@ export function MenusEjecutivosTab() {
     abrirEdicion,
     menuGuardado,
   } = useGestorMenus();
+  const gestiona = useSesion().puede('MENUS_GESTIONAR');
 
   return (
     <div className="space-y-6">
       <BarraMenusEjecutivos
         estado={listado.estado}
         onCambiarEstado={listado.cambiarEstado}
-        onNuevo={abrirAlta}
+        onNuevo={gestiona ? abrirAlta : undefined}
       />
 
       <ListadoMenuEjecutivos
@@ -75,8 +77,8 @@ export function MenusEjecutivosTab() {
         error={listado.error}
         onReintentar={listado.recargar}
         onCambiarPagina={listado.cambiarPagina}
-        onEditar={abrirEdicion}
-        onDadoDeBaja={listado.recargar}
+        onEditar={gestiona ? abrirEdicion : undefined}
+        onDadoDeBaja={gestiona ? listado.recargar : undefined}
       />
 
       <DialogoMenuEjecutivo

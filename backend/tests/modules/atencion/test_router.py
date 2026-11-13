@@ -20,6 +20,9 @@ from app.modules.salon import service as salon_service
 from app.modules.salon.schemas import MozoCrear
 from app.shared.contratos.comanda import ComandaSalida, EstadoComanda, EstadoEntrega
 from app.shared.models import Categoria
+from app.shared.models.enums import Rol
+from app.shared.seguridad import usuario_actual
+from tests.conftest import usuario_de_prueba
 
 RUTA = "/api/v1/clientes"
 
@@ -73,6 +76,7 @@ def cliente_m4(db: Session) -> Iterator[TestClient]:
     app.exception_handlers.update(app_principal.exception_handlers)
     app.include_router(router, prefix="/api/v1")
     app.dependency_overrides[get_db] = lambda: db
+    app.dependency_overrides[usuario_actual] = lambda: usuario_de_prueba(Rol.ENCARGADO)
     with TestClient(app) as cliente:
         yield cliente
 
@@ -87,6 +91,7 @@ def guardar(db: Session, nombre: str = "Ana", telefono: str = "123") -> Cliente:
 def test_app_principal_registra_get_put_sin_alta_ni_baja(db: Session) -> None:
     registro = guardar(db)
     app_principal.dependency_overrides[get_db] = lambda: db
+    app_principal.dependency_overrides[usuario_actual] = lambda: usuario_de_prueba(Rol.ENCARGADO)
     try:
         with TestClient(app_principal) as cliente:
             listado = cliente.get(RUTA)
@@ -98,6 +103,7 @@ def test_app_principal_registra_get_put_sin_alta_ni_baja(db: Session) -> None:
             baja = cliente.delete(f"{RUTA}/{registro.id}")
     finally:
         app_principal.dependency_overrides.pop(get_db, None)
+        app_principal.dependency_overrides.pop(usuario_actual, None)
 
     assert listado.status_code == 200
     assert listado.json()["items"] == [{"id": registro.id, "nombre": "Ana", "telefono": "123"}]
@@ -550,7 +556,16 @@ def test_crear_comanda_mozo_deshabilitado_devuelve_409_y_no_ocupa_mesa(
 def test_asignar_mozo_a_comanda_historica_expone_el_id_en_respuesta_y_listado(
     cliente: TestClient, db: Session, comanda: Comanda
 ) -> None:
-    mozo = salon_service.crear_mozo(db, MozoCrear(dni="35987654", nombre="Ana", apellido="Paz"))
+    mozo = salon_service.crear_mozo(
+        db,
+        MozoCrear(
+            dni="35987654",
+            nombre="Ana",
+            apellido="Paz",
+            correo="mozo35987654@resto.com",
+            contrasena="Clave1234",
+        ),
+    )
     respuesta = cliente.put(f"{RUTA_COMANDAS}/{comanda.id}/mozo", json={"mozo_id": mozo.id})
 
     assert respuesta.status_code == 200

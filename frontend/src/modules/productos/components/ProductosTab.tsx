@@ -2,6 +2,7 @@ import { Plus } from 'lucide-react';
 import { useCallback, useState } from 'react';
 
 import { Button } from '../../../shared/components/ui/button';
+import { useSesion } from '../../../shared/auth/useSesion';
 import { Pagination } from '../../../shared/components/ui/pagination';
 import { TableToolbar } from '../../../shared/components/ui/table-toolbar';
 import { useApi } from '../../../shared/hooks/useApi';
@@ -9,7 +10,7 @@ import { usePaginacion } from '../../../shared/hooks/usePaginacion';
 import { listarProductos } from '../api';
 import { CONFIGURACIONES } from '../categorias';
 import type { CategoriaAlta } from '../categorias';
-import type { FiltroEstado } from '../types';
+import type { FiltroEstado, ProductoListado } from '../types';
 
 import { AccionesProducto } from './AccionesProducto';
 import { filtroDe } from './filtrosEstado';
@@ -74,7 +75,28 @@ function useListadoProductos() {
   return { estado, cambiarEstado, paginacion, productos, items, alDarDeBaja };
 }
 
+function PaginacionDelListado({ paginacion }: { paginacion: ReturnType<typeof usePaginacion> }) {
+  if (paginacion.totalPaginas <= 1) return null;
+  return (
+    <Pagination
+      pagina={paginacion.pagina}
+      totalPaginas={paginacion.totalPaginas}
+      onCambiarPagina={paginacion.irAPagina}
+    />
+  );
+}
+
+type AlEditar = (categoria: CategoriaAlta, productoId: number) => void;
+
+function renderizarAcciones(onEditar: AlEditar, onDadoDeBaja: () => void) {
+  return function AccionesDeLaFila(producto: ProductoListado) {
+    return <AccionesProducto producto={producto} onEditar={onEditar} onDadoDeBaja={onDadoDeBaja} />;
+  };
+}
+
 export function ProductosTab({ onIrASecciones }: ProductosTabProps) {
+  const { puede } = useSesion();
+  const gestiona = puede('CARTA_GESTIONAR');
   const [dialogo, setDialogo] = useState<DialogoAbierto | null>(null);
   const { estado, cambiarEstado, paginacion, productos, items, alDarDeBaja } =
     useListadoProductos();
@@ -87,7 +109,11 @@ export function ProductosTab({ onIrASecciones }: ProductosTabProps) {
 
   return (
     <div className="space-y-4">
-      <TableToolbar acciones={<BotonesAlta onNuevo={(categoria) => setDialogo({ categoria })} />}>
+      <TableToolbar
+        acciones={
+          gestiona ? <BotonesAlta onNuevo={(categoria) => setDialogo({ categoria })} /> : undefined
+        }
+      >
         <SelectorEstado estado={estado} onCambiar={cambiarEstado} />
       </TableToolbar>
 
@@ -97,22 +123,17 @@ export function ProductosTab({ onIrASecciones }: ProductosTabProps) {
         cargando={productos.cargando}
         error={productos.error}
         onReintentar={productos.recargar}
-        renderAcciones={(producto) => (
-          <AccionesProducto
-            producto={producto}
-            onEditar={(categoria, productoId) => setDialogo({ categoria, productoId })}
-            onDadoDeBaja={alDarDeBaja}
-          />
-        )}
+        renderAcciones={
+          gestiona
+            ? renderizarAcciones(
+                (categoria, productoId) => setDialogo({ categoria, productoId }),
+                alDarDeBaja,
+              )
+            : undefined
+        }
       />
 
-      {paginacion.totalPaginas > 1 && (
-        <Pagination
-          pagina={paginacion.pagina}
-          totalPaginas={paginacion.totalPaginas}
-          onCambiarPagina={paginacion.irAPagina}
-        />
-      )}
+      <PaginacionDelListado paginacion={paginacion} />
 
       {dialogo && (
         <ProductoFormDialog

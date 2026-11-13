@@ -8,7 +8,8 @@ import type { FiltroEstado } from '../types';
 interface BarraMenusEjecutivosProps {
   estado: FiltroEstado;
   onCambiarEstado: (estado: FiltroEstado) => void;
-  onNuevo: () => void;
+  /** Sin `onNuevo` (rol sin permiso de gestion) no se muestra el boton de alta. */
+  onNuevo?: () => void;
 }
 
 export function BarraMenusEjecutivos({
@@ -29,10 +30,12 @@ export function BarraMenusEjecutivos({
           <option value="TODOS">Todos</option>
         </Select>
       </FormField>
-      <Button onClick={onNuevo}>
-        <Plus className="h-4 w-4" aria-hidden="true" />
-        Nuevo menú ejecutivo
-      </Button>
+      {onNuevo && (
+        <Button onClick={onNuevo}>
+          <Plus className="h-4 w-4" aria-hidden="true" />
+          Nuevo menú ejecutivo
+        </Button>
+      )}
     </div>
   );
 }

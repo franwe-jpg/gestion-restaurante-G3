@@ -17,7 +17,14 @@ from app.modules.pagos.router import router as pagos_router
 from app.modules.productos.router import router as productos_router
 from app.modules.reservas.router import router as reservas_router
 from app.modules.salon.router import router as salon_router
-from app.shared.excepciones import DatosInvalidosError, NoEncontradoError, ReglaDeNegocioError
+from app.modules.usuarios.router import router as usuarios_router
+from app.shared.excepciones import (
+    DatosInvalidosError,
+    NoAutenticadoError,
+    NoEncontradoError,
+    ReglaDeNegocioError,
+    SinPermisoError,
+)
 
 app = FastAPI(title="Sistema de Gestion de Restaurante", docs_url="/docs")
 
@@ -34,6 +41,7 @@ app.include_router(pagos_router, prefix=API_PREFIX)
 app.include_router(productos_router, prefix=API_PREFIX)
 app.include_router(salon_router, prefix=API_PREFIX)
 app.include_router(reservas_router, prefix=API_PREFIX)
+app.include_router(usuarios_router, prefix=API_PREFIX)
 
 
 def montar_media(aplicacion: FastAPI, directorio: str | Path) -> None:
@@ -80,6 +88,20 @@ def manejar_datos_invalidos_de_negocio(
     _solicitud: Request, error: DatosInvalidosError
 ) -> JSONResponse:
     return JSONResponse(status_code=422, content={"detalle": str(error)})
+
+
+@app.exception_handler(NoAutenticadoError)
+def manejar_no_autenticado(_solicitud: Request, error: NoAutenticadoError) -> JSONResponse:
+    return JSONResponse(
+        status_code=401,
+        content={"detalle": str(error)},
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
+@app.exception_handler(SinPermisoError)
+def manejar_sin_permiso(_solicitud: Request, error: SinPermisoError) -> JSONResponse:
+    return JSONResponse(status_code=403, content={"detalle": str(error)})
 
 
 @app.exception_handler(RequestValidationError)

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 
+import { useSesion } from '../../../shared/auth/useSesion';
 import { useApi } from '../../../shared/hooks/useApi';
 import { listarProductosParaPromocion } from '../api';
 import type { Promocion } from '../types';
@@ -13,6 +14,7 @@ import { useListaPromociones } from './useListaPromociones';
 export function PromocionesTab() {
   const [formularioAbierto, setFormularioAbierto] = useState(false);
   const [promocionEnEdicion, setPromocionEnEdicion] = useState<Promocion | null>(null);
+  const gestiona = useSesion().puede('MENUS_GESTIONAR');
   const lista = useListaPromociones();
   const productos = useApi(() => listarProductosParaPromocion(), 'productos-promocion');
 
@@ -38,7 +40,7 @@ export function PromocionesTab() {
 
   return (
     <div className="space-y-6">
-      <BarraPromociones onNueva={abrirAlta} />
+      <BarraPromociones onNueva={gestiona ? abrirAlta : undefined} />
       <ListadoPromociones
         promociones={lista.promociones}
         pagina={lista.pagina}
@@ -47,8 +49,8 @@ export function PromocionesTab() {
         error={lista.error}
         onReintentar={lista.recargar}
         onCambiarPagina={lista.cambiarPagina}
-        onEditar={abrirEdicion}
-        onFinalizada={lista.recargar}
+        onEditar={gestiona ? abrirEdicion : undefined}
+        onFinalizada={gestiona ? lista.recargar : undefined}
       />
       <DialogoPromocion
         abierto={formularioAbierto}

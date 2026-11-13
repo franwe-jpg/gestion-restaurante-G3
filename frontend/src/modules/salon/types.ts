@@ -50,25 +50,49 @@ export interface MesaModificar {
   sector_id: number;
 }
 
-export interface Mozo {
+/** Datos comunes de las personas del salón con acceso al sistema (mozos y chefs). */
+export interface Persona {
   id: number;
   dni: string;
   nombre: string;
   apellido: string;
   telefono: string | null;
   estado: Estado;
+  /** Correo del usuario vinculado; nulo si la persona todavía no tiene usuario (S5). */
+  correo: string | null;
 }
 
-// HU-M3-09: alta de mozos. El estado no se envía: el sistema lo fija en HABILITADO.
-export interface MozoCrear {
+export type Mozo = Persona;
+
+export type Chef = Persona;
+
+// HU-M3-09 y HU-TR-01: alta con correo y contraseña. El estado no se envía: el sistema lo fija.
+export interface PersonaCrear {
   dni: string;
   nombre: string;
   apellido: string;
   telefono?: string | null;
+  correo: string;
+  contrasena: string;
 }
 
-// HU-M3-10: modificación de mozos. El estado no se envía: lo conserva el mozo.
-export type MozoModificar = MozoCrear;
+// HU-M3-10 y HU-TR-01: la contraseña vacía o ausente conserva la actual (S2).
+export interface PersonaModificar {
+  dni: string;
+  nombre: string;
+  apellido: string;
+  telefono?: string | null;
+  correo: string;
+  contrasena?: string;
+}
+
+export type MozoCrear = PersonaCrear;
+
+export type MozoModificar = PersonaModificar;
+
+export type ChefCrear = PersonaCrear;
+
+export type ChefModificar = PersonaModificar;
 
 // HU-M3-13: reporte de mesas atendidas y ventas por mozo. Los importes son texto decimal.
 export interface LineaReporteMozo {

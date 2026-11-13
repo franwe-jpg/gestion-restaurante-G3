@@ -18,6 +18,7 @@ const MOZO: Mozo = {
   apellido: 'Fernández',
   telefono: null,
   estado: 'HABILITADO',
+  correo: 'juan@resto.com',
 };
 
 const DESCRIPCION = 'El mozo quedará deshabilitado y no se podrá asignar a nuevas mesas.';

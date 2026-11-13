@@ -30,12 +30,8 @@ class Sector(Base):
         return nombre
 
 
-class Mozo(Base):
-    __tablename__ = "mozos"
-    __table_args__ = (
-        # A1: el DNI identifica a la persona y no se repite.
-        sa.UniqueConstraint("dni", name="ux_mozos_dni"),
-    )
+class _DatosPersona:
+    """Columnas comunes de las personas del salon (A9): mozos y chefs."""
 
     id: Mapped[int] = mapped_column(primary_key=True)
     dni: Mapped[str] = mapped_column(sa.String(8))
@@ -44,6 +40,27 @@ class Mozo(Base):
     telefono: Mapped[str | None] = mapped_column(sa.String(30))
     estado: Mapped[Estado] = mapped_column(
         sa.Enum(Estado, native_enum=False), default=Estado.HABILITADO
+    )
+    # A8: vinculo nulo y unico con el usuario; se declara como texto para no importar usuarios.
+    usuario_id: Mapped[int | None] = mapped_column(
+        sa.ForeignKey("usuarios.id", ondelete="SET NULL"), default=None
+    )
+
+
+class Mozo(_DatosPersona, Base):
+    __tablename__ = "mozos"
+    __table_args__ = (
+        # A1: el DNI identifica a la persona y no se repite.
+        sa.UniqueConstraint("dni", name="ux_mozos_dni"),
+        sa.Index("ux_mozos_usuario_id", "usuario_id", unique=True),
+    )
+
+
+class Chef(_DatosPersona, Base):
+    __tablename__ = "chefs"
+    __table_args__ = (
+        sa.UniqueConstraint("dni", name="ux_chefs_dni"),
+        sa.Index("ux_chefs_usuario_id", "usuario_id", unique=True),
     )
 
 

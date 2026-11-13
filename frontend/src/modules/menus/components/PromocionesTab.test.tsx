@@ -10,6 +10,7 @@ import {
   listarPromociones,
   modificarPromocion,
 } from '../api';
+import { usarRoles } from '../../../test/sesionDePrueba';
 import type { Promocion } from '../types';
 
 import { PromocionesTab } from './PromocionesTab';
@@ -277,5 +278,34 @@ describe('pestaña Promociones: finalización', () => {
     expect(
       screen.queryByRole('button', { name: 'Finalizar «Happy hour»' }),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe('PromocionesTab: según el rol', () => {
+  function abrirComo(rol: 'ENCARGADO' | 'MOZO' | 'CHEF') {
+    usarRoles([rol]);
+    render(
+      <ConfirmProvider>
+        <PromocionesTab />
+      </ConfirmProvider>,
+    );
+  }
+
+  it('el encargado ve «Nueva promoción», Editar y Finalizar', async () => {
+    abrirComo('ENCARGADO');
+
+    expect(await screen.findByText('Happy hour')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Nueva promoción' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Editar «Happy hour»' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Finalizar «Happy hour»' })).toBeInTheDocument();
+  });
+
+  it.each([['MOZO'], ['CHEF']] as const)('el %s solo ve el listado', async (rol) => {
+    abrirComo(rol);
+
+    expect(await screen.findByText('Happy hour')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Nueva promoción' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Editar|Finalizar/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'Acciones' })).not.toBeInTheDocument();
   });
 });

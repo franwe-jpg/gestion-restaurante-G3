@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSesion } from '../../../shared/auth/useSesion';
 import { PageHeader } from '../../../shared/components/PageHeader';
 import { Button } from '../../../shared/components/ui/button';
 import { useAbrirDesdeUrl } from '../../../shared/hooks/useAbrirDesdeUrl';
@@ -66,7 +67,20 @@ function useEnlacesAtencion() {
   };
 }
 
+/** Sin `COMANDAS_OPERAR` no hay `onNueva` y el encabezado no ofrece el alta. */
+function EncabezadoAtencion({ onNueva }: { onNueva?: () => void }) {
+  return (
+    <PageHeader
+      titulo="Atención al Público"
+      descripcion="Toma de pedidos, seguimiento de comandas y estado de servicio en cocina."
+      acciones={onNueva ? <Button onClick={onNueva}>Nueva comanda</Button> : undefined}
+    />
+  );
+}
+
 export function AtencionPage() {
+  const { puede } = useSesion();
+  const opera = puede('COMANDAS_OPERAR');
   const comandas = useComandas();
   const enlaces = useEnlacesAtencion();
   useAbrirDesdeUrl('nueva', () => enlaces.setAlta(true));
@@ -79,15 +93,13 @@ export function AtencionPage() {
   const acciones = accionesAtencion(comandas.recargar, enlaces.setAlta, setCierreId, setAviso);
   return (
     <div className="space-y-6">
-      <PageHeader
-        titulo="Atención al Público"
-        descripcion="Toma de pedidos, seguimiento de comandas y estado de servicio en cocina."
-        acciones={<Button onClick={enlaces.abrirAlta}>Nueva comanda</Button>}
-      />
-      <PanelClientes />
+      <EncabezadoAtencion onNueva={opera ? enlaces.abrirAlta : undefined} />
+      {puede('CLIENTES_GESTIONAR') && <PanelClientes />}
       <ComandasPanel
         comandas={comandas}
         aviso={aviso}
+        puedeOperar={opera}
+        puedeFacturar={puede('PAGOS_OPERAR')}
         onCerrar={setCierreId}
         onEntregas={(id) => irAEntregas(id, false)}
         onModificar={setModificarId}
@@ -96,11 +108,12 @@ export function AtencionPage() {
         onFacturar={enlaces.irAFacturar}
       />
       <AtencionDialogs
-        alta={enlaces.alta}
+        alta={opera && enlaces.alta}
         mesaInicial={enlaces.mesaInicial}
         cierreId={cierreId}
         modificarId={modificarId}
         entregas={entregas}
+        soloLectura={!opera}
         onAlta={enlaces.setAlta}
         onCreada={acciones.creada}
         onSalirCierre={() => setCierreId(null)}

@@ -37,6 +37,8 @@ const props = {
   ],
   hayFiltros: false,
   ocupado: false,
+  puedeOperar: true,
+  puedeFacturar: true,
   onCerrar: () => undefined,
   onEntregas: () => undefined,
   onModificar: () => undefined,

@@ -15,11 +15,15 @@ export interface MediosPagoTablaProps {
   cargando?: boolean;
   error?: string | null;
   onReintentar?: () => void;
+  /** Sin `onEditar` y `onEliminar` (rol sin `PAGOS_GESTIONAR`) no hay columna de acciones. */
+  onEditar?: (medioPago: MedioPago) => void;
+  onEliminar?: (medioPago: MedioPago) => void;
+}
+
+interface Acciones {
   onEditar: (medioPago: MedioPago) => void;
   onEliminar: (medioPago: MedioPago) => void;
 }
-
-type Acciones = Pick<MediosPagoTablaProps, 'onEditar' | 'onEliminar'>;
 
 function AccionesMedioPago({
   medioPago,
@@ -50,8 +54,8 @@ function AccionesMedioPago({
   );
 }
 
-function columnas({ onEditar, onEliminar }: Acciones): ColumnaTabla<MedioPago>[] {
-  return [
+function columnas(acciones?: Acciones): ColumnaTabla<MedioPago>[] {
+  const base: ColumnaTabla<MedioPago>[] = [
     {
       clave: 'nombre',
       encabezado: 'Nombre',
@@ -72,12 +76,14 @@ function columnas({ onEditar, onEliminar }: Acciones): ColumnaTabla<MedioPago>[]
         </Badge>
       ),
     },
+  ];
+  if (!acciones) return base;
+  return [
+    ...base,
     {
       clave: 'acciones',
       encabezado: <span className="sr-only">Acciones</span>,
-      render: (medio) => (
-        <AccionesMedioPago medioPago={medio} onEditar={onEditar} onEliminar={onEliminar} />
-      ),
+      render: (medio) => <AccionesMedioPago medioPago={medio} {...acciones} />,
       className: 'w-24',
     },
   ];
@@ -95,7 +101,7 @@ export function MediosPagoTabla({
 }: MediosPagoTablaProps) {
   return (
     <DataTable
-      columnas={columnas({ onEditar, onEliminar })}
+      columnas={columnas(onEditar && onEliminar ? { onEditar, onEliminar } : undefined)}
       filas={mediosPago}
       obtenerClave={(medio) => medio.id}
       cargando={cargando}

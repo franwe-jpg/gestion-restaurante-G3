@@ -2,6 +2,7 @@ import { Plus, Receipt } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
+import { useSesion } from '../../../shared/auth/useSesion';
 import { PageHeader } from '../../../shared/components/PageHeader';
 import { Button } from '../../../shared/components/ui/button';
 import { Card, CardContent } from '../../../shared/components/ui/card';
@@ -44,7 +45,8 @@ interface ListadoMediosPagoProps {
   listado: ReturnType<typeof useMediosPagoDelModulo>;
   incluirDeshabilitados: boolean;
   onCambiarIncluirDeshabilitados: (incluir: boolean) => void;
-  onEditar: (medioPago: MedioPago) => void;
+  /** Sin `PAGOS_GESTIONAR` el listado es de solo lectura. */
+  onEditar?: (medioPago: MedioPago) => void;
 }
 
 /** HU-M6-07: casilla de deshabilitados, tabla y paginación. */
@@ -74,7 +76,7 @@ function ListadoMediosPago({
           error={error}
           onReintentar={recargar}
           onEditar={onEditar}
-          onEliminar={(medioPago) => void eliminar(medioPago)}
+          onEliminar={onEditar ? (medioPago) => void eliminar(medioPago) : undefined}
         />
         {paginacion.totalPaginas > 1 && (
           <Pagination
@@ -91,7 +93,8 @@ function ListadoMediosPago({
 interface EncabezadoDePagosProps {
   pestana: string;
   onFacturar: () => void;
-  onNuevoMedioPago: () => void;
+  /** Sin `PAGOS_GESTIONAR` no se ofrece el alta de medios de pago. */
+  onNuevoMedioPago?: () => void;
 }
 
 function EncabezadoDePagos({ pestana, onFacturar, onNuevoMedioPago }: EncabezadoDePagosProps) {
@@ -105,7 +108,7 @@ function EncabezadoDePagos({ pestana, onFacturar, onNuevoMedioPago }: Encabezado
             <Receipt className="h-4 w-4" aria-hidden="true" />
             Facturar comanda
           </Button>
-          {pestana === 'medios' && (
+          {pestana === 'medios' && onNuevoMedioPago && (
             <Button onClick={onNuevoMedioPago}>
               <Plus className="h-4 w-4" aria-hidden="true" />
               Nuevo medio de pago
@@ -123,7 +126,7 @@ interface PestanasDePagosProps {
   listado: ReturnType<typeof useMediosPagoDelModulo>;
   incluirDeshabilitados: boolean;
   onCambiarIncluirDeshabilitados: (incluir: boolean) => void;
-  onEditarMedioPago: (medioPago: MedioPago) => void;
+  onEditarMedioPago?: (medioPago: MedioPago) => void;
   refrescoFacturas: number;
 }
 
@@ -184,6 +187,7 @@ function useComandaDelEnlace() {
 }
 
 export function PagosPage() {
+  const gestiona = useSesion().puede('PAGOS_GESTIONAR');
   const enlace = useComandaDelEnlace();
   const [comandaInicial, setComandaInicial] = useState(enlace);
   const [pestana, setPestana] = useState('medios');
@@ -201,7 +205,7 @@ export function PagosPage() {
           setComandaInicial(undefined);
           setFacturando(true);
         }}
-        onNuevoMedioPago={() => dialogo.abrir()}
+        onNuevoMedioPago={gestiona ? () => dialogo.abrir() : undefined}
       />
       <PestanasDePagos
         pestana={pestana}
@@ -209,7 +213,7 @@ export function PagosPage() {
         listado={listado}
         incluirDeshabilitados={incluirDeshabilitados}
         onCambiarIncluirDeshabilitados={setIncluirDeshabilitados}
-        onEditarMedioPago={(medioPago) => dialogo.abrir(medioPago)}
+        onEditarMedioPago={gestiona ? (medioPago) => dialogo.abrir(medioPago) : undefined}
         refrescoFacturas={refrescoFacturas}
       />
       {facturando && (

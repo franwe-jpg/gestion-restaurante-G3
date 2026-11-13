@@ -1,6 +1,7 @@
 import { Plus } from 'lucide-react';
 import { useCallback, useState } from 'react';
 
+import { useSesion } from '../../../shared/auth/useSesion';
 import { PageHeader } from '../../../shared/components/PageHeader';
 import { Button } from '../../../shared/components/ui/button';
 import { Card, CardDescription, CardHeader } from '../../../shared/components/ui/card';
@@ -28,10 +29,11 @@ type Panel = 'cerrado' | 'alta' | { edicion: Reserva } | { comanda: Reserva };
 
 interface ListadoDelDiaProps {
   listado: ReturnType<typeof useListadoReservas>;
-  onCrearComanda: (reserva: Reserva) => void;
-  onModificar: (reserva: Reserva) => void;
-  onCancelarAnticipada: (reserva: Reserva) => void;
-  onCancelarPorAusencia: (reserva: Reserva) => void;
+  /** Las cuatro acciones van juntas: sin `RESERVAS_OPERAR` no se pasan. */
+  onCrearComanda?: (reserva: Reserva) => void;
+  onModificar?: (reserva: Reserva) => void;
+  onCancelarAnticipada?: (reserva: Reserva) => void;
+  onCancelarPorAusencia?: (reserva: Reserva) => void;
 }
 
 /** Navegador de fecha, filtro de estado, tabla del día y paginación. */
@@ -113,9 +115,12 @@ function ModalDeReserva({ panel, onOpenChange, onGuardado }: ModalDeReservaProps
 }
 
 export function ReservasPage() {
+  const opera = useSesion().puede('RESERVAS_OPERAR');
   const listado = useListadoReservas();
   const [panel, setPanel] = useState<Panel>('cerrado');
-  useAbrirDesdeUrl('nueva', () => setPanel('alta'));
+  useAbrirDesdeUrl('nueva', () => {
+    if (opera) setPanel('alta');
+  });
   const { cancelarAnticipada, cancelarPorAusencia } = useCancelarReserva({
     onCancelada: listado.reservas.recargar,
   });
@@ -136,19 +141,21 @@ export function ReservasPage() {
         titulo="Reservas"
         descripcion="Libro de reservas, turnos de almuerzo/cena y confirmación de comensales."
         acciones={
-          <Button onClick={() => setPanel('alta')} disabled={typeof panel === 'object'}>
-            <Plus className="h-4 w-4" aria-hidden="true" />
-            Nueva reserva
-          </Button>
+          opera ? (
+            <Button onClick={() => setPanel('alta')} disabled={typeof panel === 'object'}>
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Nueva reserva
+            </Button>
+          ) : undefined
         }
       />
 
       <ListadoDelDia
         listado={listado}
-        onCrearComanda={(reserva) => setPanel({ comanda: reserva })}
-        onModificar={(reserva) => setPanel({ edicion: reserva })}
-        onCancelarAnticipada={(reserva) => void cancelarAnticipada(reserva)}
-        onCancelarPorAusencia={(reserva) => void cancelarPorAusencia(reserva)}
+        onCrearComanda={opera ? (reserva) => setPanel({ comanda: reserva }) : undefined}
+        onModificar={opera ? (reserva) => setPanel({ edicion: reserva }) : undefined}
+        onCancelarAnticipada={opera ? (reserva) => void cancelarAnticipada(reserva) : undefined}
+        onCancelarPorAusencia={opera ? (reserva) => void cancelarPorAusencia(reserva) : undefined}
       />
       <ModalDeReserva panel={panel} onOpenChange={alCambiarModal} onGuardado={alGuardar} />
     </div>

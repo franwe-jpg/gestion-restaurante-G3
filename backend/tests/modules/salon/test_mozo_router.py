@@ -21,6 +21,8 @@ def _cuerpo(**cambios) -> dict:
         "nombre": "Juan",
         "apellido": "Fernández",
         "telefono": "280 412-3456",
+        "correo": "juan@resto.com",
+        "contrasena": "Clave1234",
     } | cambios
 
 
@@ -41,11 +43,12 @@ def test_crear_mozo_responde_201_con_la_forma_de_mozo_salida(cliente: TestClient
         "apellido": "Fernández",
         "telefono": "280 412-3456",
         "estado": "HABILITADO",
+        "correo": "juan@resto.com",
     }
 
 
 def test_crear_mozo_sin_telefono_responde_201(cliente: TestClient) -> None:
-    respuesta = cliente.post(RUTA, json={"dni": "7123456", "nombre": "Ana", "apellido": "Romero"})
+    respuesta = cliente.post(RUTA, json=_cuerpo(dni="7123456", nombre="Ana", telefono=None))
 
     assert respuesta.status_code == 201
     assert respuesta.json()["telefono"] is None
@@ -213,6 +216,8 @@ def test_modificar_mozo_responde_200_con_la_forma_de_mozo_salida(
             "nombre": "Juan Carlos",
             "apellido": "Pérez",
             "telefono": "280 400-0000",
+            "correo": "juan@resto.com",
+            "contrasena": "Clave1234",  # el mozo de fabrica_mozo no tiene usuario (S5)
         },
     )
 
@@ -224,6 +229,7 @@ def test_modificar_mozo_responde_200_con_la_forma_de_mozo_salida(
         "apellido": "Pérez",
         "telefono": "280 400-0000",
         "estado": "HABILITADO",
+        "correo": "juan@resto.com",
     }
     assert _mozo_del_listado(cliente, mozo.id) == respuesta.json()
 
@@ -233,7 +239,7 @@ def test_modificar_mozo_conserva_el_estado_deshabilitado(cliente: TestClient, fa
 
     respuesta = cliente.put(
         f"{RUTA}/{mozo.id}",
-        json={"dni": "30123456", "nombre": "Juan", "apellido": "Gómez"},
+        json=_cuerpo(apellido="Gómez"),
     )
 
     assert respuesta.status_code == 200

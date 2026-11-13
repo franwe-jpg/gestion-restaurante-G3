@@ -12,6 +12,7 @@ import {
   modificarMenuDelDia,
   obtenerMenuDelDia,
 } from '../api';
+import { usarRoles } from '../../../test/sesionDePrueba';
 import type { MenuDelDia, MenuDelDiaListado } from '../types';
 
 import { MenuDelDiaTab } from './MenuDelDiaTab';
@@ -244,4 +245,35 @@ describe('pestaña Menú del día: edición', () => {
 
     expect(await screen.findByText('No se pudo conectar con el backend')).toBeInTheDocument();
   });
+});
+
+describe('pestaña Menú del día: según el rol', () => {
+  it('el encargado ve el formulario y las acciones de fila', async () => {
+    usarRoles(['ENCARGADO']);
+    conMenus();
+    abrir();
+
+    expect(await screen.findByText('Guiso de lentejas')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Guardar menú' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Modificar Guiso de lentejas' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Dar de baja Guiso de lentejas' }),
+    ).toBeInTheDocument();
+  });
+
+  it.each([['MOZO'], ['CHEF']] as const)(
+    'el %s ve el listado sin formulario ni acciones',
+    async (rol) => {
+      usarRoles([rol]);
+      conMenus();
+      abrir();
+
+      expect(await screen.findByText('Guiso de lentejas')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Guardar menú' })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: /Modificar|Dar de baja/ }),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('columnheader', { name: 'Acciones' })).not.toBeInTheDocument();
+    },
+  );
 });

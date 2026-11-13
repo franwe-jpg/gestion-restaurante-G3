@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { Activity, ChefHat, Palette } from 'lucide-react';
 
+import { useSesion } from '../../auth/useSesion';
 import { cn } from '../../lib/utils';
 import { Separator } from '../ui/separator';
 
@@ -13,6 +14,9 @@ export interface SidebarProps {
 }
 
 export function Sidebar({ colapsada = false, alSeleccionarEnlace, className }: SidebarProps) {
+  const { puede } = useSesion();
+  const elementos = ELEMENTOS_NAVEGACION.filter((item) => puede(item.permiso));
+
   return (
     <aside
       aria-label="Navegación principal"
@@ -45,7 +49,7 @@ export function Sidebar({ colapsada = false, alSeleccionarEnlace, className }: S
 
         {/* Enlaces de Módulos */}
         <nav className="space-y-1 p-2" aria-label="Módulos del restaurante">
-          {ELEMENTOS_NAVEGACION.map((item) => {
+          {elementos.map((item) => {
             const Icono = item.icono;
             return (
               <NavLink

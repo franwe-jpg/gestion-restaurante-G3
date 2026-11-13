@@ -23,69 +23,85 @@ from app.modules.pagos.schemas import (
     ResumenRecaudacion,
 )
 from app.shared.paginacion import Pagina, ParametrosPaginacion
+from app.shared.permisos import Permiso
+from app.shared.seguridad import requiere
 
 router = APIRouter()
 
 Sesion = Annotated[Session, Depends(get_db)]
 
 
-@router.post("/medios-de-pago", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/medios-de-pago",
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[requiere(Permiso.PAGOS_GESTIONAR)],
+)
 def crear_medio_pago(datos: MedioPagoCrear, db: Sesion) -> MedioPagoSalida:
     return service.crear_medio_pago(db, datos)
 
 
-@router.put("/medios-de-pago/{medio_pago_id}")
+@router.put("/medios-de-pago/{medio_pago_id}", dependencies=[requiere(Permiso.PAGOS_GESTIONAR)])
 def modificar_medio_pago(
     medio_pago_id: int, datos: MedioPagoModificar, db: Sesion
 ) -> MedioPagoSalida:
     return service.modificar_medio_pago(db, medio_pago_id, datos)
 
 
-@router.delete("/medios-de-pago/{medio_pago_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/medios-de-pago/{medio_pago_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[requiere(Permiso.PAGOS_GESTIONAR)],
+)
 def eliminar_medio_pago(medio_pago_id: int, db: Sesion) -> None:
     service.eliminar_medio_pago(db, medio_pago_id)
 
 
-@router.get("/medios-de-pago")
+@router.get("/medios-de-pago", dependencies=[requiere(Permiso.PAGOS_OPERAR)])
 def listar_medios_pago(
     db: Sesion, filtro: Annotated[FiltroMediosPago, Query()]
 ) -> Pagina[MedioPagoSalida]:
     return service.listar_medios_pago(db, filtro)
 
 
-@router.get("/facturas")
+@router.get("/facturas", dependencies=[requiere(Permiso.PAGOS_OPERAR)])
 def listar_facturas(
     db: Sesion, filtro: Annotated[ParametrosPaginacion, Query()]
 ) -> Pagina[FacturaResumenSalida]:
     return service.listar_facturas(db, filtro)
 
 
-@router.get("/facturas/previsualizar")
+@router.get("/facturas/previsualizar", dependencies=[requiere(Permiso.PAGOS_OPERAR)])
 def previsualizar_factura(db: Sesion, comanda_id: Annotated[int, Query(gt=0)]) -> FacturaPrevia:
     return service.previsualizar_factura(db, comanda_id)
 
 
-@router.post("/facturas", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/facturas", status_code=status.HTTP_201_CREATED, dependencies=[requiere(Permiso.PAGOS_OPERAR)]
+)
 def generar_factura(datos: FacturaCrear, db: Sesion) -> FacturaSalida:
     return service.generar_factura(db, datos)
 
 
-@router.post("/facturas/{factura_id}/cobros", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/facturas/{factura_id}/cobros",
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[requiere(Permiso.PAGOS_OPERAR)],
+)
 def registrar_cobro(factura_id: int, datos: CobroCrear, db: Sesion) -> FacturaSalida:
     return service.registrar_cobro(db, factura_id, datos)
 
 
-@router.get("/facturas/{factura_id}")
+@router.get("/facturas/{factura_id}", dependencies=[requiere(Permiso.PAGOS_OPERAR)])
 def obtener_factura(factura_id: int, db: Sesion) -> FacturaSalida:
     return service.obtener_factura(db, factura_id)
 
 
-@router.get("/comprobantes/{numero_comprobante}")
+@router.get("/comprobantes/{numero_comprobante}", dependencies=[requiere(Permiso.PAGOS_OPERAR)])
 def obtener_comprobante(numero_comprobante: int, db: Sesion) -> ComprobanteSalida:
     return service.obtener_comprobante(db, numero_comprobante)
 
 
-@router.get("/comprobantes/{numero_comprobante}/pdf")
+@router.get("/comprobantes/{numero_comprobante}/pdf", dependencies=[requiere(Permiso.PAGOS_OPERAR)])
 def descargar_comprobante_pdf(numero_comprobante: int, db: Sesion) -> Response:
     archivo = service.generar_pdf_comprobante(db, numero_comprobante)
     return Response(
@@ -95,19 +111,23 @@ def descargar_comprobante_pdf(numero_comprobante: int, db: Sesion) -> Response:
     )
 
 
-@router.get("/reportes/caja-del-dia")
+@router.get("/reportes/caja-del-dia", dependencies=[requiere(Permiso.REPORTES_VER)])
 def obtener_caja_del_dia(db: Sesion) -> CajaDelDiaSalida:
     return service.obtener_caja_del_dia(db)
 
 
-@router.get("/reportes/recaudacion-por-medio-de-pago")
+@router.get(
+    "/reportes/recaudacion-por-medio-de-pago", dependencies=[requiere(Permiso.REPORTES_VER)]
+)
 def reporte_recaudacion(
     db: Sesion, fecha_desde: date | None = None, fecha_hasta: date | None = None
 ) -> ResumenRecaudacion:
     return service.generar_reporte_recaudacion(db, fecha_desde, fecha_hasta)
 
 
-@router.get("/reportes/recaudacion-por-medio-de-pago/pdf")
+@router.get(
+    "/reportes/recaudacion-por-medio-de-pago/pdf", dependencies=[requiere(Permiso.REPORTES_VER)]
+)
 def reporte_recaudacion_pdf(
     db: Sesion, fecha_desde: date | None = None, fecha_hasta: date | None = None
 ) -> Response:

@@ -31,6 +31,8 @@ from app.modules.productos.schemas import (
     SeccionSalida,
 )
 from app.shared.paginacion import Pagina
+from app.shared.permisos import Permiso
+from app.shared.seguridad import requiere
 
 router = APIRouter()
 
@@ -64,7 +66,9 @@ def leer_imagen(imagen: UploadFile | None) -> bytes | None:
     return imagen.file.read(imagenes.TAMANO_MAXIMO_BYTES + 1)
 
 
-@router.post("/platos", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/platos", status_code=status.HTTP_201_CREATED, dependencies=[requiere(Permiso.CARTA_GESTIONAR)]
+)
 def crear_plato(
     datos: Annotated[PlatoCrear, Depends(datos_de(PlatoCrear))],
     db: Sesion,
@@ -73,12 +77,12 @@ def crear_plato(
     return service.crear_producto(db, datos, leer_imagen(imagen))
 
 
-@router.get("/platos/{producto_id}")
+@router.get("/platos/{producto_id}", dependencies=[requiere(Permiso.CARTA_VER)])
 def consultar_plato(producto_id: int, db: Sesion) -> ProductoSalida:
     return service.obtener_producto(db, PlatoCrear.CATEGORIA, producto_id)
 
 
-@router.put("/platos/{producto_id}")
+@router.put("/platos/{producto_id}", dependencies=[requiere(Permiso.CARTA_GESTIONAR)])
 def modificar_plato(
     producto_id: int,
     datos: Annotated[PlatoModificar, Depends(datos_de(PlatoModificar))],
@@ -88,12 +92,16 @@ def modificar_plato(
     return service.modificar_producto(db, producto_id, datos, leer_imagen(imagen))
 
 
-@router.post("/platos/{producto_id}/baja")
+@router.post("/platos/{producto_id}/baja", dependencies=[requiere(Permiso.CARTA_GESTIONAR)])
 def dar_de_baja_plato(producto_id: int, db: Sesion) -> ProductoSalida:
     return service.dar_de_baja_producto(db, PlatoCrear.CATEGORIA, producto_id)
 
 
-@router.post("/postres", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/postres",
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[requiere(Permiso.CARTA_GESTIONAR)],
+)
 def crear_postre(
     datos: Annotated[PostreCrear, Depends(datos_de(PostreCrear))],
     db: Sesion,
@@ -102,12 +110,12 @@ def crear_postre(
     return service.crear_producto(db, datos, leer_imagen(imagen))
 
 
-@router.get("/postres/{producto_id}")
+@router.get("/postres/{producto_id}", dependencies=[requiere(Permiso.CARTA_VER)])
 def consultar_postre(producto_id: int, db: Sesion) -> ProductoSalida:
     return service.obtener_producto(db, PostreCrear.CATEGORIA, producto_id)
 
 
-@router.put("/postres/{producto_id}")
+@router.put("/postres/{producto_id}", dependencies=[requiere(Permiso.CARTA_GESTIONAR)])
 def modificar_postre(
     producto_id: int,
     datos: Annotated[PostreModificar, Depends(datos_de(PostreModificar))],
@@ -117,12 +125,16 @@ def modificar_postre(
     return service.modificar_producto(db, producto_id, datos, leer_imagen(imagen))
 
 
-@router.post("/postres/{producto_id}/baja")
+@router.post("/postres/{producto_id}/baja", dependencies=[requiere(Permiso.CARTA_GESTIONAR)])
 def dar_de_baja_postre(producto_id: int, db: Sesion) -> ProductoSalida:
     return service.dar_de_baja_producto(db, PostreCrear.CATEGORIA, producto_id)
 
 
-@router.post("/bebidas", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/bebidas",
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[requiere(Permiso.CARTA_GESTIONAR)],
+)
 def crear_bebida(
     datos: Annotated[BebidaCrear, Depends(datos_de(BebidaCrear))],
     db: Sesion,
@@ -131,12 +143,12 @@ def crear_bebida(
     return service.crear_producto(db, datos, leer_imagen(imagen))
 
 
-@router.get("/bebidas/{producto_id}")
+@router.get("/bebidas/{producto_id}", dependencies=[requiere(Permiso.CARTA_VER)])
 def consultar_bebida(producto_id: int, db: Sesion) -> ProductoSalida:
     return service.obtener_producto(db, BebidaCrear.CATEGORIA, producto_id)
 
 
-@router.put("/bebidas/{producto_id}")
+@router.put("/bebidas/{producto_id}", dependencies=[requiere(Permiso.CARTA_GESTIONAR)])
 def modificar_bebida(
     producto_id: int,
     datos: Annotated[BebidaModificar, Depends(datos_de(BebidaModificar))],
@@ -146,58 +158,62 @@ def modificar_bebida(
     return service.modificar_producto(db, producto_id, datos, leer_imagen(imagen))
 
 
-@router.post("/bebidas/{producto_id}/baja")
+@router.post("/bebidas/{producto_id}/baja", dependencies=[requiere(Permiso.CARTA_GESTIONAR)])
 def dar_de_baja_bebida(producto_id: int, db: Sesion) -> ProductoSalida:
     return service.dar_de_baja_producto(db, BebidaCrear.CATEGORIA, producto_id)
 
 
-@router.post("/secciones", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/secciones",
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[requiere(Permiso.CARTA_GESTIONAR)],
+)
 def crear_seccion(datos: SeccionCrear, db: Sesion) -> SeccionSalida:
     return service.crear_seccion(db, datos)
 
 
-@router.get("/secciones/{seccion_id}")
+@router.get("/secciones/{seccion_id}", dependencies=[requiere(Permiso.CARTA_VER)])
 def consultar_seccion(seccion_id: int, db: Sesion) -> SeccionSalida:
     return service.obtener_seccion(db, seccion_id)
 
 
-@router.put("/secciones/{seccion_id}")
+@router.put("/secciones/{seccion_id}", dependencies=[requiere(Permiso.CARTA_GESTIONAR)])
 def modificar_seccion(seccion_id: int, datos: SeccionModificar, db: Sesion) -> SeccionSalida:
     return service.modificar_seccion(db, seccion_id, datos)
 
 
-@router.post("/secciones/{seccion_id}/baja")
+@router.post("/secciones/{seccion_id}/baja", dependencies=[requiere(Permiso.CARTA_GESTIONAR)])
 def dar_de_baja_seccion(seccion_id: int, db: Sesion) -> SeccionSalida:
     return service.dar_de_baja_seccion(db, seccion_id)
 
 
-@router.get("/secciones")
+@router.get("/secciones", dependencies=[requiere(Permiso.CARTA_VER)])
 def listar_secciones(
     db: Sesion, filtro: Annotated[FiltroSecciones, Query()]
 ) -> Pagina[SeccionListado]:
     return service.listar_secciones(db, filtro, filtro.estado)
 
 
-@router.get("/productos")
+@router.get("/productos", dependencies=[requiere(Permiso.CARTA_VER)])
 def listar_productos(
     db: Sesion, filtro: Annotated[FiltroProductos, Query()]
 ) -> Pagina[ProductoListado]:
     return service.listar_productos(db, filtro, filtro.estado_elegido())
 
 
-@router.get("/carta")
+@router.get("/carta", dependencies=[requiere(Permiso.CARTA_VER)])
 def listar_carta(db: Sesion, filtro: Annotated[FiltroCarta, Query()]) -> Pagina[SeccionCarta]:
     return service.listar_carta(db, filtro, filtro.estado_elegido())
 
 
-@router.get("/reportes/productos-mas-vendidos")
+@router.get("/reportes/productos-mas-vendidos", dependencies=[requiere(Permiso.REPORTES_VER)])
 def reporte_productos_mas_vendidos(
     db: Sesion, fecha_desde: date | None = None, fecha_hasta: date | None = None
 ) -> ReporteProductosMasVendidos:
     return service.generar_reporte_mas_vendidos(db, fecha_desde, fecha_hasta)
 
 
-@router.get("/reportes/productos-mas-vendidos/pdf")
+@router.get("/reportes/productos-mas-vendidos/pdf", dependencies=[requiere(Permiso.REPORTES_VER)])
 def reporte_productos_mas_vendidos_pdf(
     db: Sesion, fecha_desde: date | None = None, fecha_hasta: date | None = None
 ) -> Response:
