@@ -5,6 +5,18 @@ Responsable: Federico Cabaña · Sprint 1, semana 2 · Issue #145
 
 Un criterio de conformidad es una pregunta de sí o no que comprueba que un documento del proyecto cumple las reglas del equipo. Cada documento tiene su checklist, de 5 a 11 preguntas. Se responde marcando una sola casilla por pregunta. Un «No» indica que el documento hay que corregirlo antes de darlo por terminado.
 
+## Estándar Base del Grupo 3
+
+En la auditoría de verificación y conformidad de la cátedra, el informe indica el «Estándar Base»: la documentación de estándares del grupo auditado. Para el Grupo 3 es esta:
+
+| Elemento | Documentos que forman el estándar |
+| --- | --- |
+| Historias de usuario | `AGENTS.md`, sección «Historias de usuario». |
+| Diagrama de clases | Las reglas de la sección 2 de este documento. |
+| Código Python (backend) | `SPRINT-1/S1-03-estandares-backend.md`. |
+| Código TypeScript (frontend) | `SPRINT-1/S1-02-estandares-frontend.md`. |
+| Plan de RSGR (riesgos) | `material-catedra/Correcciones_Riesgos_TP5_Guia_ISFPP.md` y el apunte de la unidad 2 (`material-catedra/IS3 - U2 - Apunte - Analisis y gestion del riesgo.pdf`, secciones 11 y 12). |
+
 ## 1. Historias de usuario
 
 Fuente: `AGENTS.md`, sección «Historias de usuario». Se responde para cada HU.
@@ -21,6 +33,14 @@ Fuente: `AGENTS.md`, sección «Historias de usuario». Se responde para cada HU
 ## 2. Diagrama de clases
 
 Fuente: el issue #145. Se responde sobre el diagrama unificado.
+
+Reglas del estándar de diseño:
+
+1. El diagrama usa notación UML.
+2. Cada clase aparece una sola vez en el diagrama unificado, aunque la usen varios módulos.
+3. Toda relación indica su multiplicidad en los dos extremos.
+4. Cada clase lleva la etiqueta del módulo al que pertenece (por ejemplo, M5).
+5. Las multiplicidades reflejan los casos opcionales de las historias de usuario.
 
 | # | Pregunta | Sí | No |
 | --- | --- | --- | --- |
@@ -70,6 +90,10 @@ Fuente: `SPRINT-1/S1-02-estandares-frontend.md`.
 
 ## 4. Tabla de riesgos
 
+Hay dos checklists: el 4.1 se responde para cada riesgo y el 4.2, una sola vez, para el plan completo (el plan de RSGR).
+
+### 4.1 Cada riesgo
+
 Fuente: `material-catedra/Correcciones_Riesgos_TP5_Guia_ISFPP.md`, «Guía para la ISFPP: checklist por riesgo». Se responde para cada riesgo de la tabla.
 
 | # | Pregunta | Sí | No |
@@ -82,8 +106,35 @@ Fuente: `material-catedra/Correcciones_Riesgos_TP5_Guia_ISFPP.md`, «Guía para 
 | 6 | ¿La mitigación es proporcional al impacto? | ☐ | ☐ |
 | 7 | ¿Tiene disparador y responsable? | ☐ | ☐ |
 
+### 4.2 Conjunto de riesgos (plan de RSGR)
+
+Fuente: preguntas 1 a 5, `material-catedra/Correcciones_Riesgos_TP5_Guia_ISFPP.md`, «Guía para el conjunto de riesgos»; preguntas 6 y 7, el apunte de la unidad 2 (secciones 11.4, 11.5 y 12). Se responde una vez sobre el informe de riesgos.
+
+| # | Pregunta | Sí | No |
+| --- | --- | --- | --- |
+| 1 | ¿La tabla está ordenada de mayor a menor exposición (E = P × I) y el informe muestra P, I y E de cada riesgo? | ☐ | ☐ |
+| 2 | ¿La línea de corte está marcada y justificada por la capacidad del equipo (personas, dedicación y duración) y no por el presupuesto? | ☐ | ☐ |
+| 3 | ¿El número de riesgos que quedan sobre la línea está explicado con un criterio (Pareto, salto natural en los valores de E, o ambos)? | ☐ | ☐ |
+| 4 | ¿Los planes de reducción y de contingencia de los riesgos sobre la línea están en el informe y no solo en el anexo? | ☐ | ☐ |
+| 5 | ¿El anexo solo amplía el detalle y el informe se puede leer sin él? | ☐ | ☐ |
+| 6 | ¿Hay riesgos de las tres categorías (de proyecto, técnico y de negocio) y cada riesgo está en una sola? | ☐ | ☐ |
+| 7 | ¿El informe y la planilla muestran los mismos valores? | ☐ | ☐ |
+
+## 5. Gravedad de las no conformidades
+
+El informe de auditoría de la cátedra cuenta las no conformidades críticas y las mayores, y agrega observaciones. Este grupo las clasifica así:
+
+- **No conformidad crítica:** un «No» que expone la seguridad o los datos. Son las preguntas 3.1 n.º 9 (cuando hay SQL armado con texto), 3.1 n.º 10 y 3.2 n.º 8 (cuando lo que aparece es una clave, un token u otro dato secreto).
+- **No conformidad mayor:** cualquier otro «No».
+- **Observación:** comentario del auditor que no corresponde a un «No», como una mejora sugerida o un caso dudoso que no incumple el estándar.
+
+Cada «No» se informa con su evidencia: archivo y línea, enlace al PR o resultado del comando.
+
 ## Supuestos
 
 - `Supuesto:` la pregunta 5 de la checklist 2 se deriva de la regla de multiplicidades; no figura de forma literal en el issue.
 - `Supuesto:` la pregunta 10 de la checklist 3.1 sale de RNF-SEG-04 (`SPRINT-0/S0-04-rnf.md`); S1-03 no la menciona de forma literal.
-- `Supuesto:` los criterios se responden por documento. Las checklists 1 y 4 se aplican a cada HU y a cada riesgo.
+- `Supuesto:` los criterios se responden por documento. Las checklists 1 y 4.1 se aplican a cada HU y a cada riesgo; la 4.2, una sola vez al plan completo.
+- `Supuesto:` la clasificación de gravedad de la sección 5 es propuesta del grupo; el documento de Auditoría de la cátedra no define qué es una no conformidad crítica ni mayor.
+- `Supuesto:` las preguntas 6 y 7 de la checklist 4.2 salen del apunte de la unidad 2 y no de la guía de riesgos.
+- `Supuesto:` las reglas del estándar de diseño (sección 2) resumen el texto del issue #145; no estaban escritas en un documento versionado.
