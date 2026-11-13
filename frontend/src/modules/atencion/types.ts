@@ -30,6 +30,10 @@ export interface ComandaModificar {
   agregar: DetalleComandaCrear[];
   quitar: number[];
 }
+/** S4-04: asignación o corrección explícita del mozo de una comanda existente. */
+export interface ComandaMozoAsignar {
+  mozo_id: number;
+}
 export interface Comanda extends ComandaResumen {
   reserva_id?: number | null;
   observaciones?: string | null;

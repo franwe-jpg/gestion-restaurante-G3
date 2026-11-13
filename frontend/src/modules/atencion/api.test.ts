@@ -52,6 +52,13 @@ it('registra la cantidad entregada absoluta por PUT .../entrega', async () => {
   expect(put).toHaveBeenCalledWith('/comandas/3/detalles/81/entrega', { cantidad_entregada: 4 });
 });
 
+it('asigna o corrige el mozo de una comanda por PUT /comandas/{id}/mozo', async () => {
+  const respuesta = { exito: false, datos: null, error: 'El mozo 9 está deshabilitado' };
+  const put = vi.spyOn(clienteHttp, 'put').mockResolvedValue(respuesta);
+  expect(await api.asignarMozoComanda(3, 9)).toBe(respuesta);
+  expect(put).toHaveBeenCalledWith('/comandas/3/mozo', { mozo_id: 9 });
+});
+
 describe('API de clientes', () => {
   it('consulta la primera página sin filtro', async () => {
     const respuesta = { exito: true, datos: { items: [], total: 0, limit: 50, offset: 0 } };

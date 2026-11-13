@@ -29,6 +29,8 @@ interface Props {
   onReabrir: (id: number) => void;
   onAnular: (id: number) => void;
   onFacturar: (id: number) => void;
+  /** S4-04: el backend acepta el cambio de mozo en cualquier estado de la comanda. */
+  onCambiarMozo: (id: number, mozoActual: MozoSeleccionable | null) => void;
   onPagina: (offset: number) => void;
 }
 
@@ -137,6 +139,26 @@ interface AccionesProps {
   onReabrir: (id: number) => void;
   onAnular: (id: number) => void;
   onFacturar: (id: number) => void;
+  onCambiarMozo: (id: number, mozoActual: MozoSeleccionable | null) => void;
+  mozoActual: MozoSeleccionable | null;
+}
+
+function BotonCambiarMozo({
+  comanda,
+  mozoActual,
+  ocupado,
+  onCambiarMozo,
+}: Pick<AccionesProps, 'comanda' | 'mozoActual' | 'ocupado' | 'onCambiarMozo'>) {
+  return (
+    <Button
+      variant="outline"
+      disabled={ocupado}
+      aria-label={`Cambiar mozo de la comanda #${comanda.id}`}
+      onClick={() => onCambiarMozo(comanda.id, mozoActual)}
+    >
+      Cambiar mozo
+    </Button>
+  );
 }
 
 function AccionFacturar({
@@ -224,6 +246,7 @@ function AccionesDeOperacion({
       >
         Modificar
       </Button>
+      <BotonCambiarMozo comanda={comanda} ocupado={ocupado} {...acciones} />
       <Button
         variant="outline"
         disabled={ocupado || comanda.estado !== 'CERRADA'}
@@ -251,7 +274,8 @@ function ComandaFila({
   comanda,
   mozos,
   ...acciones
-}: AccionesProps & { mozos: MozoSeleccionable[] }) {
+}: Omit<AccionesProps, 'mozoActual'> & { mozos: MozoSeleccionable[] }) {
+  const mozoActual = mozos.find((mozo) => mozo.id === comanda.mozo_id) ?? null;
   return (
     <TableRow>
       <TableCell>Comanda #{comanda.id}</TableCell>
@@ -259,7 +283,7 @@ function ComandaFila({
       <TableCell>{nombreDeMozo(mozos, comanda.mozo_id)}</TableCell>
       <TableCell>{comanda.estado}</TableCell>
       <TableCell>{new Date(comanda.fecha_hora).toLocaleString()}</TableCell>
-      <AccionesComanda comanda={comanda} {...acciones} />
+      <AccionesComanda comanda={comanda} mozoActual={mozoActual} {...acciones} />
     </TableRow>
   );
 }

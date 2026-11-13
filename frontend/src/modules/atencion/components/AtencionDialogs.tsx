@@ -1,8 +1,10 @@
 import { Dialog } from '../../../shared/components/ui/dialog';
+import { CambiarMozoDialog } from './CambiarMozoDialog';
 import { CierreComandaDialog } from './CierreComandaDialog';
 import { ComandaForm } from './ComandaForm';
 import { EntregasComandaDialog } from './EntregasComandaDialog';
 import { ModificarComandaDialog } from './ModificarComandaDialog';
+import type { useCambioDeMozo } from './useCambioDeMozo';
 
 interface EntregasAbiertas {
   id: number;
@@ -15,19 +17,21 @@ interface Props {
   cierreId: number | null;
   modificarId: number | null;
   entregas: EntregasAbiertas | null;
+  cambioMozo: ReturnType<typeof useCambioDeMozo>;
   /** Sin `COMANDAS_OPERAR` el detalle de la comanda no permite registrar entregas. */
   soloLectura: boolean;
   onAlta: (abierto: boolean) => void;
   onCreada: () => void;
   onSalirCierre: () => void;
   onCerrada: () => void;
-  onEntregasDesdeCierre: () => void;
+  onEntregasDesdeCierre: (id: number) => void;
   onSalirEntregas: () => void;
   onSalirModificar: () => void;
   onModificada: () => void;
 }
 
 export function AtencionDialogs(props: Props) {
+  const { cierreId } = props;
   return (
     <>
       {props.alta && (
@@ -35,12 +39,12 @@ export function AtencionDialogs(props: Props) {
           <ComandaForm onCreada={props.onCreada} mesaInicial={props.mesaInicial} />
         </Dialog>
       )}
-      {props.cierreId !== null && (
+      {cierreId !== null && (
         <CierreComandaDialog
-          id={props.cierreId}
+          id={cierreId}
           onSalir={props.onSalirCierre}
           onCerrada={props.onCerrada}
-          onEntregas={props.onEntregasDesdeCierre}
+          onEntregas={() => props.onEntregasDesdeCierre(cierreId)}
         />
       )}
       {props.entregas && (
@@ -55,6 +59,13 @@ export function AtencionDialogs(props: Props) {
           id={props.modificarId}
           onSalir={props.onSalirModificar}
           onModificada={props.onModificada}
+        />
+      )}
+      {props.cambioMozo.cambio && (
+        <CambiarMozoDialog
+          {...props.cambioMozo.cambio}
+          onSalir={props.cambioMozo.salir}
+          onCambiado={props.cambioMozo.cambiado}
         />
       )}
     </>

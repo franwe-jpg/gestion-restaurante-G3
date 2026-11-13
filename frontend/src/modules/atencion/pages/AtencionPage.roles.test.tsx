@@ -40,6 +40,8 @@ beforeEach(() => {
     pagina([{ id: 12, nombre: 'Milanesa', precio: '9000.00', estado: 'HABILITADO' as const }]),
   );
   vi.mocked(api.listarMenusEjecutivos).mockResolvedValue(pagina([]));
+  vi.mocked(api.listarTodosMozos).mockResolvedValue({ exito: true, datos: [] });
+  vi.mocked(api.listarMozosHabilitados).mockResolvedValue({ exito: true, datos: [] });
   vi.mocked(api.consultarEntregas).mockResolvedValue({
     exito: true,
     datos: {
@@ -70,6 +72,9 @@ describe('Atención: el encargado y el mozo operan', () => {
       expect(screen.getByRole('button', { name: 'Nueva comanda' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Entregas de la comanda #3' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Modificar comanda #3' })).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: 'Cambiar mozo de la comanda #3' }),
+      ).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Cerrar comanda #3' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Anular comanda #3' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Reabrir comanda #4' })).toBeInTheDocument();
@@ -92,6 +97,7 @@ describe('Atención: el chef solo ve comandas', () => {
       screen.queryByRole('button', { name: /Entregas de la comanda/ }),
     ).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Modificar comanda/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Cambiar mozo/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Cerrar comanda/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Reabrir comanda/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Anular comanda/ })).not.toBeInTheDocument();
