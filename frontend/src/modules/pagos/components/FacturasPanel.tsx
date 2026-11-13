@@ -69,9 +69,11 @@ function ListadoDeFacturas({
 }: ListadoDeFacturasProps) {
   return (
     <Card>
-      <CardContent className="space-y-4 pt-6">
+      <CardContent className="space-y-4 px-4 pt-6 sm:px-6">
         <TableToolbar acciones={<ExportButton filas={facturas} nombreArchivo="facturas" />}>
-          {null}
+          <p className="text-sm text-slate-600">
+            Elegí una factura adeudada para cobrarla o consultá sus comprobantes.
+          </p>
         </TableToolbar>
         <FacturasTabla
           facturas={facturas}

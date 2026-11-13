@@ -68,6 +68,7 @@ function columnas(acciones?: Acciones): ColumnaTabla<MedioPago>[] {
       clave: 'descripcion',
       encabezado: 'Descripción',
       render: (medio) => medio.descripcion ?? <span className="text-slate-400">—</span>,
+      className: 'max-w-56 truncate sm:max-w-xs',
     },
     {
       clave: 'estado',

@@ -38,7 +38,7 @@ const COLUMNAS: ColumnaTabla<CobradoPorMedio>[] = [
     clave: 'monto',
     encabezado: 'Monto',
     render: (medio) => formatearMoneda(Number(medio.monto)),
-    className: 'text-right',
+    className: 'text-right tabular-nums',
   },
 ];
 
@@ -146,7 +146,7 @@ function FiltrosReporte({ reporte }: { reporte: ReturnType<typeof useReporteReca
         etiquetaHasta="Fecha hasta"
       />
       <Button
-        variant="brand-outline"
+        className="w-full sm:w-auto"
         onClick={() => void reporte.generar()}
         disabled={reporte.cargando}
       >

@@ -31,10 +31,11 @@ function Acciones({
   onVerComprobantes: AccionFactura;
 }) {
   return (
-    <div className="flex justify-end gap-2">
+    <div className="flex flex-col justify-end gap-2 sm:flex-row sm:items-center">
       <Button
         size="sm"
         variant="brand-outline"
+        className="w-full sm:w-auto"
         aria-label={`Ver los comprobantes de la factura ${factura.id}`}
         onClick={() => onVerComprobantes(factura)}
       >
@@ -43,7 +44,7 @@ function Acciones({
       {factura.estado === 'ADEUDADA' && (
         <Button
           size="sm"
-          variant="brand-outline"
+          className="w-full sm:w-auto"
           aria-label={`Cobrar la factura ${factura.id}`}
           onClick={() => onCobrar(factura)}
         >
@@ -59,46 +60,32 @@ function columnas(
   onVerComprobantes: AccionFactura,
 ): ColumnaTabla<FacturaResumen>[] {
   return [
-    {
-      clave: 'id',
-      encabezado: 'N°',
-      render: (factura) => <span className="font-medium">#{factura.id}</span>,
-    },
-    {
-      clave: 'comanda',
-      encabezado: 'Comanda',
-      render: (factura) => `#${factura.comanda_id}`,
-    },
-    {
-      clave: 'emision',
-      encabezado: 'Emisión',
-      render: (factura) => formatearFechaHora(factura.fecha_emision),
-    },
+    { clave: 'id', encabezado: 'N°', render: (f) => <span className="font-medium">#{f.id}</span> },
+    { clave: 'comanda', encabezado: 'Comanda', render: (f) => `#${f.comanda_id}` },
+    { clave: 'emision', encabezado: 'Emisión', render: (f) => formatearFechaHora(f.fecha_emision) },
     {
       clave: 'total',
       encabezado: 'Total',
-      render: (factura) => formatearMoneda(Number(factura.total)),
+      className: 'text-right tabular-nums',
+      render: (f) => formatearMoneda(Number(f.total)),
     },
     {
       clave: 'saldo',
       encabezado: 'Saldo pendiente',
-      render: (factura) => (
+      className: 'text-right tabular-nums',
+      render: (f) => (
         <span className="font-semibold text-slate-900">
-          {formatearMoneda(Number(factura.saldo_pendiente))}
+          {formatearMoneda(Number(f.saldo_pendiente))}
         </span>
       ),
     },
-    {
-      clave: 'estado',
-      encabezado: 'Estado',
-      render: (factura) => <StatusBadge estado={factura.estado} />,
-    },
+    { clave: 'estado', encabezado: 'Estado', render: (f) => <StatusBadge estado={f.estado} /> },
     {
       clave: 'acciones',
       encabezado: <span className="sr-only">Acciones</span>,
       className: 'w-56',
-      render: (factura) => (
-        <Acciones factura={factura} onCobrar={onCobrar} onVerComprobantes={onVerComprobantes} />
+      render: (f) => (
+        <Acciones factura={f} onCobrar={onCobrar} onVerComprobantes={onVerComprobantes} />
       ),
     },
   ];

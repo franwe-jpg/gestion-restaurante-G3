@@ -43,39 +43,51 @@ interface ListaProps {
 
 function ListaDeCobros({ factura, medios, onVer }: ListaProps) {
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Comprobante</TableHead>
-          <TableHead>Fecha</TableHead>
-          <TableHead>Medio de pago</TableHead>
-          <TableHead>Importe</TableHead>
-          <TableHead>
-            <span className="sr-only">Acciones</span>
-          </TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {factura.cobros.map((cobro) => (
-          <TableRow key={cobro.id}>
-            <TableCell className="font-medium">#{numeroDe(cobro)}</TableCell>
-            <TableCell>{formatearFechaHora(cobro.fecha_hora)}</TableCell>
-            <TableCell>{nombreDelMedio(medios, cobro.medio_pago_id)}</TableCell>
-            <TableCell>{formatearMoneda(Number(cobro.monto))}</TableCell>
-            <TableCell>
-              <Button
-                size="sm"
-                variant="brand-outline"
-                aria-label={`Ver el comprobante ${numeroDe(cobro)}`}
-                onClick={() => onVer(numeroDe(cobro))}
-              >
-                Ver comprobante
-              </Button>
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+    <div className="space-y-2">
+      <p className="text-sm text-slate-600">
+        Factura #{factura.id} · Saldo pendiente{' '}
+        <strong className="text-slate-900 tabular-nums">
+          {formatearMoneda(Number(factura.saldo_pendiente))}
+        </strong>
+      </p>
+      <div className="overflow-x-auto rounded-md border border-slate-100">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Comprobante</TableHead>
+              <TableHead>Fecha</TableHead>
+              <TableHead>Medio de pago</TableHead>
+              <TableHead className="text-right">Importe</TableHead>
+              <TableHead>
+                <span className="sr-only">Acciones</span>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {factura.cobros.map((cobro) => (
+              <TableRow key={cobro.id}>
+                <TableCell className="font-medium tabular-nums">#{numeroDe(cobro)}</TableCell>
+                <TableCell>{formatearFechaHora(cobro.fecha_hora)}</TableCell>
+                <TableCell>{nombreDelMedio(medios, cobro.medio_pago_id)}</TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {formatearMoneda(Number(cobro.monto))}
+                </TableCell>
+                <TableCell className="text-right">
+                  <Button
+                    size="sm"
+                    variant="brand-outline"
+                    aria-label={`Ver el comprobante ${numeroDe(cobro)}`}
+                    onClick={() => onVer(numeroDe(cobro))}
+                  >
+                    Ver comprobante
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
   );
 }
 

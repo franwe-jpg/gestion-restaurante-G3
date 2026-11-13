@@ -32,33 +32,47 @@ const LIMITE_MEDIOS = 50;
 
 function DetalleDeLaFactura({ previa }: { previa: FacturaPrevia }) {
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <p className="text-sm text-slate-600">
         Comanda {previa.comanda_id} · Emisión {formatearFechaHora(previa.fecha_emision)}
       </p>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Detalle</TableHead>
-            <TableHead>Cantidad</TableHead>
-            <TableHead>Precio</TableHead>
-            <TableHead>Descuento</TableHead>
-            <TableHead>Subtotal</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {previa.detalles.map((linea, indice) => (
-            <TableRow key={indice}>
-              <TableCell>{linea.descripcion}</TableCell>
-              <TableCell>{linea.cantidad}</TableCell>
-              <TableCell>{formatearMoneda(Number(linea.precio_unitario))}</TableCell>
-              <TableCell>{formatearMoneda(Number(linea.descuento))}</TableCell>
-              <TableCell>{formatearMoneda(Number(linea.subtotal))}</TableCell>
+      <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">
+        Paso 2 de 2 · Detalle de la factura
+      </p>
+      <div className="overflow-x-auto rounded-md border border-slate-100">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Detalle</TableHead>
+              <TableHead className="text-right">Cantidad</TableHead>
+              <TableHead className="text-right">Precio</TableHead>
+              <TableHead className="text-right">Descuento</TableHead>
+              <TableHead className="text-right">Subtotal</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      <p className="text-right text-base font-semibold text-slate-900">
+          </TableHeader>
+          <TableBody>
+            {previa.detalles.map((linea, indice) => (
+              <TableRow key={indice}>
+                <TableCell>{linea.descripcion}</TableCell>
+                <TableCell className="text-right tabular-nums">{linea.cantidad}</TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {formatearMoneda(Number(linea.precio_unitario))}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {formatearMoneda(Number(linea.descuento))}
+                </TableCell>
+                <TableCell className="text-right font-medium tabular-nums">
+                  {formatearMoneda(Number(linea.subtotal))}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+      <p
+        aria-live="polite"
+        className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-right text-base font-bold text-slate-900 tabular-nums sm:text-lg"
+      >
         Total a pagar: {formatearMoneda(Number(previa.total))}
       </p>
     </div>

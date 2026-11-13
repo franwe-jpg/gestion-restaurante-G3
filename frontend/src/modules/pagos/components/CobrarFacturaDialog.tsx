@@ -36,17 +36,26 @@ function nombreDelMedio(medios: MedioPago[], medioPagoId: number): string {
 
 function ResumenDeLaFactura({ factura }: { factura: Factura }) {
   return (
-    <div className="flex flex-wrap justify-between gap-2 rounded-md bg-slate-50 p-3 text-sm text-slate-700">
-      <span>
-        Total: <strong>{formatearMoneda(Number(factura.total))}</strong>
-      </span>
-      <span>
-        Saldo pendiente:{' '}
-        <strong className="text-slate-900">
+    <section
+      aria-live="polite"
+      aria-label={`Total ${formatearMoneda(Number(factura.total))}, saldo pendiente ${formatearMoneda(Number(factura.saldo_pendiente))}`}
+      className="grid grid-cols-2 gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 sm:p-4"
+    >
+      <div className="min-w-0">
+        <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">Total</p>
+        <p className="truncate text-base font-semibold text-slate-700 tabular-nums">
+          {formatearMoneda(Number(factura.total))}
+        </p>
+      </div>
+      <div className="min-w-0 text-right">
+        <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">
+          Saldo pendiente
+        </p>
+        <p className="text-lg font-bold text-slate-900 tabular-nums sm:text-xl">
           {formatearMoneda(Number(factura.saldo_pendiente))}
-        </strong>
-      </span>
-    </div>
+        </p>
+      </div>
+    </section>
   );
 }
 
@@ -56,24 +65,30 @@ function CobrosRegistrados({ factura, medios }: { factura: Factura; medios: Medi
   return (
     <div className="space-y-2">
       <h3 className="text-sm font-semibold text-slate-800">Cobros registrados</h3>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Medio de pago</TableHead>
-            <TableHead>Monto</TableHead>
-            <TableHead>Comprobante</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {factura.cobros.map((cobro: Cobro) => (
-            <TableRow key={cobro.id}>
-              <TableCell>{nombreDelMedio(medios, cobro.medio_pago_id)}</TableCell>
-              <TableCell>{formatearMoneda(Number(cobro.monto))}</TableCell>
-              <TableCell>#{cobro.numero_comprobante ?? cobro.id}</TableCell>
+      <div className="overflow-x-auto rounded-md border border-slate-100">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Medio de pago</TableHead>
+              <TableHead className="text-right">Monto</TableHead>
+              <TableHead>Comprobante</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {factura.cobros.map((cobro: Cobro) => (
+              <TableRow key={cobro.id}>
+                <TableCell>{nombreDelMedio(medios, cobro.medio_pago_id)}</TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {formatearMoneda(Number(cobro.monto))}
+                </TableCell>
+                <TableCell className="tabular-nums">
+                  #{cobro.numero_comprobante ?? cobro.id}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }

@@ -133,12 +133,12 @@ function EncabezadoDePagos({ pestana, onFacturar, onNuevoMedioPago }: Encabezado
       titulo="Pagos"
       descripcion={DESCRIPCIONES[pestana] ?? DESCRIPCIONES.medios}
       acciones={
-        <div className="flex gap-2">
-          <Button variant="brand-outline" onClick={onFacturar}>
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+          <Button onClick={onFacturar} className="w-full sm:w-auto">
             Facturar comanda
           </Button>
           {pestana === 'medios' && onNuevoMedioPago && (
-            <Button variant="brand-outline" onClick={onNuevoMedioPago}>
+            <Button variant="brand-outline" onClick={onNuevoMedioPago} className="w-full sm:w-auto">
               Nuevo medio de pago
             </Button>
           )}
