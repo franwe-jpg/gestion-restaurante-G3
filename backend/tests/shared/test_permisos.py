@@ -19,6 +19,7 @@ MOZO = {
     Permiso.SALON_VER,
     Permiso.COMANDAS_VER,
     Permiso.COMANDAS_OPERAR,
+    Permiso.COMANDAS_MARCAR_LISTO,
     Permiso.CLIENTES_GESTIONAR,
     Permiso.RESERVAS_VER,
     Permiso.RESERVAS_OPERAR,
@@ -28,6 +29,7 @@ CHEF = {
     Permiso.CARTA_VER,
     Permiso.MENUS_VER,
     Permiso.COMANDAS_VER,
+    Permiso.COMANDAS_MARCAR_LISTO,
     Permiso.RESERVAS_VER,
 }
 
@@ -42,6 +44,13 @@ def test_permisos_de_mozo() -> None:
 
 def test_permisos_de_chef() -> None:
     assert permisos_de([Rol.CHEF]) == CHEF
+
+
+def test_el_chef_marca_listo_pero_no_opera_comandas() -> None:
+    permisos = permisos_de([Rol.CHEF])
+
+    assert Permiso.COMANDAS_MARCAR_LISTO in permisos
+    assert Permiso.COMANDAS_OPERAR not in permisos
 
 
 def test_permisos_de_mozo_y_chef_es_la_union() -> None:

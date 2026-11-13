@@ -86,6 +86,29 @@ def registrar_entrega(db: Session, comanda_id: int, detalle_id: int, cantidad: i
     return True
 
 
+def marcar_listo(db: Session, comanda_id: int, detalle_id: int, cantidad: int) -> bool:
+    """Fija `cantidad_lista` de un detalle de una comanda ABIERTA; sin commit.
+
+    El UPDATE condicional valida en una sola sentencia que el detalle pertenece a la
+    comanda, que ésta está ABIERTA, que `cantidad` no supera lo pedido y que la línea no
+    se entregó por completo. Devuelve False sin cambios si no afectó ninguna fila.
+    """
+    abierta = exists().where(Comanda.id == comanda_id, Comanda.estado == EstadoComanda.ABIERTA)
+    resultado = db.execute(
+        update(DetalleComanda)
+        .where(
+            DetalleComanda.id == detalle_id,
+            DetalleComanda.comanda_id == comanda_id,
+            DetalleComanda.cantidad >= cantidad,
+            DetalleComanda.cantidad_entregada < DetalleComanda.cantidad,
+            abierta,
+        )
+        .values(cantidad_lista=cantidad)
+    )
+    db.flush()
+    return resultado.rowcount == 1
+
+
 def obtener_abierta_por_mesa(db: Session, mesa_id: int) -> Comanda | None:
     return db.scalar(
         select(Comanda)

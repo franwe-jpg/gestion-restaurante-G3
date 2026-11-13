@@ -526,6 +526,147 @@ def test_migracion_cantidad_entregada_downgrade_conserva_estado_entrega(
     ]
 
 
+# Migración de la cantidad lista (HU-M4-12)
+
+REVISION_LISTO = "d2f4a6c8e0b1"
+REVISION_PREVIA_LISTO = "b8d0f2a4c6e8"
+RANGO_LISTO = "ck_detalles_comanda_cantidad_lista_rango"
+
+
+def test_migracion_cantidad_lista_una_sola_cabeza(base_temporal: tuple[str, Config]) -> None:
+    _, config = base_temporal
+    script = ScriptDirectory.from_config(config)
+
+    assert script.get_heads() == [REVISION_LISTO]
+    assert script.get_revision(REVISION_LISTO).down_revision == REVISION_PREVIA_LISTO
+
+
+def test_migracion_cantidad_lista_agrega_columna_no_nula_con_default_cero(
+    base_temporal: tuple[str, Config],
+) -> None:
+    url, config = base_temporal
+    command.upgrade(config, REVISION_LISTO)
+    motor = crear_motor(url)
+    try:
+        columnas = {c["name"]: c for c in inspect(motor).get_columns("detalles_comanda")}
+        assert columnas["cantidad_lista"]["nullable"] is False
+        assert str(columnas["cantidad_lista"]["default"]).strip("'()") == "0"
+    finally:
+        motor.dispose()
+    _sembrar_detalles(url)  # sin indicar la columna: aplica el valor por defecto
+
+    assert _consultar(url, "SELECT cantidad_lista FROM detalles_comanda ORDER BY id") == [
+        (0,),
+        (0,),
+        (0,),
+    ]
+
+
+def test_migracion_cantidad_lista_rellena_entregados_con_cantidad_y_pendientes_con_cero(
+    base_temporal: tuple[str, Config],
+) -> None:
+    url, config = base_temporal
+    command.upgrade(config, REVISION_PREVIA_LISTO)
+    _sembrar_detalles(url)
+
+    command.upgrade(config, REVISION_LISTO)
+
+    assert _consultar(
+        url, "SELECT id, cantidad, cantidad_lista, estado_entrega FROM detalles_comanda ORDER BY id"
+    ) == [(1, 3, 3, "ENTREGADO"), (2, 4, 0, "PENDIENTE"), (3, 5, 5, "ENTREGADO")]
+
+
+SENTENCIAS_LISTO_FUERA_DE_RANGO = {
+    "negativo": "UPDATE detalles_comanda SET cantidad_lista = -1",
+    "mayor-que-cantidad": "UPDATE detalles_comanda SET cantidad_lista = cantidad + 1",
+}
+
+
+@pytest.mark.parametrize(
+    "sentencia",
+    SENTENCIAS_LISTO_FUERA_DE_RANGO.values(),
+    ids=list(SENTENCIAS_LISTO_FUERA_DE_RANGO),
+)
+def test_migracion_cantidad_lista_check_rechaza_negativo_y_mayor_que_cantidad(
+    base_temporal: tuple[str, Config], sentencia: str
+) -> None:
+    url, config = base_temporal
+    command.upgrade(config, REVISION_PREVIA_LISTO)
+    _sembrar_detalles(url)
+    command.upgrade(config, REVISION_LISTO)
+
+    motor = crear_motor(url)
+    try:
+        with pytest.raises(IntegrityError), motor.begin() as conexion:
+            conexion.execute(text(sentencia))
+        with motor.begin() as conexion:  # los extremos válidos siguen permitidos
+            conexion.execute(text("UPDATE detalles_comanda SET cantidad_lista = cantidad"))
+            conexion.execute(text("UPDATE detalles_comanda SET cantidad_lista = 0"))
+    finally:
+        motor.dispose()
+
+
+def test_migracion_cantidad_lista_conserva_checks_y_claves_foraneas_previos(
+    base_temporal: tuple[str, Config],
+) -> None:
+    url, config = base_temporal
+    command.upgrade(config, REVISION_LISTO)
+    motor = crear_motor(url)
+    try:
+        inspector = inspect(motor)
+        checks = {c["name"] for c in inspector.get_check_constraints("detalles_comanda")}
+        foraneas = {
+            (tuple(c["constrained_columns"]), c["referred_table"], c["options"].get("ondelete"))
+            for c in inspector.get_foreign_keys("detalles_comanda")
+        }
+        indices = {i["name"] for i in inspector.get_indexes("detalles_comanda")}
+    finally:
+        motor.dispose()
+
+    assert checks >= {
+        "ck_detalles_comanda_cantidad_positiva",
+        "ck_detalles_comanda_origen_exclusivo",
+        "ck_detalles_comanda_cantidad_entregada_rango",
+        RANGO_LISTO,
+    }
+    assert foraneas == {
+        (("comanda_id",), "comandas", "CASCADE"),
+        (("producto_id",), "productos", "RESTRICT"),
+        (("menu_ejecutivo_id",), "menus_ejecutivos", "RESTRICT"),
+    }
+    assert "ix_detalles_comanda_comanda_id" in indices
+
+
+def test_migracion_cantidad_lista_downgrade_elimina_columna_y_check_y_conserva_entrega(
+    base_temporal: tuple[str, Config],
+) -> None:
+    url, config = base_temporal
+    command.upgrade(config, REVISION_PREVIA_LISTO)
+    _sembrar_detalles(url)
+    motor = crear_motor(url)
+    try:
+        with motor.begin() as conexion:
+            conexion.execute(text("UPDATE detalles_comanda SET cantidad_entregada = cantidad - 1"))
+    finally:
+        motor.dispose()
+    command.upgrade(config, REVISION_LISTO)
+
+    command.downgrade(config, REVISION_PREVIA_LISTO)
+
+    motor = crear_motor(url)
+    try:
+        columnas = {c["name"] for c in inspect(motor).get_columns("detalles_comanda")}
+        checks = {c["name"] for c in inspect(motor).get_check_constraints("detalles_comanda")}
+    finally:
+        motor.dispose()
+    assert "cantidad_lista" not in columnas
+    assert RANGO_LISTO not in checks
+    assert "ck_detalles_comanda_cantidad_entregada_rango" in checks
+    assert _consultar(
+        url, "SELECT id, cantidad_entregada, estado_entrega FROM detalles_comanda ORDER BY id"
+    ) == [(1, 2, "ENTREGADO"), (2, 3, "PENDIENTE"), (3, 4, "ENTREGADO")]
+
+
 REVISION_INDICES_REPORTE = "f1a3c5e7b9d2"
 INDICES_REPORTE = {"ix_comandas_fecha_hora", "ix_detalles_comanda_comanda_id"}
 

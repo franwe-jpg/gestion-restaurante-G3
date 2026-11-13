@@ -158,6 +158,24 @@ def test_detalle_comanda_cantidad_entregada_rechaza_mayor_que_cantidad(
     db.rollback()
 
 
+def test_detalle_comanda_cantidad_lista_default_cero(db: Session, comanda: Comanda) -> None:
+    detalle = _detalle_nuevo(db, comanda)
+    db.commit()
+    db.expire_all()
+
+    assert db.get(DetalleComanda, detalle.id).cantidad_lista == 0
+
+
+def test_detalle_comanda_cantidad_lista_rechaza_mayor_que_cantidad(
+    db: Session, comanda: Comanda
+) -> None:
+    _detalle_nuevo(db, comanda, cantidad=3, cantidad_lista=4)
+
+    with pytest.raises(IntegrityError):
+        db.flush()
+    db.rollback()
+
+
 @pytest.mark.parametrize(
     ("cantidad", "entregada", "esperado"),
     [
@@ -263,6 +281,132 @@ def test_registrar_entrega_no_modifica_otros_detalles(
 
     assert _leer(db, primero) == (3, "ENTREGADO")
     assert _leer(db, segundo) == (0, "PENDIENTE")
+
+
+# Listo en cocina (HU-M4-12)
+
+
+def _leer_listo(db: Session, detalle: DetalleComanda) -> tuple[int, int]:
+    db.expire_all()
+    guardado = db.get(DetalleComanda, detalle.id)
+    return guardado.cantidad_lista, guardado.cantidad_entregada
+
+
+def test_marcar_listo_parcial_fija_cantidad_lista(db: Session, comanda_con_lineas: Comanda) -> None:
+    detalle = comanda_con_lineas.detalles[1]
+
+    assert repository.marcar_listo(db, comanda_con_lineas.id, detalle.id, 4) is True
+
+    assert _leer_listo(db, detalle) == (4, 0)
+
+
+def test_marcar_listo_total_fija_cantidad(db: Session, comanda_con_lineas: Comanda) -> None:
+    detalle = comanda_con_lineas.detalles[0]
+
+    assert repository.marcar_listo(db, comanda_con_lineas.id, detalle.id, 3) is True
+
+    assert _leer_listo(db, detalle) == (3, 0)
+
+
+def test_marcar_listo_baja_cantidad_y_fija_cero(db: Session, comanda_con_lineas: Comanda) -> None:
+    detalle = comanda_con_lineas.detalles[0]
+    repository.marcar_listo(db, comanda_con_lineas.id, detalle.id, 3)
+
+    assert repository.marcar_listo(db, comanda_con_lineas.id, detalle.id, 1) is True
+    assert _leer_listo(db, detalle) == (1, 0)
+    assert repository.marcar_listo(db, comanda_con_lineas.id, detalle.id, 0) is True
+    assert _leer_listo(db, detalle) == (0, 0)
+
+
+def test_marcar_listo_mismo_valor_devuelve_true_idempotente(
+    db: Session, comanda_con_lineas: Comanda
+) -> None:
+    detalle = comanda_con_lineas.detalles[1]
+    repository.marcar_listo(db, comanda_con_lineas.id, detalle.id, 4)
+
+    assert repository.marcar_listo(db, comanda_con_lineas.id, detalle.id, 4) is True
+
+    assert _leer_listo(db, detalle) == (4, 0)
+
+
+def test_marcar_listo_con_entrega_parcial_devuelve_true(
+    db: Session, comanda_con_lineas: Comanda
+) -> None:
+    detalle = comanda_con_lineas.detalles[1]
+    repository.registrar_entrega(db, comanda_con_lineas.id, detalle.id, 6)
+
+    assert repository.marcar_listo(db, comanda_con_lineas.id, detalle.id, 8) is True
+
+    assert _leer_listo(db, detalle) == (8, 6)
+
+
+def test_marcar_listo_menor_que_entregado_devuelve_true(
+    db: Session, comanda_con_lineas: Comanda
+) -> None:
+    detalle = comanda_con_lineas.detalles[1]
+    repository.registrar_entrega(db, comanda_con_lineas.id, detalle.id, 6)
+
+    assert repository.marcar_listo(db, comanda_con_lineas.id, detalle.id, 2) is True
+
+    assert _leer_listo(db, detalle) == (2, 6)
+
+
+def test_marcar_listo_mayor_que_cantidad_devuelve_false_sin_cambios(
+    db: Session, comanda_con_lineas: Comanda
+) -> None:
+    detalle = comanda_con_lineas.detalles[0]
+
+    assert repository.marcar_listo(db, comanda_con_lineas.id, detalle.id, 4) is False
+
+    assert _leer_listo(db, detalle) == (0, 0)
+
+
+@pytest.mark.parametrize("valor", [0, 2, 3])
+def test_marcar_listo_linea_entregada_por_completo_devuelve_false_sin_cambios(
+    db: Session, comanda_con_lineas: Comanda, valor: int
+) -> None:
+    detalle = comanda_con_lineas.detalles[0]
+    repository.marcar_listo(db, comanda_con_lineas.id, detalle.id, 2)
+    repository.registrar_entrega(db, comanda_con_lineas.id, detalle.id, 3)
+
+    assert repository.marcar_listo(db, comanda_con_lineas.id, detalle.id, valor) is False
+
+    assert _leer_listo(db, detalle) == (2, 3)
+
+
+@pytest.mark.parametrize("estado", ["CERRADA", "ANULADA"])
+def test_marcar_listo_comanda_no_abierta_devuelve_false_sin_cambios(
+    db: Session, comanda_con_lineas: Comanda, estado: str
+) -> None:
+    detalle = comanda_con_lineas.detalles[0]
+    comanda_con_lineas.estado = estado
+    db.commit()
+
+    assert repository.marcar_listo(db, comanda_con_lineas.id, detalle.id, 3) is False
+
+    assert _leer_listo(db, detalle) == (0, 0)
+
+
+def test_marcar_listo_detalle_de_otra_comanda_devuelve_false_sin_cambios(
+    db: Session, comanda: Comanda, comanda_con_lineas: Comanda
+) -> None:
+    ajeno = comanda.detalles[0]  # ENTREGADO 2 de 2 en la comanda de la mesa 1
+
+    assert repository.marcar_listo(db, comanda_con_lineas.id, ajeno.id, 1) is False
+
+    assert _leer_listo(db, ajeno) == (ajeno.cantidad_lista, 2)
+
+
+def test_marcar_listo_no_modifica_otros_detalles_ni_cantidad_entregada(
+    db: Session, comanda_con_lineas: Comanda
+) -> None:
+    primero, segundo = comanda_con_lineas.detalles
+    repository.registrar_entrega(db, comanda_con_lineas.id, primero.id, 2)
+
+    repository.marcar_listo(db, comanda_con_lineas.id, primero.id, 3)
+
+    assert _leer_listo(db, primero) == (3, 2)
+    assert _leer_listo(db, segundo) == (0, 0)
 
 
 def test_obtener_comanda_ordena_los_detalles_por_id(db: Session) -> None:
