@@ -35,6 +35,8 @@ function ListadoDePromociones({ lista, gestiona, onNueva, onEditar }: ListadoDeP
       onFinalizada={gestiona ? lista.recargar : undefined}
       toolbar={
         <BarraPromociones
+          estado={lista.estado}
+          onCambiarEstado={lista.cambiarEstado}
           onNueva={gestiona ? onNueva : undefined}
           acciones={<ExportButton filas={lista.promociones} nombreArchivo="promociones" />}
         />

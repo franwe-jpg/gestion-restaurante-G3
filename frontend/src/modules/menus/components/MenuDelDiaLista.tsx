@@ -48,7 +48,12 @@ function BarraDelListado({ items, estado, onCambiarEstado, onNuevo }: BarraDelLi
       }
     >
       <FilterBar className="border-0 p-0">
-        <FiltroEstadoMenuDelDia estado={estado} onCambiar={onCambiarEstado} />
+        <div className="flex items-center gap-2">
+          <label htmlFor="filtro-estado-menu-dia" className="text-sm font-medium text-slate-700">
+            Estado
+          </label>
+          <FiltroEstadoMenuDelDia estado={estado} onCambiar={onCambiarEstado} />
+        </div>
       </FilterBar>
     </TableToolbar>
   );

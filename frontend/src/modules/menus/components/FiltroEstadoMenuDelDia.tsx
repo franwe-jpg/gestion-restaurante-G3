@@ -16,6 +16,7 @@ export function FiltroEstadoMenuDelDia({
 }) {
   return (
     <Select
+      id="filtro-estado-menu-dia"
       aria-label="Filtrar menús por estado"
       className="sm:w-56"
       value={estado}

@@ -210,7 +210,7 @@ function CampoPrecioFijo({ datos, errores, onCambiar }: CamposPromocionProps) {
 function CampoNxm({ datos, errores, onCambiar }: CamposPromocionProps) {
   if (datos.tipo !== 'NXM') return null;
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="grid gap-4 sm:col-span-2 sm:grid-cols-2">
       <FormField id="promocion-cant-lleva" label="Lleva" required>
         <Input
           id="promocion-cant-lleva"
@@ -233,17 +233,32 @@ function CampoNxm({ datos, errores, onCambiar }: CamposPromocionProps) {
 
 export function CamposPromocion(props: CamposPromocionProps) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
-      <CampoNombre {...props} />
-      <CampoTipo {...props} />
-      <CampoDescripcion {...props} />
-      <CampoProductos {...props} />
-      <CampoFechas {...props} />
-      <CampoDias {...props} />
-      <CampoHorario {...props} />
-      <CampoPorcentaje {...props} />
-      <CampoPrecioFijo {...props} />
-      <CampoNxm {...props} />
+    <div className="space-y-6">
+      <fieldset className="space-y-4">
+        <legend className="mb-1 text-sm font-semibold text-slate-700">Datos básicos</legend>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <CampoNombre {...props} />
+          <CampoTipo {...props} />
+          <CampoDescripcion {...props} />
+          <CampoProductos {...props} />
+        </div>
+      </fieldset>
+      <fieldset className="space-y-4">
+        <legend className="mb-1 text-sm font-semibold text-slate-700">Vigencia</legend>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <CampoFechas {...props} />
+          <CampoDias {...props} />
+          <CampoHorario {...props} />
+        </div>
+      </fieldset>
+      <fieldset className="space-y-4">
+        <legend className="mb-1 text-sm font-semibold text-slate-700">Beneficio</legend>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <CampoPorcentaje {...props} />
+          <CampoPrecioFijo {...props} />
+          <CampoNxm {...props} />
+        </div>
+      </fieldset>
     </div>
   );
 }

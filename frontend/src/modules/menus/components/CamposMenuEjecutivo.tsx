@@ -126,13 +126,23 @@ function CampoDescripcion({ datos, errores, onCambiar }: CamposMenuEjecutivoProp
 
 export function CamposMenuEjecutivo(props: CamposMenuEjecutivoProps) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
-      <CampoNombre {...props} />
-      <CampoPrecio {...props} />
-      <CampoSeccion {...props} />
-      <CampoEstado {...props} />
-      <CampoProductos {...props} />
-      <CampoDescripcion {...props} />
+    <div className="space-y-6">
+      <fieldset className="space-y-4">
+        <legend className="mb-1 text-sm font-semibold text-slate-700">Datos básicos</legend>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <CampoNombre {...props} />
+          <CampoPrecio {...props} />
+          <CampoSeccion {...props} />
+          <CampoEstado {...props} />
+        </div>
+      </fieldset>
+      <fieldset className="space-y-4">
+        <legend className="mb-1 text-sm font-semibold text-slate-700">Contenido</legend>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <CampoProductos {...props} />
+          <CampoDescripcion {...props} />
+        </div>
+      </fieldset>
     </div>
   );
 }

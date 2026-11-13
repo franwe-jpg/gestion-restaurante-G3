@@ -1,6 +1,7 @@
 import { BookOpen } from 'lucide-react';
 
 import { EmptyState } from '../../../shared/components/EmptyState';
+import { Badge } from '../../../shared/components/ui/badge';
 import { formatearMoneda } from '../../../shared/lib/format';
 import { DataTable } from '../../../shared/components/ui/data-table';
 import type { ColumnaTabla } from '../../../shared/components/ui/data-table';
@@ -21,11 +22,11 @@ interface MenuEjecutivosTablaProps {
 
 function incluidos(menu: MenuEjecutivo) {
   return (
-    <div className="flex flex-wrap gap-1">
+    <div className="flex max-w-64 flex-wrap gap-1">
       {menu.productos.map((producto) => (
-        <span key={producto.id} className="rounded-full bg-slate-100 px-2 py-1 text-xs">
+        <Badge key={producto.id} variant="neutral">
           {producto.nombre}
-        </span>
+        </Badge>
       ))}
     </div>
   );
@@ -43,6 +44,7 @@ function columnas(
       clave: 'precio',
       encabezado: 'Precio fijo',
       render: (menu) => formatearMoneda(Number(menu.precio_fijo)),
+      className: 'text-right whitespace-nowrap',
     },
     {
       clave: 'estado',
