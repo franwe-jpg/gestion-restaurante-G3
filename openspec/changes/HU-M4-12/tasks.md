@@ -10,44 +10,44 @@
 
 ## Fase 0. Precondiciones
 
-- [ ] 0.1 [S] Confirmar la rama `feature/HU-M4-12-listo-en-cocina` (no `main` ni `develop`) y que HU-M4-08 y HU-TR-01 están integradas en `develop` (dependencias del issue #242).
-- [ ] 0.2 [S] Línea base en verde: desde `backend/`, `pytest tests/modules/atencion tests/shared`; desde `frontend/`, `npm test -- atencion permisos`. Si algo falla antes de empezar, avisar.
-- [ ] 0.3 [S] Desde `backend/`, `alembic heads`: confirmar la **única** cabeza (el diseño supone `b8d0f2a4c6e8`) y usarla como `down_revision` en 1.3. Si es otra, ajustar 1.1 y 1.3; si hay más de una, detenerse y avisar.
+- [x] 0.1 [S] Confirmar la rama `feature/HU-M4-12-listo-en-cocina` (no `main` ni `develop`) y que HU-M4-08 y HU-TR-01 están integradas en `develop` (dependencias del issue #242).
+- [x] 0.2 [S] Línea base en verde: desde `backend/`, `pytest tests/modules/atencion tests/shared`; desde `frontend/`, `npm test -- atencion permisos`. Si algo falla antes de empezar, avisar.
+- [x] 0.3 [S] Desde `backend/`, `alembic heads`: confirmar la **única** cabeza (el diseño supone `b8d0f2a4c6e8`) y usarla como `down_revision` en 1.3. Si es otra, ajustar 1.1 y 1.3; si hay más de una, detenerse y avisar.
 
 ## Fase 1. Migración y modelo (backend)
 
 Satisface: requisito «Migración de la cantidad lista» (L4).
 
-- [ ] 1.1 [S] RED, `backend/tests/modules/atencion/test_migracion.py`, con `base_temporal` y revisiones fijas (la nueva y su `down_revision`); reutilizar `_sembrar_detalles`:
+- [x] 1.1 [S] RED, `backend/tests/modules/atencion/test_migracion.py`, con `base_temporal` y revisiones fijas (la nueva y su `down_revision`); reutilizar `_sembrar_detalles`:
   - `test_migracion_cantidad_lista_agrega_columna_no_nula_con_default_cero`
   - `test_migracion_cantidad_lista_rellena_entregados_con_cantidad_y_pendientes_con_cero`
   - `test_migracion_cantidad_lista_check_rechaza_negativo_y_mayor_que_cantidad` (`-1` y `cantidad + 1` dan `IntegrityError`)
   - `test_migracion_cantidad_lista_conserva_checks_y_claves_foraneas_previos`
   - `test_migracion_cantidad_lista_downgrade_elimina_columna_y_check_y_conserva_entrega` (vuelve a `b8d0f2a4c6e8`; `cantidad_entregada` y `estado_entrega` intactos)
   - `test_migracion_cantidad_lista_una_sola_cabeza`
-- [ ] 1.2 [S] RED, modelo, en `test_repository.py`: `test_detalle_comanda_cantidad_lista_default_cero` y `test_detalle_comanda_cantidad_lista_rechaza_mayor_que_cantidad`.
-- [ ] 1.3 [S] GREEN: crear `backend/alembic/versions/<rev>_agrega_cantidad_lista.py` con `down_revision` de 0.3: `batch_alter_table` agrega la columna (`server_default='0'`, no nula) y el `CHECK` `ck_detalles_comanda_cantidad_lista_rango`; luego `UPDATE detalles_comanda SET cantidad_lista = cantidad WHERE estado_entrega = 'ENTREGADO'`. `downgrade` elimina el `CHECK` y la columna. Si la prueba de conservación falla, usar `copy_from` con la definición completa.
-- [ ] 1.4 [S] GREEN: en `backend/app/modules/atencion/models.py` agregar `cantidad_lista: Mapped[int] = mapped_column(default=0, server_default="0")` y el `CheckConstraint` con el mismo nombre. Sin tocar `env.py`.
-- [ ] 1.5 [S] Fixtures: en `backend/tests/modules/atencion/conftest.py` agregar o reutilizar una comanda `ABIERTA` con líneas de cantidad 3 (una pendiente, una con `cantidad_entregada` completa) para las fases 3 a 5.
-- [ ] 1.6 [S] REFACTOR y comprobación: `alembic upgrade head`, `alembic downgrade -1`, `alembic upgrade head` sobre una base temporal; `pytest tests/modules/atencion` en verde.
+- [x] 1.2 [S] RED, modelo, en `test_repository.py`: `test_detalle_comanda_cantidad_lista_default_cero` y `test_detalle_comanda_cantidad_lista_rechaza_mayor_que_cantidad`.
+- [x] 1.3 [S] GREEN: crear `backend/alembic/versions/<rev>_agrega_cantidad_lista.py` con `down_revision` de 0.3: `batch_alter_table` agrega la columna (`server_default='0'`, no nula) y el `CHECK` `ck_detalles_comanda_cantidad_lista_rango`; luego `UPDATE detalles_comanda SET cantidad_lista = cantidad WHERE estado_entrega = 'ENTREGADO'`. `downgrade` elimina el `CHECK` y la columna. Si la prueba de conservación falla, usar `copy_from` con la definición completa.
+- [x] 1.4 [S] GREEN: en `backend/app/modules/atencion/models.py` agregar `cantidad_lista: Mapped[int] = mapped_column(default=0, server_default="0")` y el `CheckConstraint` con el mismo nombre. Sin tocar `env.py`.
+- [x] 1.5 [S] Fixtures: en `backend/tests/modules/atencion/conftest.py` agregar o reutilizar una comanda `ABIERTA` con líneas de cantidad 3 (una pendiente, una con `cantidad_entregada` completa) para las fases 3 a 5.
+- [x] 1.6 [S] REFACTOR y comprobación: `alembic upgrade head`, `alembic downgrade -1`, `alembic upgrade head` sobre una base temporal; `pytest tests/modules/atencion` en verde.
 
 ## Fase 2. Schemas (backend)
 
 Satisface: contrato de la API (L5, L6).
 
-- [ ] 2.1 [S] RED, `backend/tests/modules/atencion/test_schemas.py`:
+- [x] 2.1 [S] RED, `backend/tests/modules/atencion/test_schemas.py`:
   - `test_listo_detalle_acepta_entero_valido`
   - `test_listo_detalle_rechaza_texto_decimal_booleano_y_nulo`
   - `test_listo_detalle_rechaza_negativo`
   - `test_listo_detalle_rechaza_campos_extra_y_ausente`
   - `test_detalle_entrega_serializa_cantidad_lista`
-- [ ] 2.2 [S] GREEN, `schemas.py`: `ListoDetalle` (`StrictInt`, `ge=0`, `extra="forbid"`) y `cantidad_lista: int` en `DetalleEntrega`. No modificar `shared/contratos/comanda.py`. Ajustar las pruebas existentes de `DetalleEntrega` y `consultar_entregas` si exigen la forma anterior.
+- [x] 2.2 [S] GREEN, `schemas.py`: `ListoDetalle` (`StrictInt`, `ge=0`, `extra="forbid"`) y `cantidad_lista: int` en `DetalleEntrega`. No modificar `shared/contratos/comanda.py`. Ajustar las pruebas existentes de `DetalleEntrega` y `consultar_entregas` si exigen la forma anterior.
 
 ## Fase 3. Repository (backend)
 
 Satisface: requisito «Marcar la cantidad lista de un detalle» (L2).
 
-- [ ] 3.1 [S] RED, `test_repository.py`:
+- [x] 3.1 [S] RED, `test_repository.py`:
   - `test_marcar_listo_parcial_fija_cantidad_lista` (CA1)
   - `test_marcar_listo_total_fija_cantidad`
   - `test_marcar_listo_baja_cantidad_y_fija_cero`
@@ -59,14 +59,14 @@ Satisface: requisito «Marcar la cantidad lista de un detalle» (L2).
   - `test_marcar_listo_comanda_no_abierta_devuelve_false_sin_cambios` (CERRADA y ANULADA)
   - `test_marcar_listo_detalle_de_otra_comanda_devuelve_false_sin_cambios`
   - `test_marcar_listo_no_modifica_otros_detalles_ni_cantidad_entregada`
-- [ ] 3.2 [S] GREEN, `repository.py`: `marcar_listo(db, comanda_id, detalle_id, cantidad) -> bool` con `UPDATE detalles_comanda SET cantidad_lista=:n WHERE id=:d AND comanda_id=:c AND :n <= cantidad AND cantidad_entregada < cantidad AND EXISTS (comanda :c ABIERTA)`; devuelve `rowcount == 1`. Sin `commit` (lo decide el service, D-09, D-10).
-- [ ] 3.3 [S] REFACTOR: sin SQL concatenado; RNF-MAN-05.
+- [x] 3.2 [S] GREEN, `repository.py`: `marcar_listo(db, comanda_id, detalle_id, cantidad) -> bool` con `UPDATE detalles_comanda SET cantidad_lista=:n WHERE id=:d AND comanda_id=:c AND :n <= cantidad AND cantidad_entregada < cantidad AND EXISTS (comanda :c ABIERTA)`; devuelve `rowcount == 1`. Sin `commit` (lo decide el service, D-09, D-10).
+- [x] 3.3 [S] REFACTOR: sin SQL concatenado; RNF-MAN-05.
 
 ## Fase 4. Service (backend)
 
 Satisface: CA1, CA2, CA3, CA4; orden de validación (L3, S8, S9, S10).
 
-- [ ] 4.1 [S] RED, `test_service.py` (fixture de la tarea 1.5; segunda sesión con `sessionmaker(bind=db.get_bind())`):
+- [x] 4.1 [S] RED, `test_service.py` (fixture de la tarea 1.5; segunda sesión con `sessionmaker(bind=db.get_bind())`):
   - `test_marcar_listo_total_actualiza_cantidad_lista` (CA1, 3 de 3)
   - `test_marcar_listo_parcial_deja_pendientes` (10, lista 4)
   - `test_marcar_listo_baja_cantidad` y `test_marcar_listo_fija_cero`
@@ -86,16 +86,16 @@ Satisface: CA1, CA2, CA3, CA4; orden de validación (L3, S8, S9, S10).
   - `test_registrar_entrega_sin_listo_no_exige_marcar_ni_altera_cantidad_lista` (S2)
   - `test_consultar_entregas_incluye_cantidad_lista_con_entregados_listos_y_pendientes` (CA4: líneas A, B y C del spec)
   - `test_consultar_entregas_detalle_sin_marcar_tiene_cantidad_lista_cero`
-- [ ] 4.2 [S] GREEN, `service.py`: `marcar_listo(db, comanda_id, detalle_id, datos) -> EntregasComanda` según el flujo del diseño (`repository.marcar_listo` → `True`: `commit`; `False`: `rollback` y `_rechazar_listo`; luego `consultar_entregas`). `_rechazar_listo`: 404 comanda → 404 detalle → 409 no ABIERTA → 409 «La línea ya se entregó por completo» → 422 `n > cantidad` (`DatosInvalidosError`) → 409 «El detalle cambió; vuelva a consultar las entregas». Sin FastAPI ni `HTTPException`; excepciones de `shared/excepciones.py`. Incluir `cantidad_lista` en la construcción de `DetalleEntrega`. No modificar `registrar_entrega`, `_rechazar_entrega` ni `cerrar_comanda`.
-- [ ] 4.3 [S] REFACTOR: `_rechazar_listo` y `marcar_listo` cumplen 50 líneas y complejidad 10.
+- [x] 4.2 [S] GREEN, `service.py`: `marcar_listo(db, comanda_id, detalle_id, datos) -> EntregasComanda` según el flujo del diseño (`repository.marcar_listo` → `True`: `commit`; `False`: `rollback` y `_rechazar_listo`; luego `consultar_entregas`). `_rechazar_listo`: 404 comanda → 404 detalle → 409 no ABIERTA → 409 «La línea ya se entregó por completo» → 422 `n > cantidad` (`DatosInvalidosError`) → 409 «El detalle cambió; vuelva a consultar las entregas». Sin FastAPI ni `HTTPException`; excepciones de `shared/excepciones.py`. Incluir `cantidad_lista` en la construcción de `DetalleEntrega`. No modificar `registrar_entrega`, `_rechazar_entrega` ni `cerrar_comanda`.
+- [x] 4.3 [S] REFACTOR: `_rechazar_listo` y `marcar_listo` cumplen 50 líneas y complejidad 10.
 
 ## Fase 5. Router y permisos (backend)
 
 Satisface: contrato de la API y matriz de permisos (L1, L8).
 
-- [ ] 5.1 [S] RED, `backend/tests/shared/test_permisos.py`: agregar `COMANDAS_MARCAR_LISTO` a las expectativas de `MOZO` y `CHEF` (el encargado la recibe con `frozenset(Permiso)`); comprobar que el chef NO tiene `COMANDAS_OPERAR`.
-- [ ] 5.2 [S] RED, `backend/tests/shared/test_matriz_permisos.py`: agregar la fila `PUT /comandas/1/detalles/1/listo` con `TODOS` a `FILAS`; renombrar el test del chef a `test_el_chef_marca_listo_pero_no_opera_comandas` (listo 200; entrega, cerrar y anular 403); `test_cada_ruta_protegida_declara_un_permiso` debe cubrir la ruta nueva (401 sin sesión).
-- [ ] 5.3 [S] RED, `test_router.py` con `cliente` y `cliente_con_rol`:
+- [x] 5.1 [S] RED, `backend/tests/shared/test_permisos.py`: agregar `COMANDAS_MARCAR_LISTO` a las expectativas de `MOZO` y `CHEF` (el encargado la recibe con `frozenset(Permiso)`); comprobar que el chef NO tiene `COMANDAS_OPERAR`.
+- [x] 5.2 [S] RED, `backend/tests/shared/test_matriz_permisos.py`: agregar la fila `PUT /comandas/1/detalles/1/listo` con `TODOS` a `FILAS`; renombrar el test del chef a `test_el_chef_marca_listo_pero_no_opera_comandas` (listo 200; entrega, cerrar y anular 403); `test_cada_ruta_protegida_declara_un_permiso` debe cubrir la ruta nueva (401 sin sesión).
+- [x] 5.3 [S] RED, `test_router.py` con `cliente` y `cliente_con_rol`:
   - `test_put_listo_total_responde_200_con_forma_y_cantidad_lista` (CA1)
   - `test_put_listo_parcial_baja_y_cero_responde_200`
   - `test_put_listo_repetido_responde_200_igual`
@@ -111,24 +111,24 @@ Satisface: contrato de la API y matriz de permisos (L1, L8).
   - `test_put_listo_prohibido_antes_que_invalido` (403 antes de 422: verificar con la matriz, ningún rol carece del permiso)
   - `test_get_detalles_incluye_cantidad_lista_ordenado_por_id` (CA4) y `test_get_detalles_chef_responde_200_con_cantidad_lista`
   - `test_ciclo_listo_entregar_y_cerrar_responde_200` (CA2) y `test_ciclo_listo_sin_entregar_no_permite_cerrar_responde_409` (S10)
-- [ ] 5.4 [S] GREEN: en `backend/app/shared/permisos.py` agregar `Permiso.COMANDAS_MARCAR_LISTO` y asignarlo a mozo y chef (encargado ya recibe todos). Ver nota de archivos compartidos.
-- [ ] 5.5 [S] GREEN, `router.py`: `PUT /comandas/{comanda_id}/detalles/{detalle_id}/listo` con `requiere(Permiso.COMANDAS_MARCAR_LISTO)`, `Path(gt=0)` en ambos ids, cuerpo `ListoDetalle`, `response_model=EntregasComanda`; delega al `service`. No cambiar las rutas existentes. Verificar que `main.py` ya mapea 404/409/422.
-- [ ] 5.6 [S] Punto de control del backend: `ruff check --fix . && ruff format . && ruff check . && ruff format --check . && lint-imports && pytest` verde, cobertura ≥ 70 %.
+- [x] 5.4 [S] GREEN: en `backend/app/shared/permisos.py` agregar `Permiso.COMANDAS_MARCAR_LISTO` y asignarlo a mozo y chef (encargado ya recibe todos). Ver nota de archivos compartidos.
+- [x] 5.5 [S] GREEN, `router.py`: `PUT /comandas/{comanda_id}/detalles/{detalle_id}/listo` con `requiere(Permiso.COMANDAS_MARCAR_LISTO)`, `Path(gt=0)` en ambos ids, cuerpo `ListoDetalle`, `response_model=EntregasComanda`; delega al `service`. No cambiar las rutas existentes. Verificar que `main.py` ya mapea 404/409/422.
+- [x] 5.6 [S] Punto de control del backend: `ruff check --fix . && ruff format . && ruff check . && ruff format --check . && lint-imports && pytest` verde, cobertura ≥ 70 %.
 
 ## Fase 6. Frontend: permisos, tipos, API y función de unidades
 
 Puede iniciarse en paralelo con las fases 1 a 5 una vez fijado el contrato (`[P]` respecto del backend). Los pasos de esta fase son secuenciales entre sí, salvo 6.1 y 6.3, que son independientes.
 
-- [ ] 6.1 [P] RED, `frontend/src/shared/auth/permisos.test.ts`: `COMANDAS_MARCAR_LISTO` para encargado, mozo y chef; el chef sin `COMANDAS_OPERAR`. GREEN, `permisos.ts`: agregar el permiso a mozo, chef y a la lista explícita del encargado (misma asignación que el backend; ver nota de archivos compartidos).
-- [ ] 6.2 [S] RED, `frontend/src/modules/atencion/api.test.ts`: `marcarListo(id, detalleId, n)` hace `PUT /comandas/{id}/detalles/{detalleId}/listo` con `{"cantidad_lista": n}` y devuelve `EntregasComanda` o el error de `RespuestaApi`. GREEN, `types.ts` (`cantidad_lista` en `DetalleEntrega`, `ListoDetalle`) y `api.ts` (`clienteHttp.put`, D-16). Sin `any`.
-- [ ] 6.3 [P] RED, `components/unidadesDeLinea.test.ts`: tres estados (L7); casos `l < e` (cantidad 10, e 6, l 2: 6 / 0 / 4), `l = 0`, `l = c`, `e = c`, línea del spec (c 10, e 2, l 7: 2 / 5 / 3); la suma es siempre `cantidad`. GREEN, crear `components/unidadesDeLinea.ts` (función pura: `entregadas = e`, `listas = max(l − e, 0)`, `pendientes = c − max(l, e)`).
-- [ ] 6.4 [S] RED, `useEntregas` (cubierto desde `EntregasComandaDialog.test.tsx`, ver 7.1): `marcarListo(detalleId, valor)` guarda la respuesta, `enviando` bloquea, un error muestra el mensaje y recarga. GREEN, `useEntregas.ts`: agregar `marcarListo` y el ayudante interno `enviar(llamada, mensaje)` compartido con `registrar` (≤ 50 líneas).
+- [x] 6.1 [P] RED, `frontend/src/shared/auth/permisos.test.ts`: `COMANDAS_MARCAR_LISTO` para encargado, mozo y chef; el chef sin `COMANDAS_OPERAR`. GREEN, `permisos.ts`: agregar el permiso a mozo, chef y a la lista explícita del encargado (misma asignación que el backend; ver nota de archivos compartidos).
+- [x] 6.2 [S] RED, `frontend/src/modules/atencion/api.test.ts`: `marcarListo(id, detalleId, n)` hace `PUT /comandas/{id}/detalles/{detalleId}/listo` con `{"cantidad_lista": n}` y devuelve `EntregasComanda` o el error de `RespuestaApi`. GREEN, `types.ts` (`cantidad_lista` en `DetalleEntrega`, `ListoDetalle`) y `api.ts` (`clienteHttp.put`, D-16). Sin `any`.
+- [x] 6.3 [P] RED, `components/unidadesDeLinea.test.ts`: tres estados (L7); casos `l < e` (cantidad 10, e 6, l 2: 6 / 0 / 4), `l = 0`, `l = c`, `e = c`, línea del spec (c 10, e 2, l 7: 2 / 5 / 3); la suma es siempre `cantidad`. GREEN, crear `components/unidadesDeLinea.ts` (función pura: `entregadas = e`, `listas = max(l − e, 0)`, `pendientes = c − max(l, e)`).
+- [x] 6.4 [S] RED, `useEntregas` (cubierto desde `EntregasComandaDialog.test.tsx`, ver 7.1): `marcarListo(detalleId, valor)` guarda la respuesta, `enviando` bloquea, un error muestra el mensaje y recarga. GREEN, `useEntregas.ts`: agregar `marcarListo` y el ayudante interno `enviar(llamada, mensaje)` compartido con `registrar` (≤ 50 líneas).
 
 ## Fase 7. Frontend: diálogo «Entregas»
 
 Satisface: «Estados y botones por rol en el diálogo de entregas» (CA1, CA2, CA3, CA4) y «Modal Entregas» (comanda-entregas). Reutilizar `Dialog`, `Badge` y `Button` de `frontend/src/shared/components/ui/`.
 
-- [ ] 7.1 [S] RED, `components/EntregasComandaDialog.test.tsx` (`vi.mock('../api')`; las pruebas existentes pasan `puedeEntregar` y `puedeMarcarListo` en lugar de `soloLectura`):
+- [x] 7.1 [S] RED, `components/EntregasComandaDialog.test.tsx` (`vi.mock('../api')`; las pruebas existentes pasan `puedeEntregar` y `puedeMarcarListo` en lugar de `soloLectura`):
   - tres estados: línea c 10, e 2, l 7 muestra «2 de 10», «Listas para servir: 5» e insignias Entregado, Listo para servir y Pendiente (CA4)
   - línea sin cantidad intermedia muestra la insignia dominante (Entregado o Pendiente)
   - «Todo listo» envía `c`; la línea figura «Listo para servir» (CA1)
@@ -143,31 +143,31 @@ Satisface: «Estados y botones por rol en el diálogo de entregas» (CA1, CA2, C
   - llamada en vuelo: todos los controles deshabilitados
   - error 409 en `marcarListo`: mensaje en `role="alert"` y recarga con `consultarEntregas`
   - las etiquetas de listo no coinciden con `/Sumar|Restar|Entregar todo/` (no rompen las consultas existentes)
-- [ ] 7.2 [S] GREEN, `EntregasComandaDialog.tsx`: reemplazar `soloLectura` por `puedeEntregar` y `puedeMarcarListo` (obligatorias); subcomponente `BotonesDeListo` con etiquetas «Marcar una unidad lista de X», «Quitar una unidad lista de X», «Marcar todo listo de X»; insignias y «Listas para servir: n» con `unidadesDeLinea`; título «Entregas» con `puedeEntregar`, si no «Detalle». Mantener cada función ≤ 50 líneas.
-- [ ] 7.3 [S] REFACTOR: accesibilidad (`aria-label` con la referencia del producto), nombres en español, funciones ≤ 50 líneas, y la guía visual de `SPRINT-2/S2-04-maqueta/` como referencia (anotar diferencias en el PR).
+- [x] 7.2 [S] GREEN, `EntregasComandaDialog.tsx`: reemplazar `soloLectura` por `puedeEntregar` y `puedeMarcarListo` (obligatorias); subcomponente `BotonesDeListo` con etiquetas «Marcar una unidad lista de X», «Quitar una unidad lista de X», «Marcar todo listo de X»; insignias y «Listas para servir: n» con `unidadesDeLinea`; título «Entregas» con `puedeEntregar`, si no «Detalle». Mantener cada función ≤ 50 líneas.
+- [x] 7.3 [S] REFACTOR: accesibilidad (`aria-label` con la referencia del producto), nombres en español, funciones ≤ 50 líneas, y la guía visual de `SPRINT-2/S2-04-maqueta/` como referencia (anotar diferencias en el PR).
 
 ## Fase 8. Frontend: integración y acceso por rol
 
 Satisface: «Visibilidad en la interfaz según el rol» (L10). `ComandasTabla` no cambia: el chef abre el diálogo con el botón «Ver detalle» ya existente.
 
-- [ ] 8.1 [S] RED, `AtencionPage.roles.test.tsx`:
+- [x] 8.1 [S] RED, `AtencionPage.roles.test.tsx`:
   - el chef ve el listado y «Ver detalle»; al pulsarlo se abre el diálogo y no aparecen crear, editar, cerrar, reabrir ni anular (CA-2)
   - el chef en el diálogo ve controles de listo y no ve −, + ni «Entregar todo»
   - mozo y encargado ven «Entregas» con los controles de entrega y de listo
   - ajustar el escenario existente «chef sin botones de acción» según el spec de control-de-acceso
-- [ ] 8.2 [S] RED, `AtencionPage.test.tsx`: abrir el diálogo desde la fila pasa `puedeEntregar` y `puedeMarcarListo` según el rol; el flujo de cierre y entregas existente sigue en verde con las props nuevas.
-- [ ] 8.3 [S] GREEN: en `AtencionDialogs.tsx` reemplazar la prop `soloLectura` por `puedeEntregar` y `puedeMarcarListo`; en `AtencionPage.tsx` pasar `puedeEntregar={opera}` y `puedeMarcarListo={puede('COMANDAS_MARCAR_LISTO')}`. No modificar `ComandasTabla`.
-- [ ] 8.4 [S] Punto de control del frontend: `npm run format`, luego `npm run lint && npm run format:check && npm run typecheck && npm run test:coverage && npm run build` verdes (cobertura ≥ 60 %, 0 advertencias).
+- [x] 8.2 [S] RED, `AtencionPage.test.tsx`: abrir el diálogo desde la fila pasa `puedeEntregar` y `puedeMarcarListo` según el rol; el flujo de cierre y entregas existente sigue en verde con las props nuevas.
+- [x] 8.3 [S] GREEN: en `AtencionDialogs.tsx` reemplazar la prop `soloLectura` por `puedeEntregar` y `puedeMarcarListo`; en `AtencionPage.tsx` pasar `puedeEntregar={opera}` y `puedeMarcarListo={puede('COMANDAS_MARCAR_LISTO')}`. No modificar `ComandasTabla`.
+- [x] 8.4 [S] Punto de control del frontend: `npm run format`, luego `npm run lint && npm run format:check && npm run typecheck && npm run test:coverage && npm run build` verdes (cobertura ≥ 60 %, 0 advertencias).
 
 ## Fase 9. Verificación final
 
-- [ ] 9.1 [S] `git pull origin develop`; resolver conflictos en la rama. Si HU-M4-11 u otro cambio agregó una migración, rebasar el `down_revision` (la cabeza actual de `alembic heads`) y repetir 1.6.
-- [ ] 9.2 [S] Backend, desde `backend/` con el entorno virtual activo: `ruff check --fix . && ruff format .` y luego `ruff check . && ruff format --check . && lint-imports && pytest` (AGENTS.md sección 7), sin bajar umbrales (cobertura ≥ 70 %).
-- [ ] 9.3 [S] Frontend, desde `frontend/`: `npm run format` y luego `npm run lint && npm run format:check && npm run typecheck && npm run test:coverage && npm run build` (cobertura ≥ 60 %).
-- [ ] 9.4 [S] `alembic heads` muestra **una sola cabeza** (la migración nueva) y `alembic upgrade head` / `downgrade -1` / `upgrade head` funcionan sobre una base temporal.
-- [ ] 9.5 [S] Recorrer los escenarios de las tres specs y confirmar que cada uno tiene al menos una prueba: CA1 (marcar total, parcial, bajar, cero, idempotencia), CA2 (entregar lo listo, entregar sin listo), CA3 (409 línea entregada), CA4 (consulta con tres estados), 401, 403 antes de 422, 404 ×2, 409 no ABIERTA, 422 tope y cuerpo, migración y reversión, matriz de permisos, botones por rol, error 409 con recarga.
-- [ ] 9.6 [S] Comprobar el tamaño del diff por lado (pronóstico abajo) y que solo se tocó M4 y, en `shared/`, únicamente `permisos.py` y `permisos.ts` (más sus pruebas); sin cambios en `env.py`, `pyproject.toml`, `shared/contratos/comanda.py` ni la CI.
-- [ ] 9.7 [S] Preparar las notas del PR (ver abajo). No crear ni editar issues, comentarios, PR ni tarjetas sin confirmación de la persona.
+- [x] 9.1 [S] `git pull origin develop`; resolver conflictos en la rama. Si HU-M4-11 u otro cambio agregó una migración, rebasar el `down_revision` (la cabeza actual de `alembic heads`) y repetir 1.6.
+- [x] 9.2 [S] Backend, desde `backend/` con el entorno virtual activo: `ruff check --fix . && ruff format .` y luego `ruff check . && ruff format --check . && lint-imports && pytest` (AGENTS.md sección 7), sin bajar umbrales (cobertura ≥ 70 %).
+- [x] 9.3 [S] Frontend, desde `frontend/`: `npm run format` y luego `npm run lint && npm run format:check && npm run typecheck && npm run test:coverage && npm run build` (cobertura ≥ 60 %).
+- [x] 9.4 [S] `alembic heads` muestra **una sola cabeza** (la migración nueva) y `alembic upgrade head` / `downgrade -1` / `upgrade head` funcionan sobre una base temporal.
+- [x] 9.5 [S] Recorrer los escenarios de las tres specs y confirmar que cada uno tiene al menos una prueba: CA1 (marcar total, parcial, bajar, cero, idempotencia), CA2 (entregar lo listo, entregar sin listo), CA3 (409 línea entregada), CA4 (consulta con tres estados), 401, 403 antes de 422, 404 ×2, 409 no ABIERTA, 422 tope y cuerpo, migración y reversión, matriz de permisos, botones por rol, error 409 con recarga.
+- [x] 9.6 [S] Comprobar el tamaño del diff por lado (pronóstico abajo) y que solo se tocó M4 y, en `shared/`, únicamente `permisos.py` y `permisos.ts` (más sus pruebas); sin cambios en `env.py`, `pyproject.toml`, `shared/contratos/comanda.py` ni la CI.
+- [x] 9.7 [S] Preparar las notas del PR (ver abajo). No crear ni editar issues, comentarios, PR ni tarjetas sin confirmación de la persona.
 
 ## Notas para el PR
 
