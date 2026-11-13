@@ -220,7 +220,7 @@ describe('Salón: el mozo solo consulta sectores y mesas', () => {
     expect(screen.queryByRole('button', { name: /Editar|Eliminar/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: 'Acciones' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: 'Mesas' }));
-    await screen.findByText('Libre');
+    expect((await screen.findAllByText('Libre')).length).toBeGreaterThan(0);
     expect(screen.queryByRole('button', { name: /Editar|Eliminar/ })).not.toBeInTheDocument();
   });
 });

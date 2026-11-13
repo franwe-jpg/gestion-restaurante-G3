@@ -442,7 +442,7 @@ describe('SalonPage: listado de mesas', () => {
     render(<SalonPage />);
 
     fireEvent.click(await screen.findByRole('tab', { name: 'Mesas' }));
-    await screen.findByText('Terraza');
+    await waitFor(() => expect(screen.getAllByText('Terraza').length).toBeGreaterThan(0));
 
     const filas = screen.getAllByRole('row').slice(1);
     const celdas = filas.map((fila) =>
@@ -536,17 +536,21 @@ describe('SalonPage: baja de mesa', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Eliminar la mesa 1' }));
 
     expect(await screen.findByText(mensaje)).toBeInTheDocument();
-    expect(screen.getByText('Libre')).toBeInTheDocument();
+    expect(screen.getAllByText('Libre').length).toBeGreaterThan(0);
     expect(listarMesas).toHaveBeenCalledTimes(1);
   });
 });
 
-async function abrirEdicionDeMesa(mesa: Mesa = MESA_SALON) {
+function prepararMesasParaEdicion(mesa: Mesa = MESA_SALON) {
   vi.mocked(listarMesas).mockResolvedValue(paginaMesas([mesa]));
   vi.mocked(listarSectoresHabilitados).mockResolvedValue({
     datos: { items: [SALON], total: 1, limit: 100, offset: 0 },
     exito: true,
   });
+}
+
+async function abrirEdicionDeMesa(mesa: Mesa = MESA_SALON) {
+  prepararMesasParaEdicion(mesa);
   fireEvent.click(await screen.findByRole('tab', { name: 'Mesas' }));
   fireEvent.click(await screen.findByRole('button', { name: `Editar la mesa ${mesa.numero}` }));
   return screen.findByRole('heading', { name: 'Editar mesa' });
@@ -554,6 +558,7 @@ async function abrirEdicionDeMesa(mesa: Mesa = MESA_SALON) {
 
 describe('SalonPage: edición de mesa', () => {
   it('abre el diálogo precargado desde la fila (CA 1 de #39)', async () => {
+    prepararMesasParaEdicion();
     render(<SalonPage />);
 
     await abrirEdicionDeMesa();
@@ -593,6 +598,7 @@ describe('SalonPage: edición de mesa', () => {
 
 describe('SalonPage: edición de mesa: validaciones', () => {
   it('con un dato obligatorio vacío no guarda y lo informa (CA 2 de #39)', async () => {
+    prepararMesasParaEdicion();
     render(<SalonPage />);
     await abrirEdicionDeMesa();
 
@@ -605,6 +611,7 @@ describe('SalonPage: edición de mesa: validaciones', () => {
 
   it('con un número repetido muestra el 409 bajo Número y conserva la fila (CA 3 de #39)', async () => {
     const mensaje = 'La mesa 2 ya existe en el sector Salón principal';
+    prepararMesasParaEdicion();
     render(<SalonPage />);
     await abrirEdicionDeMesa();
     vi.mocked(modificarMesa).mockResolvedValue({ datos: null, exito: false, error: mensaje });
@@ -618,6 +625,7 @@ describe('SalonPage: edición de mesa: validaciones', () => {
   });
 
   it('al cancelar no envía la modificación (CA 4 de #39)', async () => {
+    prepararMesasParaEdicion();
     render(<SalonPage />);
     await abrirEdicionDeMesa();
 

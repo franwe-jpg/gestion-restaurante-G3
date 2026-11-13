@@ -7,12 +7,17 @@ import { Pagination } from '../../../shared/components/ui/pagination';
 import { PaginationSummary } from '../../../shared/components/ui/pagination-summary';
 import { TableToolbar } from '../../../shared/components/ui/table-toolbar';
 import { Tabs } from '../../../shared/components/ui/tabs';
+import type { TabItem } from '../../../shared/components/ui/tabs';
 import type { EstadoPaginacion } from '../../../shared/hooks/usePaginacion';
 import type { Chef, Mesa, Mozo, Sector } from '../types';
 
 import { ChefsTabla } from './ChefsTabla';
+import { FiltrosDeMesas } from './FiltrosDeMesas';
+import { useFiltrosDeMesas } from './useFiltrosDeMesas';
 import { MesasTabla } from './MesasTabla';
 import { MozosTabla } from './MozosTabla';
+import { PlanoDelSalon } from './PlanoDelSalon';
+import { ResumenDelSalon } from './ResumenDelSalon';
 import { SectoresTabla } from './SectoresTabla';
 import { useBajaChef } from './useBajaChef';
 import { useBajaMesa } from './useBajaMesa';
@@ -27,6 +32,7 @@ interface SeccionListadoProps {
   nombreArchivo: string;
   etiqueta: string;
   etiquetaSingular: string;
+  encabezado?: ReactNode;
   children: ReactNode;
 }
 
@@ -36,6 +42,7 @@ function SeccionListado({
   nombreArchivo,
   etiqueta,
   etiquetaSingular,
+  encabezado,
   children,
 }: SeccionListadoProps) {
   const { total } = paginacion;
@@ -44,7 +51,7 @@ function SeccionListado({
     <Card>
       <CardContent className="space-y-4 pt-6">
         <TableToolbar acciones={<ExportButton filas={filas} nombreArchivo={nombreArchivo} />}>
-          {null}
+          {encabezado}
         </TableToolbar>
         {children}
         {total > 0 && (
@@ -96,35 +103,111 @@ function SeccionSectores({ paginacion, ...tabla }: SeccionSectoresProps) {
 }
 
 interface SeccionMesasProps {
-  refresco: number;
+  mesas: Mesa[];
+  sectores: Sector[];
+  cargando: boolean;
+  error: string | null;
+  recargar: () => void;
+  paginacion: EstadoPaginacion;
   gestiona: boolean;
   puedeAbrirComanda: boolean;
   onEditar: (mesa: Mesa) => void;
 }
 
-function SeccionMesas({ refresco, gestiona, puedeAbrirComanda, onEditar }: SeccionMesasProps) {
-  const { mesas, cargando, error, recargar, paginacion } = useMesasDelSalon(refresco);
-  const { eliminar } = useBajaMesa({ onEliminada: recargar });
+interface ContenidoMesasProps {
+  mesasFiltradas: Mesa[];
+  cargando: boolean;
+  error: string | null;
+  recargar: () => void;
+  gestiona: boolean;
+  puedeAbrirComanda: boolean;
+  eliminar: (mesa: Pick<Mesa, 'id' | 'numero'>) => void;
+  onEditar: (mesa: Mesa) => void;
+}
+
+function ContenidoMesas({
+  mesasFiltradas,
+  cargando,
+  error,
+  recargar,
+  gestiona,
+  puedeAbrirComanda,
+  eliminar,
+  onEditar,
+}: ContenidoMesasProps) {
   const navegar = useNavigate();
+  const abrirComanda = puedeAbrirComanda
+    ? (mesa: Mesa) => navegar(`/atencion?mesa=${mesa.id}`)
+    : undefined;
+  return (
+    <div className="space-y-6">
+      <PlanoDelSalon
+        mesas={mesasFiltradas}
+        gestiona={gestiona}
+        puedeAbrirComanda={puedeAbrirComanda}
+        onEditar={gestiona ? onEditar : undefined}
+        onEliminar={gestiona ? (mesa) => void eliminar(mesa) : undefined}
+        onAbrirComanda={abrirComanda}
+      />
+      <section aria-label="Detalle de mesas" className="space-y-2">
+        <h3 className="text-sm font-semibold text-slate-700">Detalle de mesas</h3>
+        <MesasTabla
+          mesas={mesasFiltradas}
+          cargando={cargando}
+          error={error}
+          onReintentar={recargar}
+          onEditar={gestiona ? onEditar : undefined}
+          onEliminar={gestiona ? (mesa) => void eliminar(mesa) : undefined}
+          onAbrirComanda={abrirComanda}
+        />
+      </section>
+    </div>
+  );
+}
+
+function SeccionMesas({
+  mesas,
+  sectores,
+  cargando,
+  error,
+  recargar,
+  paginacion,
+  gestiona,
+  puedeAbrirComanda,
+  onEditar,
+}: SeccionMesasProps) {
+  const filtros = useFiltrosDeMesas(mesas);
+  const { eliminar } = useBajaMesa({ onEliminada: recargar });
 
   return (
     <SeccionListado
       paginacion={paginacion}
-      filas={mesas}
+      filas={filtros.mesasFiltradas}
       nombreArchivo="mesas"
       etiqueta="mesas"
       etiquetaSingular="mesa"
+      encabezado={
+        <FiltrosDeMesas
+          sectores={sectores}
+          sectorId={filtros.sectorId}
+          estado={filtros.estado}
+          visibles={filtros.mesasFiltradas.length}
+          total={mesas.length}
+          onCambiarSector={filtros.cambiarSector}
+          onCambiarEstado={filtros.cambiarEstado}
+          onLimpiar={filtros.limpiar}
+        />
+      }
     >
-      <MesasTabla
-        mesas={mesas}
+      <ContenidoMesas
+        mesasFiltradas={filtros.mesasFiltradas}
         cargando={cargando}
         error={error}
-        onReintentar={recargar}
-        onEditar={gestiona ? onEditar : undefined}
-        onEliminar={gestiona ? (mesa) => void eliminar(mesa) : undefined}
-        onAbrirComanda={
-          puedeAbrirComanda ? (mesa) => navegar(`/atencion?mesa=${mesa.id}`) : undefined
-        }
+        recargar={recargar}
+        gestiona={gestiona}
+        puedeAbrirComanda={puedeAbrirComanda}
+        eliminar={(mesa) => void eliminar(mesa)}
+        onEditar={onEditar}
       />
     </SeccionListado>
   );
@@ -206,77 +289,88 @@ export interface SeccionesDelSalonProps extends Omit<SeccionSectoresProps, 'onEd
   onEditarChef: (chef: Chef) => void;
 }
 
-function pestaniasDeGestion({
-  refrescoMozos,
-  refrescoChefs,
-  onEditarMozo,
-  onEditarChef,
-}: Pick<
-  SeccionesDelSalonProps,
-  'refrescoMozos' | 'refrescoChefs' | 'onEditarMozo' | 'onEditarChef'
->) {
+interface PestaniasProps extends SeccionesDelSalonProps {
+  mesas: Mesa[];
+  mesasCargando: boolean;
+  mesasError: string | null;
+  recargarMesas: () => void;
+  paginacionMesas: EstadoPaginacion;
+}
+
+function construirPestanias(props: PestaniasProps): TabItem[] {
+  const base: TabItem[] = [
+    {
+      id: 'sectores',
+      etiqueta: 'Sectores',
+      contenido: (
+        <SeccionSectores
+          sectores={props.sectores}
+          cargando={props.cargando}
+          error={props.error}
+          paginacion={props.paginacion}
+          onReintentar={props.onReintentar}
+          onEditar={props.gestiona ? props.onEditarSector : undefined}
+          onEliminar={props.gestiona ? props.onEliminar : undefined}
+        />
+      ),
+    },
+    {
+      id: 'mesas',
+      etiqueta: 'Mesas',
+      contenido: (
+        <SeccionMesas
+          mesas={props.mesas}
+          sectores={props.sectores}
+          cargando={props.mesasCargando}
+          error={props.mesasError}
+          recargar={props.recargarMesas}
+          paginacion={props.paginacionMesas}
+          gestiona={props.gestiona}
+          puedeAbrirComanda={props.puedeAbrirComanda}
+          onEditar={props.onEditarMesa}
+        />
+      ),
+    },
+  ];
+  if (!props.gestiona) return base;
   return [
+    ...base,
     {
       id: 'mozos',
       etiqueta: 'Mozos',
-      contenido: <SeccionMozos refresco={refrescoMozos} onEditar={onEditarMozo} />,
+      contenido: <SeccionMozos refresco={props.refrescoMozos} onEditar={props.onEditarMozo} />,
     },
     {
       id: 'chefs',
       etiqueta: 'Chefs',
-      contenido: <SeccionChefs refresco={refrescoChefs} onEditar={onEditarChef} />,
+      contenido: <SeccionChefs refresco={props.refrescoChefs} onEditar={props.onEditarChef} />,
     },
   ];
 }
 
 /** Pestañas del módulo: sectores y mesas para quien consulta; mozos y chefs solo para quien gestiona. */
-export function SeccionesDelSalon({
-  gestiona,
-  puedeAbrirComanda,
-  pestania,
-  onCambiarPestania,
-  refrescoMesas,
-  refrescoMozos,
-  refrescoChefs,
-  onEditarSector,
-  onEditarMesa,
-  onEditarMozo,
-  onEditarChef,
-  onEliminar,
-  ...sectores
-}: SeccionesDelSalonProps) {
+export function SeccionesDelSalon(props: SeccionesDelSalonProps) {
+  const mesasDelSalon = useMesasDelSalon(props.refrescoMesas);
+
   return (
-    <Tabs
-      valor={pestania}
-      onCambiar={onCambiarPestania}
-      items={[
-        {
-          id: 'sectores',
-          etiqueta: 'Sectores',
-          contenido: (
-            <SeccionSectores
-              {...sectores}
-              onEditar={gestiona ? onEditarSector : undefined}
-              onEliminar={gestiona ? onEliminar : undefined}
-            />
-          ),
-        },
-        {
-          id: 'mesas',
-          etiqueta: 'Mesas',
-          contenido: (
-            <SeccionMesas
-              refresco={refrescoMesas}
-              gestiona={gestiona}
-              puedeAbrirComanda={puedeAbrirComanda}
-              onEditar={onEditarMesa}
-            />
-          ),
-        },
-        ...(gestiona
-          ? pestaniasDeGestion({ refrescoMozos, refrescoChefs, onEditarMozo, onEditarChef })
-          : []),
-      ]}
-    />
+    <div className="space-y-6">
+      <ResumenDelSalon
+        sectores={props.sectores}
+        mesas={mesasDelSalon.mesas}
+        cargando={mesasDelSalon.cargando || props.cargando}
+      />
+      <Tabs
+        valor={props.pestania}
+        onCambiar={props.onCambiarPestania}
+        items={construirPestanias({
+          ...props,
+          mesas: mesasDelSalon.mesas,
+          mesasCargando: mesasDelSalon.cargando,
+          mesasError: mesasDelSalon.error,
+          recargarMesas: mesasDelSalon.recargar,
+          paginacionMesas: mesasDelSalon.paginacion,
+        })}
+      />
+    </div>
   );
 }
