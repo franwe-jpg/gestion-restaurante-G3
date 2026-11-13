@@ -32,7 +32,8 @@ Leyenda: **E** encargado, **M** mozo, **C** chef. «Sí» = permitido; «403» =
 | --- | --- | --- | --- |
 | `GET /mesas`, `GET /sectores` | Sí | Sí | 403 |
 | `POST /sectores`, `PUT /sectores/{id}`, `POST /sectores/{id}/baja`, `POST /mesas`, `PUT /mesas/{id}`, `DELETE /mesas/{id}` | Sí | 403 | 403 |
-| `POST /mozos`, `GET /mozos`, `PUT /mozos/{id}`, `POST /mozos/{id}/baja`; `POST /chefs`, `GET /chefs`, `PUT /chefs/{id}`, `POST /chefs/{id}/baja` | Sí | 403 | 403 |
+| `GET /mozos` (solo exige una sesión válida: cualquier rol ve los nombres de los mozos en comandas y reservas) | Sí | Sí | Sí |
+| `POST /mozos`, `PUT /mozos/{id}`, `POST /mozos/{id}/baja`; `POST /chefs`, `GET /chefs`, `PUT /chefs/{id}`, `POST /chefs/{id}/baja` | Sí | 403 | 403 |
 | `GET /reportes/mesas-ventas-por-mozo` | Sí | 403 | 403 |
 
 ### M4 Atención al Público

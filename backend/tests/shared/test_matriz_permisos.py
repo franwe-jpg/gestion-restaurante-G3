@@ -73,7 +73,8 @@ _filas(
 )
 _filas("GET", ["/reportes/impacto-promociones"], SOLO_ENCARGADO)
 # M3 Salon, Mozos y Chefs
-_filas("GET", ["/mesas", "/sectores", "/mozos"], ENCARGADO_Y_MOZO)
+_filas("GET", ["/mesas", "/sectores"], ENCARGADO_Y_MOZO)
+_filas("GET", ["/mozos"], TODOS)
 _filas("POST", ["/sectores", "/sectores/1/baja", "/mesas"], SOLO_ENCARGADO)
 _filas("PUT", ["/sectores/1", "/mesas/1"], SOLO_ENCARGADO)
 _filas("DELETE", ["/mesas/1"], SOLO_ENCARGADO)
@@ -199,7 +200,12 @@ def test_el_chef_no_entra_a_pagos_ni_salon(cliente_con_rol: ClienteConRol) -> No
     assert chef.get(f"{API_PREFIX}/facturas").status_code == 403
     assert chef.get(f"{API_PREFIX}/medios-de-pago").status_code == 403
     assert chef.get(f"{API_PREFIX}/mesas").status_code == 403
-    assert chef.get(f"{API_PREFIX}/mozos").status_code == 403
+
+
+def test_el_chef_lista_los_mozos_porque_solo_exige_sesion(cliente_con_rol: ClienteConRol) -> None:
+    chef = cliente_con_rol(C)
+
+    assert chef.get(f"{API_PREFIX}/mozos").status_code == 200
 
 
 def test_el_chef_marca_listo_pero_no_opera_comandas(
@@ -284,7 +290,11 @@ def test_el_usuario_con_mozo_y_chef_recibe_la_union_de_permisos(
 # --- Completitud (P5) ---
 
 PUBLICAS = {("POST", f"{API_PREFIX}/sesion"), ("GET", f"{API_PREFIX}/salud")}
-SOLO_SESION = {("GET", f"{API_PREFIX}/sesion"), ("DELETE", f"{API_PREFIX}/sesion")}
+SOLO_SESION = {
+    ("GET", f"{API_PREFIX}/sesion"),
+    ("DELETE", f"{API_PREFIX}/sesion"),
+    ("GET", f"{API_PREFIX}/mozos"),
+}
 
 
 def _rutas_de_la_api() -> list[tuple[str, APIRoute]]:
@@ -309,7 +319,7 @@ def test_cada_ruta_protegida_declara_un_permiso() -> None:
     assert sin_permiso == []
 
 
-def test_get_y_delete_de_sesion_solo_exigen_una_sesion_valida() -> None:
+def test_las_rutas_de_solo_sesion_exigen_una_sesion_valida() -> None:
     for metodo, ruta in _rutas_de_la_api():
         if (metodo, ruta.path) in SOLO_SESION:
             llamadas = [d.call for d in ruta.dependant.dependencies]
