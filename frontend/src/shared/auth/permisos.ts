@@ -13,6 +13,7 @@ export type Permiso =
   | 'SALON_GESTIONAR'
   | 'COMANDAS_VER'
   | 'COMANDAS_OPERAR'
+  | 'COMANDAS_MARCAR_LISTO'
   | 'CLIENTES_GESTIONAR'
   | 'RESERVAS_VER'
   | 'RESERVAS_OPERAR'
@@ -30,6 +31,7 @@ export const PERMISOS_POR_ROL: Record<Rol, readonly Permiso[]> = {
     'SALON_GESTIONAR',
     'COMANDAS_VER',
     'COMANDAS_OPERAR',
+    'COMANDAS_MARCAR_LISTO',
     'CLIENTES_GESTIONAR',
     'RESERVAS_VER',
     'RESERVAS_OPERAR',
@@ -43,12 +45,13 @@ export const PERMISOS_POR_ROL: Record<Rol, readonly Permiso[]> = {
     'SALON_VER',
     'COMANDAS_VER',
     'COMANDAS_OPERAR',
+    'COMANDAS_MARCAR_LISTO',
     'CLIENTES_GESTIONAR',
     'RESERVAS_VER',
     'RESERVAS_OPERAR',
     'PAGOS_OPERAR',
   ],
-  CHEF: ['CARTA_VER', 'MENUS_VER', 'COMANDAS_VER', 'RESERVAS_VER'],
+  CHEF: ['CARTA_VER', 'MENUS_VER', 'COMANDAS_VER', 'COMANDAS_MARCAR_LISTO', 'RESERVAS_VER'],
 };
 
 /** Union de los permisos de los roles; sin roles no hay permisos. */

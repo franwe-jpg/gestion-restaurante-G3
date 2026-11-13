@@ -15,8 +15,10 @@ interface Props {
   cierreId: number | null;
   modificarId: number | null;
   entregas: EntregasAbiertas | null;
-  /** Sin `COMANDAS_OPERAR` el detalle de la comanda no permite registrar entregas. */
-  soloLectura: boolean;
+  /** `COMANDAS_OPERAR`: permite registrar entregas en el diálogo de entregas. */
+  puedeEntregar: boolean;
+  /** `COMANDAS_MARCAR_LISTO`: permite marcar unidades listas en cocina. */
+  puedeMarcarListo: boolean;
   onAlta: (abierto: boolean) => void;
   onCreada: () => void;
   onSalirCierre: () => void;
@@ -46,7 +48,8 @@ export function AtencionDialogs(props: Props) {
       {props.entregas && (
         <EntregasComandaDialog
           id={props.entregas.id}
-          soloLectura={props.soloLectura}
+          puedeEntregar={props.puedeEntregar}
+          puedeMarcarListo={props.puedeMarcarListo}
           onSalir={props.onSalirEntregas}
         />
       )}

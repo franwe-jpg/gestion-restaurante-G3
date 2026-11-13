@@ -231,6 +231,7 @@ function entregas(entregada: number, estado: 'ABIERTA' | 'CERRADA' = 'ABIERTA') 
       {
         ...PENDIENTE_81,
         cantidad_entregada: entregada,
+        cantidad_lista: 0,
         estado_entrega: entregada === 2 ? ('ENTREGADO' as const) : ('PENDIENTE' as const),
       },
     ],
