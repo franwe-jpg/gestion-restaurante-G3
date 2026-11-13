@@ -1,10 +1,10 @@
 import { Pencil, Trash2, Users } from 'lucide-react';
 
 import { EmptyState } from '../../../shared/components/EmptyState';
-import { Badge } from '../../../shared/components/ui/badge';
 import { Button } from '../../../shared/components/ui/button';
 import { DataTable } from '../../../shared/components/ui/data-table';
 import type { ColumnaTabla } from '../../../shared/components/ui/data-table';
+import { StatusBadge } from '../../../shared/components/ui/status-badge';
 import type { Persona } from '../types';
 
 import type { TipoPersona } from './tipoPersona';
@@ -34,6 +34,7 @@ function AccionesPersona({ tipo, persona, onEditar, onEliminar }: AccionesPerson
         variant="ghost"
         size="sm"
         aria-label={`Editar el ${tipo} ${persona.dni}`}
+        title={`Editar el ${tipo} ${persona.dni}`}
         onClick={() => onEditar(persona)}
       >
         <Pencil className="h-4 w-4" aria-hidden="true" />
@@ -44,6 +45,7 @@ function AccionesPersona({ tipo, persona, onEditar, onEliminar }: AccionesPerson
           variant="ghost"
           size="sm"
           aria-label={`Dar de baja al ${tipo} ${persona.dni}`}
+          title={`Dar de baja al ${tipo} ${persona.dni}`}
           onClick={() => onEliminar(persona)}
         >
           <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -79,11 +81,7 @@ function columnas(
     {
       clave: 'estado',
       encabezado: 'Estado',
-      render: (persona) => (
-        <Badge variant={persona.estado === 'HABILITADO' ? 'success' : 'neutral'}>
-          {persona.estado === 'HABILITADO' ? 'Habilitado' : 'Deshabilitado'}
-        </Badge>
-      ),
+      render: (persona) => <StatusBadge estado={persona.estado} />,
     },
     {
       clave: 'acciones',

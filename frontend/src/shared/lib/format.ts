@@ -20,7 +20,21 @@ export function formatearFecha(valor: string | number | Date): string {
 export function formatearHora(valor: string | number | Date): string {
   const fecha = aFecha(valor);
   if (!fecha) return '-';
-  return new Intl.DateTimeFormat('es-AR', { hour: '2-digit', minute: '2-digit' }).format(fecha);
+  return new Intl.DateTimeFormat('es-AR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(fecha);
+}
+
+export function formatearFechaHora(valor: string | number | Date): string {
+  const fecha = aFecha(valor);
+  if (!fecha) return '-';
+  return new Intl.DateTimeFormat('es-AR', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+    hour12: false,
+  }).format(fecha);
 }
 
 export function formatearNumero(valor: number): string {

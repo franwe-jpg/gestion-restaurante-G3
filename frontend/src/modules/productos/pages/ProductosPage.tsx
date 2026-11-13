@@ -1,4 +1,3 @@
-import { BookOpen } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../../../shared/components/PageHeader';
@@ -20,8 +19,7 @@ export function ProductosPage() {
         titulo="Productos y Carta"
         descripcion="Administración de platos, bebidas, recetas y disponibilidad en carta."
         acciones={
-          <Button variant="outline" onClick={() => navigate('/productos/carta')}>
-            <BookOpen className="h-4 w-4" aria-hidden="true" />
+          <Button variant="brand-outline" onClick={() => navigate('/productos/carta')}>
             Ver carta
           </Button>
         }

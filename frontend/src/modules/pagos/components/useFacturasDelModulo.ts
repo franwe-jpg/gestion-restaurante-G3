@@ -8,6 +8,7 @@ export const LIMITE_FACTURAS = 50;
 
 export interface PaginacionFacturas {
   pagina: number;
+  total: number;
   totalPaginas: number;
   irAPagina: (pagina: number) => void;
 }
@@ -38,6 +39,6 @@ export function useFacturasDelModulo(): {
     cargando: consulta.cargando,
     error: consulta.error,
     recargar: consulta.recargar,
-    paginacion: { pagina, totalPaginas, irAPagina },
+    paginacion: { pagina, total, totalPaginas, irAPagina },
   };
 }

@@ -12,6 +12,7 @@ import {
   TableRow,
 } from '../../../shared/components/ui/table';
 import { useApi } from '../../../shared/hooks/useApi';
+import { formatearFechaHora, formatearMoneda } from '../../../shared/lib/format';
 import { listarMediosPago } from '../api';
 import type { Cobro, Comprobante, Factura, FacturaResumen, MedioPago } from '../types';
 
@@ -25,10 +26,6 @@ export interface ComprobantesDialogProps {
 type Estado = ReturnType<typeof useComprobantesDeFactura>;
 
 const LIMITE_MEDIOS = 100;
-
-function formatearFecha(fecha: string): string {
-  return new Date(fecha).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' });
-}
 
 function nombreDelMedio(medios: MedioPago[], medioPagoId: number): string {
   return medios.find((medio) => medio.id === medioPagoId)?.nombre ?? `Medio #${medioPagoId}`;
@@ -62,13 +59,13 @@ function ListaDeCobros({ factura, medios, onVer }: ListaProps) {
         {factura.cobros.map((cobro) => (
           <TableRow key={cobro.id}>
             <TableCell className="font-medium">#{numeroDe(cobro)}</TableCell>
-            <TableCell>{formatearFecha(cobro.fecha_hora)}</TableCell>
+            <TableCell>{formatearFechaHora(cobro.fecha_hora)}</TableCell>
             <TableCell>{nombreDelMedio(medios, cobro.medio_pago_id)}</TableCell>
-            <TableCell>$ {cobro.monto}</TableCell>
+            <TableCell>{formatearMoneda(Number(cobro.monto))}</TableCell>
             <TableCell>
               <Button
                 size="sm"
-                variant="outline"
+                variant="brand-outline"
                 aria-label={`Ver el comprobante ${numeroDe(cobro)}`}
                 onClick={() => onVer(numeroDe(cobro))}
               >
@@ -90,13 +87,22 @@ function DetalleDelComprobante({ comprobante }: { comprobante: Comprobante }) {
       </h3>
       <DescriptionList
         items={[
-          { termino: 'Fecha', detalle: formatearFecha(comprobante.fecha_hora) },
-          { termino: 'Importe pagado', detalle: `$ ${comprobante.monto}` },
+          { termino: 'Fecha', detalle: formatearFechaHora(comprobante.fecha_hora) },
+          {
+            termino: 'Importe pagado',
+            detalle: formatearMoneda(Number(comprobante.monto)),
+          },
           { termino: 'Medio de pago', detalle: comprobante.medio_pago.nombre },
           { termino: 'Factura', detalle: `#${comprobante.factura_id}` },
           { termino: 'Comanda', detalle: `#${comprobante.comanda_id}` },
-          { termino: 'Total de la factura', detalle: `$ ${comprobante.total_factura}` },
-          { termino: 'Saldo pendiente', detalle: `$ ${comprobante.saldo_pendiente}` },
+          {
+            termino: 'Total de la factura',
+            detalle: formatearMoneda(Number(comprobante.total_factura)),
+          },
+          {
+            termino: 'Saldo pendiente',
+            detalle: formatearMoneda(Number(comprobante.saldo_pendiente)),
+          },
         ]}
       />
     </div>
@@ -118,7 +124,7 @@ function Pie({ estado, onCerrar }: { estado: Estado; onCerrar: () => void }) {
   return (
     <>
       {enDetalle && (
-        <Button variant="outline" onClick={estado.volver}>
+        <Button variant="brand-outline" onClick={estado.volver}>
           Volver
         </Button>
       )}
@@ -128,7 +134,7 @@ function Pie({ estado, onCerrar }: { estado: Estado; onCerrar: () => void }) {
         </Button>
       )}
       {!enDetalle && (
-        <Button variant="outline" onClick={onCerrar}>
+        <Button variant="brand-outline" onClick={onCerrar}>
           Cerrar
         </Button>
       )}

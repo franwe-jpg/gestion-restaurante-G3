@@ -6,6 +6,7 @@ import { Alert } from '../components/ui/alert';
 import { Button } from '../components/ui/button';
 import { FormField } from '../components/ui/form-field';
 import { Input } from '../components/ui/input';
+import { BotonTema } from '../components/layout/BotonTema';
 
 import { origenDeLogin } from './origen';
 import { useSesion } from './useSesion';
@@ -24,16 +25,16 @@ function validar(correo: string, contrasena: string): ErroresLogin {
 
 function PanelDeMarca() {
   return (
-    <section className="flex flex-1 basis-[420px] flex-col justify-between gap-8 bg-slate-900 p-12 text-slate-50">
+    <section className="flex flex-1 basis-[420px] flex-col justify-between gap-8 bg-slate-900 p-12 text-slate-50 dark:bg-[#0b1220] dark:text-[#e2e8f0]">
       <div className="flex items-center gap-3">
-        <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-amber-700 text-white">
+        <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-amber-700 text-[#fff]">
           <ChefHat className="h-6 w-6" aria-hidden="true" />
         </span>
         <span className="text-xl font-bold">GastroAdmin</span>
       </div>
       <div className="max-w-md">
         <h1 className="text-4xl font-extrabold leading-tight">Gestión del restaurante</h1>
-        <p className="mt-4 text-base text-slate-300">
+        <p className="mt-4 text-base text-slate-300 dark:text-[#94a3b8]">
           Carta, salón, comandas, reservas y pagos en un solo lugar.
         </p>
       </div>
@@ -76,7 +77,10 @@ export function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-wrap bg-slate-50">
+    <div className="relative flex min-h-screen flex-wrap bg-slate-50">
+      <div className="absolute right-4 top-4 z-10">
+        <BotonTema />
+      </div>
       <PanelDeMarca />
       <section className="flex flex-[999_1_480px] items-center justify-center px-6 py-12">
         <form

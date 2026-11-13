@@ -1,5 +1,3 @@
-import { ImagePlus } from 'lucide-react';
-
 import { Button } from '../../../shared/components/ui/button';
 import { FormField } from '../../../shared/components/ui/form-field';
 import { urlDeImagen } from '../api';
@@ -23,7 +21,6 @@ export function CampoImagenMenu({ formulario, menu }: CampoImagenMenuProps) {
           <img src={actual} alt="" className="h-14 w-14 rounded-md object-cover" />
         )}
         <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700">
-          <ImagePlus className="h-4 w-4" aria-hidden="true" />
           {formulario.imagen?.name ?? 'Elegir imagen'}
           <input
             type="file"
@@ -34,7 +31,7 @@ export function CampoImagenMenu({ formulario, menu }: CampoImagenMenuProps) {
           />
         </label>
         {actual !== null && (
-          <Button type="button" variant="ghost" onClick={formulario.quitarImagenActual}>
+          <Button type="button" variant="brand-outline" onClick={formulario.quitarImagenActual}>
             Quitar imagen
           </Button>
         )}

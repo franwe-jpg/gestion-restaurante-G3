@@ -80,8 +80,8 @@ describe('FacturarComandaDialog (HU-M6-01)', () => {
 
     expect(previsualizarFactura).toHaveBeenCalledWith(12);
     expect(screen.getByText('Milanesa')).toBeInTheDocument();
-    expect(screen.getByText('$ 2901.00')).toBeInTheDocument();
-    expect(screen.getByText('Total a pagar: $ 7101.00')).toBeInTheDocument();
+    expect(screen.getByText('$ 2.901,00')).toBeInTheDocument();
+    expect(screen.getByText('Total a pagar: $ 7.101,00')).toBeInTheDocument();
     expect(screen.getByLabelText(/Importe/)).toHaveValue('7101.00');
   });
 

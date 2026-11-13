@@ -5,70 +5,54 @@ import { EmptyState } from '../../../shared/components/EmptyState';
 import { ErrorState } from '../../../shared/components/ui/error-state';
 import { Spinner } from '../../../shared/components/ui/spinner';
 import { Button } from '../../../shared/components/ui/button';
-import { Card, CardContent } from '../../../shared/components/ui/card';
-import { Pagination } from '../../../shared/components/ui/pagination';
-import { SearchInput } from '../../../shared/components/ui/search-input';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '../../../shared/components/ui/table';
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '../../../shared/components/ui/card';
+import { DataTable } from '../../../shared/components/ui/data-table';
+import type { ColumnaTabla } from '../../../shared/components/ui/data-table';
+import { Pagination } from '../../../shared/components/ui/pagination';
+import { PaginationSummary } from '../../../shared/components/ui/pagination-summary';
+import { SearchInput } from '../../../shared/components/ui/search-input';
+import { TableToolbar } from '../../../shared/components/ui/table-toolbar';
 import { listarClientes } from '../api';
 import type { Cliente, PaginaCliente } from '../types';
 import { ClienteFormDialog } from './ClienteFormDialog';
 
 const LIMITE_PAGINA = 50;
 
-function ListaClientes({
-  pagina,
-  onEditar,
-}: {
-  pagina: PaginaCliente;
-  onEditar: (cliente: Cliente) => void;
-}) {
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Nombre</TableHead>
-          <TableHead>Teléfono</TableHead>
-          <TableHead>Acciones</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {pagina.items.map((cliente) => (
-          <TableRow key={cliente.id}>
-            <TableCell>{cliente.nombre}</TableCell>
-            <TableCell>{cliente.telefono}</TableCell>
-            <TableCell>
-              <Button
-                variant="outline"
-                onClick={() => onEditar(cliente)}
-                aria-label={`Modificar ${cliente.nombre}`}
-              >
-                Modificar
-              </Button>
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  );
+function columnasDeClientes(onEditar: (cliente: Cliente) => void): ColumnaTabla<Cliente>[] {
+  return [
+    {
+      clave: 'nombre',
+      encabezado: 'Nombre',
+      render: (cliente) => cliente.nombre,
+    },
+    {
+      clave: 'telefono',
+      encabezado: 'Teléfono',
+      render: (cliente) => cliente.telefono,
+    },
+    {
+      clave: 'acciones',
+      encabezado: <span className="sr-only">Acciones</span>,
+      render: (cliente) => (
+        <Button
+          variant="brand-outline"
+          onClick={() => onEditar(cliente)}
+          aria-label={`Modificar ${cliente.nombre}`}
+        >
+          Modificar
+        </Button>
+      ),
+    },
+  ];
 }
 
-function ResultadoClientes({
-  pagina,
-  filtro,
-  onEditar,
-}: {
-  pagina: PaginaCliente;
-  filtro: string;
-  onEditar: (cliente: Cliente) => void;
-}) {
-  if (pagina.items.length) return <ListaClientes pagina={pagina} onEditar={onEditar} />;
+function VacioClientes({ pagina, filtro }: { pagina: PaginaCliente; filtro: string }) {
   const titulo =
     pagina.total > 0
       ? 'No hay clientes en esta página'
@@ -80,6 +64,25 @@ function ResultadoClientes({
       icono={Users}
       titulo={titulo}
       descripcion="Consulte otra página o ajuste la búsqueda."
+    />
+  );
+}
+
+function ListaClientes({
+  pagina,
+  filtro,
+  onEditar,
+}: {
+  pagina: PaginaCliente;
+  filtro: string;
+  onEditar: (cliente: Cliente) => void;
+}) {
+  return (
+    <DataTable
+      columnas={columnasDeClientes(onEditar)}
+      filas={pagina.items}
+      obtenerClave={(cliente) => cliente.id}
+      vacio={<VacioClientes pagina={pagina} filtro={filtro} />}
     />
   );
 }
@@ -143,18 +146,29 @@ function PaginacionClientes({
   setOffset: (offset: number) => void;
   iniciarCarga: () => void;
 }) {
-  if (pagina.total <= LIMITE_PAGINA) return null;
+  const totalPaginas = Math.ceil(pagina.total / LIMITE_PAGINA);
+  if (pagina.total === 0) return null;
   return (
-    <Pagination
-      pagina={Math.floor(offset / LIMITE_PAGINA) + 1}
-      totalPaginas={Math.ceil(pagina.total / LIMITE_PAGINA)}
-      onCambiarPagina={(numero) => {
-        const nuevoOffset = (numero - 1) * LIMITE_PAGINA;
-        if (nuevoOffset === offset) return;
-        iniciarCarga();
-        setOffset(nuevoOffset);
-      }}
-    />
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <PaginationSummary
+        desde={offset + 1}
+        hasta={Math.min(offset + pagina.items.length, pagina.total)}
+        total={pagina.total}
+        etiqueta="clientes"
+      />
+      {totalPaginas > 1 && (
+        <Pagination
+          pagina={Math.floor(offset / LIMITE_PAGINA) + 1}
+          totalPaginas={totalPaginas}
+          onCambiarPagina={(numero) => {
+            const nuevoOffset = (numero - 1) * LIMITE_PAGINA;
+            if (nuevoOffset === offset) return;
+            iniciarCarga();
+            setOffset(nuevoOffset);
+          }}
+        />
+      )}
+    </div>
   );
 }
 
@@ -172,8 +186,7 @@ function ContenidoClientes({
       {!cargando && error && <ErrorState descripcion={error} />}
       {!cargando && pagina && (
         <>
-          <ResultadoClientes pagina={pagina} filtro={filtro} onEditar={onEditar} />
-          <p>{pagina.total} clientes</p>
+          <ListaClientes pagina={pagina} filtro={filtro} onEditar={onEditar} />
           <PaginacionClientes
             pagina={pagina}
             offset={offset}
@@ -195,29 +208,33 @@ function FiltroClientes({ listado }: { listado: Listado }) {
     listado.setFiltro(nuevoFiltro);
   };
   return (
-    <form
-      className="flex gap-2"
-      onSubmit={(evento) => {
-        evento.preventDefault();
-        buscar();
-      }}
-    >
-      <SearchInput
-        aria-label="Buscar clientes"
-        type="search"
-        value={listado.texto}
-        onChange={(evento) => listado.setTexto(evento.target.value)}
-        onLimpiar={() => {
-          if (listado.filtro || listado.offset !== 0) {
-            listado.iniciarCarga();
-            listado.setFiltro('');
-            listado.setOffset(0);
-          }
-          listado.setTexto('');
+    <TableToolbar>
+      <form
+        className="flex w-full gap-2"
+        onSubmit={(evento) => {
+          evento.preventDefault();
+          buscar();
         }}
-      />
-      <Button type="submit">Buscar</Button>
-    </form>
+      >
+        <SearchInput
+          aria-label="Buscar clientes"
+          type="search"
+          value={listado.texto}
+          onChange={(evento) => listado.setTexto(evento.target.value)}
+          onLimpiar={() => {
+            if (listado.filtro || listado.offset !== 0) {
+              listado.iniciarCarga();
+              listado.setFiltro('');
+              listado.setOffset(0);
+            }
+            listado.setTexto('');
+          }}
+        />
+        <Button variant="brand-outline" type="submit">
+          Buscar
+        </Button>
+      </form>
+    </TableToolbar>
   );
 }
 
@@ -238,8 +255,11 @@ export function PanelClientes() {
   }
   return (
     <Card>
-      <CardContent className="space-y-4 pt-6">
-        <h2 className="text-lg font-semibold">Clientes</h2>
+      <CardHeader>
+        <CardTitle>Clientes</CardTitle>
+        <CardDescription>Datos de contacto y edición de los clientes registrados.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
         <FiltroClientes listado={listado} />
         <ContenidoClientes listado={listado} onEditar={setSeleccionado} />
         {seleccionado && (

@@ -1,4 +1,3 @@
-import { Plus, Receipt } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
@@ -7,8 +6,13 @@ import { PageHeader } from '../../../shared/components/PageHeader';
 import { Button } from '../../../shared/components/ui/button';
 import { Card, CardContent } from '../../../shared/components/ui/card';
 import { Checkbox } from '../../../shared/components/ui/checkbox';
+import { ExportButton } from '../../../shared/components/ui/export-button';
+import { FilterBar } from '../../../shared/components/ui/filter-bar';
 import { Pagination } from '../../../shared/components/ui/pagination';
+import { PaginationSummary } from '../../../shared/components/ui/pagination-summary';
+import { TableToolbar } from '../../../shared/components/ui/table-toolbar';
 import { Tabs } from '../../../shared/components/ui/tabs';
+import type { EstadoPaginacion } from '../../../shared/hooks/usePaginacion';
 
 import { FacturarComandaDialog } from '../components/FacturarComandaDialog';
 import { FacturasPanel } from '../components/FacturasPanel';
@@ -49,6 +53,34 @@ interface ListadoMediosPagoProps {
   onEditar?: (medioPago: MedioPago) => void;
 }
 
+interface PieDelListadoProps {
+  paginacion: EstadoPaginacion;
+  cantidadFilas: number;
+}
+
+/** Resumen del tramo visible y paginador; no se muestra si el listado está vacío. */
+function PieDelListado({ paginacion, cantidadFilas }: PieDelListadoProps) {
+  if (paginacion.total === 0) return null;
+  return (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <PaginationSummary
+        desde={paginacion.offset + 1}
+        hasta={Math.min(paginacion.offset + cantidadFilas, paginacion.total)}
+        total={paginacion.total}
+        etiqueta="medios de pago"
+        etiquetaSingular="medio de pago"
+      />
+      {paginacion.totalPaginas > 1 && (
+        <Pagination
+          pagina={paginacion.pagina}
+          totalPaginas={paginacion.totalPaginas}
+          onCambiarPagina={paginacion.irAPagina}
+        />
+      )}
+    </div>
+  );
+}
+
 /** HU-M6-07: casilla de deshabilitados, tabla y paginación. */
 function ListadoMediosPago({
   listado,
@@ -62,13 +94,17 @@ function ListadoMediosPago({
   return (
     <Card>
       <CardContent className="space-y-4 pt-6">
-        <label className="flex items-center gap-2 text-sm text-slate-700">
-          <Checkbox
-            checked={incluirDeshabilitados}
-            onChange={(evento) => onCambiarIncluirDeshabilitados(evento.target.checked)}
-          />
-          Mostrar deshabilitados
-        </label>
+        <TableToolbar acciones={<ExportButton filas={mediosPago} nombreArchivo="medios-de-pago" />}>
+          <FilterBar className="border-0 p-0">
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <Checkbox
+                checked={incluirDeshabilitados}
+                onChange={(evento) => onCambiarIncluirDeshabilitados(evento.target.checked)}
+              />
+              Mostrar deshabilitados
+            </label>
+          </FilterBar>
+        </TableToolbar>
         <MediosPagoTabla
           mediosPago={mediosPago}
           mensajeVacio={incluirDeshabilitados ? SIN_MEDIOS : SIN_HABILITADOS}
@@ -78,13 +114,7 @@ function ListadoMediosPago({
           onEditar={onEditar}
           onEliminar={onEditar ? (medioPago) => void eliminar(medioPago) : undefined}
         />
-        {paginacion.totalPaginas > 1 && (
-          <Pagination
-            pagina={paginacion.pagina}
-            totalPaginas={paginacion.totalPaginas}
-            onCambiarPagina={paginacion.irAPagina}
-          />
-        )}
+        <PieDelListado paginacion={paginacion} cantidadFilas={mediosPago.length} />
       </CardContent>
     </Card>
   );
@@ -104,13 +134,11 @@ function EncabezadoDePagos({ pestana, onFacturar, onNuevoMedioPago }: Encabezado
       descripcion={DESCRIPCIONES[pestana] ?? DESCRIPCIONES.medios}
       acciones={
         <div className="flex gap-2">
-          <Button variant="outline" onClick={onFacturar}>
-            <Receipt className="h-4 w-4" aria-hidden="true" />
+          <Button variant="brand-outline" onClick={onFacturar}>
             Facturar comanda
           </Button>
           {pestana === 'medios' && onNuevoMedioPago && (
-            <Button onClick={onNuevoMedioPago}>
-              <Plus className="h-4 w-4" aria-hidden="true" />
+            <Button variant="brand-outline" onClick={onNuevoMedioPago}>
               Nuevo medio de pago
             </Button>
           )}

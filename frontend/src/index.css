@@ -1,5 +1,7 @@
 @import 'tailwindcss';
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-sans: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-display:
@@ -69,6 +71,100 @@
   --color-dark-border: #cbd5e1;
   --color-dark-strong: #0f172a;
   --color-dark-foreground: #ffffff;
+}
+
+/* Colores del croquis del local (SVG), separados del tema de la UI. */
+:root {
+  --plano-piso: #f3f4f6;
+  --plano-pared-exterior: #475569;
+  --plano-pared-interior: #64748b;
+  --plano-detalle: #94a3b8;
+  --plano-bloque: #ffffff;
+  --plano-rayado: #e2e8f0;
+}
+
+/* Modo oscuro: se reasignan los tokens neutros y semánticos.
+   Los componentes usan las variables de Tailwind, así que cambian sin tocar cada clase. */
+.dark {
+  color-scheme: dark;
+
+  --color-white: #0f172a;
+
+  --color-slate-50: #0b1220;
+  --color-slate-100: #1e293b;
+  --color-slate-200: #334155;
+  --color-slate-300: #475569;
+  --color-slate-400: #64748b;
+  --color-slate-500: #94a3b8;
+  --color-slate-600: #cbd5e1;
+  --color-slate-700: #e2e8f0;
+  --color-slate-800: #f1f5f9;
+  --color-slate-900: #f8fafc;
+  --color-slate-950: #ffffff;
+
+  --color-gray-100: #1e293b;
+  --color-gray-200: #334155;
+  --color-gray-300: #475569;
+  --color-gray-400: #64748b;
+  --color-gray-500: #94a3b8;
+  --color-gray-600: #cbd5e1;
+  --color-gray-700: #e2e8f0;
+  --color-gray-800: #f1f5f9;
+
+  --color-brand: #fbbf24;
+  --color-brand-hover: #f59e0b;
+  --color-brand-subtle: #451a03;
+  --color-brand-border: #92400e;
+  --color-brand-foreground: #1c1917;
+
+  --color-primary: #fbbf24;
+  --color-primary-hover: #f59e0b;
+  --color-primary-subtle: #451a03;
+  --color-primary-border: #92400e;
+  --color-primary-strong: #fde68a;
+  --color-primary-foreground: #1c1917;
+
+  --color-secondary: #cbd5e1;
+  --color-secondary-hover: #e2e8f0;
+  --color-secondary-subtle: #1e293b;
+  --color-secondary-border: #334155;
+  --color-secondary-strong: #f1f5f9;
+  --color-secondary-foreground: #0f172a;
+
+  --color-success: #34d399;
+  --color-success-hover: #10b981;
+  --color-success-subtle: #052e2b;
+  --color-success-border: #047857;
+  --color-success-strong: #a7f3d0;
+  --color-success-foreground: #022c22;
+
+  --color-danger: #fb7185;
+  --color-danger-hover: #f43f5e;
+  --color-danger-subtle: #4c0519;
+  --color-danger-border: #9f1239;
+  --color-danger-strong: #fecdd3;
+  --color-danger-foreground: #4c0519;
+
+  --color-warning: #fbbf24;
+  --color-warning-hover: #f59e0b;
+  --color-warning-subtle: #451a03;
+  --color-warning-border: #b45309;
+  --color-warning-strong: #fde68a;
+  --color-warning-foreground: #1c1917;
+
+  --color-info: #38bdf8;
+  --color-info-hover: #0ea5e9;
+  --color-info-subtle: #082f49;
+  --color-info-border: #0369a1;
+  --color-info-strong: #bae6fd;
+  --color-info-foreground: #082f49;
+
+  --plano-piso: #0f172a;
+  --plano-pared-exterior: #94a3b8;
+  --plano-pared-interior: #64748b;
+  --plano-detalle: #475569;
+  --plano-bloque: #1e293b;
+  --plano-rayado: #334155;
 }
 
 /* Custom scrollbars for clean dashboards */

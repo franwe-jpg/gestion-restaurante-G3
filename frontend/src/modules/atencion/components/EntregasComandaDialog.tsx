@@ -113,7 +113,7 @@ function BotonesDeListo({
   return (
     <span className="flex items-center gap-2">
       <Button
-        variant="outline"
+        variant="brand-outline"
         aria-label={`Quitar una unidad lista de ${nombre}`}
         disabled={bloqueado || listas === 0}
         onClick={() => onCambiar(entregadas + listas - 1)}
@@ -121,7 +121,7 @@ function BotonesDeListo({
         −
       </Button>
       <Button
-        variant="outline"
+        variant="brand-outline"
         aria-label={`Marcar una unidad lista de ${nombre}`}
         disabled={bloqueado || pendientes === 0}
         onClick={() => onCambiar(entregadas + listas + 1)}
@@ -129,7 +129,7 @@ function BotonesDeListo({
         +
       </Button>
       <Button
-        variant="outline"
+        variant="brand-outline"
         aria-label={`Marcar todo listo de ${nombre}`}
         disabled={bloqueado || pendientes === 0}
         onClick={() => onCambiar(cantidad)}
@@ -156,7 +156,7 @@ function BotonesDeEntrega({
   return (
     <span className="flex items-center gap-2">
       <Button
-        variant="outline"
+        variant="brand-outline"
         aria-label={`Restar una unidad de ${nombre}`}
         disabled={bloqueado || entregadas === 0}
         onClick={() => onCambiar(entregadas - 1)}
@@ -164,7 +164,7 @@ function BotonesDeEntrega({
         −
       </Button>
       <Button
-        variant="outline"
+        variant="brand-outline"
         aria-label={`Sumar una unidad de ${nombre}`}
         disabled={bloqueado || entregadas === cantidad}
         onClick={() => onCambiar(entregadas + 1)}
@@ -172,7 +172,7 @@ function BotonesDeEntrega({
         +
       </Button>
       <Button
-        variant="outline"
+        variant="brand-outline"
         aria-label={`Entregar todo de ${nombre}`}
         disabled={bloqueado || entregadas === cantidad}
         onClick={() => onCambiar(cantidad)}
@@ -236,7 +236,7 @@ export function EntregasComandaDialog({ id, puedeEntregar, puedeMarcarListo, onS
             ))}
           </ul>
         )}
-        <Button variant="outline" onClick={onSalir}>
+        <Button variant="brand-outline" onClick={onSalir}>
           Volver
         </Button>
       </div>

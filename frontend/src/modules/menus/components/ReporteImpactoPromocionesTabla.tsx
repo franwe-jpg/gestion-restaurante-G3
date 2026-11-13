@@ -7,10 +7,10 @@ const NOTA_PROMOCIONAL = '100 % de las ventas fueron promocionales';
 
 function formatearNumero(valor: string | null): string {
   if (valor === null) return '—';
-  return Number(valor).toLocaleString('es-AR', {
+  return new Intl.NumberFormat('es-AR', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  });
+  }).format(Number(valor));
 }
 
 function formatearConSigno(valor: string | null): string {
@@ -75,7 +75,9 @@ function columnasComparacion(sufijo: string): ColumnaTabla<LineaImpactoPromocion
         <div className="text-right">
           <div>{formatearNumero(linea.promedio_fuera)}</div>
           {sinVentasFuera(linea) && (
-            <div className="text-xs font-normal text-amber-700">{NOTA_PROMOCIONAL}</div>
+            <div className="text-xs font-normal text-amber-700 dark:text-amber-300">
+              {NOTA_PROMOCIONAL}
+            </div>
           )}
         </div>
       ),

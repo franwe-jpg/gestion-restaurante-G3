@@ -43,7 +43,7 @@ export function Sheet({
     <div className="fixed inset-0 z-50 flex">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity"
+        className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity dark:bg-[#020617]/70"
         aria-hidden="true"
         onClick={() => onOpenChange(false)}
       />

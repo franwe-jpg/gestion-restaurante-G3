@@ -1,13 +1,22 @@
-import { Inbox, ReceiptText } from 'lucide-react';
+import { ChartColumn, Inbox, ReceiptText } from 'lucide-react';
 
 import { PageHeader } from '../../../shared/components/PageHeader';
 import { EmptyState } from '../../../shared/components/EmptyState';
 import { Alert } from '../../../shared/components/ui/alert';
 import { Breadcrumbs } from '../../../shared/components/ui/breadcrumbs';
 import { Button } from '../../../shared/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '../../../shared/components/ui/card';
 import { DataTable } from '../../../shared/components/ui/data-table';
 import type { ColumnaTabla } from '../../../shared/components/ui/data-table';
 import { DateRangePicker } from '../../../shared/components/ui/date-range-picker';
+import { ExportButton } from '../../../shared/components/ui/export-button';
+import { FilterBar } from '../../../shared/components/ui/filter-bar';
 import { Label } from '../../../shared/components/ui/label';
 import { Select } from '../../../shared/components/ui/select';
 import { StatCard } from '../../../shared/components/ui/stat-card';
@@ -48,7 +57,7 @@ const COLUMNAS: ColumnaTabla<GrupoReporteComandas>[] = [
 
 function FiltrosReporte({ reporte }: { reporte: ReturnType<typeof useReporteComandas> }) {
   return (
-    <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+    <>
       <DateRangePicker
         desde={reporte.desde}
         hasta={reporte.hasta}
@@ -69,10 +78,14 @@ function FiltrosReporte({ reporte }: { reporte: ReturnType<typeof useReporteComa
           <option value="NOCHE">Noche</option>
         </Select>
       </div>
-      <Button onClick={() => void reporte.generar()} disabled={reporte.cargando}>
+      <Button
+        variant="brand-outline"
+        onClick={() => void reporte.generar()}
+        disabled={reporte.cargando}
+      >
         {reporte.cargando ? 'Generando…' : 'Generar'}
       </Button>
-    </div>
+    </>
   );
 }
 
@@ -82,7 +95,7 @@ function ResumenReporte({
   resultado: NonNullable<ReturnType<typeof useReporteComandas>['resultado']>;
 }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-3">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <StatCard titulo="Cantidad de comandas" valor={resultado.total_comandas} />
       <StatCard titulo="Importe total" valor={formatearMoneda(Number(resultado.importe_total))} />
       <StatCard
@@ -108,22 +121,37 @@ function ResultadoReporte({
     );
   }
   return (
-    <div className="space-y-4">
+    <>
       <ResumenReporte resultado={resultado} />
-      <DataTable
-        columnas={COLUMNAS}
-        filas={resultado.grupos}
-        obtenerClave={(grupo) => `${grupo.fecha}-${grupo.turno}`}
-        vacio={<EmptyState icono={Inbox} titulo="Sin resultados" descripcion="No hay turnos." />}
-      />
-    </div>
+      <Card>
+        <CardHeader className="flex-row items-start justify-between space-y-0">
+          <div>
+            <CardTitle>Comandas cerradas por día y turno</CardTitle>
+            <CardDescription>
+              Detalle de comandas cerradas, importe total y ticket promedio por turno.
+            </CardDescription>
+          </div>
+          <ExportButton filas={resultado.grupos} nombreArchivo="comandas-por-turno" />
+        </CardHeader>
+        <CardContent>
+          <DataTable
+            columnas={COLUMNAS}
+            filas={resultado.grupos}
+            obtenerClave={(grupo) => `${grupo.fecha}-${grupo.turno}`}
+            vacio={
+              <EmptyState icono={Inbox} titulo="Sin resultados" descripcion="No hay turnos." />
+            }
+          />
+        </CardContent>
+      </Card>
+    </>
   );
 }
 
 export function ReporteComandasPage() {
   const reporte = useReporteComandas();
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <Breadcrumbs
         items={[
           { etiqueta: 'Reportes', ruta: '/reportes' },
@@ -134,8 +162,17 @@ export function ReporteComandasPage() {
         titulo="Comandas y ticket promedio por día/turno"
         descripcion="Cantidad de comandas cerradas, importe total y ticket promedio por turno."
       />
-      <FiltrosReporte reporte={reporte} />
+      <FilterBar>
+        <FiltrosReporte reporte={reporte} />
+      </FilterBar>
       {reporte.error && <Alert variant="warning">{reporte.error}</Alert>}
+      {!reporte.resultado && !reporte.cargando && !reporte.error && (
+        <EmptyState
+          icono={ChartColumn}
+          titulo="Elegí el período y presioná Generar"
+          descripcion="El resumen de comandas del período se muestra acá."
+        />
+      )}
       {reporte.resultado && <ResultadoReporte resultado={reporte.resultado} />}
     </div>
   );

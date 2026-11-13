@@ -14,6 +14,7 @@ import {
   TableRow,
 } from '../../../shared/components/ui/table';
 import { useApi } from '../../../shared/hooks/useApi';
+import { formatearMoneda } from '../../../shared/lib/format';
 import { listarMediosPago } from '../api';
 import type { Cobro, Factura, FacturaResumen, MedioPago } from '../types';
 
@@ -37,10 +38,13 @@ function ResumenDeLaFactura({ factura }: { factura: Factura }) {
   return (
     <div className="flex flex-wrap justify-between gap-2 rounded-md bg-slate-50 p-3 text-sm text-slate-700">
       <span>
-        Total: <strong>$ {factura.total}</strong>
+        Total: <strong>{formatearMoneda(Number(factura.total))}</strong>
       </span>
       <span>
-        Saldo pendiente: <strong className="text-slate-900">$ {factura.saldo_pendiente}</strong>
+        Saldo pendiente:{' '}
+        <strong className="text-slate-900">
+          {formatearMoneda(Number(factura.saldo_pendiente))}
+        </strong>
       </span>
     </div>
   );
@@ -64,7 +68,7 @@ function CobrosRegistrados({ factura, medios }: { factura: Factura; medios: Medi
           {factura.cobros.map((cobro: Cobro) => (
             <TableRow key={cobro.id}>
               <TableCell>{nombreDelMedio(medios, cobro.medio_pago_id)}</TableCell>
-              <TableCell>$ {cobro.monto}</TableCell>
+              <TableCell>{formatearMoneda(Number(cobro.monto))}</TableCell>
               <TableCell>#{cobro.numero_comprobante ?? cobro.id}</TableCell>
             </TableRow>
           ))}
@@ -109,7 +113,7 @@ function CamposDelCobro({ formulario, factura, medios }: CamposDelCobroProps) {
         id="cobro-importe"
         label="Importe"
         required
-        hint={`Saldo pendiente: $ ${factura.saldo_pendiente}`}
+        hint={`Saldo pendiente: ${formatearMoneda(Number(factura.saldo_pendiente))}`}
         error={formulario.errores.importe}
       >
         <Input
@@ -162,7 +166,7 @@ export function CobrarFacturaDialog({
       title={`Cobrar factura #${factura.id}`}
       footer={
         <>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="brand-outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
           <Button

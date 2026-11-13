@@ -109,11 +109,32 @@ describe('ReporteReservasAusentismoPage: botón de descarga', () => {
 });
 
 describe('ReporteReservasAusentismoPage: validación y errores', () => {
+  it('abre con el mes en curso y genera sin tocar las fechas', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 10, 13, 12, 0, 0));
+    ok(resumen());
+    try {
+      renderizar();
+
+      expect(screen.getByLabelText('Fecha desde')).toHaveValue('2026-11-01');
+      expect(screen.getByLabelText('Fecha hasta')).toHaveValue('2026-11-13');
+      expect(screen.getByText('Elegí el período y presioná Generar')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Generar' }));
+
+      expect(obtenerReporteReservasAusentismo).toHaveBeenCalledWith('2026-11-01', '2026-11-13');
+      expect(await screen.findByText('33,33 %')).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('sin elegir fecha hasta muestra el mensaje local y no llama a la API', () => {
     renderizar();
     fireEvent.change(screen.getByLabelText('Fecha desde'), {
       target: { value: '2026-10-01' },
     });
+    fireEvent.change(screen.getByLabelText('Fecha hasta'), { target: { value: '' } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Generar' }));
 

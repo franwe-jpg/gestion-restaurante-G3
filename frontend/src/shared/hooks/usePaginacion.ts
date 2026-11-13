@@ -9,6 +9,7 @@ export interface OpcionesPaginacion {
 export interface EstadoPaginacion {
   pagina: number;
   limite: number;
+  total: number;
   totalPaginas: number;
   offset: number;
   irAPagina: (pagina: number) => void;
@@ -40,6 +41,7 @@ export function usePaginacion({
   return {
     pagina,
     limite,
+    total,
     totalPaginas,
     offset: (pagina - 1) * limite,
     irAPagina,

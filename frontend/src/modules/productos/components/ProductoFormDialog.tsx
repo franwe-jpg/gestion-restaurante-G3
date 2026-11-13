@@ -54,7 +54,7 @@ function Pie({ guardar, deshabilitado, acciones, onCancelar }: PieProps) {
   return (
     <>
       {acciones && <div className="sm:mr-auto">{acciones}</div>}
-      <Button variant="outline" onClick={onCancelar}>
+      <Button variant="brand-outline" onClick={onCancelar}>
         Cancelar
       </Button>
       <Button type="submit" form={ID_FORMULARIO_PRODUCTO} disabled={deshabilitado}>

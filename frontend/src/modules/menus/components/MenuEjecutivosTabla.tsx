@@ -4,6 +4,7 @@ import { EmptyState } from '../../../shared/components/EmptyState';
 import { formatearMoneda } from '../../../shared/lib/format';
 import { DataTable } from '../../../shared/components/ui/data-table';
 import type { ColumnaTabla } from '../../../shared/components/ui/data-table';
+import { StatusBadge } from '../../../shared/components/ui/status-badge';
 import type { MenuEjecutivo } from '../types';
 
 import { AccionesMenuEjecutivo } from './AccionesMenuEjecutivo';
@@ -30,10 +31,6 @@ function incluidos(menu: MenuEjecutivo) {
   );
 }
 
-function etiquetaEstado(estado: MenuEjecutivo['estado']) {
-  return estado === 'HABILITADO' ? 'Habilitado' : 'Deshabilitado';
-}
-
 function columnas(
   onEditar?: (menu: MenuEjecutivo) => void,
   onDadoDeBaja?: () => void,
@@ -47,7 +44,11 @@ function columnas(
       encabezado: 'Precio fijo',
       render: (menu) => formatearMoneda(Number(menu.precio_fijo)),
     },
-    { clave: 'estado', encabezado: 'Estado', render: (menu) => etiquetaEstado(menu.estado) },
+    {
+      clave: 'estado',
+      encabezado: 'Estado',
+      render: (menu) => <StatusBadge estado={menu.estado} />,
+    },
   ];
   if (!onEditar || !onDadoDeBaja) return base;
   return [
@@ -58,7 +59,7 @@ function columnas(
       render: (menu) => (
         <AccionesMenuEjecutivo menu={menu} onEditar={onEditar} onDadoDeBaja={onDadoDeBaja} />
       ),
-      className: 'w-40',
+      className: 'w-24',
     },
   ];
 }

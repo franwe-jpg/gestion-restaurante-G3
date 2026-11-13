@@ -1,3 +1,5 @@
+import { CircleStop, Pencil } from 'lucide-react';
+
 import { Button } from '../../../shared/components/ui/button';
 import type { Promocion } from '../types';
 
@@ -15,23 +17,27 @@ export function AccionesPromocion({ promocion, onEditar, onFinalizada }: Accione
   if (promocion.estado !== 'HABILITADO') return null;
 
   return (
-    <div className="flex items-center justify-end gap-2">
+    <div className="flex items-center justify-end gap-1">
       <Button
         variant="ghost"
         size="sm"
         aria-label={`Editar «${promocion.nombre}»`}
+        title={`Editar «${promocion.nombre}»`}
         onClick={() => onEditar(promocion)}
       >
-        Editar
+        <Pencil className="h-4 w-4" aria-hidden="true" />
+        <span className="sr-only">Editar</span>
       </Button>
       <Button
         variant="ghost"
         size="sm"
         disabled={finalizando}
         aria-label={`Finalizar «${promocion.nombre}»`}
+        title={`Finalizar «${promocion.nombre}»`}
         onClick={() => void finalizar()}
       >
-        Finalizar
+        <CircleStop className="h-4 w-4" aria-hidden="true" />
+        <span className="sr-only">Finalizar</span>
       </Button>
     </div>
   );

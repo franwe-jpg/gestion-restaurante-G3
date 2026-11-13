@@ -40,7 +40,10 @@ function Caja({ caja }: { caja: CajaDelDia }) {
         <span>{textoDeuda(adeudado.cantidad_facturas)}</span>
         {adeudado.cantidad_facturas > 0 && <span>{moneda(adeudado.monto)}</span>}
       </p>
-      <Link to="/pagos" className="text-sm font-medium text-amber-800 hover:underline">
+      <Link
+        to="/pagos"
+        className="text-sm font-medium text-amber-800 hover:underline dark:text-amber-300"
+      >
         Ir a Pagos
       </Link>
     </div>

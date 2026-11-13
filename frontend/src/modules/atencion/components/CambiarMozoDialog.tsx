@@ -58,7 +58,12 @@ export function CambiarMozoDialog({ onSalir, ...props }: Props) {
           <Button type="submit" disabled={cambio.bloqueado}>
             Guardar mozo
           </Button>
-          <Button type="button" variant="outline" disabled={cambio.guardando} onClick={onSalir}>
+          <Button
+            type="button"
+            variant="brand-outline"
+            disabled={cambio.guardando}
+            onClick={onSalir}
+          >
             Cancelar
           </Button>
         </div>

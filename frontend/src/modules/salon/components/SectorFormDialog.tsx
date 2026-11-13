@@ -69,7 +69,7 @@ export function SectorFormDialog({
       description="El estado del sector lo asigna el sistema."
       footer={
         <>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="brand-outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
           <Button onClick={() => void formulario.enviar()} disabled={formulario.enviando}>

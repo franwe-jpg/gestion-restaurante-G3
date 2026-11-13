@@ -103,7 +103,11 @@ function CamposClienteNuevo({ nombre, telefono, errores, onCambiar }: CamposClie
             />
           </FormField>
         </div>
-        <Button type="button" variant="outline" onClick={() => onCambiar({ tipo: 'ninguno' })}>
+        <Button
+          type="button"
+          variant="brand-outline"
+          onClick={() => onCambiar({ tipo: 'ninguno' })}
+        >
           Cancelar
         </Button>
       </CardContent>
@@ -153,7 +157,7 @@ export function SelectorCliente({ seleccion, errores, onCambiar }: SelectorClien
       )}
       <Button
         type="button"
-        variant="outline"
+        variant="brand-outline"
         onClick={() => seleccion.tipo !== 'nuevo' && onCambiar(SELECCION_NUEVO)}
       >
         Cliente nuevo

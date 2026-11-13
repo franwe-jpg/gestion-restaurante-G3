@@ -15,7 +15,7 @@ export function NavegadorFecha({ fecha, onCambiar }: NavegadorFechaProps) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Button
-        variant="outline"
+        variant="brand-outline"
         className="w-9 px-0"
         aria-label="Día anterior"
         onClick={() => onCambiar(sumarDias(fecha, -1))}
@@ -32,14 +32,14 @@ export function NavegadorFecha({ fecha, onCambiar }: NavegadorFechaProps) {
         }}
       />
       <Button
-        variant="outline"
+        variant="brand-outline"
         className="w-9 px-0"
         aria-label="Día siguiente"
         onClick={() => onCambiar(sumarDias(fecha, 1))}
       >
         <ChevronRight className="h-4 w-4" aria-hidden="true" />
       </Button>
-      <Button variant="outline" onClick={() => onCambiar(hoyLocal())}>
+      <Button variant="brand-outline" onClick={() => onCambiar(hoyLocal())}>
         Hoy
       </Button>
     </div>

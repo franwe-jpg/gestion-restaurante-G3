@@ -1,6 +1,7 @@
 import { Button } from '../../../shared/components/ui/button';
 import { Checkbox } from '../../../shared/components/ui/checkbox';
 import { Dialog } from '../../../shared/components/ui/dialog';
+import { formatearMoneda } from '../../../shared/lib/format';
 import type {
   DetalleComandaCrear,
   DetalleComandaSalida,
@@ -57,13 +58,14 @@ function DetallesActuales({
               />
               <span>{descripcionDetalle(detalle, nombreDe)}</span>
               <span className="text-sm text-slate-500">
-                {detalle.precio_unitario} c/u − descuento {detalle.descuento}
+                {formatearMoneda(Number(detalle.precio_unitario))} c/u − descuento{' '}
+                {formatearMoneda(Number(detalle.descuento))}
               </span>
             </li>
           );
         })}
       </ul>
-      <p>Total actual: {total.toFixed(2)}</p>
+      <p>Total actual: {formatearMoneda(total)}</p>
     </section>
   );
 }
@@ -98,7 +100,7 @@ function NuevasLineas({
           onQuitar={() => onQuitar(linea.clave)}
         />
       ))}
-      <Button type="button" variant="outline" onClick={onAgregar}>
+      <Button type="button" variant="brand-outline" onClick={onAgregar}>
         Agregar línea
       </Button>
     </section>
@@ -159,7 +161,7 @@ export function ModificarComandaDialog({ id, onSalir, onModificada }: Props) {
           >
             Guardar cambios
           </Button>
-          <Button type="button" variant="outline" disabled={mod.guardando} onClick={onSalir}>
+          <Button type="button" variant="brand-outline" disabled={mod.guardando} onClick={onSalir}>
             Cerrar
           </Button>
         </div>

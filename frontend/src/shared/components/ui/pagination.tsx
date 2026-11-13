@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, MoreHorizontal } from 'lucide-react';
+import { MoreHorizontal } from 'lucide-react';
 
 import { cn } from '../../lib/utils';
 import { Button } from './button';
@@ -45,13 +45,12 @@ export function Pagination({ pagina, totalPaginas, onCambiarPagina, className }:
 
       <div className="flex items-center gap-1">
         <Button
-          variant="outline"
+          variant="brand-outline"
           size="sm"
           onClick={() => onCambiarPagina(pagina - 1)}
           disabled={pagina <= 1}
           aria-label="Página anterior"
         >
-          <ChevronLeft className="h-4 w-4" aria-hidden="true" />
           <span className="hidden sm:inline">Anterior</span>
         </Button>
 
@@ -80,14 +79,13 @@ export function Pagination({ pagina, totalPaginas, onCambiarPagina, className }:
         )}
 
         <Button
-          variant="outline"
+          variant="brand-outline"
           size="sm"
           onClick={() => onCambiarPagina(pagina + 1)}
           disabled={pagina >= totalPaginas}
           aria-label="Página siguiente"
         >
           <span className="hidden sm:inline">Siguiente</span>
-          <ChevronRight className="h-4 w-4" aria-hidden="true" />
         </Button>
       </div>
     </nav>

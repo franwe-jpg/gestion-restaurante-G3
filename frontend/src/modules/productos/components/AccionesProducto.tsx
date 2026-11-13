@@ -1,3 +1,5 @@
+import { Pencil, Trash2 } from 'lucide-react';
+
 import { Button } from '../../../shared/components/ui/button';
 import { esCategoriaEdicion } from '../categorias';
 import type { CategoriaEdicion } from '../categorias';
@@ -20,24 +22,28 @@ function AccionesEdicion({ categoria, producto, onEditar, onDadoDeBaja }: Accion
   const { dandoDeBaja, darDeBaja } = useBajaProducto({ categoria, producto, onDadoDeBaja });
 
   return (
-    <div className="flex items-center justify-end gap-2">
+    <div className="flex items-center justify-end gap-1">
       <Button
         variant="ghost"
         size="sm"
+        className="px-2"
         aria-label={`Editar «${producto.nombre}»`}
+        title="Editar"
         onClick={() => onEditar(categoria, producto.id)}
       >
-        Editar
+        <Pencil className="h-4 w-4" aria-hidden="true" />
       </Button>
       {producto.estado === 'HABILITADO' && (
         <Button
           variant="ghost"
           size="sm"
+          className="px-2"
           disabled={dandoDeBaja}
           aria-label={`Dar de baja «${producto.nombre}»`}
+          title="Dar de baja"
           onClick={() => void darDeBaja()}
         >
-          Dar de baja
+          <Trash2 className="h-4 w-4" aria-hidden="true" />
         </Button>
       )}
     </div>

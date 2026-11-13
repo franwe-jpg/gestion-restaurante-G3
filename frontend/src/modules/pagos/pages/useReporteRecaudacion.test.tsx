@@ -31,10 +31,28 @@ function conPeriodo() {
   return hook;
 }
 
+describe('useReporteRecaudacion: período por defecto', () => {
+  it('inicializa el período con el primer día del mes y hoy', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 10, 13, 12, 0, 0));
+    try {
+      const { result } = renderHook(() => useReporteRecaudacion());
+
+      expect(result.current.desde).toBe('2026-11-01');
+      expect(result.current.hasta).toBe('2026-11-13');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
 describe('useReporteRecaudacion: generar', () => {
   it('con validación local inválida no llama a la API y expone el error', async () => {
     const { result } = renderHook(() => useReporteRecaudacion());
-    act(() => result.current.setDesde('2026-10-01'));
+    act(() => {
+      result.current.setDesde('2026-10-01');
+      result.current.setHasta('');
+    });
 
     await act(async () => {
       await result.current.generar();

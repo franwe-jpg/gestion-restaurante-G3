@@ -1,5 +1,3 @@
-import { Plus } from 'lucide-react';
-
 import { useSesion } from '../../../shared/auth/useSesion';
 import { PageHeader } from '../../../shared/components/PageHeader';
 import { Button } from '../../../shared/components/ui/button';
@@ -19,19 +17,16 @@ type Dialogos = ReturnType<typeof useDialogosDelSalon>;
 function AccionesDelSalon({ dialogos }: { dialogos: Dialogos }) {
   return (
     <>
-      <Button variant="outline" onClick={() => dialogos.sector.abrir()}>
+      <Button variant="brand-outline" onClick={() => dialogos.sector.abrir()}>
         Nuevo sector
       </Button>
-      <Button variant="outline" onClick={() => dialogos.mesa.abrir()}>
-        <Plus className="h-4 w-4" aria-hidden="true" />
+      <Button variant="brand-outline" onClick={() => dialogos.mesa.abrir()}>
         Nueva mesa
       </Button>
-      <Button onClick={() => dialogos.mozo.abrir()}>
-        <Plus className="h-4 w-4" aria-hidden="true" />
+      <Button variant="brand-outline" onClick={() => dialogos.mozo.abrir()}>
         Nuevo mozo
       </Button>
-      <Button onClick={() => dialogos.chef.abrir()}>
-        <Plus className="h-4 w-4" aria-hidden="true" />
+      <Button variant="brand-outline" onClick={() => dialogos.chef.abrir()}>
         Nuevo chef
       </Button>
     </>

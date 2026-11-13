@@ -6,7 +6,7 @@ import type { BadgeVariant } from '../ui/badge';
 import { Dialog } from '../ui/dialog';
 
 import { ComandaDeLaMesa } from './ComandaDeLaMesa';
-import { ENLACE_PRIMARIO, ESTILO_ENLACE_BOTON } from './estilos';
+import { ENLACE_SECUNDARIO, ESTILO_ENLACE_BOTON } from './estilos';
 import { ReservaDeLaMesa } from './ReservaDeLaMesa';
 import type { EstadoVisibleMesa, MesaDelMapa } from './types';
 
@@ -24,7 +24,7 @@ function MesaLibre({ mesaId }: { mesaId: number }) {
       <p className="text-sm text-slate-600">La mesa está libre y no tiene una comanda abierta.</p>
       <Link
         to={`/atencion?mesa=${mesaId}`}
-        className={`${ESTILO_ENLACE_BOTON} ${ENLACE_PRIMARIO} w-full`}
+        className={`${ESTILO_ENLACE_BOTON} ${ENLACE_SECUNDARIO} w-full`}
       >
         Nueva comanda
       </Link>

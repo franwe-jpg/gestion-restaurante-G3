@@ -21,7 +21,7 @@ function AvisoSinSectores({ onCrearSector }: { onCrearSector?: () => void }) {
     <Alert variant="warning" titulo="Primero creá un sector">
       Necesitás al menos un sector habilitado para crear una mesa.
       {onCrearSector && (
-        <Button variant="outline" size="sm" className="mt-2" onClick={onCrearSector}>
+        <Button variant="brand-outline" size="sm" className="mt-2" onClick={onCrearSector}>
           Crear sector
         </Button>
       )}
@@ -122,7 +122,7 @@ export function MesaFormDialog({
       description="El estado de la mesa lo asigna el sistema."
       footer={
         <>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="brand-outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
           <Button

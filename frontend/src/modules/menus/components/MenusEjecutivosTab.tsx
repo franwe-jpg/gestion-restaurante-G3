@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import { useSesion } from '../../../shared/auth/useSesion';
+import { ExportButton } from '../../../shared/components/ui/export-button';
 import type { MenuEjecutivo } from '../types';
 import { BarraMenusEjecutivos } from './BarraMenusEjecutivos';
 import { DialogoMenuEjecutivo } from './DialogoMenuEjecutivo';
@@ -63,15 +64,11 @@ export function MenusEjecutivosTab() {
 
   return (
     <div className="space-y-6">
-      <BarraMenusEjecutivos
-        estado={listado.estado}
-        onCambiarEstado={listado.cambiarEstado}
-        onNuevo={gestiona ? abrirAlta : undefined}
-      />
-
       <ListadoMenuEjecutivos
         menus={listado.menus}
         pagina={listado.pagina}
+        limite={listado.limite}
+        total={listado.total}
         totalPaginas={listado.totalPaginas}
         cargando={listado.cargando}
         error={listado.error}
@@ -79,6 +76,14 @@ export function MenusEjecutivosTab() {
         onCambiarPagina={listado.cambiarPagina}
         onEditar={gestiona ? abrirEdicion : undefined}
         onDadoDeBaja={gestiona ? listado.recargar : undefined}
+        toolbar={
+          <BarraMenusEjecutivos
+            estado={listado.estado}
+            onCambiarEstado={listado.cambiarEstado}
+            onNuevo={gestiona ? abrirAlta : undefined}
+            acciones={<ExportButton filas={listado.menus} nombreArchivo="menus-ejecutivos" />}
+          />
+        }
       />
 
       <DialogoMenuEjecutivo

@@ -94,11 +94,32 @@ describe('ReporteMozosPage - filtros', () => {
     fireEvent.change(screen.getByLabelText('Fecha desde'), {
       target: { value: '2026-11-01' },
     });
+    fireEvent.change(screen.getByLabelText('Fecha hasta'), { target: { value: '' } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Generar' }));
 
     expect(await screen.findByText('Falta la fecha hasta.')).toBeInTheDocument();
     expect(obtenerReporteMozos).not.toHaveBeenCalled();
+  });
+
+  it('abre con el mes en curso, muestra el estado inicial y genera sin tocar las fechas', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 10, 13, 12, 0, 0));
+    vi.mocked(obtenerReporteMozos).mockResolvedValue({ datos: reporte(), exito: true });
+    try {
+      renderizar();
+
+      expect(screen.getByLabelText('Fecha desde')).toHaveValue('2026-11-01');
+      expect(screen.getByLabelText('Fecha hasta')).toHaveValue('2026-11-13');
+      expect(screen.getByText('Elegí el período y presioná Generar')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Generar' }));
+
+      expect(await screen.findByRole('cell', { name: 'Pérez, Ana' })).toBeInTheDocument();
+      expect(obtenerReporteMozos).toHaveBeenCalledWith('2026-11-01', '2026-11-13', null, null);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

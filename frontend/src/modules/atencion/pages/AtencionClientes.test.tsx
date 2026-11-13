@@ -35,7 +35,9 @@ const CLIENTES: Cliente[] = [
 ];
 
 function renderizarPagina() {
-  return render(<AtencionPage />);
+  const vista = render(<AtencionPage />);
+  fireEvent.click(screen.getByRole('tab', { name: 'Clientes' }));
+  return vista;
 }
 
 function responder(items: Cliente[], total = items.length, offset = 0) {
@@ -46,6 +48,17 @@ function responder(items: Cliente[], total = items.length, offset = 0) {
 }
 
 describe('AtencionPage: clientes', () => {
+  it('abre en la pestaña Comandas y consulta clientes recién al pasar a Clientes', async () => {
+    responder(CLIENTES);
+    render(<AtencionPage />);
+    expect(screen.getByRole('tab', { name: 'Comandas' })).toHaveAttribute('aria-selected', 'true');
+    await screen.findByRole('heading', { name: 'No hay comandas registradas' });
+    expect(listarClientes).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('tab', { name: 'Clientes' }));
+    expect(await screen.findByText('Ana López')).toBeInTheDocument();
+    expect(listarClientes).toHaveBeenCalledTimes(1);
+  });
+
   it('muestra los datos de contacto, el total y permite avanzar de página (#50 CA1)', async () => {
     responder(CLIENTES, 52);
     renderizarPagina();

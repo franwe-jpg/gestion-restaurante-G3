@@ -32,9 +32,25 @@ afterEach(() => {
 });
 
 describe('useReporteReservasAusentismo: validación local y éxito', () => {
+  it('inicializa el período con el primer día del mes y hoy', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 10, 13, 12, 0, 0));
+    try {
+      const { result } = renderHook(() => useReporteReservasAusentismo());
+
+      expect(result.current.desde).toBe('2026-11-01');
+      expect(result.current.hasta).toBe('2026-11-13');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('con validación local inválida (falta hasta) no llama a la API y expone el error', async () => {
     const { result } = renderHook(() => useReporteReservasAusentismo());
-    act(() => result.current.setDesde('2026-10-01'));
+    act(() => {
+      result.current.setDesde('2026-10-01');
+      result.current.setHasta('');
+    });
 
     await act(async () => {
       await result.current.generar();

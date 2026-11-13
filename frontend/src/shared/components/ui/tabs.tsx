@@ -31,7 +31,7 @@ export function Tabs({ items, valor, onCambiar, className }: TabsProps) {
             className={cn(
               '-mb-px border-b-2 px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600',
               item.id === valor
-                ? 'border-amber-700 text-amber-800'
+                ? 'border-amber-700 text-amber-800 dark:border-amber-400 dark:text-amber-300'
                 : 'border-transparent text-slate-500 hover:text-slate-800',
             )}
           >

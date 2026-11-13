@@ -103,7 +103,7 @@ describe('ComprobantesDialog (HU-M6-03)', () => {
     expect(await screen.findByText('Comprobantes de la factura #7')).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: 'Ver el comprobante 3' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Ver el comprobante 4' })).toBeEnabled();
-    expect(screen.getByText('$ 5000.00')).toBeInTheDocument();
+    expect(screen.getByText('$ 5.000,00')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText('Tarjeta')).toBeInTheDocument());
   });
 
@@ -112,7 +112,7 @@ describe('ComprobantesDialog (HU-M6-03)', () => {
     await verComprobante(4);
 
     expect(obtenerComprobante).toHaveBeenCalledWith(4);
-    expect(screen.getByText('$ 2101.00')).toBeInTheDocument();
+    expect(screen.getByText('$ 2.101,00')).toBeInTheDocument();
     expect(screen.getByText('Tarjeta')).toBeInTheDocument();
     expect(screen.getByText('#7')).toBeInTheDocument();
     expect(screen.getByText('#12')).toBeInTheDocument();

@@ -1,10 +1,10 @@
 import { CreditCard, Pencil, Trash2 } from 'lucide-react';
 
 import { EmptyState } from '../../../shared/components/EmptyState';
-import { Badge } from '../../../shared/components/ui/badge';
 import { Button } from '../../../shared/components/ui/button';
 import { DataTable } from '../../../shared/components/ui/data-table';
 import type { ColumnaTabla } from '../../../shared/components/ui/data-table';
+import { StatusBadge } from '../../../shared/components/ui/status-badge';
 import type { MedioPago } from '../types';
 
 import { etiquetaDelTipo } from './validarMedioPago';
@@ -36,6 +36,7 @@ function AccionesMedioPago({
         variant="ghost"
         size="sm"
         aria-label={`Editar «${medioPago.nombre}»`}
+        title={`Editar «${medioPago.nombre}»`}
         onClick={() => onEditar(medioPago)}
       >
         <Pencil className="h-4 w-4" aria-hidden="true" />
@@ -45,6 +46,7 @@ function AccionesMedioPago({
         variant="ghost"
         size="sm"
         aria-label={`Eliminar «${medioPago.nombre}»`}
+        title={`Eliminar «${medioPago.nombre}»`}
         onClick={() => onEliminar(medioPago)}
       >
         <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -70,11 +72,7 @@ function columnas(acciones?: Acciones): ColumnaTabla<MedioPago>[] {
     {
       clave: 'estado',
       encabezado: 'Estado',
-      render: (medio) => (
-        <Badge variant={medio.estado === 'HABILITADO' ? 'success' : 'neutral'}>
-          {medio.estado === 'HABILITADO' ? 'Habilitado' : 'Deshabilitado'}
-        </Badge>
-      ),
+      render: (medio) => <StatusBadge estado={medio.estado} />,
     },
   ];
   if (!acciones) return base;

@@ -1,10 +1,11 @@
 import { ReceiptText } from 'lucide-react';
 
 import { EmptyState } from '../../../shared/components/EmptyState';
-import { Badge } from '../../../shared/components/ui/badge';
 import { Button } from '../../../shared/components/ui/button';
 import { DataTable } from '../../../shared/components/ui/data-table';
 import type { ColumnaTabla } from '../../../shared/components/ui/data-table';
+import { StatusBadge } from '../../../shared/components/ui/status-badge';
+import { formatearFechaHora, formatearMoneda } from '../../../shared/lib/format';
 import type { FacturaResumen } from '../types';
 
 export interface FacturasTablaProps {
@@ -17,21 +18,6 @@ export interface FacturasTablaProps {
 }
 
 const MENSAJE_VACIO = 'No hay facturas emitidas.';
-
-function formatearFecha(fecha: string): string {
-  return new Date(fecha).toLocaleString('es-AR', {
-    dateStyle: 'short',
-    timeStyle: 'short',
-  });
-}
-
-function EstadoFactura({ estado }: { estado: FacturaResumen['estado'] }) {
-  return (
-    <Badge variant={estado === 'PAGADA' ? 'success' : 'danger'}>
-      {estado === 'PAGADA' ? 'Pagada' : 'Adeudada'}
-    </Badge>
-  );
-}
 
 type AccionFactura = (factura: FacturaResumen) => void;
 
@@ -48,7 +34,7 @@ function Acciones({
     <div className="flex justify-end gap-2">
       <Button
         size="sm"
-        variant="outline"
+        variant="brand-outline"
         aria-label={`Ver los comprobantes de la factura ${factura.id}`}
         onClick={() => onVerComprobantes(factura)}
       >
@@ -57,6 +43,7 @@ function Acciones({
       {factura.estado === 'ADEUDADA' && (
         <Button
           size="sm"
+          variant="brand-outline"
           aria-label={`Cobrar la factura ${factura.id}`}
           onClick={() => onCobrar(factura)}
         >
@@ -85,20 +72,26 @@ function columnas(
     {
       clave: 'emision',
       encabezado: 'Emisión',
-      render: (factura) => formatearFecha(factura.fecha_emision),
+      render: (factura) => formatearFechaHora(factura.fecha_emision),
     },
-    { clave: 'total', encabezado: 'Total', render: (factura) => `$ ${factura.total}` },
+    {
+      clave: 'total',
+      encabezado: 'Total',
+      render: (factura) => formatearMoneda(Number(factura.total)),
+    },
     {
       clave: 'saldo',
       encabezado: 'Saldo pendiente',
       render: (factura) => (
-        <span className="font-semibold text-slate-900">$ {factura.saldo_pendiente}</span>
+        <span className="font-semibold text-slate-900">
+          {formatearMoneda(Number(factura.saldo_pendiente))}
+        </span>
       ),
     },
     {
       clave: 'estado',
       encabezado: 'Estado',
-      render: (factura) => <EstadoFactura estado={factura.estado} />,
+      render: (factura) => <StatusBadge estado={factura.estado} />,
     },
     {
       clave: 'acciones',

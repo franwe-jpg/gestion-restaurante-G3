@@ -1,11 +1,20 @@
-import { Armchair, DollarSign, TrendingUp } from 'lucide-react';
+import { Armchair, ChartColumn, DollarSign, TrendingUp } from 'lucide-react';
 
 import { PageHeader } from '../../../shared/components/PageHeader';
+import { EmptyState } from '../../../shared/components/EmptyState';
 import { Alert } from '../../../shared/components/ui/alert';
 import { Breadcrumbs } from '../../../shared/components/ui/breadcrumbs';
 import { Button } from '../../../shared/components/ui/button';
-import { Card, CardContent } from '../../../shared/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '../../../shared/components/ui/card';
 import { DateRangePicker } from '../../../shared/components/ui/date-range-picker';
+import { ExportButton } from '../../../shared/components/ui/export-button';
+import { FilterBar } from '../../../shared/components/ui/filter-bar';
 import { Label } from '../../../shared/components/ui/label';
 import { Select } from '../../../shared/components/ui/select';
 import { StatCard } from '../../../shared/components/ui/stat-card';
@@ -18,9 +27,21 @@ const SIN_DATOS = 'No hay datos disponibles para el período seleccionado.';
 
 type EstadoReporte = ReturnType<typeof useReporteMozos>;
 
+function BotonGenerar({ reporte }: { reporte: EstadoReporte }) {
+  return (
+    <Button
+      variant="brand-outline"
+      onClick={() => void reporte.generar()}
+      disabled={reporte.cargando}
+    >
+      {reporte.cargando ? 'Generando…' : 'Generar'}
+    </Button>
+  );
+}
+
 function FiltrosReporteMozos({ reporte }: { reporte: EstadoReporte }) {
   return (
-    <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+    <FilterBar>
       <DateRangePicker
         desde={reporte.desde}
         hasta={reporte.hasta}
@@ -59,10 +80,8 @@ function FiltrosReporteMozos({ reporte }: { reporte: EstadoReporte }) {
           ))}
         </Select>
       </div>
-      <Button onClick={() => void reporte.generar()} disabled={reporte.cargando}>
-        {reporte.cargando ? 'Generando…' : 'Generar'}
-      </Button>
-    </div>
+      <BotonGenerar reporte={reporte} />
+    </FilterBar>
   );
 }
 
@@ -75,7 +94,7 @@ function ResultadoReporteMozos({
 }) {
   return (
     <>
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard
           titulo="Mesas atendidas"
           valor={resultado.total_mesas_atendidas}
@@ -93,7 +112,14 @@ function ResultadoReporteMozos({
         />
       </div>
       <Card>
-        <CardContent className="pt-6">
+        <CardHeader className="flex-row items-start justify-between space-y-0">
+          <div>
+            <CardTitle>Ventas por mozo</CardTitle>
+            <CardDescription>Mesas atendidas y ventas del período seleccionado.</CardDescription>
+          </div>
+          <ExportButton filas={resultado.lineas} nombreArchivo="ventas-por-mozo" />
+        </CardHeader>
+        <CardContent>
           <ReporteMozosTabla lineas={resultado.lineas} cargando={cargando} />
         </CardContent>
       </Card>
@@ -107,7 +133,7 @@ export function ReporteMozosPage() {
   const sinDatos = resultado !== null && Number(resultado.total_ventas) === 0;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <Breadcrumbs
         items={[
           { etiqueta: 'Reportes', ruta: '/reportes' },
@@ -121,6 +147,13 @@ export function ReporteMozosPage() {
       <FiltrosReporteMozos reporte={reporte} />
       {reporte.error && <Alert variant="warning">{reporte.error}</Alert>}
       {sinDatos && <Alert variant="info">{SIN_DATOS}</Alert>}
+      {!resultado && !reporte.cargando && !reporte.error && (
+        <EmptyState
+          icono={ChartColumn}
+          titulo="Elegí el período y presioná Generar"
+          descripcion="Las mesas atendidas y las ventas por mozo se muestran acá."
+        />
+      )}
       {resultado && !sinDatos && (
         <ResultadoReporteMozos resultado={resultado} cargando={reporte.cargando} />
       )}

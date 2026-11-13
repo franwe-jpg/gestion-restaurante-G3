@@ -52,6 +52,13 @@ describe('ReporteComandasPage', () => {
     expect(screen.getAllByText('Almuerzo')).toHaveLength(2);
   });
 
+  it('invita a generar el reporte antes de consultar', () => {
+    renderizar();
+
+    expect(screen.getByText('Elegí el período y presioná Generar')).toBeInTheDocument();
+    expect(obtenerReporteComandas).not.toHaveBeenCalled();
+  });
+
   it('no consulta la API con un rango inverso', () => {
     renderizar();
     fireEvent.change(screen.getByLabelText('Fecha desde'), { target: { value: '2026-11-13' } });

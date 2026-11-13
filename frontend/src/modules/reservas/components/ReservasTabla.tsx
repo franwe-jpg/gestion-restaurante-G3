@@ -1,14 +1,13 @@
 import { CalendarDays, CalendarX, ClipboardList, Pencil, UserX } from 'lucide-react';
 
 import { EmptyState } from '../../../shared/components/EmptyState';
-import { Badge } from '../../../shared/components/ui/badge';
 import { Button } from '../../../shared/components/ui/button';
 import { DataTable } from '../../../shared/components/ui/data-table';
 import type { ColumnaTabla } from '../../../shared/components/ui/data-table';
+import { StatusBadge } from '../../../shared/components/ui/status-badge';
 import type { Reserva } from '../types';
 
 import { atencionDeReserva } from './atencionDeReserva';
-import { ESTADOS_RESERVA } from './estadosReserva';
 import { useAhoraDelRestaurante } from './useAhoraDelRestaurante';
 
 export interface ReservasTablaProps {
@@ -46,11 +45,7 @@ const COLUMNAS: ColumnaTabla<Reserva>[] = [
   {
     clave: 'estado',
     encabezado: 'Estado',
-    render: (r) => (
-      <Badge variant={ESTADOS_RESERVA[r.estado].variante}>
-        {ESTADOS_RESERVA[r.estado].etiqueta}
-      </Badge>
-    ),
+    render: (r) => <StatusBadge estado={r.estado} />,
   },
 ];
 
@@ -77,7 +72,7 @@ function BotonCrearComanda({ reserva, ahora, onCrearComanda }: BotonCrearComanda
   const motivo = atencion.disponible ? undefined : atencion.motivo;
   const idMotivo = `motivo-comanda-${reserva.id}`;
   return (
-    <span className="inline-flex" title={motivo}>
+    <span className="inline-flex" title={motivo ?? 'Crear comanda'}>
       <Button
         variant="ghost"
         size="sm"
@@ -117,6 +112,7 @@ function columnaAcciones({
             variant="ghost"
             size="sm"
             aria-label="Modificar reserva"
+            title="Modificar reserva"
             onClick={() => onModificar(r)}
           >
             <Pencil className="h-4 w-4" aria-hidden="true" />
@@ -125,6 +121,7 @@ function columnaAcciones({
             variant="ghost"
             size="sm"
             aria-label="Cancelar reserva"
+            title="Cancelar reserva"
             onClick={() => onCancelarAnticipada(r)}
           >
             <CalendarX className="h-4 w-4" aria-hidden="true" />
@@ -133,6 +130,7 @@ function columnaAcciones({
             variant="ghost"
             size="sm"
             aria-label="Cancelar por ausencia"
+            title="Cancelar por ausencia"
             onClick={() => onCancelarPorAusencia(r)}
           >
             <UserX className="h-4 w-4" aria-hidden="true" />

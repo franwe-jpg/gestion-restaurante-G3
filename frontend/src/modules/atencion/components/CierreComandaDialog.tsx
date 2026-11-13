@@ -70,7 +70,7 @@ export function CierreComandaDialog({ id, onSalir, onCerrada, onEntregas }: Prop
                 </li>
               ))}
             </ul>
-            <Button disabled={cierre.ocupado} onClick={onEntregas}>
+            <Button variant="brand-outline" disabled={cierre.ocupado} onClick={onEntregas}>
               Gestionar entregas
             </Button>
           </>
@@ -83,7 +83,7 @@ export function CierreComandaDialog({ id, onSalir, onCerrada, onEntregas }: Prop
             </Button>
           </>
         )}
-        <Button variant="outline" disabled={cierre.ocupado} onClick={onSalir}>
+        <Button variant="brand-outline" disabled={cierre.ocupado} onClick={onSalir}>
           Cancelar
         </Button>
       </div>

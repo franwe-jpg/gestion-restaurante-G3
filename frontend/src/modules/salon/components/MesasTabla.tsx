@@ -1,24 +1,11 @@
-import { Armchair, ClipboardPlus, Pencil, Trash2 } from 'lucide-react';
+import { Armchair, Pencil, Trash2 } from 'lucide-react';
 
 import { EmptyState } from '../../../shared/components/EmptyState';
-import { Badge } from '../../../shared/components/ui/badge';
-import type { BadgeVariant } from '../../../shared/components/ui/badge';
 import { Button } from '../../../shared/components/ui/button';
 import { DataTable } from '../../../shared/components/ui/data-table';
 import type { ColumnaTabla } from '../../../shared/components/ui/data-table';
-import type { EstadoMesa, Mesa } from '../types';
-
-const ETIQUETAS: Record<EstadoMesa, string> = {
-  LIBRE: 'Libre',
-  OCUPADA: 'Ocupada',
-  FUERA_DE_SERVICIO: 'Fuera de servicio',
-};
-
-const VARIANTES: Record<EstadoMesa, BadgeVariant> = {
-  LIBRE: 'success',
-  OCUPADA: 'warning',
-  FUERA_DE_SERVICIO: 'neutral',
-};
+import { StatusBadge } from '../../../shared/components/ui/status-badge';
+import type { Mesa } from '../types';
 
 interface AccionesMesaProps {
   mesa: Mesa;
@@ -33,12 +20,12 @@ function AccionesMesa({ mesa, onEditar, onEliminar, onAbrirComanda }: AccionesMe
     <div className="flex items-center justify-end gap-1">
       {onAbrirComanda && mesa.estado === 'LIBRE' && (
         <Button
-          variant="outline"
+          variant="brand-outline"
           size="sm"
           aria-label={`Abrir comanda en la mesa ${mesa.numero}`}
+          title={`Abrir comanda en la mesa ${mesa.numero}`}
           onClick={() => onAbrirComanda(mesa)}
         >
-          <ClipboardPlus className="h-4 w-4" aria-hidden="true" />
           Abrir comanda
         </Button>
       )}
@@ -47,6 +34,7 @@ function AccionesMesa({ mesa, onEditar, onEliminar, onAbrirComanda }: AccionesMe
           variant="ghost"
           size="sm"
           aria-label={`Editar la mesa ${mesa.numero}`}
+          title={`Editar la mesa ${mesa.numero}`}
           onClick={() => onEditar(mesa)}
         >
           <Pencil className="h-4 w-4" aria-hidden="true" />
@@ -58,6 +46,7 @@ function AccionesMesa({ mesa, onEditar, onEliminar, onAbrirComanda }: AccionesMe
           variant="ghost"
           size="sm"
           aria-label={`Eliminar la mesa ${mesa.numero}`}
+          title={`Eliminar la mesa ${mesa.numero}`}
           onClick={() => onEliminar(mesa)}
         >
           <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -90,7 +79,7 @@ function columnas({
     {
       clave: 'estado',
       encabezado: 'Estado',
-      render: (mesa) => <Badge variant={VARIANTES[mesa.estado]}>{ETIQUETAS[mesa.estado]}</Badge>,
+      render: (mesa) => <StatusBadge estado={mesa.estado} />,
     },
   ];
   // Sin ninguna acción disponible (solo lectura y sin permiso de operar comandas) no hay columna.

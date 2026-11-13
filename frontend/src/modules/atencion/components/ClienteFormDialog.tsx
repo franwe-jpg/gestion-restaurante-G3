@@ -88,7 +88,7 @@ export function ClienteFormDialog({ cliente, onGuardado, onOpenChange }: Cliente
       title="Modificar cliente"
       footer={
         <>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="brand-outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
           <Button onClick={() => void guardar()} disabled={enviando}>

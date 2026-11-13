@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import * as api from '../api';
-import { ComandaForm } from './ComandaForm';
+import { ComandaFormDialog } from './ComandaForm';
 
 vi.mock('../api', () => ({
   crearComanda: vi.fn(),
@@ -65,7 +65,7 @@ async function seleccionarMozo(busqueda = 'Lucía') {
 
 async function abrir(mesaInicial?: string) {
   const onCreada = vi.fn();
-  render(<ComandaForm onCreada={onCreada} mesaInicial={mesaInicial} />);
+  render(<ComandaFormDialog onCreada={onCreada} mesaInicial={mesaInicial} onSalir={vi.fn()} />);
   await waitFor(() => expect(api.listarMesas).toHaveBeenCalled());
   return onCreada;
 }
@@ -229,12 +229,21 @@ it('valida que haya una mesa elegida', async () => {
 });
 
 it('preselecciona la mesa inicial si está libre y la descarta si no', async () => {
-  const vista = render(<ComandaForm onCreada={vi.fn()} mesaInicial="1" />);
+  const vista = render(<ComandaFormDialog onCreada={vi.fn()} mesaInicial="1" onSalir={vi.fn()} />);
   await screen.findByRole('option', { name: 'Mesa 4 · Salón' });
   expect(screen.getByLabelText('Mesa')).toHaveValue('1');
   vista.unmount();
-  render(<ComandaForm onCreada={vi.fn()} mesaInicial="2" />);
+  render(<ComandaFormDialog onCreada={vi.fn()} mesaInicial="2" onSalir={vi.fn()} />);
   await screen.findAllByRole('option', { name: 'Mesa 4 · Salón' });
   await waitFor(() => expect(screen.getByLabelText('Mesa')).toHaveValue(''));
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+});
+
+it('ofrece el pie del diálogo con «Cancelar» y «Guardar comanda»', async () => {
+  const onSalir = vi.fn();
+  render(<ComandaFormDialog onCreada={vi.fn()} onSalir={onSalir} />);
+  const dialogo = screen.getByRole('dialog', { name: 'Nueva comanda' });
+  expect(within(dialogo).getByRole('button', { name: 'Guardar comanda' })).toBeDisabled();
+  fireEvent.click(within(dialogo).getByRole('button', { name: 'Cancelar' }));
+  expect(onSalir).toHaveBeenCalled();
 });

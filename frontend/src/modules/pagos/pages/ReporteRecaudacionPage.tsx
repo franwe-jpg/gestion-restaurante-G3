@@ -1,10 +1,19 @@
-import { Inbox, ReceiptText } from 'lucide-react';
+import { ChartColumn, Inbox, ReceiptText } from 'lucide-react';
 
 import { Breadcrumbs } from '../../../shared/components/ui/breadcrumbs';
 import { Alert } from '../../../shared/components/ui/alert';
 import { Button } from '../../../shared/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '../../../shared/components/ui/card';
 import { DataTable, type ColumnaTabla } from '../../../shared/components/ui/data-table';
 import { DateRangePicker } from '../../../shared/components/ui/date-range-picker';
+import { ExportButton } from '../../../shared/components/ui/export-button';
+import { FilterBar } from '../../../shared/components/ui/filter-bar';
 import { StatCard } from '../../../shared/components/ui/stat-card';
 import { EmptyState } from '../../../shared/components/EmptyState';
 import { PageHeader } from '../../../shared/components/PageHeader';
@@ -64,18 +73,29 @@ function TarjetasDelResumen({ resumen }: { resumen: ResumenRecaudacion }) {
 
 function TablaPorMedio({ resumen }: { resumen: ResumenRecaudacion }) {
   return (
-    <DataTable
-      columnas={COLUMNAS}
-      filas={resumen.por_medio_pago}
-      obtenerClave={(medio) => medio.medio_pago_id}
-      vacio={
-        <EmptyState
-          icono={Inbox}
-          titulo="Sin cobros en el período"
-          descripcion="Solo hay facturas adeudadas emitidas en el período."
+    <Card>
+      <CardHeader className="flex-row items-start justify-between space-y-0">
+        <div>
+          <CardTitle>Cobros por medio de pago</CardTitle>
+          <CardDescription>Detalle de lo cobrado en el período.</CardDescription>
+        </div>
+        <ExportButton filas={resumen.por_medio_pago} nombreArchivo="recaudacion-por-medio" />
+      </CardHeader>
+      <CardContent>
+        <DataTable
+          columnas={COLUMNAS}
+          filas={resumen.por_medio_pago}
+          obtenerClave={(medio) => medio.medio_pago_id}
+          vacio={
+            <EmptyState
+              icono={Inbox}
+              titulo="Sin cobros en el período"
+              descripcion="Solo hay facturas adeudadas emitidas en el período."
+            />
+          }
         />
-      }
-    />
+      </CardContent>
+    </Card>
   );
 }
 
@@ -107,10 +127,32 @@ function ResultadoReporte({ resultado, descargando, onDescargarPdf }: ResultadoR
           <p className="text-xs text-slate-500">{NOTA_DEUDA}</p>
         </>
       )}
-      <Button variant="outline" onClick={onDescargarPdf} disabled={descargando}>
+      <Button variant="brand-outline" onClick={onDescargarPdf} disabled={descargando}>
         Descargar PDF
       </Button>
     </div>
+  );
+}
+
+function FiltrosReporte({ reporte }: { reporte: ReturnType<typeof useReporteRecaudacion> }) {
+  return (
+    <FilterBar>
+      <DateRangePicker
+        desde={reporte.desde}
+        hasta={reporte.hasta}
+        onCambiarDesde={reporte.setDesde}
+        onCambiarHasta={reporte.setHasta}
+        etiquetaDesde="Fecha desde"
+        etiquetaHasta="Fecha hasta"
+      />
+      <Button
+        variant="brand-outline"
+        onClick={() => void reporte.generar()}
+        disabled={reporte.cargando}
+      >
+        {reporte.cargando ? 'Generando…' : 'Generar'}
+      </Button>
+    </FilterBar>
   );
 }
 
@@ -119,7 +161,7 @@ export function ReporteRecaudacionPage() {
   const { resultado } = reporte;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <Breadcrumbs
         items={[
           { etiqueta: 'Reportes', ruta: '/reportes' },
@@ -130,21 +172,16 @@ export function ReporteRecaudacionPage() {
         titulo="Recaudación por medio de pago"
         descripcion="Lo cobrado en un período con cada medio de pago y lo que quedó adeudado."
       />
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-        <DateRangePicker
-          desde={reporte.desde}
-          hasta={reporte.hasta}
-          onCambiarDesde={reporte.setDesde}
-          onCambiarHasta={reporte.setHasta}
-          etiquetaDesde="Fecha desde"
-          etiquetaHasta="Fecha hasta"
-        />
-        <Button onClick={() => void reporte.generar()} disabled={reporte.cargando}>
-          {reporte.cargando ? 'Generando…' : 'Generar'}
-        </Button>
-      </div>
+      <FiltrosReporte reporte={reporte} />
       {reporte.error && <Alert variant="warning">{reporte.error}</Alert>}
       {reporte.errorDescarga && <Alert variant="danger">{reporte.errorDescarga}</Alert>}
+      {!resultado && !reporte.cargando && !reporte.error && (
+        <EmptyState
+          icono={ChartColumn}
+          titulo="Elegí el período y presioná Generar"
+          descripcion="Lo cobrado por medio de pago del período se muestra acá."
+        />
+      )}
       {resultado && (
         <ResultadoReporte
           resultado={resultado}

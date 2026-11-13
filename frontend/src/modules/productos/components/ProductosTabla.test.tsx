@@ -70,12 +70,12 @@ describe('ProductosTabla', () => {
     expect(screen.getByText('Deshabilitado')).toBeInTheDocument();
   });
 
-  it.each(FILTROS_ESTADO)('sin productos muestra solo el vacío de «$etiqueta» (CA 2)', (filtro) => {
+  it.each(FILTROS_ESTADO)('sin productos muestra el vacío de «$etiqueta» (CA 2)', (filtro) => {
     mostrar({ filtro });
 
     expect(screen.getByText(filtro.vacioTitulo)).toBeInTheDocument();
-    expect(screen.queryByRole('table')).not.toBeInTheDocument();
-    expect(screen.queryByText('Nombre')).not.toBeInTheDocument();
+    expect(screen.getByRole('table')).toBeInTheDocument();
+    expect(screen.getByText('Nombre')).toBeInTheDocument();
   });
 
   it('no muestra el vacío mientras carga y usa los estados de DataTable', () => {

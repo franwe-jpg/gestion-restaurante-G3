@@ -1,9 +1,10 @@
-import { CalendarX } from 'lucide-react';
+import { CalendarX, ChartColumn } from 'lucide-react';
 
 import { Breadcrumbs } from '../../../shared/components/ui/breadcrumbs';
 import { Alert } from '../../../shared/components/ui/alert';
 import { Button } from '../../../shared/components/ui/button';
 import { DateRangePicker } from '../../../shared/components/ui/date-range-picker';
+import { FilterBar } from '../../../shared/components/ui/filter-bar';
 import { StatCard } from '../../../shared/components/ui/stat-card';
 import { EmptyState } from '../../../shared/components/EmptyState';
 import { PageHeader } from '../../../shared/components/PageHeader';
@@ -56,7 +57,7 @@ function ResultadoReporte({ resultado, descargando, onDescargarPdf }: ResultadoR
       ) : (
         <TarjetasDelResumen resumen={resultado} />
       )}
-      <Button variant="outline" onClick={onDescargarPdf} disabled={descargando}>
+      <Button variant="brand-outline" onClick={onDescargarPdf} disabled={descargando}>
         Descargar PDF
       </Button>
     </div>
@@ -68,7 +69,7 @@ export function ReporteReservasAusentismoPage() {
   const { resultado } = reporte;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <Breadcrumbs
         items={[{ etiqueta: 'Reportes', ruta: '/reportes' }, { etiqueta: 'Reservas y ausentismo' }]}
       />
@@ -76,7 +77,7 @@ export function ReporteReservasAusentismoPage() {
         titulo="Reservas y ausentismo"
         descripcion="Cuántas reservas hubo en un período, cómo terminaron y qué porcentaje de clientes no se presentó."
       />
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+      <FilterBar>
         <DateRangePicker
           desde={reporte.desde}
           hasta={reporte.hasta}
@@ -85,12 +86,23 @@ export function ReporteReservasAusentismoPage() {
           etiquetaDesde="Fecha desde"
           etiquetaHasta="Fecha hasta"
         />
-        <Button onClick={() => void reporte.generar()} disabled={reporte.cargando}>
+        <Button
+          variant="brand-outline"
+          onClick={() => void reporte.generar()}
+          disabled={reporte.cargando}
+        >
           {reporte.cargando ? 'Generando…' : 'Generar'}
         </Button>
-      </div>
+      </FilterBar>
       {reporte.error && <Alert variant="warning">{reporte.error}</Alert>}
       {reporte.errorDescarga && <Alert variant="danger">{reporte.errorDescarga}</Alert>}
+      {!resultado && !reporte.cargando && !reporte.error && (
+        <EmptyState
+          icono={ChartColumn}
+          titulo="Elegí el período y presioná Generar"
+          descripcion="Las reservas del período y el ausentismo se muestran acá."
+        />
+      )}
       {resultado && (
         <ResultadoReporte
           resultado={resultado}

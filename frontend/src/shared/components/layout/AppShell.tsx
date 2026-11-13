@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { CargandoPagina } from '../CargandoPagina';
 import { ErrorBoundary } from '../ErrorBoundary';
 import { Sheet } from '../ui/sheet';
+import { BotonTema } from './BotonTema';
 import { MenuUsuario } from './MenuUsuario';
 import { Navbar } from './Navbar';
 import { ELEMENTOS_NAVEGACION } from './navegacion';
@@ -54,7 +55,12 @@ export function AppShell() {
           alAlternarMenuMovil={() => setMenuMovilAbierto(true)}
           alAlternarColapsoEscritorio={() => setSidebarColapsada((prev) => !prev)}
           sidebarColapsada={sidebarColapsada}
-          acciones={<MenuUsuario />}
+          acciones={
+            <>
+              <BotonTema />
+              <MenuUsuario />
+            </>
+          }
         />
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">

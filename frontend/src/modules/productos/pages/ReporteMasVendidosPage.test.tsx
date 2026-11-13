@@ -74,11 +74,33 @@ describe('ReporteMasVendidosPage', () => {
 
     expect(screen.getByLabelText('Fecha desde')).toBeInTheDocument();
     expect(screen.getByLabelText('Fecha hasta')).toBeInTheDocument();
+    expect(screen.getByText('Elegí el período y presioná Generar')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Generar' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Descargar PDF' })).not.toBeInTheDocument();
     expect(obtenerReporteMasVendidos).not.toHaveBeenCalled();
   });
 
+  it('abre con el mes en curso y genera sin tocar las fechas', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 10, 13, 12, 0, 0));
+    ok(reporte([[linea(1, 'A', 3)]]));
+    try {
+      renderizar();
+
+      expect(screen.getByLabelText('Fecha desde')).toHaveValue('2026-11-01');
+      expect(screen.getByLabelText('Fecha hasta')).toHaveValue('2026-11-13');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Generar' }));
+
+      expect(await screen.findByText('A')).toBeInTheDocument();
+      expect(obtenerReporteMasVendidos).toHaveBeenCalledWith('2026-11-01', '2026-11-13');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('ReporteMasVendidosPage: gráfico', () => {
   it('muestra solo los 5 mayores de 8 productos en tres secciones', async () => {
     ok(
       reporte([

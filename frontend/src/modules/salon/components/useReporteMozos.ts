@@ -6,6 +6,19 @@ import { validarPeriodo } from '../validarPeriodo';
 
 const LIMITE_OPCIONES = 100;
 
+/**
+ * Primer día del mes actual y hoy como `YYYY-MM-DD` en hora local.
+ * No usa `toISOString()`: en UTC-3 adelanta el día después de las 21:00.
+ */
+function periodoInicial(): { desde: string; hasta: string } {
+  const ahora = new Date();
+  const mes = String(ahora.getMonth() + 1).padStart(2, '0');
+  return {
+    desde: `${ahora.getFullYear()}-${mes}-01`,
+    hasta: `${ahora.getFullYear()}-${mes}-${String(ahora.getDate()).padStart(2, '0')}`,
+  };
+}
+
 function useOpcionesDelReporte() {
   const [mozos, setMozos] = useState<Mozo[]>([]);
   const [sectores, setSectores] = useState<Sector[]>([]);
@@ -32,8 +45,8 @@ function useOpcionesDelReporte() {
 /** Estado del reporte de mesas atendidas y ventas por mozo (HU-M3-13). */
 export function useReporteMozos() {
   const { mozos, sectores } = useOpcionesDelReporte();
-  const [desde, setDesde] = useState('');
-  const [hasta, setHasta] = useState('');
+  const [desde, setDesde] = useState(() => periodoInicial().desde);
+  const [hasta, setHasta] = useState(() => periodoInicial().hasta);
   const [mozoId, setMozoId] = useState('');
   const [sectorId, setSectorId] = useState('');
   const [resultado, setResultado] = useState<ReporteMesasVentasPorMozo | null>(null);

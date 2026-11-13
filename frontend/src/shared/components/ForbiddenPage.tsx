@@ -16,8 +16,10 @@ export function ForbiddenPage() {
       tono="warning"
       acciones={
         <>
-          <Button onClick={() => navigate('/')}>Volver al inicio</Button>
-          <Button variant="outline" onClick={() => navigate(-1)}>
+          <Button variant="brand-outline" onClick={() => navigate('/')}>
+            Volver al inicio
+          </Button>
+          <Button variant="brand-outline" onClick={() => navigate(-1)}>
             Volver atrás
           </Button>
         </>

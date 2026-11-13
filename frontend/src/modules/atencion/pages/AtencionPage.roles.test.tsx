@@ -96,8 +96,14 @@ describe('Atención: el encargado y el mozo operan', () => {
       expect(screen.getByRole('button', { name: 'Anular comanda #3' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Reabrir comanda #4' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Facturar comanda #4' })).toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: 'Clientes' })).toBeInTheDocument();
-      expect(api.listarClientes).toHaveBeenCalled();
+      expect(screen.getByRole('tab', { name: 'Comandas' })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      );
+      expect(api.listarClientes).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole('tab', { name: 'Clientes' }));
+      expect(await screen.findByRole('heading', { name: 'Clientes' })).toBeInTheDocument();
+      await waitFor(() => expect(api.listarClientes).toHaveBeenCalled());
     },
   );
 });
@@ -153,6 +159,7 @@ describe('Atención: el chef solo ve comandas', () => {
 
     await screen.findByText('Comanda #3');
     expect(screen.queryByRole('heading', { name: 'Clientes' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Clientes' })).not.toBeInTheDocument();
     expect(api.listarClientes).not.toHaveBeenCalled();
     expect(api.listarMesas).not.toHaveBeenCalled();
   });

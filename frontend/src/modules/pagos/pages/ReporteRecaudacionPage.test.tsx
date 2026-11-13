@@ -54,9 +54,8 @@ function ok(datos: ResumenRecaudacion) {
   vi.mocked(obtenerReporteRecaudacion).mockResolvedValue({ datos, exito: true });
 }
 
-async function generar(datos?: ResumenRecaudacion) {
-  if (datos) ok(datos);
-  render(
+function renderizar() {
+  return render(
     <MemoryRouter initialEntries={['/reportes/recaudacion-por-medio-de-pago']}>
       <Routes>
         <Route
@@ -66,10 +65,13 @@ async function generar(datos?: ResumenRecaudacion) {
       </Routes>
     </MemoryRouter>,
   );
+}
+
+async function generar(datos?: ResumenRecaudacion) {
+  if (datos) ok(datos);
+  renderizar();
   fireEvent.change(screen.getByLabelText('Fecha desde'), { target: { value: '2026-10-01' } });
-  if (datos) {
-    fireEvent.change(screen.getByLabelText('Fecha hasta'), { target: { value: '2026-10-31' } });
-  }
+  fireEvent.change(screen.getByLabelText('Fecha hasta'), { target: { value: '2026-10-31' } });
   fireEvent.click(screen.getByRole('button', { name: 'Generar' }));
 }
 
@@ -124,9 +126,35 @@ describe('ReporteRecaudacionPage: con y sin datos', () => {
   });
 });
 
+describe('ReporteRecaudacionPage: período por defecto', () => {
+  it('abre con el mes en curso y genera sin tocar las fechas', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 10, 13, 12, 0, 0));
+    ok(resumen());
+    try {
+      renderizar();
+
+      expect(screen.getByLabelText('Fecha desde')).toHaveValue('2026-11-01');
+      expect(screen.getByLabelText('Fecha hasta')).toHaveValue('2026-11-13');
+      expect(screen.getByText('Elegí el período y presioná Generar')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Generar' }));
+
+      expect(obtenerReporteRecaudacion).toHaveBeenCalledWith('2026-11-01', '2026-11-13');
+      expect(await screen.findByText(moneda(3500))).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
 describe('ReporteRecaudacionPage: validación y errores', () => {
   it('sin elegir fecha hasta muestra el mensaje local y no llama a la API', async () => {
-    await generar();
+    renderizar();
+    fireEvent.change(screen.getByLabelText('Fecha desde'), { target: { value: '2026-10-01' } });
+    fireEvent.change(screen.getByLabelText('Fecha hasta'), { target: { value: '' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Generar' }));
 
     expect(screen.getByText('Falta la fecha hasta.')).toBeInTheDocument();
     expect(obtenerReporteRecaudacion).not.toHaveBeenCalled();
@@ -138,8 +166,9 @@ describe('ReporteRecaudacionPage: validación y errores', () => {
       exito: false,
       error: 'El período es inválido: la fecha desde es posterior a la fecha hasta.',
     });
-    await generar(undefined);
-    fireEvent.change(screen.getByLabelText('Fecha hasta'), { target: { value: '2026-09-01' } });
+    renderizar();
+    fireEvent.change(screen.getByLabelText('Fecha desde'), { target: { value: '2026-10-01' } });
+    fireEvent.change(screen.getByLabelText('Fecha hasta'), { target: { value: '2026-10-31' } });
     fireEvent.click(screen.getByRole('button', { name: 'Generar' }));
 
     expect(

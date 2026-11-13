@@ -1,17 +1,13 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import {
-  Bell,
   BookOpen,
   CalendarDays,
-  CheckCircle2,
   ClipboardList,
   CreditCard,
-  Download,
   Eye,
   Info,
   Pencil,
-  Plus,
   Settings,
   Trash2,
   TrendingUp,
@@ -92,7 +88,7 @@ const PALETA = [
   { nombre: 'Danger', clase: 'bg-danger', texto: 'text-danger-foreground', hex: '#be123c' },
   { nombre: 'Warning', clase: 'bg-warning', texto: 'text-warning-foreground', hex: '#f59e0b' },
   { nombre: 'Info', clase: 'bg-info', texto: 'text-info-foreground', hex: '#0369a1' },
-  { nombre: 'Light', clase: 'bg-light', texto: 'text-slate-900', hex: '#f8fafc' },
+  { nombre: 'Light', clase: 'bg-light', texto: 'text-light-foreground', hex: '#f8fafc' },
   { nombre: 'Dark', clase: 'bg-dark', texto: 'text-dark-foreground', hex: '#0f172a' },
 ] as const;
 
@@ -303,12 +299,7 @@ export function ComponentesPage() {
       <PageHeader
         titulo="Guía de componentes"
         descripcion="Referencia visual de los bloques reutilizables disponibles para los seis módulos."
-        acciones={
-          <Button>
-            <Plus className="h-4 w-4" />
-            Acción principal
-          </Button>
-        }
+        acciones={<Button variant="brand-outline">Acción principal</Button>}
       />
 
       <Seccion
@@ -321,11 +312,9 @@ export function ComponentesPage() {
               <Button>Primario</Button>
               <Button variant="secondary">Secundario</Button>
               <Button variant="outline">Contorno</Button>
+              <Button variant="brand-outline">Contorno marca</Button>
               <Button variant="ghost">Fantasma</Button>
-              <Button variant="danger">
-                <Trash2 className="h-4 w-4" />
-                Eliminar
-              </Button>
+              <Button variant="danger">Eliminar</Button>
               <Button disabled>Deshabilitado</Button>
             </div>
 
@@ -335,8 +324,7 @@ export function ComponentesPage() {
               <Button size="sm">Pequeño</Button>
               <Button size="md">Mediano</Button>
               <Button size="lg">Grande</Button>
-              <Button variant="outline" size="sm">
-                <Download className="h-4 w-4" />
+              <Button variant="brand-outline" size="sm">
                 Exportar
               </Button>
             </div>
@@ -449,6 +437,7 @@ export function ComponentesPage() {
         <Card>
           <CardContent className="flex flex-wrap items-center gap-3 pt-6">
             <Button
+              variant="brand-outline"
               onClick={() =>
                 mostrarToast({
                   titulo: 'Comanda creada',
@@ -457,11 +446,10 @@ export function ComponentesPage() {
                 })
               }
             >
-              <Bell className="h-4 w-4" />
               Mostrar toast
             </Button>
             <Button
-              variant="outline"
+              variant="brand-outline"
               onClick={() =>
                 mostrarToast({
                   titulo: 'No se pudo conectar',
@@ -553,7 +541,7 @@ export function ComponentesPage() {
               <p className="text-xs text-slate-500">comandas del turno</p>
             </CardContent>
             <CardFooter>
-              <Button variant="outline" size="sm">
+              <Button variant="brand-outline" size="sm">
                 Ver detalle
               </Button>
             </CardFooter>
@@ -561,7 +549,7 @@ export function ComponentesPage() {
 
           <Card>
             <CardHeader>
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-50 text-amber-800">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-200">
                 <UtensilsCrossed className="h-5 w-5" aria-hidden="true" />
               </div>
               <CardTitle className="pt-2">Acceso a módulo</CardTitle>
@@ -824,8 +812,7 @@ export function ComponentesPage() {
               titulo="Todavía no hay promociones"
               descripcion="Cuando se cargue la primera promoción, va a aparecer en este listado."
               accion={
-                <Button size="sm">
-                  <Plus className="h-4 w-4" />
+                <Button variant="brand-outline" size="sm">
                   Nueva promoción
                 </Button>
               }
@@ -840,8 +827,7 @@ export function ComponentesPage() {
       >
         <Card>
           <CardContent className="flex flex-wrap items-center gap-3 pt-6">
-            <Button variant="outline" onClick={() => setSheetAbierto(true)}>
-              <Settings className="h-4 w-4" />
+            <Button variant="brand-outline" onClick={() => setSheetAbierto(true)}>
               Abrir panel lateral
             </Button>
             <span className="text-sm text-slate-500">
@@ -865,8 +851,7 @@ export function ComponentesPage() {
               <Info className="h-4 w-4" aria-hidden="true" />
               El componente ya maneja foco, Escape y bloqueo del scroll.
             </div>
-            <Button size="sm" onClick={() => setSheetAbierto(false)}>
-              <CheckCircle2 className="h-4 w-4" />
+            <Button variant="brand-outline" size="sm" onClick={() => setSheetAbierto(false)}>
               Entendido
             </Button>
           </div>
@@ -880,7 +865,6 @@ export function ComponentesPage() {
         <Card>
           <CardContent className="flex flex-wrap items-center gap-3 pt-6">
             <Button variant="danger" onClick={() => setModalAbierto(true)}>
-              <Trash2 className="h-4 w-4" />
               Eliminar mesa
             </Button>
             <span className="text-sm text-slate-500">
@@ -896,7 +880,7 @@ export function ComponentesPage() {
           description="Esta acción no se puede deshacer."
           footer={
             <>
-              <Button variant="outline" onClick={() => setModalAbierto(false)}>
+              <Button variant="brand-outline" onClick={() => setModalAbierto(false)}>
                 Cancelar
               </Button>
               <Button variant="danger" onClick={() => setModalAbierto(false)}>
@@ -1015,12 +999,12 @@ export function ComponentesPage() {
         <Card>
           <CardContent className="flex flex-wrap items-center gap-3 pt-6">
             <Tooltip contenido="Actualizar estado">
-              <Button variant="outline" size="sm" aria-label="Actualizar estado">
+              <Button variant="brand-outline" size="sm" aria-label="Actualizar estado">
                 <Settings className="h-4 w-4" />
               </Button>
             </Tooltip>
 
-            <Popover trigger={<Button variant="outline">Filtros avanzados</Button>}>
+            <Popover trigger={<Button variant="brand-outline">Filtros avanzados</Button>}>
               <p className="font-medium text-slate-900">Filtros</p>
               <p className="mt-1 text-slate-500">
                 Acá puede ir un formulario breve de filtros o acciones rápidas.
@@ -1042,7 +1026,6 @@ export function ComponentesPage() {
                 });
               }}
             >
-              <Trash2 className="h-4 w-4" />
               Eliminar con confirmación
             </Button>
           </CardContent>
@@ -1117,17 +1100,26 @@ export function ComponentesPage() {
           <CardContent className="flex flex-wrap items-center gap-4 pt-6">
             <Link
               to="/ruta-inexistente"
-              className="text-sm font-medium text-amber-800 hover:underline"
+              className="text-sm font-medium text-amber-800 hover:underline dark:text-amber-300"
             >
               Ver página 404
             </Link>
-            <Link to="/403" className="text-sm font-medium text-amber-800 hover:underline">
+            <Link
+              to="/403"
+              className="text-sm font-medium text-amber-800 hover:underline dark:text-amber-300"
+            >
               Ver página 403
             </Link>
-            <Link to="/500" className="text-sm font-medium text-amber-800 hover:underline">
+            <Link
+              to="/500"
+              className="text-sm font-medium text-amber-800 hover:underline dark:text-amber-300"
+            >
               Ver página 500
             </Link>
-            <Link to="/503" className="text-sm font-medium text-amber-800 hover:underline">
+            <Link
+              to="/503"
+              className="text-sm font-medium text-amber-800 hover:underline dark:text-amber-300"
+            >
               Ver página 503
             </Link>
             <span className="text-sm text-slate-500">

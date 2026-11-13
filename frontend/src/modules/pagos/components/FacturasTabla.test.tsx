@@ -35,8 +35,8 @@ describe('FacturasTabla (HU-M6-02)', () => {
 
     expect(screen.getByText('#7')).toBeInTheDocument();
     expect(screen.getByText('#12')).toBeInTheDocument();
-    expect(screen.getByText('$ 7101.00')).toBeInTheDocument();
-    expect(screen.getByText('$ 6101.00')).toBeInTheDocument();
+    expect(screen.getByText('$ 7.101,00')).toBeInTheDocument();
+    expect(screen.getByText('$ 6.101,00')).toBeInTheDocument();
     expect(screen.getByText('Adeudada')).toBeInTheDocument();
   });
 

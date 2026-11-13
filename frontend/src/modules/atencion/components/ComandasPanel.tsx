@@ -1,6 +1,12 @@
 import type { ComponentProps } from 'react';
 
-import { Card, CardContent } from '../../../shared/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '../../../shared/components/ui/card';
 import { Alert } from '../../../shared/components/ui/alert';
 import { ErrorState } from '../../../shared/components/ui/error-state';
 import { Spinner } from '../../../shared/components/ui/spinner';
@@ -63,13 +69,15 @@ export function ComandasPanel({ comandas, aviso, ...acciones }: Props) {
   });
   return (
     <Card>
-      <CardContent className="pt-6">
-        <div className="space-y-4">
-          <FiltrosComandas ocupado={comandas.cargando} onFiltrar={comandas.filtrar} />
-          {aviso && <p role="status">{aviso}</p>}
-          <EstadoCatalogoMozos cargando={catalogoMozos.cargando} error={catalogoMozos.error} />
-          <ResultadoComandas comandas={comandas} mozos={catalogoMozos.mozos} {...acciones} />
-        </div>
+      <CardHeader>
+        <CardTitle>Comandas</CardTitle>
+        <CardDescription>Pedidos del turno y estado de servicio.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <FiltrosComandas ocupado={comandas.cargando} onFiltrar={comandas.filtrar} />
+        {aviso && <p role="status">{aviso}</p>}
+        <EstadoCatalogoMozos cargando={catalogoMozos.cargando} error={catalogoMozos.error} />
+        <ResultadoComandas comandas={comandas} mozos={catalogoMozos.mozos} {...acciones} />
       </CardContent>
     </Card>
   );

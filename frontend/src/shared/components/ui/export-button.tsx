@@ -1,5 +1,3 @@
-import { Download } from 'lucide-react';
-
 import { Button } from './button';
 
 export interface ExportButtonProps<T extends object> {
@@ -41,8 +39,7 @@ export function ExportButton<T extends object>({
   };
 
   return (
-    <Button variant="outline" size="sm" onClick={exportar}>
-      <Download className="h-4 w-4" />
+    <Button variant="brand-outline" size="sm" onClick={exportar}>
       {etiqueta}
     </Button>
   );

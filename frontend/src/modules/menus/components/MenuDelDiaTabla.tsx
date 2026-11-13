@@ -1,10 +1,10 @@
 import { CalendarDays, Pencil, Trash2 } from 'lucide-react';
 
 import { EmptyState } from '../../../shared/components/EmptyState';
-import { Badge } from '../../../shared/components/ui/badge';
 import { Button } from '../../../shared/components/ui/button';
 import { DataTable } from '../../../shared/components/ui/data-table';
 import type { ColumnaTabla } from '../../../shared/components/ui/data-table';
+import { StatusBadge } from '../../../shared/components/ui/status-badge';
 import { formatearMoneda } from '../../../shared/lib/format';
 import type { MenuDelDiaListado } from '../types';
 
@@ -41,11 +41,7 @@ function columnasDeDatos(): ColumnaTabla<MenuDelDiaListado>[] {
     {
       clave: 'estado',
       encabezado: 'Estado',
-      render: (menu) => (
-        <Badge variant={menu.estado === 'HABILITADO' ? 'success' : 'neutral'}>
-          {menu.estado === 'HABILITADO' ? 'Habilitado' : 'Deshabilitado'}
-        </Badge>
-      ),
+      render: (menu) => <StatusBadge estado={menu.estado} />,
     },
   ];
 }
@@ -54,13 +50,14 @@ function columnaAcciones({ onEditar, onDarDeBaja }: Acciones): ColumnaTabla<Menu
   return {
     clave: 'acciones',
     encabezado: <span className="sr-only">Acciones</span>,
-    className: 'text-right',
+    className: 'w-24 text-right',
     render: (menu) => (
       <div className="flex justify-end gap-1">
         <Button
           variant="ghost"
           size="sm"
           aria-label={`Modificar ${menu.nombre}`}
+          title={`Modificar ${menu.nombre}`}
           onClick={() => onEditar(menu)}
         >
           <Pencil className="h-4 w-4" aria-hidden="true" />
@@ -69,6 +66,7 @@ function columnaAcciones({ onEditar, onDarDeBaja }: Acciones): ColumnaTabla<Menu
           variant="ghost"
           size="sm"
           aria-label={`Dar de baja ${menu.nombre}`}
+          title={`Dar de baja ${menu.nombre}`}
           disabled={menu.estado === 'DESHABILITADO'}
           onClick={() => onDarDeBaja(menu)}
         >

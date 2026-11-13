@@ -3,10 +3,12 @@ import type { SVGProps } from 'react';
 
 import type { Ambiente, Bloque, PlanoGenerado, Segmento } from './types';
 
-const PARED_EXTERIOR = '#475569';
-const PARED_INTERIOR = '#64748b';
-const DETALLE = '#94a3b8';
-const PISO = '#f3f4f6';
+const PARED_EXTERIOR = 'var(--plano-pared-exterior)';
+const PARED_INTERIOR = 'var(--plano-pared-interior)';
+const DETALLE = 'var(--plano-detalle)';
+const PISO = 'var(--plano-piso)';
+const BLOQUE = 'var(--plano-bloque)';
+const RAYADO = 'var(--plano-rayado)';
 
 function Linea({ tramo, ...trazo }: { tramo: Segmento } & SVGProps<SVGLineElement>) {
   return (
@@ -47,7 +49,7 @@ function BloqueDeServicio({ bloque, rayado }: { bloque: Bloque; rayado: string }
         width={bloque.ancho}
         height={bloque.alto}
         rx={esCocina ? 0 : 3}
-        fill={esCocina ? `url(#${rayado})` : '#ffffff'}
+        fill={esCocina ? `url(#${rayado})` : BLOQUE}
         stroke={esCocina ? 'none' : DETALLE}
         strokeWidth={1.5}
       />
@@ -133,7 +135,7 @@ export function ContornoDelPlano({ plano }: { plano: PlanoGenerado }) {
           patternUnits="userSpaceOnUse"
           patternTransform="rotate(45)"
         >
-          <rect width="7" height="7" fill="#e2e8f0" />
+          <rect width="7" height="7" fill={RAYADO} />
           <line x1="0" y1="0" x2="0" y2="7" stroke={DETALLE} strokeWidth="2" />
         </pattern>
       </defs>

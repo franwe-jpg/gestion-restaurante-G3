@@ -1,4 +1,3 @@
-import { Camera, ImagePlus, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
 
@@ -84,8 +83,7 @@ function Elegida({ seleccion, onQuitar }: { seleccion: Seleccion; onQuitar: () =
           <p className="text-slate-500">{(archivo.size / BYTES_POR_MB).toFixed(1)} MB</p>
         </div>
       )}
-      <Button variant="ghost" size="sm" aria-label="Quitar imagen" onClick={onQuitar}>
-        <X className="h-4 w-4" aria-hidden="true" />
+      <Button variant="brand-outline" size="sm" aria-label="Quitar imagen" onClick={onQuitar}>
         Quitar
       </Button>
     </div>
@@ -96,8 +94,7 @@ function Actual({ url, onQuitar }: { url: string; onQuitar: () => void }) {
   return (
     <div className="flex items-center gap-3 rounded-md border border-slate-200 p-2">
       <img src={url} alt="Imagen actual" className="h-16 w-16 rounded-md object-cover" />
-      <Button variant="ghost" size="sm" aria-label="Quitar imagen" onClick={onQuitar}>
-        <X className="h-4 w-4" aria-hidden="true" />
+      <Button variant="brand-outline" size="sm" aria-label="Quitar imagen" onClick={onQuitar}>
         Quitar
       </Button>
     </div>
@@ -112,12 +109,10 @@ export function SelectorImagen({ onCambiar, imagenActual, onQuitarActual }: Sele
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap gap-2">
-        <Button variant="outline" onClick={() => archivoRef.current?.click()}>
-          <ImagePlus className="h-4 w-4" aria-hidden="true" />
+        <Button variant="brand-outline" onClick={() => archivoRef.current?.click()}>
           Elegir archivo
         </Button>
-        <Button variant="outline" onClick={() => camaraRef.current?.click()}>
-          <Camera className="h-4 w-4" aria-hidden="true" />
+        <Button variant="brand-outline" onClick={() => camaraRef.current?.click()}>
           Sacar foto
         </Button>
       </div>

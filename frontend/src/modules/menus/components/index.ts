@@ -1,4 +1,3 @@
-export { AccionesMenu } from './AccionesMenu';
 export { AccionesMenuEjecutivo } from './AccionesMenuEjecutivo';
 export { BarraMenusEjecutivos } from './BarraMenusEjecutivos';
 export { CampoImagenMenu } from './CampoImagenMenu';

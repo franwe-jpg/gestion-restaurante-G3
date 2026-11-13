@@ -53,7 +53,7 @@ function ProductosSeleccionados({
           <li key={producto.id}>
             <button
               type="button"
-              className="rounded-full bg-amber-100 px-3 py-1 text-xs text-amber-900"
+              className="rounded-full bg-amber-100 px-3 py-1 text-xs text-amber-900 dark:bg-amber-900 dark:text-amber-100"
               aria-label={`Quitar ${producto.nombre}`}
               onClick={() => onCambiar(alternarProducto(seleccionados, producto.id))}
             >

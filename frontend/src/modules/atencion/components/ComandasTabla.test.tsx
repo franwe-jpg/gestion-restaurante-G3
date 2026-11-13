@@ -1,5 +1,8 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
+
+import { formatearFecha, formatearHora } from '../../../shared/lib/format';
+
 import { ComandasTabla } from './ComandasTabla';
 
 const props = {
@@ -75,4 +78,42 @@ it('sin permiso de operación no ofrece «Cambiar mozo»', () => {
   render(<ComandasTabla {...props} puedeOperar={false} />);
 
   expect(screen.queryByRole('button', { name: /Cambiar mozo/ })).not.toBeInTheDocument();
+});
+
+it('separa Fecha y Hora en columnas de una sola línea', () => {
+  render(<ComandasTabla {...props} />);
+
+  expect(screen.getByRole('columnheader', { name: 'Fecha' })).toBeInTheDocument();
+  expect(screen.getByRole('columnheader', { name: 'Hora' })).toBeInTheDocument();
+  const fila = screen.getByRole('row', { name: /Comanda #3/ });
+  expect(within(fila).getByText(formatearFecha('2026-11-11T12:00:00Z'))).toBeInTheDocument();
+  expect(within(fila).getByText(formatearHora('2026-11-11T12:00:00Z'))).toBeInTheDocument();
+});
+
+it('presenta las acciones secundarias como iconos con title y aria-label', () => {
+  render(<ComandasTabla {...props} />);
+
+  const entregas = screen.getByRole('button', { name: 'Entregas de la comanda #3' });
+  expect(entregas).toHaveTextContent('Entregas');
+  expect(entregas.parentElement).toHaveClass('flex', 'justify-end', 'whitespace-nowrap');
+  expect(screen.getByRole('button', { name: 'Anular comanda #3' })).toHaveAttribute(
+    'title',
+    'Anular comanda',
+  );
+  expect(screen.getByRole('button', { name: 'Modificar comanda #3' })).toHaveAttribute(
+    'title',
+    'Modificar',
+  );
+  expect(screen.getByRole('button', { name: 'Cambiar mozo de la comanda #3' })).toHaveAttribute(
+    'title',
+    'Cambiar mozo',
+  );
+  expect(screen.getByRole('button', { name: 'Cerrar comanda #3' })).toHaveAttribute(
+    'title',
+    'Cerrar',
+  );
+  expect(screen.getByRole('button', { name: 'Facturar comanda #4' })).toHaveAttribute(
+    'title',
+    'Facturar',
+  );
 });

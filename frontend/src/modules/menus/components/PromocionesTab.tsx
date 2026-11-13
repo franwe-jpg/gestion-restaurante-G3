@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import { useSesion } from '../../../shared/auth/useSesion';
+import { ExportButton } from '../../../shared/components/ui/export-button';
 import { useApi } from '../../../shared/hooks/useApi';
 import { listarProductosParaPromocion } from '../api';
 import type { Promocion } from '../types';
@@ -9,6 +10,38 @@ import { BarraPromociones } from './BarraPromociones';
 import { DialogoPromocion } from './DialogoPromocion';
 import { ListadoPromociones } from './ListadoPromociones';
 import { useListaPromociones } from './useListaPromociones';
+
+interface ListadoDePromocionesProps {
+  lista: ReturnType<typeof useListaPromociones>;
+  gestiona: boolean;
+  onNueva: () => void;
+  onEditar: (promocion: Promocion) => void;
+}
+
+/** Tarjeta de promociones con su barra de filtros y acciones. */
+function ListadoDePromociones({ lista, gestiona, onNueva, onEditar }: ListadoDePromocionesProps) {
+  return (
+    <ListadoPromociones
+      promociones={lista.promociones}
+      pagina={lista.pagina}
+      limite={lista.limite}
+      total={lista.total}
+      totalPaginas={lista.totalPaginas}
+      cargando={lista.cargando}
+      error={lista.error}
+      onReintentar={lista.recargar}
+      onCambiarPagina={lista.cambiarPagina}
+      onEditar={gestiona ? onEditar : undefined}
+      onFinalizada={gestiona ? lista.recargar : undefined}
+      toolbar={
+        <BarraPromociones
+          onNueva={gestiona ? onNueva : undefined}
+          acciones={<ExportButton filas={lista.promociones} nombreArchivo="promociones" />}
+        />
+      }
+    />
+  );
+}
 
 /** Pestaña «Promociones»: listado, alta y modificación (HU-M2-07 y HU-M2-08). */
 export function PromocionesTab() {
@@ -40,17 +73,11 @@ export function PromocionesTab() {
 
   return (
     <div className="space-y-6">
-      <BarraPromociones onNueva={gestiona ? abrirAlta : undefined} />
-      <ListadoPromociones
-        promociones={lista.promociones}
-        pagina={lista.pagina}
-        totalPaginas={lista.totalPaginas}
-        cargando={lista.cargando}
-        error={lista.error}
-        onReintentar={lista.recargar}
-        onCambiarPagina={lista.cambiarPagina}
-        onEditar={gestiona ? abrirEdicion : undefined}
-        onFinalizada={gestiona ? lista.recargar : undefined}
+      <ListadoDePromociones
+        lista={lista}
+        gestiona={gestiona}
+        onNueva={abrirAlta}
+        onEditar={abrirEdicion}
       />
       <DialogoPromocion
         abierto={formularioAbierto}

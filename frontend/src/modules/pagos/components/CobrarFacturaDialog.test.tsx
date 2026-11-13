@@ -82,8 +82,8 @@ describe('CobrarFacturaDialog (HU-M6-02)', () => {
     await cargarFactura();
 
     expect(obtenerFactura).toHaveBeenCalledWith(7);
-    expect(screen.getAllByText('$ 6101.00').length).toBeGreaterThan(0);
-    expect(screen.getByText('$ 1000.00')).toBeInTheDocument();
+    expect(screen.getAllByText('$ 6.101,00').length).toBeGreaterThan(0);
+    expect(screen.getByText('$ 1.000,00')).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Efectivo (ya usado)' })).toBeDisabled();
     expect(screen.getByRole('option', { name: 'Tarjeta' })).toBeEnabled();
   });

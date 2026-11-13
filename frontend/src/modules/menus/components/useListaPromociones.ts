@@ -40,6 +40,7 @@ export function useListaPromociones() {
     promociones,
     estado,
     pagina,
+    limite: LIMITE_PAGINA,
     total,
     totalPaginas: Math.max(1, Math.ceil(total / LIMITE_PAGINA)),
     cargando: solicitudTerminada !== claveSolicitud,

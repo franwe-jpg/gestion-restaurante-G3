@@ -3,8 +3,56 @@ import type { FormEvent } from 'react';
 import { Button } from '../../../shared/components/ui/button';
 import { Input } from '../../../shared/components/ui/input';
 import { Select } from '../../../shared/components/ui/select';
+import { FilterBar } from '../../../shared/components/ui/filter-bar';
 import { FormField } from '../../../shared/components/ui/form-field';
+import { TableToolbar } from '../../../shared/components/ui/table-toolbar';
 import type { EstadoComanda, FiltroComandas } from '../types';
+
+function CamposDeFiltro({
+  mesa,
+  onMesa,
+  estado,
+  onEstado,
+  ocupado,
+  onSubmit,
+}: {
+  mesa: string;
+  onMesa: (valor: string) => void;
+  estado: EstadoComanda | '';
+  onEstado: (valor: EstadoComanda | '') => void;
+  ocupado: boolean;
+  onSubmit: (evento: FormEvent<HTMLFormElement>) => void;
+}) {
+  return (
+    <form onSubmit={onSubmit} className="flex flex-wrap items-end gap-4">
+      <FormField id="filtro-mesa" label="Filtrar por mesa (ID)">
+        <Input
+          id="filtro-mesa"
+          type="number"
+          min="1"
+          step="1"
+          value={mesa}
+          onChange={(e) => onMesa(e.target.value)}
+        />
+      </FormField>
+      <FormField id="filtro-estado" label="Estado">
+        <Select
+          id="filtro-estado"
+          value={estado}
+          onChange={(e) => onEstado(e.target.value as EstadoComanda | '')}
+        >
+          <option value="">Todos</option>
+          <option value="ABIERTA">Abierta</option>
+          <option value="CERRADA">Cerrada</option>
+          <option value="ANULADA">Anulada</option>
+        </Select>
+      </FormField>
+      <Button variant="brand-outline" type="submit" disabled={ocupado}>
+        Filtrar
+      </Button>
+    </form>
+  );
+}
 
 export function FiltrosComandas({
   onFiltrar,
@@ -25,32 +73,17 @@ export function FiltrosComandas({
     });
   }
   return (
-    <form onSubmit={enviar} className="flex flex-wrap items-end gap-4">
-      <FormField id="filtro-mesa" label="Filtrar por mesa (ID)">
-        <Input
-          id="filtro-mesa"
-          type="number"
-          min="1"
-          step="1"
-          value={mesa}
-          onChange={(e) => setMesa(e.target.value)}
+    <TableToolbar>
+      <FilterBar className="border-0 p-0">
+        <CamposDeFiltro
+          mesa={mesa}
+          onMesa={setMesa}
+          estado={estado}
+          onEstado={setEstado}
+          ocupado={ocupado}
+          onSubmit={enviar}
         />
-      </FormField>
-      <FormField id="filtro-estado" label="Estado">
-        <Select
-          id="filtro-estado"
-          value={estado}
-          onChange={(e) => setEstado(e.target.value as EstadoComanda | '')}
-        >
-          <option value="">Todos</option>
-          <option value="ABIERTA">ABIERTA</option>
-          <option value="CERRADA">CERRADA</option>
-          <option value="ANULADA">ANULADA</option>
-        </Select>
-      </FormField>
-      <Button type="submit" disabled={ocupado}>
-        Filtrar
-      </Button>
-    </form>
+      </FilterBar>
+    </TableToolbar>
   );
 }

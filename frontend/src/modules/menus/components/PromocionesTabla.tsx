@@ -88,6 +88,7 @@ function columnas(
       render: (promocion) => (
         <AccionesPromocion promocion={promocion} onEditar={onEditar} onFinalizada={onFinalizada} />
       ),
+      className: 'w-24',
     },
   ];
 }

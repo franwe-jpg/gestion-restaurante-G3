@@ -58,6 +58,10 @@ function conMenus(menus: MenuDelDiaListado[] = [MENU]) {
   });
 }
 
+async function abrirAlta() {
+  fireEvent.click(await screen.findByRole('button', { name: 'Nuevo menú del día' }));
+}
+
 async function completarFormulario(nombre = 'Guiso de lentejas') {
   fireEvent.change(await screen.findByLabelText(/Nombre/), { target: { value: nombre } });
   fireEvent.change(screen.getByLabelText(/Sección/), { target: { value: '1' } });
@@ -67,6 +71,7 @@ async function completarFormulario(nombre = 'Guiso de lentejas') {
 }
 
 async function darDeAlta(nombre?: string) {
+  await abrirAlta();
   await completarFormulario(nombre);
   fireEvent.click(screen.getByRole('button', { name: 'Guardar menú' }));
   await waitFor(() => expect(crearMenuDelDia).toHaveBeenCalled());
@@ -110,6 +115,8 @@ describe('pestaña Menú del día', () => {
 
     abrir();
 
+    await abrirAlta();
+
     expect(await screen.findByText(/No hay secciones habilitadas/i)).toBeInTheDocument();
   });
 });
@@ -119,7 +126,8 @@ describe('pestaña Menú del día: alta y baja', () => {
     conMenus();
     abrir();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Guardar menú' }));
+    await abrirAlta();
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar menú' }));
 
     expect(await screen.findByText('El nombre es obligatorio.')).toBeInTheDocument();
     expect(crearMenuDelDia).not.toHaveBeenCalled();
@@ -176,6 +184,21 @@ describe('pestaña Menú del día: alta y baja', () => {
   });
 });
 
+describe('pestaña Menú del día: diálogo de alta', () => {
+  it('cierra el diálogo sin guardar al cancelar', async () => {
+    conMenus();
+    abrir();
+
+    await abrirAlta();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Nuevo menú del día' })).not.toBeInTheDocument(),
+    );
+    expect(crearMenuDelDia).not.toHaveBeenCalled();
+  });
+});
+
 describe('pestaña Menú del día: baja lógica', () => {
   it('la baja lógica deshabilita y lo quita del listado de habilitados', async () => {
     const confirmar = vi.fn().mockResolvedValue(true);
@@ -204,7 +227,7 @@ describe('pestaña Menú del día: baja lógica', () => {
 });
 
 describe('pestaña Menú del día: edición', () => {
-  it('carga los datos del menú y lo modifica en el lugar', async () => {
+  it('carga los datos del menú y lo modifica en el diálogo', async () => {
     conMenus();
     vi.mocked(obtenerMenuDelDia).mockResolvedValue({ datos: MENU_COMPLETO, exito: true });
     vi.mocked(modificarMenuDelDia).mockResolvedValue({ datos: MENU_COMPLETO, exito: true });
@@ -248,27 +271,32 @@ describe('pestaña Menú del día: edición', () => {
 });
 
 describe('pestaña Menú del día: según el rol', () => {
-  it('el encargado ve el formulario y las acciones de fila', async () => {
+  it('el encargado ve el alta y las acciones de fila', async () => {
     usarRoles(['ENCARGADO']);
     conMenus();
     abrir();
 
     expect(await screen.findByText('Guiso de lentejas')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Guardar menú' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Nuevo menú del día' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Modificar Guiso de lentejas' })).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'Dar de baja Guiso de lentejas' }),
     ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Nuevo menú del día' }));
+    expect(screen.getByRole('dialog', { name: 'Nuevo menú del día' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Guardar menú' })).toBeInTheDocument();
   });
 
   it.each([['MOZO'], ['CHEF']] as const)(
-    'el %s ve el listado sin formulario ni acciones',
+    'el %s ve el listado sin alta ni acciones',
     async (rol) => {
       usarRoles([rol]);
       conMenus();
       abrir();
 
       expect(await screen.findByText('Guiso de lentejas')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Nuevo menú del día' })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Guardar menú' })).not.toBeInTheDocument();
       expect(
         screen.queryByRole('button', { name: /Modificar|Dar de baja/ }),

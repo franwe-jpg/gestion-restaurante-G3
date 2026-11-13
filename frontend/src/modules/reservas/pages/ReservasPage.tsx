@@ -1,11 +1,14 @@
-import { Plus } from 'lucide-react';
 import { useCallback, useState } from 'react';
 
 import { useSesion } from '../../../shared/auth/useSesion';
 import { PageHeader } from '../../../shared/components/PageHeader';
 import { Button } from '../../../shared/components/ui/button';
-import { Card, CardDescription, CardHeader } from '../../../shared/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader } from '../../../shared/components/ui/card';
+import { ExportButton } from '../../../shared/components/ui/export-button';
+import { FilterBar } from '../../../shared/components/ui/filter-bar';
 import { Pagination } from '../../../shared/components/ui/pagination';
+import { PaginationSummary } from '../../../shared/components/ui/pagination-summary';
+import { TableToolbar } from '../../../shared/components/ui/table-toolbar';
 import { useAbrirDesdeUrl } from '../../../shared/hooks/useAbrirDesdeUrl';
 import {
   ComandaDesdeReservaDialog,
@@ -36,6 +39,37 @@ interface ListadoDelDiaProps {
   onCancelarPorAusencia?: (reserva: Reserva) => void;
 }
 
+/** Resumen del tramo visible y paginador; no se muestra si el día no tiene reservas. */
+function PieDelListado({
+  paginacion,
+  cantidadFilas,
+  total,
+}: {
+  paginacion: ReturnType<typeof useListadoReservas>['paginacion'];
+  cantidadFilas: number;
+  total: number;
+}) {
+  if (total === 0) return null;
+  return (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <PaginationSummary
+        desde={paginacion.offset + 1}
+        hasta={Math.min(paginacion.offset + cantidadFilas, total)}
+        total={total}
+        etiqueta="reservas"
+        etiquetaSingular="reserva"
+      />
+      {paginacion.totalPaginas > 1 && (
+        <Pagination
+          pagina={paginacion.pagina}
+          totalPaginas={paginacion.totalPaginas}
+          onCambiarPagina={paginacion.irAPagina}
+        />
+      )}
+    </div>
+  );
+}
+
 /** Navegador de fecha, filtro de estado, tabla del día y paginación. */
 function ListadoDelDia({
   listado,
@@ -45,19 +79,23 @@ function ListadoDelDia({
   onCancelarPorAusencia,
 }: ListadoDelDiaProps) {
   const { fecha, estado, paginacion, reservas } = listado;
+  const filas = reservas.datos?.items ?? [];
+  const total = reservas.datos?.total ?? 0;
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <NavegadorFecha fecha={fecha} onCambiar={listado.cambiarFecha} />
-        <SelectorEstadoReserva estado={estado} onCambiar={listado.cambiarEstado} />
-      </div>
+    <Card>
+      <CardHeader>
+        <CardDescription>Reservas del {formatearFechaReserva(fecha)}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <TableToolbar acciones={<ExportButton filas={filas} nombreArchivo="reservas" />}>
+          <FilterBar className="border-0 p-0">
+            <NavegadorFecha fecha={fecha} onCambiar={listado.cambiarFecha} />
+            <SelectorEstadoReserva estado={estado} onCambiar={listado.cambiarEstado} />
+          </FilterBar>
+        </TableToolbar>
 
-      <Card>
-        <CardHeader>
-          <CardDescription>Reservas del {formatearFechaReserva(fecha)}</CardDescription>
-        </CardHeader>
         <ReservasTabla
-          reservas={reservas.datos?.items ?? []}
+          reservas={filas}
           cargando={reservas.cargando}
           error={reservas.error}
           onReintentar={reservas.recargar}
@@ -66,16 +104,10 @@ function ListadoDelDia({
           onCancelarAnticipada={onCancelarAnticipada}
           onCancelarPorAusencia={onCancelarPorAusencia}
         />
-      </Card>
 
-      {paginacion.totalPaginas > 1 && (
-        <Pagination
-          pagina={paginacion.pagina}
-          totalPaginas={paginacion.totalPaginas}
-          onCambiarPagina={paginacion.irAPagina}
-        />
-      )}
-    </div>
+        <PieDelListado paginacion={paginacion} cantidadFilas={filas.length} total={total} />
+      </CardContent>
+    </Card>
   );
 }
 
@@ -142,8 +174,11 @@ export function ReservasPage() {
         descripcion="Libro de reservas, turnos de almuerzo/cena y confirmación de comensales."
         acciones={
           opera ? (
-            <Button onClick={() => setPanel('alta')} disabled={typeof panel === 'object'}>
-              <Plus className="h-4 w-4" aria-hidden="true" />
+            <Button
+              variant="brand-outline"
+              onClick={() => setPanel('alta')}
+              disabled={typeof panel === 'object'}
+            >
               Nueva reserva
             </Button>
           ) : undefined

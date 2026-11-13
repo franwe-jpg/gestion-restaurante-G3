@@ -2,7 +2,10 @@ import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { Card, CardContent } from '../../../shared/components/ui/card';
+import { ExportButton } from '../../../shared/components/ui/export-button';
 import { Pagination } from '../../../shared/components/ui/pagination';
+import { PaginationSummary } from '../../../shared/components/ui/pagination-summary';
+import { TableToolbar } from '../../../shared/components/ui/table-toolbar';
 import { Tabs } from '../../../shared/components/ui/tabs';
 import type { EstadoPaginacion } from '../../../shared/hooks/usePaginacion';
 import type { Chef, Mesa, Mozo, Sector } from '../types';
@@ -20,21 +23,47 @@ import { useMozosDelSalon } from './useMozosDelSalon';
 
 interface SeccionListadoProps {
   paginacion: EstadoPaginacion;
+  filas: object[];
+  nombreArchivo: string;
+  etiqueta: string;
+  etiquetaSingular: string;
   children: ReactNode;
 }
 
-function SeccionListado({ paginacion, children }: SeccionListadoProps) {
+function SeccionListado({
+  paginacion,
+  filas,
+  nombreArchivo,
+  etiqueta,
+  etiquetaSingular,
+  children,
+}: SeccionListadoProps) {
+  const { total } = paginacion;
+
   return (
     <Card>
-      <CardContent className="pt-6">
+      <CardContent className="space-y-4 pt-6">
+        <TableToolbar acciones={<ExportButton filas={filas} nombreArchivo={nombreArchivo} />}>
+          {null}
+        </TableToolbar>
         {children}
-        {paginacion.totalPaginas > 1 && (
-          <Pagination
-            className="mt-4"
-            pagina={paginacion.pagina}
-            totalPaginas={paginacion.totalPaginas}
-            onCambiarPagina={paginacion.irAPagina}
-          />
+        {total > 0 && (
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <PaginationSummary
+              desde={paginacion.offset + 1}
+              hasta={Math.min(paginacion.offset + filas.length, total)}
+              total={total}
+              etiqueta={etiqueta}
+              etiquetaSingular={etiquetaSingular}
+            />
+            {paginacion.totalPaginas > 1 && (
+              <Pagination
+                pagina={paginacion.pagina}
+                totalPaginas={paginacion.totalPaginas}
+                onCambiarPagina={paginacion.irAPagina}
+              />
+            )}
+          </div>
         )}
       </CardContent>
     </Card>
@@ -54,7 +83,13 @@ export interface SeccionSectoresProps {
 
 function SeccionSectores({ paginacion, ...tabla }: SeccionSectoresProps) {
   return (
-    <SeccionListado paginacion={paginacion}>
+    <SeccionListado
+      paginacion={paginacion}
+      filas={tabla.sectores}
+      nombreArchivo="sectores"
+      etiqueta="sectores"
+      etiquetaSingular="sector"
+    >
       <SectoresTabla {...tabla} />
     </SeccionListado>
   );
@@ -73,7 +108,13 @@ function SeccionMesas({ refresco, gestiona, puedeAbrirComanda, onEditar }: Secci
   const navegar = useNavigate();
 
   return (
-    <SeccionListado paginacion={paginacion}>
+    <SeccionListado
+      paginacion={paginacion}
+      filas={mesas}
+      nombreArchivo="mesas"
+      etiqueta="mesas"
+      etiquetaSingular="mesa"
+    >
       <MesasTabla
         mesas={mesas}
         cargando={cargando}
@@ -100,7 +141,13 @@ function SeccionMozos({
   const { eliminar } = useBajaMozo({ onEliminado: recargar });
 
   return (
-    <SeccionListado paginacion={paginacion}>
+    <SeccionListado
+      paginacion={paginacion}
+      filas={mozos}
+      nombreArchivo="mozos"
+      etiqueta="mozos"
+      etiquetaSingular="mozo"
+    >
       <MozosTabla
         mozos={mozos}
         cargando={cargando}
@@ -124,7 +171,13 @@ function SeccionChefs({
   const { eliminar } = useBajaChef({ onEliminado: recargar });
 
   return (
-    <SeccionListado paginacion={paginacion}>
+    <SeccionListado
+      paginacion={paginacion}
+      filas={chefs}
+      nombreArchivo="chefs"
+      etiqueta="chefs"
+      etiquetaSingular="chef"
+    >
       <ChefsTabla
         chefs={chefs}
         cargando={cargando}

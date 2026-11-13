@@ -46,10 +46,11 @@ const SILLAS: Record<FormaMesa, [number, number][]> = {
 
 const ESTILO_DEL_ESTADO: Record<EstadoVisibleMesa, string> = {
   LIBRE: 'border-2 border-gray-400 bg-gray-200 text-gray-800',
-  RESERVADA: 'border-[3px] border-green-400 bg-gray-200 text-gray-800',
-  OCUPADA: 'border-2 border-red-400 bg-red-100 text-red-800',
+  RESERVADA: 'border-[3px] border-green-400 bg-gray-200 text-gray-800 dark:border-green-500',
+  OCUPADA:
+    'border-2 border-red-400 bg-red-100 text-red-800 dark:border-red-500 dark:bg-red-950 dark:text-red-200',
   FUERA_DE_SERVICIO:
-    'border-2 border-dashed border-gray-400 bg-[repeating-linear-gradient(45deg,#f3f4f6_0_6px,#e5e7eb_6px_12px)] text-gray-600',
+    'border-2 border-dashed border-gray-400 bg-[repeating-linear-gradient(45deg,#f3f4f6_0_6px,#e5e7eb_6px_12px)] text-gray-600 dark:bg-[repeating-linear-gradient(45deg,#1e293b_0_6px,#0f172a_6px_12px)]',
 };
 
 export interface MesaDelMapaProps {
@@ -62,7 +63,7 @@ export interface MesaDelMapaProps {
 
 function PildoraDeReserva({ hora }: { hora: string }) {
   return (
-    <span className="absolute -top-9 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-full border border-green-300 bg-green-100 px-2 py-0.5 text-[11px] font-bold whitespace-nowrap text-green-800">
+    <span className="absolute -top-9 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-full border border-green-300 bg-green-100 px-2 py-0.5 text-[11px] font-bold whitespace-nowrap text-green-800 dark:border-green-700 dark:bg-green-950 dark:text-green-200">
       <Clock aria-hidden="true" className="size-[11px]" strokeWidth={3} />
       {hora}
     </span>

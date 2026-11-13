@@ -56,7 +56,7 @@ function AccionesFormulario({
   const etiqueta = editando ? 'Guardar cambios' : 'Guardar menú';
   return (
     <div className="flex justify-end gap-2">
-      <Button type="button" variant="outline" onClick={onCancelar}>
+      <Button type="button" variant="brand-outline" onClick={onCancelar}>
         Cancelar
       </Button>
       <Button type="submit" disabled={enviando || deshabilitado}>

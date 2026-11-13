@@ -2,8 +2,8 @@ import { Button } from '../../../shared/components/ui/button';
 import { Input } from '../../../shared/components/ui/input';
 import { Select } from '../../../shared/components/ui/select';
 import { FormField } from '../../../shared/components/ui/form-field';
+import { formatearMoneda } from '../../../shared/lib/format';
 import type { MenuEjecutivoSeleccionable, ProductoSeleccionable } from '../types';
-import { etiquetaMenu, etiquetaProducto } from './catalogoComanda';
 
 export interface LineaPedido {
   clave: number;
@@ -30,12 +30,18 @@ function SelectorReferencia({
 }: Pick<Props, 'linea' | 'numero' | 'productos' | 'menus' | 'onChange'>) {
   const esProducto = linea.tipo === 'producto';
   const opciones = esProducto
-    ? productos.map((p) => ({ id: p.id, texto: etiquetaProducto(p) }))
-    : menus.map((m) => ({ id: m.id, texto: etiquetaMenu(m) }));
+    ? productos.map((p) => ({
+        id: p.id,
+        texto: `${p.nombre} · ${formatearMoneda(Number(p.precio))}`,
+      }))
+    : menus.map((m) => ({
+        id: m.id,
+        texto: `${m.nombre} · ${formatearMoneda(Number(m.precio_fijo))}`,
+      }));
   const vacio = esProducto ? 'No hay productos habilitados' : 'No hay menús habilitados';
   const id = `ref-${linea.clave}`;
   return (
-    <FormField id={id} label={`${esProducto ? 'Producto' : 'Menú'} ${numero}`}>
+    <FormField id={id} label={`${esProducto ? 'Producto' : 'Menú'} ${numero}`} className="min-w-0">
       <Select
         id={id}
         value={linea.referencia}
@@ -58,6 +64,28 @@ function SelectorReferencia({
   );
 }
 
+function BotonQuitar({
+  numero,
+  disabled,
+  onQuitar,
+}: {
+  numero: number;
+  disabled: boolean;
+  onQuitar: () => void;
+}) {
+  return (
+    <Button
+      type="button"
+      variant="brand-outline"
+      disabled={disabled}
+      onClick={onQuitar}
+      title="Quitar línea"
+    >
+      Quitar línea {numero}
+    </Button>
+  );
+}
+
 export function DetallePedidoFila({
   linea,
   numero,
@@ -68,9 +96,9 @@ export function DetallePedidoFila({
   menus,
 }: Props) {
   return (
-    <fieldset className="grid gap-3 rounded border p-3 sm:grid-cols-4">
-      <legend>Línea {numero}</legend>
-      <FormField id={`tipo-${linea.clave}`} label={`Tipo ${numero}`}>
+    <fieldset className="grid items-end gap-3 rounded-lg border border-slate-200 p-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,1fr)_auto]">
+      <legend className="px-1 text-sm font-medium">Línea {numero}</legend>
+      <FormField id={`tipo-${linea.clave}`} label={`Tipo ${numero}`} className="min-w-0">
         <Select
           id={`tipo-${linea.clave}`}
           value={linea.tipo}
@@ -89,7 +117,7 @@ export function DetallePedidoFila({
         menus={menus}
         onChange={onChange}
       />
-      <FormField id={`cantidad-${linea.clave}`} label={`Cantidad ${numero}`}>
+      <FormField id={`cantidad-${linea.clave}`} label={`Cantidad ${numero}`} className="min-w-0">
         <Input
           id={`cantidad-${linea.clave}`}
           required
@@ -100,9 +128,7 @@ export function DetallePedidoFila({
           onChange={(e) => onChange({ ...linea, cantidad: e.target.value })}
         />
       </FormField>
-      <Button type="button" variant="outline" disabled={!puedeQuitar} onClick={onQuitar}>
-        Quitar línea {numero}
-      </Button>
+      <BotonQuitar numero={numero} disabled={!puedeQuitar} onQuitar={onQuitar} />
     </fieldset>
   );
 }

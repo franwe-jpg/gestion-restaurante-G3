@@ -1,7 +1,6 @@
-import { Dialog } from '../../../shared/components/ui/dialog';
 import { CambiarMozoDialog } from './CambiarMozoDialog';
 import { CierreComandaDialog } from './CierreComandaDialog';
-import { ComandaForm } from './ComandaForm';
+import { ComandaFormDialog } from './ComandaForm';
 import { EntregasComandaDialog } from './EntregasComandaDialog';
 import { ModificarComandaDialog } from './ModificarComandaDialog';
 import type { useCambioDeMozo } from './useCambioDeMozo';
@@ -37,9 +36,11 @@ export function AtencionDialogs(props: Props) {
   return (
     <>
       {props.alta && (
-        <Dialog open title="Nueva comanda" size="lg" onOpenChange={props.onAlta}>
-          <ComandaForm onCreada={props.onCreada} mesaInicial={props.mesaInicial} />
-        </Dialog>
+        <ComandaFormDialog
+          onCreada={props.onCreada}
+          mesaInicial={props.mesaInicial}
+          onSalir={() => props.onAlta(false)}
+        />
       )}
       {cierreId !== null && (
         <CierreComandaDialog

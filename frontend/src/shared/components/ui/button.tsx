@@ -1,7 +1,8 @@
 import React, { forwardRef } from 'react';
 import { cn } from '../../lib/utils';
 
-export type ButtonVariant = 'default' | 'secondary' | 'outline' | 'ghost' | 'danger';
+export type ButtonVariant =
+  'default' | 'secondary' | 'outline' | 'brand-outline' | 'ghost' | 'danger';
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -22,6 +23,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary-hover',
       outline:
         'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900',
+      'brand-outline':
+        'border border-brand bg-transparent text-brand hover:bg-brand-subtle hover:text-brand-hover',
       ghost: 'text-slate-700 hover:bg-slate-100 hover:text-slate-900',
       danger: 'bg-danger text-danger-foreground hover:bg-danger-hover',
     };

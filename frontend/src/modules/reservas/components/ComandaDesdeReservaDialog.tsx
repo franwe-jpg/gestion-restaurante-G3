@@ -1,4 +1,4 @@
-import { Plus, Trash2, Users } from 'lucide-react';
+import { Trash2, Users } from 'lucide-react';
 import type { FocusEvent, FormEvent, KeyboardEvent } from 'react';
 import { useState } from 'react';
 
@@ -346,8 +346,7 @@ function FormularioComanda({ reserva, comanda, catalogoMozos, productos }: Formu
           onQuitar={() => comanda.quitarLinea(linea.clave)}
         />
       ))}
-      <Button variant="outline" size="sm" onClick={() => comanda.agregarLinea()}>
-        <Plus className="h-4 w-4" aria-hidden="true" />
+      <Button variant="brand-outline" size="sm" onClick={() => comanda.agregarLinea()}>
         Agregar producto
       </Button>
     </form>
@@ -384,7 +383,7 @@ export function ComandaDesdeReservaDialog({
       title="Crear comanda"
       footer={
         <>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="brand-outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
           <Button type="submit" form={ID_FORMULARIO_COMANDA} disabled={guardarDeshabilitado}>

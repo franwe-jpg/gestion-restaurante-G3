@@ -1,4 +1,4 @@
-import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 
 import { Button } from './button';
 
@@ -23,8 +23,7 @@ export function ErrorState({
       <h3 className="text-base font-semibold text-slate-900">{titulo}</h3>
       <p className="mt-1 max-w-sm text-sm text-slate-600">{descripcion}</p>
       {onReintentar && (
-        <Button variant="outline" size="sm" className="mt-4" onClick={onReintentar}>
-          <RefreshCw className="h-4 w-4" />
+        <Button variant="brand-outline" size="sm" className="mt-4" onClick={onReintentar}>
           {textoReintentar}
         </Button>
       )}

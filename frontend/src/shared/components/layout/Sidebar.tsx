@@ -34,7 +34,7 @@ export function Sidebar({ colapsada = false, alSeleccionarEnlace, className }: S
             onClick={alSeleccionarEnlace}
             className="flex items-center gap-2.5 font-semibold text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600 rounded-md"
           >
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-700 text-white">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-700 text-[#fff]">
               <ChefHat className="h-5 w-5" aria-hidden="true" />
             </div>
             {!colapsada && (
@@ -60,7 +60,7 @@ export function Sidebar({ colapsada = false, alSeleccionarEnlace, className }: S
                   cn(
                     'group flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600',
                     isActive
-                      ? 'bg-amber-50 text-amber-900 font-semibold border-l-2 border-amber-700'
+                      ? 'bg-amber-50 text-amber-900 font-semibold border-l-2 border-amber-700 dark:bg-amber-950 dark:text-amber-100 dark:border-amber-500'
                       : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
                   )
                 }

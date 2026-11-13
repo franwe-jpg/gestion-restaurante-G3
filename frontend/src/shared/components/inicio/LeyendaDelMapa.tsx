@@ -2,8 +2,8 @@ import { cn } from '../../lib/utils';
 
 const ESTADOS: [string, string][] = [
   ['Libre', 'border-gray-400 bg-gray-200'],
-  ['Ocupada', 'border-red-400 bg-red-100'],
-  ['Con reserva', 'border-green-400 bg-gray-200'],
+  ['Ocupada', 'border-red-400 bg-red-100 dark:border-red-500 dark:bg-red-950'],
+  ['Con reserva', 'border-green-400 bg-gray-200 dark:border-green-500'],
   ['Fuera de servicio', 'border-dashed border-gray-400 bg-gray-100'],
 ];
 

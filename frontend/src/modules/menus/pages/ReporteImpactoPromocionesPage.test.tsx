@@ -122,13 +122,46 @@ describe('ReporteImpactoPromocionesPage', () => {
 
   it('sin fechas avisa el dato faltante y no genera el reporte (CA 2)', async () => {
     renderizar();
+    fireEvent.change(screen.getByLabelText('Fecha desde'), { target: { value: '' } });
+    fireEvent.change(screen.getByLabelText('Fecha hasta'), { target: { value: '' } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Generar' }));
 
     expect(await screen.findByText('Faltan la fecha desde y la fecha hasta.')).toBeInTheDocument();
     expect(obtenerReporteImpactoPromociones).not.toHaveBeenCalled();
   });
+});
 
+describe('ReporteImpactoPromocionesPage: período por defecto', () => {
+  it('abre con el mes en curso y genera eligiendo solo la promoción', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 10, 13, 12, 0, 0));
+    vi.mocked(obtenerReporteImpactoPromociones).mockResolvedValue({
+      datos: reporte(),
+      exito: true,
+    });
+    try {
+      renderizar();
+
+      expect(screen.getByLabelText('Fecha desde')).toHaveValue('2026-11-01');
+      expect(screen.getByLabelText('Fecha hasta')).toHaveValue('2026-11-13');
+      expect(
+        screen.getByText('Elegí el período y la promoción, y presioná Generar'),
+      ).toBeInTheDocument();
+
+      await screen.findByRole('option', { name: 'Promo 10 %' });
+      fireEvent.change(screen.getByLabelText('Promoción'), { target: { value: '3' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Generar' }));
+
+      expect(await screen.findByRole('cell', { name: 'Milanesa' })).toBeInTheDocument();
+      expect(obtenerReporteImpactoPromociones).toHaveBeenCalledWith('2026-11-01', '2026-11-13', 3);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('ReporteImpactoPromocionesPage: resultados', () => {
   it('genera el reporte y muestra promedios, variación y aviso promocional (CA 1 y 4)', async () => {
     vi.mocked(obtenerReporteImpactoPromociones).mockResolvedValue({
       datos: reporte(),

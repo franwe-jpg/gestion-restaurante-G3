@@ -51,7 +51,7 @@ export function FormularioPromocion({
         </p>
       )}
       <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" onClick={onCancelar}>
+        <Button type="button" variant="brand-outline" onClick={onCancelar}>
           Cancelar
         </Button>
         <Button type="submit" disabled={formulario.enviando || Boolean(errorProductos)}>

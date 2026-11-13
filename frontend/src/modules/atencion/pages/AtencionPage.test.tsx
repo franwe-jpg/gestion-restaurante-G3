@@ -460,7 +460,7 @@ it('pagina conservando los filtros y muestra errores de listado con reintento', 
   expect(screen.getByText('Sin conexión')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
   await screen.findByText('Comanda #3');
-  fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Página siguiente' }));
   await waitFor(() =>
     expect(api.listarComandas).toHaveBeenLastCalledWith({ limit: 50, offset: 50 }),
   );

@@ -13,6 +13,7 @@ import {
   TableRow,
 } from '../../../shared/components/ui/table';
 import { useApi } from '../../../shared/hooks/useApi';
+import { formatearFechaHora, formatearMoneda } from '../../../shared/lib/format';
 import { listarMediosPago } from '../api';
 import type { FacturaPrevia } from '../types';
 
@@ -33,8 +34,7 @@ function DetalleDeLaFactura({ previa }: { previa: FacturaPrevia }) {
   return (
     <div className="space-y-2">
       <p className="text-sm text-slate-600">
-        Comanda {previa.comanda_id} · Emisión{' '}
-        {new Date(previa.fecha_emision).toLocaleString('es-AR')}
+        Comanda {previa.comanda_id} · Emisión {formatearFechaHora(previa.fecha_emision)}
       </p>
       <Table>
         <TableHeader>
@@ -51,15 +51,15 @@ function DetalleDeLaFactura({ previa }: { previa: FacturaPrevia }) {
             <TableRow key={indice}>
               <TableCell>{linea.descripcion}</TableCell>
               <TableCell>{linea.cantidad}</TableCell>
-              <TableCell>$ {linea.precio_unitario}</TableCell>
-              <TableCell>$ {linea.descuento}</TableCell>
-              <TableCell>$ {linea.subtotal}</TableCell>
+              <TableCell>{formatearMoneda(Number(linea.precio_unitario))}</TableCell>
+              <TableCell>{formatearMoneda(Number(linea.descuento))}</TableCell>
+              <TableCell>{formatearMoneda(Number(linea.subtotal))}</TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
       <p className="text-right text-base font-semibold text-slate-900">
-        Total a pagar: $ {previa.total}
+        Total a pagar: {formatearMoneda(Number(previa.total))}
       </p>
     </div>
   );
@@ -147,7 +147,7 @@ export function FacturarComandaDialog({
       title="Facturar comanda"
       footer={
         <>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="brand-outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
           <Button

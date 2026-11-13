@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
+import { formatearMoneda } from '../../../shared/lib/format';
 import { DetallePedidoFila } from './DetallePedidoFila';
 import type { LineaPedido } from './DetallePedidoFila';
 
@@ -29,7 +30,11 @@ function montar(linea = LINEA, productos = PRODUCTOS, menus = MENUS, onChange = 
 it('ofrece un selector con nombre y precio de cada producto y no pide un ID', () => {
   const onChange = montar();
   const selector = screen.getByLabelText('Producto 1');
-  expect(within(selector).getByRole('option', { name: 'Milanesa · $9000.00' })).toBeInTheDocument();
+  expect(
+    within(selector).getByRole('option', {
+      name: `Milanesa · ${formatearMoneda(9000)}`,
+    }),
+  ).toBeInTheDocument();
   expect(screen.queryByLabelText(/\(ID\)/)).not.toBeInTheDocument();
   fireEvent.change(selector, { target: { value: '11' } });
   expect(onChange).toHaveBeenCalledWith({ ...LINEA, referencia: '11' });
@@ -45,7 +50,7 @@ it('lista los menús habilitados cuando el tipo es menú', () => {
   montar({ ...LINEA, tipo: 'menu' });
   expect(
     within(screen.getByLabelText('Menú 1')).getByRole('option', {
-      name: 'Menú del día · $12000.00',
+      name: `Menú del día · ${formatearMoneda(12000)}`,
     }),
   ).toBeInTheDocument();
 });

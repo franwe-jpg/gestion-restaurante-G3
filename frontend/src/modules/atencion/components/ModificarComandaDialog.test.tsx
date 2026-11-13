@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
+import { formatearMoneda } from '../../../shared/lib/format';
 import * as api from '../api';
 import { ModificarComandaDialog } from './ModificarComandaDialog';
 
@@ -72,7 +73,7 @@ it('agrega una línea con los selectores y envía el ID elegido sin campos de ID
   render(<ModificarComandaDialog id={3} onSalir={vi.fn()} onModificada={vi.fn()} />);
   await screen.findByText('Milanesa — cantidad 2');
   fireEvent.click(screen.getByRole('button', { name: 'Agregar línea' }));
-  await screen.findByRole('option', { name: 'Flan · $3000.00' });
+  await screen.findByRole('option', { name: `Flan · ${formatearMoneda(3000)}` });
   expect(screen.queryByLabelText(/\(ID\)/)).not.toBeInTheDocument();
   fireEvent.change(screen.getByLabelText('Producto 1'), { target: { value: '12' } });
   fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));

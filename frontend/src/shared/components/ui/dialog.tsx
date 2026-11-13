@@ -85,7 +85,7 @@ export function Dialog({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
-        className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs"
+        className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs dark:bg-[#020617]/70"
         aria-hidden="true"
         onClick={() => onOpenChange(false)}
       />

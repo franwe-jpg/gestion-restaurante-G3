@@ -9,6 +9,19 @@ import { validarPeriodo } from '../validarPeriodo';
 
 const CANTIDAD_EN_GRAFICO = 5;
 
+/**
+ * Primer día del mes actual y hoy como `YYYY-MM-DD` en hora local.
+ * No usa `toISOString()`: en UTC-3 adelanta el día después de las 21:00.
+ */
+function periodoInicial(): { desde: string; hasta: string } {
+  const ahora = new Date();
+  const mes = String(ahora.getMonth() + 1).padStart(2, '0');
+  return {
+    desde: `${ahora.getFullYear()}-${mes}-01`,
+    hasta: `${ahora.getFullYear()}-${mes}-${String(ahora.getDate()).padStart(2, '0')}`,
+  };
+}
+
 interface Resultado {
   periodo: { desde: string; hasta: string };
   productos: ProductoMasVendido[];
@@ -22,8 +35,8 @@ function aResultado(reporte: ReporteProductosMasVendidos): Resultado {
 }
 
 export function useReporteMasVendidos() {
-  const [desde, setDesde] = useState('');
-  const [hasta, setHasta] = useState('');
+  const [desde, setDesde] = useState(() => periodoInicial().desde);
+  const [hasta, setHasta] = useState(() => periodoInicial().hasta);
   const [resultado, setResultado] = useState<Resultado | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);

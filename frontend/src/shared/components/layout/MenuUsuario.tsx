@@ -1,4 +1,3 @@
-import { LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import type { Rol } from '../../auth/permisos';
@@ -37,8 +36,7 @@ export function MenuUsuario() {
           {usuario.roles.map((rol) => NOMBRE_DEL_ROL[rol]).join(' · ')}
         </p>
       </div>
-      <Button variant="outline" size="sm" onClick={() => void salir()}>
-        <LogOut className="h-4 w-4" aria-hidden="true" />
+      <Button variant="brand-outline" size="sm" onClick={() => void salir()}>
         Cerrar sesión
       </Button>
     </div>

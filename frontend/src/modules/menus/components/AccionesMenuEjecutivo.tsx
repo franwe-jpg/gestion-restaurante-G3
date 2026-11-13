@@ -1,3 +1,5 @@
+import { Pencil, Trash2 } from 'lucide-react';
+
 import { Button } from '../../../shared/components/ui/button';
 import type { MenuEjecutivo } from '../types';
 
@@ -17,14 +19,16 @@ export function AccionesMenuEjecutivo({
   const { dandoDeBaja, darDeBaja } = useBajaMenuEjecutivo({ menu, onDadoDeBaja });
 
   return (
-    <div className="flex items-center justify-end gap-2">
+    <div className="flex items-center justify-end gap-1">
       <Button
         variant="ghost"
         size="sm"
         aria-label={`Editar «${menu.nombre}»`}
+        title={`Editar «${menu.nombre}»`}
         onClick={() => onEditar(menu)}
       >
-        Editar
+        <Pencil className="h-4 w-4" aria-hidden="true" />
+        <span className="sr-only">Editar</span>
       </Button>
       {menu.estado === 'HABILITADO' && (
         <Button
@@ -32,9 +36,11 @@ export function AccionesMenuEjecutivo({
           size="sm"
           disabled={dandoDeBaja}
           aria-label={`Dar de baja «${menu.nombre}»`}
+          title={`Dar de baja «${menu.nombre}»`}
           onClick={() => void darDeBaja()}
         >
-          Dar de baja
+          <Trash2 className="h-4 w-4" aria-hidden="true" />
+          <span className="sr-only">Dar de baja</span>
         </Button>
       )}
     </div>

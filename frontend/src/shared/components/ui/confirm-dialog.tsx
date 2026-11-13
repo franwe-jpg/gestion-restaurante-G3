@@ -45,7 +45,7 @@ export function ConfirmProvider({ children }: ConfirmProviderProps) {
         size="sm"
         footer={
           <>
-            <Button variant="outline" onClick={() => cerrar(false)}>
+            <Button variant="brand-outline" onClick={() => cerrar(false)}>
               {opciones?.textoCancelar ?? 'Cancelar'}
             </Button>
             <Button

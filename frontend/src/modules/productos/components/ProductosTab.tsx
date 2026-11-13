@@ -1,10 +1,13 @@
-import { Plus } from 'lucide-react';
 import { useCallback, useState } from 'react';
 
 import { Button } from '../../../shared/components/ui/button';
-import { useSesion } from '../../../shared/auth/useSesion';
+import { Card, CardContent } from '../../../shared/components/ui/card';
+import { ExportButton } from '../../../shared/components/ui/export-button';
+import { FilterBar } from '../../../shared/components/ui/filter-bar';
 import { Pagination } from '../../../shared/components/ui/pagination';
+import { PaginationSummary } from '../../../shared/components/ui/pagination-summary';
 import { TableToolbar } from '../../../shared/components/ui/table-toolbar';
+import { useSesion } from '../../../shared/auth/useSesion';
 import { useApi } from '../../../shared/hooks/useApi';
 import { usePaginacion } from '../../../shared/hooks/usePaginacion';
 import { listarProductos } from '../api';
@@ -26,8 +29,7 @@ function BotonesAlta({ onNuevo }: { onNuevo: (categoria: CategoriaAlta) => void 
   return (
     <>
       {CATEGORIAS_ALTA.map((categoria) => (
-        <Button key={categoria} onClick={() => onNuevo(categoria)}>
-          <Plus className="h-4 w-4" aria-hidden="true" />
+        <Button key={categoria} variant="brand-outline" onClick={() => onNuevo(categoria)}>
           {CONFIGURACIONES[categoria].titulo}
         </Button>
       ))}
@@ -72,7 +74,7 @@ function useListadoProductos() {
     else productos.recargar();
   };
 
-  return { estado, cambiarEstado, paginacion, productos, items, alDarDeBaja };
+  return { estado, cambiarEstado, paginacion, productos, items, total, alDarDeBaja };
 }
 
 function PaginacionDelListado({ paginacion }: { paginacion: ReturnType<typeof usePaginacion> }) {
@@ -94,11 +96,97 @@ function renderizarAcciones(onEditar: AlEditar, onDadoDeBaja: () => void) {
   };
 }
 
+interface PieDeProductosProps {
+  paginacion: ReturnType<typeof usePaginacion>;
+  cantidadFilas: number;
+  total: number;
+}
+
+/** Resumen del tramo visible y paginador; no se muestra si el listado está vacío. */
+function PieDeProductos({ paginacion, cantidadFilas, total }: PieDeProductosProps) {
+  if (total === 0) return null;
+  return (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <PaginationSummary
+        desde={paginacion.offset + 1}
+        hasta={Math.min(paginacion.offset + cantidadFilas, total)}
+        total={total}
+        etiqueta="productos"
+        etiquetaSingular="producto"
+      />
+      <PaginacionDelListado paginacion={paginacion} />
+    </div>
+  );
+}
+
+interface ListadoDeProductosProps {
+  items: ProductoListado[];
+  total: number;
+  estado: FiltroEstado;
+  onCambiarEstado: (estado: FiltroEstado) => void;
+  paginacion: ReturnType<typeof usePaginacion>;
+  cargando: boolean;
+  error: string | null;
+  onReintentar: () => void;
+  gestiona: boolean;
+  onNuevo: (categoria: CategoriaAlta) => void;
+  onEditar: AlEditar;
+  onDadoDeBaja: () => void;
+}
+
+/** Tarjeta del listado según el patrón de la guía: barra, tabla y pie de paginación. */
+function ListadoDeProductos({
+  items,
+  total,
+  estado,
+  onCambiarEstado,
+  paginacion,
+  cargando,
+  error,
+  onReintentar,
+  gestiona,
+  onNuevo,
+  onEditar,
+  onDadoDeBaja,
+}: ListadoDeProductosProps) {
+  return (
+    <Card>
+      <CardContent className="space-y-4 pt-6">
+        <TableToolbar
+          acciones={
+            <>
+              <ExportButton filas={items} nombreArchivo="productos" />
+              {gestiona && <BotonesAlta onNuevo={onNuevo} />}
+            </>
+          }
+        >
+          <FilterBar className="border-0 p-0">
+            <SelectorEstado estado={estado} onCambiar={onCambiarEstado} />
+          </FilterBar>
+        </TableToolbar>
+
+        <ProductosTabla
+          productos={items}
+          filtro={filtroDe(estado)}
+          cargando={cargando}
+          error={error}
+          onReintentar={onReintentar}
+          renderAcciones={gestiona ? renderizarAcciones(onEditar, onDadoDeBaja) : undefined}
+        />
+
+        {total > 0 && (
+          <PieDeProductos paginacion={paginacion} cantidadFilas={items.length} total={total} />
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export function ProductosTab({ onIrASecciones }: ProductosTabProps) {
   const { puede } = useSesion();
   const gestiona = puede('CARTA_GESTIONAR');
   const [dialogo, setDialogo] = useState<DialogoAbierto | null>(null);
-  const { estado, cambiarEstado, paginacion, productos, items, alDarDeBaja } =
+  const { estado, cambiarEstado, paginacion, productos, items, total, alDarDeBaja } =
     useListadoProductos();
 
   const cerrarDialogo = useCallback((abierto: boolean) => !abierto && setDialogo(null), []);
@@ -108,32 +196,21 @@ export function ProductosTab({ onIrASecciones }: ProductosTabProps) {
   };
 
   return (
-    <div className="space-y-4">
-      <TableToolbar
-        acciones={
-          gestiona ? <BotonesAlta onNuevo={(categoria) => setDialogo({ categoria })} /> : undefined
-        }
-      >
-        <SelectorEstado estado={estado} onCambiar={cambiarEstado} />
-      </TableToolbar>
-
-      <ProductosTabla
-        productos={items}
-        filtro={filtroDe(estado)}
+    <>
+      <ListadoDeProductos
+        items={items}
+        total={total}
+        estado={estado}
+        onCambiarEstado={cambiarEstado}
+        paginacion={paginacion}
         cargando={productos.cargando}
         error={productos.error}
         onReintentar={productos.recargar}
-        renderAcciones={
-          gestiona
-            ? renderizarAcciones(
-                (categoria, productoId) => setDialogo({ categoria, productoId }),
-                alDarDeBaja,
-              )
-            : undefined
-        }
+        gestiona={gestiona}
+        onNuevo={(categoria) => setDialogo({ categoria })}
+        onEditar={(categoria, productoId) => setDialogo({ categoria, productoId })}
+        onDadoDeBaja={alDarDeBaja}
       />
-
-      <PaginacionDelListado paginacion={paginacion} />
 
       {dialogo && (
         <ProductoFormDialog
@@ -145,6 +222,6 @@ export function ProductosTab({ onIrASecciones }: ProductosTabProps) {
           onOpenChange={cerrarDialogo}
         />
       )}
-    </div>
+    </>
   );
 }

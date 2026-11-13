@@ -20,7 +20,7 @@ function SinCoincidencias({ onQuitarFiltro }: { onQuitarFiltro: () => void }) {
   return (
     <div className="text-center text-sm text-slate-500">
       <p>No hay mesas con ese filtro</p>
-      <Button variant="outline" size="sm" className="mt-2" onClick={onQuitarFiltro}>
+      <Button variant="brand-outline" size="sm" className="mt-2" onClick={onQuitarFiltro}>
         Quitar filtro
       </Button>
     </div>

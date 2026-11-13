@@ -11,7 +11,7 @@ export function ReservaDeLaMesa({ reserva }: { reserva: ReservaActiva }) {
   const nombre = cliente.datos?.nombre ?? `Cliente n.º ${reserva.cliente_id}`;
   return (
     <div className="space-y-3">
-      <div className="space-y-1 rounded-lg border border-green-300 bg-green-50 px-4 py-3 text-sm text-green-900">
+      <div className="space-y-1 rounded-lg border border-green-300 bg-green-50 px-4 py-3 text-sm text-green-900 dark:border-green-800 dark:bg-green-950/40 dark:text-green-200">
         <p className="font-bold">Reservada hoy a las {reserva.hora}</p>
         {cliente.cargando && <Spinner />}
         {!cliente.cargando && cliente.error === null && (

@@ -1,4 +1,7 @@
+import { CalendarDays, CalendarOff, ChartColumn, Clock } from 'lucide-react';
+
 import { PageHeader } from '../../../shared/components/PageHeader';
+import { EmptyState } from '../../../shared/components/EmptyState';
 import { Alert } from '../../../shared/components/ui/alert';
 import { Breadcrumbs } from '../../../shared/components/ui/breadcrumbs';
 import { Button } from '../../../shared/components/ui/button';
@@ -10,19 +13,23 @@ import {
   CardTitle,
 } from '../../../shared/components/ui/card';
 import { DateRangePicker } from '../../../shared/components/ui/date-range-picker';
+import { ExportButton } from '../../../shared/components/ui/export-button';
+import { FilterBar } from '../../../shared/components/ui/filter-bar';
 import { Label } from '../../../shared/components/ui/label';
 import { Select } from '../../../shared/components/ui/select';
+import { StatCard } from '../../../shared/components/ui/stat-card';
 import { ReporteImpactoPromocionesTabla } from '../components/ReporteImpactoPromocionesTabla';
 import { useReporteImpactoPromociones } from '../components/useReporteImpactoPromociones';
 import type { ReporteImpactoPromociones } from '../types';
 
 const SIN_DATOS = 'No hay datos para comparar en el período seleccionado.';
+const NOMBRE_ARCHIVO = 'impacto-promociones';
 
 type EstadoReporte = ReturnType<typeof useReporteImpactoPromociones>;
 
 function FiltrosReporte({ reporte }: { reporte: EstadoReporte }) {
   return (
-    <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+    <FilterBar>
       <DateRangePicker
         desde={reporte.desde}
         hasta={reporte.hasta}
@@ -46,9 +53,25 @@ function FiltrosReporte({ reporte }: { reporte: EstadoReporte }) {
           ))}
         </Select>
       </div>
-      <Button onClick={() => void reporte.generar()} disabled={reporte.cargando}>
+      <Button
+        variant="brand-outline"
+        onClick={() => void reporte.generar()}
+        disabled={reporte.cargando}
+      >
         {reporte.cargando ? 'Generando…' : 'Generar'}
       </Button>
+    </FilterBar>
+  );
+}
+
+function ResumenReporte({ resultado }: { resultado: ReporteImpactoPromociones }) {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <StatCard titulo="Días de promoción" valor={resultado.dias_promocion} icono={CalendarDays} />
+      <StatCard titulo="Días fuera" valor={resultado.dias_fuera} icono={CalendarOff} />
+      {resultado.horas_promocion_por_dia !== null && (
+        <StatCard titulo="Horas por día" valor={resultado.horas_promocion_por_dia} icono={Clock} />
+      )}
     </div>
   );
 }
@@ -61,34 +84,28 @@ function ResultadoReporte({
   cargando: boolean;
 }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{resultado.promocion.nombre}</CardTitle>
-        <CardDescription>
-          Promoción del {resultado.promocion.fecha_desde} al {resultado.promocion.fecha_hasta}.
-        </CardDescription>
-        <div className="flex flex-wrap gap-x-6 gap-y-1 pt-2 text-sm text-slate-600">
-          <span>
-            <strong>{resultado.dias_promocion}</strong> días de promoción
-          </span>
-          <span>
-            <strong>{resultado.dias_fuera}</strong> días fuera
-          </span>
-          {resultado.horas_promocion_por_dia !== null && (
-            <span>
-              <strong>{resultado.horas_promocion_por_dia}</strong> horas por día
-            </span>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent>
-        <ReporteImpactoPromocionesTabla
-          lineas={resultado.lineas}
-          unidad={resultado.unidad_promedio}
-          cargando={cargando}
-        />
-      </CardContent>
-    </Card>
+    <>
+      <ResumenReporte resultado={resultado} />
+
+      <Card>
+        <CardHeader className="flex-row items-start justify-between space-y-0">
+          <div>
+            <CardTitle>{resultado.promocion.nombre}</CardTitle>
+            <CardDescription>
+              Promoción del {resultado.promocion.fecha_desde} al {resultado.promocion.fecha_hasta}.
+            </CardDescription>
+          </div>
+          <ExportButton filas={resultado.lineas} nombreArchivo={NOMBRE_ARCHIVO} />
+        </CardHeader>
+        <CardContent>
+          <ReporteImpactoPromocionesTabla
+            lineas={resultado.lineas}
+            unidad={resultado.unidad_promedio}
+            cargando={cargando}
+          />
+        </CardContent>
+      </Card>
+    </>
   );
 }
 
@@ -97,7 +114,7 @@ export function ReporteImpactoPromocionesPage() {
   const { resultado } = reporte;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <Breadcrumbs
         items={[
           { etiqueta: 'Reportes', ruta: '/reportes' },
@@ -110,6 +127,13 @@ export function ReporteImpactoPromocionesPage() {
       />
       <FiltrosReporte reporte={reporte} />
       {reporte.error && <Alert variant="warning">{reporte.error}</Alert>}
+      {!resultado && !reporte.cargando && !reporte.error && (
+        <EmptyState
+          icono={ChartColumn}
+          titulo="Elegí el período y la promoción, y presioná Generar"
+          descripcion="El impacto de la promoción sobre las ventas se muestra acá."
+        />
+      )}
       {resultado && !resultado.hay_datos && <Alert variant="info">{SIN_DATOS}</Alert>}
       {resultado && resultado.hay_datos && (
         <ResultadoReporte resultado={resultado} cargando={reporte.cargando} />

@@ -112,7 +112,7 @@ export function ReservaFormDialog({ reserva, onGuardado, onOpenChange }: Reserva
       title={edicion ? 'Modificar reserva' : 'Nueva reserva'}
       footer={
         <>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="brand-outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
           <Button
