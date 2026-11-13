@@ -16,17 +16,20 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     ref,
   ) => {
     const baseStyles =
-      'inline-flex items-center justify-center font-medium transition-colors select-none whitespace-nowrap rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50';
+      'inline-flex items-center justify-center font-medium transition-colors select-none whitespace-nowrap rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40 disabled:saturate-0';
 
     const variantStyles: Record<ButtonVariant, string> = {
-      default: 'bg-brand text-brand-foreground hover:bg-brand-hover',
-      secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary-hover',
+      default:
+        'bg-brand text-brand-foreground enabled:hover:bg-brand-hover dark:ring-1 dark:ring-inset dark:ring-white/15',
+      secondary:
+        'bg-secondary text-secondary-foreground enabled:hover:bg-secondary-hover',
       outline:
-        'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900',
+        'border border-slate-300 bg-white text-slate-700 enabled:hover:bg-slate-50 enabled:hover:text-slate-900',
       'brand-outline':
-        'border border-brand bg-transparent text-brand hover:bg-brand-subtle hover:text-brand-hover',
-      ghost: 'text-slate-700 hover:bg-slate-100 hover:text-slate-900',
-      danger: 'bg-danger text-danger-foreground hover:bg-danger-hover',
+        'border border-brand/60 bg-transparent text-brand enabled:hover:border-brand enabled:hover:bg-brand/10 enabled:hover:text-brand-hover dark:border-brand/40 dark:bg-transparent dark:text-primary-strong dark:enabled:hover:border-brand/60 dark:enabled:hover:bg-brand/15 dark:enabled:hover:text-primary-strong',
+      ghost: 'text-slate-700 enabled:hover:bg-slate-100 enabled:hover:text-slate-900',
+      danger:
+        'bg-danger text-danger-foreground enabled:hover:bg-danger-hover dark:ring-1 dark:ring-inset dark:ring-white/15',
     };
 
     const sizeStyles: Record<ButtonSize, string> = {
