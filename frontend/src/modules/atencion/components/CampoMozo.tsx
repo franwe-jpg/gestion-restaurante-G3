@@ -106,7 +106,7 @@ function EstadoBusquedaMozo({ cargando, error, mozos, texto, onReintentar }: Cam
       descripcion={
         texto.trim()
           ? 'Probá con otro nombre o apellido.'
-          : 'No se puede abrir una comanda sin seleccionar un mozo habilitado.'
+          : 'Hace falta al menos un mozo habilitado para asignarlo a la comanda.'
       }
     />
   );
