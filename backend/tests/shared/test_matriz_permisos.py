@@ -73,12 +73,12 @@ _filas(
 )
 _filas("GET", ["/reportes/impacto-promociones"], SOLO_ENCARGADO)
 # M3 Salon, Mozos y Chefs
-_filas("GET", ["/mesas", "/sectores"], ENCARGADO_Y_MOZO)
+_filas("GET", ["/mesas", "/sectores", "/mozos"], ENCARGADO_Y_MOZO)
 _filas("POST", ["/sectores", "/sectores/1/baja", "/mesas"], SOLO_ENCARGADO)
 _filas("PUT", ["/sectores/1", "/mesas/1"], SOLO_ENCARGADO)
 _filas("DELETE", ["/mesas/1"], SOLO_ENCARGADO)
 _filas("POST", ["/mozos", "/mozos/1/baja", "/chefs", "/chefs/1/baja"], SOLO_ENCARGADO)
-_filas("GET", ["/mozos", "/chefs", "/reportes/mesas-ventas-por-mozo"], SOLO_ENCARGADO)
+_filas("GET", ["/chefs", "/reportes/mesas-ventas-por-mozo"], SOLO_ENCARGADO)
 _filas("PUT", ["/mozos/1", "/chefs/1"], SOLO_ENCARGADO)
 # M4 Atencion al Publico
 _filas(
@@ -91,7 +91,11 @@ _filas(
     ["/comandas", "/comandas/1/cerrar", "/comandas/1/reabrir", "/comandas/1/anular"],
     ENCARGADO_Y_MOZO,
 )
-_filas("PUT", ["/comandas/1", "/comandas/1/detalles/1/entrega", "/clientes/1"], ENCARGADO_Y_MOZO)
+_filas(
+    "PUT",
+    ["/comandas/1", "/comandas/1/mozo", "/comandas/1/detalles/1/entrega", "/clientes/1"],
+    ENCARGADO_Y_MOZO,
+)
 _filas("GET", ["/clientes"], ENCARGADO_Y_MOZO)
 # M5 Reservas
 _filas("GET", ["/reservas", "/reservas/1", "/reservas/mesas-disponibles"], TODOS)
