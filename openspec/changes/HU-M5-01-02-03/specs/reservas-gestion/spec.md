@@ -35,7 +35,7 @@ La ruta `GET /reservas/mesas-disponibles` DEBE declararse de modo que `GET /rese
 Esquemas (nombres JSON en `snake_case`; `cantidad_personas` es el `cantidadPersonas` del diagrama, S14):
 
 - `ReservaCrear`: `mesa_id: int` (> 0), `fecha: date`, `hora: time`, `cantidad_personas: int` (> 0) y exactamente uno de `cliente_id: int` (estricto, > 0; cliente existente) o `cliente_nuevo: ClienteNuevo` (cliente que se registra con la reserva) (S39). Los cuatro primeros son obligatorios. Enviar los dos cliente o ninguno responde 422 nombrando el campo `cliente_id`/`cliente_nuevo`. Los campos extra están prohibidos (S15).
-- `ClienteNuevo` (esquema de M5, solo de forma, S40): `nombre: str`, `telefono: str`, los dos obligatorios; los campos extra están prohibidos. Las reglas de contenido (nombre solo con letras y espacios, teléfono con dígitos, espacios, guiones y `+` solo al inicio, obligatoriedad) son de M4 y no se duplican en M5 (S42).
+- `ClienteNuevo` (esquema de M5, de forma, S40): `nombre: str`, `telefono: str`, los dos obligatorios; los campos extra están prohibidos. Las reglas de contenido (nombre solo con letras y espacios, teléfono con dígitos, espacios, guiones y `+` solo al inicio, obligatoriedad) son de M4 y no se duplican en M5 (S42), con dos excepciones propias de M5: el nombre admite hasta 60 caracteres (S70) y el teléfono no admite espacios en el interior (S66).
 - `ReservaModificar`: `fecha: date`, `hora: time`, `cantidad_personas: int` (> 0). Los tres son obligatorios (S19). Los campos extra están prohibidos (S15).
 - `ReservaSalida`: `id: int`, `fecha: date` (`YYYY-MM-DD`), `hora` (`HH:MM`), `cantidad_personas: int`, `estado: ACTIVA | ATENDIDA | CANCELADA_ANTICIPADA | CANCELADA_POR_AUSENCIA`, `mesa_id: int`, `cliente_id: int`. No incluye nombres de mesa ni de cliente (S23).
 - `MesaDisponible` (nombre de referencia): `id: int`, `numero: int`, `capacidad: int`, `sector: {id: int, nombre: str}`. No incluye el estado de la mesa. La respuesta es una lista de `MesaDisponible`, no una `Pagina[T]` (S29).
@@ -343,7 +343,7 @@ El sistema DEBE validar `cantidad_personas` contra la capacidad de la mesa, en e
 
 - En el alta, la comprobación va después de la existencia de la mesa y de su estado y antes de la existencia del cliente (S17); con una mesa fuera de servicio gana el 409 de la mesa.
 - En la modificación, la mesa es la de la reserva (no se edita). La comprobación va después de verificar que la reserva está `ACTIVA` y antes de la fecha y la hora. Si M3 ya no tiene esa mesa, responde 404 «La mesa {mesa_id} no existe»; el estado de la mesa no se revisa (S27).
-- En el alta, el formulario DEBERÍA avisar antes de enviar con «La mesa elegida admite hasta {capacidad} personas.» junto a Cantidad de personas, porque el selector ya conoce la capacidad de cada mesa. En la edición la fila no trae la capacidad, así que el modal muestra el 409 de la API como error general.
+- En el alta, el formulario DEBERÍA avisar antes de enviar con «La mesa elegida admite hasta {capacidad} personas.» bajo el campo Mesa, porque el selector ya conoce la capacidad de cada mesa. En la edición la fila no trae la capacidad, así que el aviso es el 409 de la API, que también se muestra bajo el campo Mesa. Nota 2026-11-13: antes el aviso local iba junto a Cantidad de personas y el 409, como error general; ahora ambos van bajo Mesa (S72).
 
 #### Escenario: Cantidad muy grande en el alta
 
@@ -379,7 +379,7 @@ El sistema DEBE validar `cantidad_personas` contra la capacidad de la mesa, en e
 
 - DADO el modal de alta con la mesa 5 elegida (capacidad 4) y `cantidad_personas` 5
 - CUANDO la persona pulsa «Guardar reserva»
-- ENTONCES el modal muestra «La mesa elegida admite hasta 4 personas.» junto a Cantidad de personas y no envía el `POST`
+- ENTONCES el modal muestra «La mesa elegida admite hasta 4 personas.» bajo el campo Mesa (S72), sin error bajo Cantidad de personas, y no envía el `POST`
 
 #### Escenario: Cantidad cero sigue rechazada
 
@@ -1285,7 +1285,7 @@ La tabla DEBE mostrar el estado de cada reserva con un texto legible y una insig
 
 ### Requisito: Formulario de alta (HU-M5-01)
 
-El botón «Nueva reserva» DEBE abrir, como modal sobre la misma pantalla y sin cambiar de ruta, el modal «Nueva reserva», construido con el componente `Dialog` compartido (`frontend/src/shared/components/ui/dialog.tsx`): el título «Nueva reserva» (`title` del `Dialog`), los campos Cliente (selector de cliente, ver el delta), Fecha, Hora, Cantidad de personas y Mesa (selector) en el cuerpo del modal, y los botones «Cancelar» y «Guardar reserva» en el pie del modal (`footer`). El propio `Dialog` ya ofrece su botón de cerrar (la X); el modal NO necesita un botón «Cerrar formulario» aparte, igual que `MesaFormDialog` y `ClienteFormDialog` (AGENTS.md, sección 5). Cliente se elige con el selector del requisito «Selector de cliente en el modal del alta» y ya no se escribe como número (S13, S43). Antes de enviar, el modal DEBE validar localmente y mostrar bajo cada campo qué falla: Cliente obligatorio (un cliente elegido o los datos de un cliente nuevo válidos); Fecha obligatoria y no anterior a hoy; Hora obligatoria y, si la fecha es hoy, posterior a la hora actual (S3); Cantidad de personas entero positivo; Mesa obligatoria, es decir, una mesa elegida de la lista. Si hay algún error local, NO DEBE llamar a la API. Al guardar bien, DEBE enviar `POST /reservas`, mostrar un aviso de éxito, cerrar el modal y recargar la tabla. Si la API responde 404, 409 o 422, DEBE mostrar el `detalle` como error general del modal, conservar los datos escritos (también la mesa elegida) y dejar el modal abierto. Cerrar el modal con la X, con la tecla Escape, haciendo clic en el fondo (fuera del modal) o con el botón «Cancelar» DEBE tener el mismo efecto: cerrar sin guardar y sin volver a pedir la tabla de reservas.
+El botón «Nueva reserva» DEBE abrir, como modal sobre la misma pantalla y sin cambiar de ruta, el modal «Nueva reserva», construido con el componente `Dialog` compartido (`frontend/src/shared/components/ui/dialog.tsx`): el título «Nueva reserva» (`title` del `Dialog`), los campos Cliente (selector de cliente, ver el delta), Fecha, Hora, Cantidad de personas y Mesa (selector) en el cuerpo del modal, y los botones «Cancelar» y «Guardar reserva» en el pie del modal (`footer`). El propio `Dialog` ya ofrece su botón de cerrar (la X); el modal NO necesita un botón «Cerrar formulario» aparte, igual que `MesaFormDialog` y `ClienteFormDialog` (AGENTS.md, sección 5). Cliente se elige con el selector del requisito «Selector de cliente en el modal del alta» y ya no se escribe como número (S13, S43). Antes de enviar, el modal DEBE validar localmente y mostrar bajo cada campo qué falla: Cliente obligatorio (un cliente elegido o los datos de un cliente nuevo válidos); Fecha obligatoria y no anterior a hoy; Hora obligatoria y, si la fecha es hoy, posterior a la hora actual (S3); Cantidad de personas entero positivo; Mesa obligatoria, es decir, una mesa elegida de la lista. Si hay algún error local, NO DEBE llamar a la API. Al guardar bien, DEBE enviar `POST /reservas`, mostrar un aviso de éxito, cerrar el modal y recargar la tabla. Si la API responde 404, 409 o 422, DEBE mostrar el `detalle` como error general del modal, conservar los datos escritos (también la mesa elegida) y dejar el modal abierto, salvo el 409 de capacidad «La mesa {mesa_id} admite hasta {capacidad} personas», que se muestra bajo el campo Mesa (S72). Cerrar el modal con la X, con la tecla Escape, haciendo clic en el fondo (fuera del modal) o con el botón «Cancelar» DEBE tener el mismo efecto: cerrar sin guardar y sin volver a pedir la tabla de reservas.
 
 El campo Mesa DEBE ser un selector que se llena con `GET /reservas/mesas-disponibles`, pedido por el `api.ts` del módulo, y no un número escrito a mano (S13, S34):
 
@@ -1452,7 +1452,7 @@ La lista es una ayuda: la API vuelve a verificar la mesa al guardar (S35). El mo
 
 ### Requisito: Formulario de edición (HU-M5-02)
 
-La acción «Modificar reserva» de una fila `ACTIVA` DEBE abrir el mismo modal (el mismo `Dialog`), sin cambiar de ruta, con el título «Modificar reserva» y los datos de esa fila; el frontend NO necesita pedir `GET /reservas/{id}` (S24). Cliente y Mesa DEBEN verse deshabilitados y no validarse: en la edición Mesa NO es el selector del alta, sigue siendo un campo de solo lectura con el identificador de la fila y NO pide la lista de mesas disponibles. La persona solo puede cambiar Fecha, Hora y Cantidad de personas, con la misma validación local del alta. Al guardar DEBE enviar `PUT /reservas/{id}` con exactamente `fecha`, `hora` y `cantidad_personas`; si termina bien, mostrar un aviso de éxito, cerrar el modal y recargar la tabla. Si la API responde 404, 409 o 422, DEBE mostrar el `detalle` como error general del modal, conservar los datos y dejar el modal abierto. Cerrar el modal con la X, con Escape, haciendo clic en el fondo o con «Cancelar» cierra sin guardar y sin pedir la reserva de nuevo, igual que en el alta.
+La acción «Modificar reserva» de una fila `ACTIVA` DEBE abrir el mismo modal (el mismo `Dialog`), sin cambiar de ruta, con el título «Modificar reserva» y los datos de esa fila; el frontend NO necesita pedir `GET /reservas/{id}` (S24). Cliente y Mesa DEBEN verse deshabilitados y no validarse: en la edición Mesa NO es el selector del alta, sigue siendo un campo de solo lectura con el identificador de la fila y NO pide la lista de mesas disponibles. La persona solo puede cambiar Fecha, Hora y Cantidad de personas, con la misma validación local del alta. Al guardar DEBE enviar `PUT /reservas/{id}` con exactamente `fecha`, `hora` y `cantidad_personas`; si termina bien, mostrar un aviso de éxito, cerrar el modal y recargar la tabla. Si la API responde 404, 409 o 422, DEBE mostrar el `detalle` como error general del modal, conservar los datos y dejar el modal abierto, salvo el 409 de capacidad «La mesa {mesa_id} admite hasta {capacidad} personas», que se muestra bajo el campo Mesa (S72). Cerrar el modal con la X, con Escape, haciendo clic en el fondo o con «Cancelar» cierra sin guardar y sin pedir la reserva de nuevo, igual que en el alta.
 
 #### Escenario: Modal con los datos actuales
 
@@ -1580,7 +1580,7 @@ El cuerpo de `POST /reservas` DEBE traer `cliente_id` o `cliente_nuevo`, y no lo
 
 ### Requisito: Datos inválidos del cliente nuevo (issue #61, HU-M4-01)
 
-Si el `cliente_nuevo` no cumple las reglas de M4 (nombre obligatorio y solo con letras y espacios, incluidos los acentos; teléfono obligatorio con dígitos, espacios, guiones y `+` solo al inicio), el alta DEBE responder 422 con el mensaje de M4, que nombra el campo (`nombre` o `telefono`), y NO DEBE guardar la reserva ni el cliente. Las reglas de contenido del nombre viven en M4: M5 no las vuelve a implementar (S42). **Nota 2026-11-11: el teléfono tiene además las reglas propias de largo del requisito siguiente (S66).**
+Si el `cliente_nuevo` no cumple las reglas de M4 (nombre obligatorio y solo con letras y espacios, incluidos los acentos; teléfono obligatorio con dígitos, espacios, guiones y `+` solo al inicio), el alta DEBE responder 422 con el mensaje de M4, que nombra el campo (`nombre` o `telefono`), y NO DEBE guardar la reserva ni el cliente. Las reglas de contenido del nombre viven en M4: M5 no las vuelve a implementar (S42). **Nota 2026-11-11: el teléfono tiene además las reglas propias del requisito siguiente (S66), que desde el 2026-11-13 no admite espacios en el interior aunque M4 sí los admita. Nota 2026-11-13: el nombre tiene además el largo máximo de S70.**
 
 #### Escenario: Nombre faltante, vacío o con símbolos
 
@@ -1596,7 +1596,7 @@ Si el `cliente_nuevo` no cumple las reglas de M4 (nombre obligatorio y solo con 
 
 #### Escenario: Nombre con acentos y teléfono con prefijo
 
-- DADO `cliente_nuevo` con `nombre` «María José Núñez» y `telefono` «+54 280 4-556677»
+- DADO `cliente_nuevo` con `nombre` «María José Núñez» y `telefono` «+54-280-4-556677»
 - CUANDO se hace `POST /reservas` con los demás datos válidos
 - ENTONCES responde 201 y el cliente queda registrado
 
@@ -1604,13 +1604,15 @@ Si el `cliente_nuevo` no cumple las reglas de M4 (nombre obligatorio y solo con 
 
 > Nota 2026-11-11 (corrección de HU-M5-01-02-03, **pendiente de validación del equipo**): el alta aceptaba teléfonos de 300 caracteres, sin ningún dígito (`"- - -"`) o con espacios al final. Los valores de abajo son un `Supuesto:` de la responsable del módulo (S66).
 
-Con `cliente_nuevo`, el `telefono` DEBE cumplir, después de recortar los espacios de los extremos: un `+` opcional solo al inicio, dígitos, espacios y guiones; entre 6 y 15 dígitos (15 es el máximo de E.164) y hasta 20 caracteres en total. El esquema propio de M5 (`ClienteNuevo`) lo valida antes de llamar a M4, y el teléfono recortado es el que se guarda. Si no se cumple, el alta DEBE responder 422 con «Datos invalidos. cliente_nuevo.telefono: {mensaje}» y NO DEBE guardar la reserva ni el cliente. Los mensajes, en el orden en que se comprueban: «telefono es obligatorio», «telefono solo admite dígitos, espacios, guiones y + al inicio», «telefono admite hasta 20 caracteres» y «telefono debe tener entre 6 y 15 dígitos».
+> Nota 2026-11-13 (corrección de HU-M5-01-02-03, **pendiente de validación del equipo**): a pedido de la responsable del módulo, el teléfono del cliente nuevo ya no admite espacios en el interior (la versión anterior de S66 los admitía, como M4). Los espacios de los extremos se siguen recortando. El texto de abajo ya incluye el cambio.
 
-En la pantalla, el campo Teléfono DEBE ser de tipo `tel` (`inputMode` `tel`), admitir hasta 20 caracteres y quitar al escribir todo lo que no sea dígito, espacio, guion o un `+` al inicio. La validación local DEBE aplicar la misma regla con los mismos textos, en la forma «El teléfono …», y el 422 que nombra `telefono` se sigue mostrando junto al campo (Decisión 31).
+Con `cliente_nuevo`, el `telefono` DEBE cumplir, después de recortar los espacios de los extremos: un `+` opcional solo al inicio, dígitos y guiones, sin ningún espacio en blanco en el interior; entre 6 y 15 dígitos (15 es el máximo de E.164) y hasta 20 caracteres en total. El esquema propio de M5 (`ClienteNuevo`) lo valida antes de llamar a M4, y el teléfono recortado es el que se guarda. Si no se cumple, el alta DEBE responder 422 con «Datos invalidos. cliente_nuevo.telefono: {mensaje}» y NO DEBE guardar la reserva ni el cliente. Los mensajes, en el orden en que se comprueban: «telefono es obligatorio», «telefono solo admite dígitos, guiones y + al inicio», «telefono admite hasta 20 caracteres» y «telefono debe tener entre 6 y 15 dígitos».
+
+En la pantalla, el campo Teléfono DEBE ser de tipo `tel` (`inputMode` `tel`), admitir hasta 20 caracteres y quitar al escribir o pegar todo lo que no sea dígito, guion o un `+` al inicio (los espacios también se descartan). La validación local DEBE aplicar la misma regla con los mismos textos, en la forma «El teléfono …» («El teléfono solo admite dígitos, guiones y + al inicio»), y el 422 que nombra `telefono` se sigue mostrando junto al campo (Decisión 31).
 
 #### Escenario: Teléfonos en los límites
 
-- DADO `cliente_nuevo` con `telefono` `"123456"` (6 dígitos), `"123456789012345"` (15 dígitos) o `"+123 456 789 012 345"` (20 caracteres)
+- DADO `cliente_nuevo` con `telefono` `"123456"` (6 dígitos), `"123456789012345"` (15 dígitos), `"+123-456-789-012-345"` (20 caracteres), `"+542801234567"` o `"280-4123456"`
 - CUANDO se hace `POST /reservas` con los demás datos válidos
 - ENTONCES responde 201 y el cliente queda registrado con ese teléfono
 
@@ -1620,15 +1622,21 @@ En la pantalla, el campo Teléfono DEBE ser de tipo `tel` (`inputMode` `tel`), a
 - CUANDO se hace `POST /reservas` con los demás datos válidos
 - ENTONCES responde 201 y el cliente queda registrado con `"2804123456"`
 
+#### Escenario: Teléfono con un espacio en el interior
+
+- DADO `cliente_nuevo` con `telefono` `"+54 280 1234567"`, `"28 04 12 34 56"` o `"280 4123456"`
+- CUANDO se hace `POST /reservas` con los demás datos válidos
+- ENTONCES responde 422 con «Datos invalidos. cliente_nuevo.telefono: telefono solo admite dígitos, guiones y + al inicio» y no se crea ninguna reserva ni ningún cliente
+
 #### Escenario: Pocos o demasiados dígitos
 
-- DADO `cliente_nuevo` con `telefono` `"1"`, `"12345"`, `"- - -"` o `"1234567890123456"` (16 dígitos)
+- DADO `cliente_nuevo` con `telefono` `"1"`, `"12345"`, `"---"` o `"1234567890123456"` (16 dígitos)
 - CUANDO se hace `POST /reservas` con los demás datos válidos
 - ENTONCES responde 422 con «telefono debe tener entre 6 y 15 dígitos» y no se crea ninguna reserva ni ningún cliente
 
 #### Escenario: Más de 20 caracteres
 
-- DADO `cliente_nuevo` con `telefono` de 21 caracteres (por ejemplo `"+123  456 789 012 345"`) o de 300 caracteres
+- DADO `cliente_nuevo` con `telefono` de 21 caracteres (por ejemplo `"+123--456-789-012-345"`) o de 300 caracteres
 - CUANDO se hace `POST /reservas` con los demás datos válidos
 - ENTONCES responde 422 con «telefono admite hasta 20 caracteres» y no se crea ninguna reserva ni ningún cliente
 
@@ -1636,13 +1644,58 @@ En la pantalla, el campo Teléfono DEBE ser de tipo `tel` (`inputMode` `tel`), a
 
 - DADO `cliente_nuevo` con `telefono` `"abc123"`, `"2804abc123"`, `"+"` o `"280+456"`
 - CUANDO se hace `POST /reservas` con los demás datos válidos
-- ENTONCES responde 422 con «telefono solo admite dígitos, espacios, guiones y + al inicio» y no se crea ninguna reserva ni ningún cliente
+- ENTONCES responde 422 con «telefono solo admite dígitos, guiones y + al inicio» y no se crea ninguna reserva ni ningún cliente
 
 #### Escenario: El campo filtra lo que se escribe
 
 - DADO el modal de alta con «Cliente nuevo» abierto
 - CUANDO la persona escribe `abc280+456` en Teléfono
 - ENTONCES el campo muestra `280456` y no admite más de 20 caracteres
+
+#### Escenario: El campo descarta los espacios
+
+- DADO el modal de alta con «Cliente nuevo» abierto
+- CUANDO la persona escribe o pega `+54 280 123-4567` en Teléfono
+- ENTONCES el campo muestra `+54280123-4567`, sin espacios
+
+### Requisito: Largo máximo del nombre del cliente nuevo (S70)
+
+> Nota 2026-11-13 (corrección de HU-M5-01-02-03, **pendiente de validación del equipo**): el nombre del cliente nuevo no tenía largo máximo, ni en M5 ni en M4. Los 60 caracteres son un `Supuesto:` propuesto a pedido de la responsable del módulo (S70); no salen de la HU ni del diagrama de clases.
+
+Con `cliente_nuevo`, el `nombre` DEBE tener hasta 60 caracteres, medidos sin los espacios de los extremos (constante `NOMBRE_LARGO_MAXIMO` del esquema). El esquema propio de M5 (`ClienteNuevo`) lo valida antes de llamar a M4 y NO modifica el valor: el recorte solo sirve para medir. Un nombre de exactamente 60 caracteres es válido y uno de 61 no. Si se supera, el alta DEBE responder 422 con «Datos invalidos. cliente_nuevo.nombre: nombre admite hasta 60 caracteres» y NO DEBE guardar la reserva ni el cliente. M5 NO valida el contenido del nombre (obligatorio, solo letras y espacios): sigue siendo de M4 (S42).
+
+En la pantalla, el campo Nombre DEBE descartar al escribir o pegar todo lo que no sea una letra o un espacio (espejo de la regla de M4, S42), admitir hasta 60 caracteres (`maxLength` 60) y mostrar «El nombre admite hasta 60 caracteres» si se supera. El 422 que nombra `nombre` se sigue mostrando junto al campo (Decisión 31).
+
+#### Escenario: Nombre de 60 caracteres
+
+- DADO `cliente_nuevo` con `nombre` de exactamente 60 letras y teléfono válido
+- CUANDO se hace `POST /reservas` con los demás datos válidos
+- ENTONCES responde 201 y el cliente queda registrado con ese nombre
+
+#### Escenario: Nombre de 61 caracteres
+
+- DADO `cliente_nuevo` con `nombre` de 61 letras y teléfono válido
+- CUANDO se hace `POST /reservas` con los demás datos válidos
+- ENTONCES responde 422 con «Datos invalidos. cliente_nuevo.nombre: nombre admite hasta 60 caracteres» y no se crea ninguna reserva ni ningún cliente
+
+#### Escenario: Los espacios de los extremos no cuentan para el largo
+
+- DADO `cliente_nuevo` con `nombre` de 60 letras con dos espacios al principio y tres al final
+- CUANDO se hace `POST /reservas` con los demás datos válidos
+- ENTONCES el esquema acepta el nombre y no lo modifica
+- Y con 61 letras y los mismos espacios responde 422 con el mismo mensaje
+
+#### Escenario: El campo filtra lo que se escribe
+
+- DADO el modal de alta con «Cliente nuevo» abierto
+- CUANDO la persona escribe o pega `Luis3 Gómez!` en Nombre
+- ENTONCES el campo muestra `Luis Gómez` y no admite más de 60 caracteres
+
+#### Escenario: El formulario avisa si el nombre supera los 60 caracteres
+
+- DADO el modal con «Cliente nuevo», un Nombre de 61 caracteres que llega a la validación local (el campo ya lo limita al escribir) y los demás campos válidos
+- CUANDO la persona pulsa «Guardar reserva»
+- ENTONCES Nombre muestra «El nombre admite hasta 60 caracteres» y no se envía la solicitud
 
 ### Requisito: Una reserva fallida no deja un cliente huérfano (issue #61)
 
@@ -1689,7 +1742,7 @@ Cuando el alta trae `cliente_nuevo` y la reserva no se puede crear, NO DEBE qued
 El modal «Nueva reserva» DEBE reemplazar el campo numérico «Cliente (número)» por un selector de cliente, sin importar nada del módulo `atencion` (AGENTS.md, sección 9.4): la búsqueda usa `GET /clientes?q=` a través del `api.ts` de `reservas` (S43). El selector DEBE ofrecer:
 
 - Una caja de búsqueda por nombre o teléfono. Al escribir, DEBE pedir `GET /clientes?q=<texto>` (con un `limit` acotado) y listar las coincidencias como «Nombre · Teléfono». La persona elige una y queda elegida, visible en el campo.
-- La opción «Cliente nuevo», que muestra los campos Nombre y Teléfono, obligatorios, con las mismas reglas y mensajes que M4 (nombre solo con letras y espacios; teléfono con dígitos, espacios, guiones y `+` solo al inicio). Elegir un cliente de la búsqueda y «Cliente nuevo» son excluyentes: pasar de uno a otro descarta lo del anterior.
+- La opción «Cliente nuevo», que muestra los campos Nombre y Teléfono, obligatorios, con las reglas de M5 (nombre solo con letras y espacios, hasta 60 caracteres, S70; teléfono con dígitos, guiones y `+` solo al inicio, sin espacios, S66). Elegir un cliente de la búsqueda y «Cliente nuevo» son excluyentes: pasar de uno a otro descarta lo del anterior.
 - Sin texto de búsqueda no se muestra ningún resultado ni se pide la lista. Si la búsqueda no encuentra a nadie, DEBE mostrar «No se encontraron clientes» y mantener disponible «Cliente nuevo». Si la consulta falla, DEBE mostrar el mensaje de la API junto al campo Cliente. Una respuesta vieja de la búsqueda NO DEBE pisar a la nueva (mismo mecanismo que S35).
 
 Al guardar, DEBE enviar `cliente_id` si hay un cliente elegido, o `cliente_nuevo` con `nombre` y `telefono` (sin espacios sobrantes en los extremos) si está «Cliente nuevo»; nunca los dos. Si no hay ni uno ni otro, DEBE bloquear el guardado con un mensaje que nombre Cliente y no llamar a la API. Si hay errores locales en Nombre o Teléfono, DEBE mostrarlos bajo cada campo y no llamar a la API. Si la API responde 422 con un `detalle` que nombra `nombre` o `telefono`, DEBE mostrarlo junto a ese campo, conservar los datos y dejar el modal abierto; los demás 404, 409 y 422 siguen siendo error general del modal. El modal de edición NO cambia: Cliente sigue deshabilitado y de solo lectura con el `cliente_id` de la fila (la tabla sigue mostrando «Cliente n.º», S23).
@@ -1762,7 +1815,7 @@ Al guardar, DEBE enviar `cliente_id` si hay un cliente elegido, o `cliente_nuevo
 
 - DADO «Cliente nuevo» con Nombre «Luis3» o vacío, o Teléfono vacío o «280+456»
 - CUANDO la persona pulsa «Guardar reserva»
-- ENTONCES no se envía la solicitud y Nombre o Teléfono muestra el mismo mensaje que M4 para ese caso
+- ENTONCES no se envía la solicitud y Nombre o Teléfono muestra el mensaje de su regla (S66 y S70)
 
 #### Escenario: La API rechaza los datos del cliente nuevo
 
@@ -1788,9 +1841,80 @@ Al guardar, DEBE enviar `cliente_id` si hay un cliente elegido, o `cliente_nuevo
 - CUANDO la persona cierra el modal y vuelve a abrir «Nueva reserva»
 - ENTONCES el selector de cliente aparece vacío
 
+### Requisito: Desplegable de clientes registrados en el alta (S71)
+
+> Nota 2026-11-13 (corrección de HU-M5-01-02-03, **pendiente de validación del equipo**): a pedido de la responsable del módulo, además del buscador hay un desplegable con los clientes registrados. Es solo frontend: no cambia el contrato de M4 ni agrega endpoints a M5 (S71).
+
+El modal «Nueva reserva» DEBE ofrecer, junto a la caja de búsqueda y a la opción «Cliente nuevo», un desplegable «Clientes registrados» con los clientes que devuelve `GET /clientes?limit=100&offset=0` de M4 (la ruta exige el permiso `CLIENTES_GESTIONAR`), pedido a través del `api.ts` de `reservas` (S43). El frontend DEBE ordenarlos por nombre y mostrar como mucho 100, cada uno como «Nombre · Teléfono». Si hay más de 100 clientes (el `total` de la respuesta supera lo recibido), DEBE avisar que se muestran solo los primeros 100 y que para los demás hay que usar el buscador. Elegir un cliente del desplegable equivale a elegirlo en el buscador: queda elegido y visible en el campo, descarta «Cliente nuevo» y al guardar se envía solo `cliente_id`. Si la consulta falla, DEBE mostrar el mensaje de la API junto al campo Cliente, sin ofrecer clientes en el desplegable, y la búsqueda y «Cliente nuevo» siguen disponibles. El modal de edición NO muestra el desplegable (Cliente sigue deshabilitado) ni pide `GET /clientes`.
+
+#### Escenario: Lista de clientes registrados ordenada por nombre
+
+- DADO el modal de alta y una API que, para `GET /clientes?limit=100&offset=0`, devuelve a «Zoe Ruiz», «Ana Pérez» y «Beto Díaz» en ese orden
+- CUANDO la persona abre el desplegable «Clientes registrados»
+- ENTONCES se pidió `GET /clientes?limit=100&offset=0` por el `api.ts` de reservas
+- Y la lista muestra, en este orden, «Ana Pérez · {teléfono}», «Beto Díaz · {teléfono}» y «Zoe Ruiz · {teléfono}»
+
+#### Escenario: Elegir un cliente del desplegable
+
+- DADO el desplegable con «Ana Pérez · +54 280 1234567» (cliente 7)
+- CUANDO la persona la elige y pulsa «Guardar reserva» con los demás campos válidos
+- ENTONCES el cliente queda visible como elegido, igual que si se hubiera elegido en el buscador
+- Y se envía `POST /reservas` con `cliente_id` 7 y sin `cliente_nuevo`
+
+#### Escenario: Más de 100 clientes
+
+- DADO una API que devuelve 100 clientes con `total` 130
+- CUANDO la persona abre el desplegable
+- ENTONCES la lista muestra 100 clientes y un aviso de que hay más y de que debe usar el buscador
+
+#### Escenario: Falla la lista de clientes registrados
+
+- DADO una API que responde con error al pedir `GET /clientes?limit=100&offset=0`
+- CUANDO termina la consulta
+- ENTONCES se muestra el mensaje de la API junto al campo Cliente, el desplegable no ofrece clientes y la búsqueda y «Cliente nuevo» siguen disponibles
+
+#### Escenario: La edición no muestra el desplegable
+
+- DADO una fila `ACTIVA` del cliente 7
+- CUANDO la persona abre «Modificar reserva»
+- ENTONCES no se muestra el desplegable «Clientes registrados» y no se pide `GET /clientes`
+
+### Requisito: El error de capacidad se muestra bajo el campo Mesa (S72)
+
+> Nota 2026-11-13 (corrección de HU-M5-01-02-03, **pendiente de validación del equipo**): a pedido de la responsable del módulo, el error de capacidad deja de mostrarse bajo Cantidad de personas o como alerta general. El backend no cambia (S72).
+
+Cuando la cantidad de personas supera la capacidad de la mesa, el modal DEBE mostrar el error bajo el campo Mesa y NO DEBE mostrarlo bajo Cantidad de personas ni como error general del modal. Vale para la validación local del alta («La mesa elegida admite hasta {capacidad} personas.») y para el 409 del servidor de S67 («La mesa {mesa_id} admite hasta {capacidad} personas»), tanto en el alta como en la modificación; en la modificación el campo Mesa es de solo lectura y muestra igualmente el error. El frontend distingue este 409 de los demás por su mensaje. Los demás 404, 409 y 422 de la API siguen siendo error general del modal, con las excepciones de `nombre` y `telefono` de S66 y S70.
+
+#### Escenario: Capacidad excedida detectada por el formulario
+
+- DADO el modal de alta con la mesa 5 elegida (capacidad 4) y `cantidad_personas` 5
+- CUANDO la persona pulsa «Guardar reserva»
+- ENTONCES «La mesa elegida admite hasta 4 personas.» aparece bajo el campo Mesa
+- Y no aparece error bajo Cantidad de personas ni como error general, y no se envía el `POST`
+
+#### Escenario: El servidor rechaza la capacidad en el alta
+
+- DADO el modal de alta completo y una API que responde 409 con «La mesa 5 admite hasta 4 personas» (la capacidad cambió después de pedir la lista)
+- CUANDO la persona pulsa «Guardar reserva»
+- ENTONCES el modal muestra ese mensaje bajo el campo Mesa, conserva los datos y sigue abierto
+- Y no aparece error bajo Cantidad de personas ni como error general
+
+#### Escenario: El servidor rechaza la capacidad en la modificación
+
+- DADO el modal de edición de una reserva de la mesa 5 y una API que responde 409 con «La mesa 5 admite hasta 4 personas»
+- CUANDO la persona guarda con `cantidad_personas` 5
+- ENTONCES el modal muestra ese mensaje bajo el campo Mesa, conserva los datos y sigue abierto
+- Y no aparece error bajo Cantidad de personas ni como error general
+
+#### Escenario: Otro 409 sigue siendo un error general
+
+- DADO el modal de alta completo y una API que responde 409 con «La mesa 5 ya tiene una reserva el 2026-11-02 a las 21:30; cada reserva ocupa la mesa 2 horas»
+- CUANDO la persona pulsa «Guardar reserva»
+- ENTONCES el modal muestra ese mensaje como error general y no bajo el campo Mesa
+
 ## Supuestos
 
-Los supuestos S1 a S14 son los de la propuesta, con la misma numeración. S15 en adelante son nuevos de esta spec. Por el issue #61 se reescribieron S4, S5, S9, S10, S13, S17, S20 y S23 (sin cambiar su número) y se agregaron S29 a S35. Por la regla general de modales de AGENTS.md (sección 5) se reescribieron además S24 y S34 (sin cambiar su número, el panel lateral pasa a ser un modal) y se agregaron S36, S37 y S38. Por el delta «cliente registrado o nuevo» (issue #61, HU-M4-01) se reescribieron además S6, S13, S17, S20 y S34 (sin cambiar su número) y se agregaron S39 a S43. Por la corrección del 2026-11-11 (pedido de la responsable del módulo) se agregaron S66 y S67 y se anotaron S5, S27 y S42. Por la adenda 2026-11-12 («ocupación de la mesa») se reescribieron además S4, S7, S9, S17, S21 y S30 (sin cambiar su número) y se agregó S69. Todos están marcados `Supuesto:` para que el equipo los valide (AGENTS.md, sección 9.2).
+Los supuestos S1 a S14 son los de la propuesta, con la misma numeración. S15 en adelante son nuevos de esta spec. Por el issue #61 se reescribieron S4, S5, S9, S10, S13, S17, S20 y S23 (sin cambiar su número) y se agregaron S29 a S35. Por la regla general de modales de AGENTS.md (sección 5) se reescribieron además S24 y S34 (sin cambiar su número, el panel lateral pasa a ser un modal) y se agregaron S36, S37 y S38. Por el delta «cliente registrado o nuevo» (issue #61, HU-M4-01) se reescribieron además S6, S13, S17, S20 y S34 (sin cambiar su número) y se agregaron S39 a S43. Por la corrección del 2026-11-11 (pedido de la responsable del módulo) se agregaron S66 y S67 y se anotaron S5, S27 y S42. Por la adenda 2026-11-12 («ocupación de la mesa») se reescribieron además S4, S7, S9, S17, S21 y S30 (sin cambiar su número) y se agregó S69. Por la adenda 2026-11-13 («validaciones del formulario de reserva») se reescribió S66 (sin cambiar su número), se anotaron S42 y S67 y se agregaron S70, S71 y S72; S68 pertenece al cambio HU-M5-06, así que S72 es el último supuesto de este archivo. Todos están marcados `Supuesto:` para que el equipo los valide (AGENTS.md, sección 9.2).
 
 - Supuesto: S1. Estado inicial `ACTIVA`. Lo dicen el diagrama de clases, S2-02 y la maqueta. Contradicción de fuentes: S1-07 (CP-HU-M5-01) usa `PENDIENTE`. Se sigue el diagrama porque manda en nombres y valores; el equipo tiene que validarlo y corregir S1-07.
 - Supuesto: S2. Horario de atención: ninguna fuente lo define, así que no se restringe la hora de la reserva (vale cualquier hora del día). Si el equipo define un horario, se agrega como validación 422 en un cambio posterior.
@@ -1833,11 +1957,14 @@ Los supuestos S1 a S14 son los de la propuesta, con la misma numeración. S15 en
 - Supuesto: S39. Puente de cliente real. `existe_cliente` y la operación nueva `registrar_cliente(db, nombre, telefono) -> int` del puente delegan en `app.modules.atencion.service` (`existe_cliente` y `registrar_cliente_para_reserva`, que M4 expone con esa firma). Reemplaza al stub de S6 y S20. `registrar_cliente_para_reserva` valida con las reglas de M4, agrega el cliente a la sesión y hace flush, pero nunca confirma ni deshace. `ReservaCrear` pasa de `cliente_id` obligatorio a exactamente uno de `cliente_id` o `cliente_nuevo`; si llegan los dos o ninguno, 422. El cambio depende de que M4 publique esas dos funciones (el cambio HU-M4-01-02-03 se actualiza en paralelo).
 - Supuesto: S40. `ClienteNuevo` es un esquema propio de M5, solo de forma (`nombre` y `telefono` como texto, obligatorios, sin campos extra), para no importar los `schemas` de M4 (AGENTS.md, sección 9.4). Sin apellido ni DNI: no figuran en HU-M4-01 ni en el diagrama de clases.
 - Supuesto: S41. Atomicidad del cliente nuevo. El `service` valida mesa, cliente existente, fecha, hora y turno libre antes de registrar al cliente nuevo, y después guarda reserva y cliente en un solo commit. Si ese commit falla (por ejemplo, la carrera por el índice único parcial), deshace la sesión completa, también el cliente, y responde 409. Nunca queda un cliente huérfano. Como M4 nunca confirma, la confirmación única es de M5. Quedan fuera los errores de la base ajenos a estos casos (responden 500 y también deshacen la sesión).
-- Supuesto: S42. Las reglas de contenido de nombre y teléfono son únicamente las de M4 (nombre obligatorio, solo letras y espacios con acentos; teléfono obligatorio con dígitos, espacios, guiones y `+` solo al inicio; nombres repetidos permitidos): M5 no las copia en el backend. El frontend de M5 repite las mismas reglas y mensajes solo para avisar antes de enviar, porque no puede importar archivos de `atencion` (AGENTS.md, sección 9.4); si M4 cambia las reglas, hay que actualizar ese espejo. No se detectan duplicados de cliente: dos altas iguales crean dos clientes, igual que en M4. **Nota 2026-11-11: el teléfono tiene reglas propias de largo y de cantidad de dígitos que M5 sí valida en el backend (S66); el nombre sigue siendo solo de M4.**
+- Supuesto: S42. Las reglas de contenido de nombre y teléfono son únicamente las de M4 (nombre obligatorio, solo letras y espacios con acentos; teléfono obligatorio con dígitos, espacios, guiones y `+` solo al inicio; nombres repetidos permitidos): M5 no las copia en el backend. El frontend de M5 repite las mismas reglas y mensajes solo para avisar antes de enviar, porque no puede importar archivos de `atencion` (AGENTS.md, sección 9.4); si M4 cambia las reglas, hay que actualizar ese espejo. No se detectan duplicados de cliente: dos altas iguales crean dos clientes, igual que en M4. **Nota 2026-11-11: el teléfono tiene reglas propias de largo y de cantidad de dígitos que M5 sí valida en el backend (S66); el nombre sigue siendo solo de M4. Nota 2026-11-13: S66 revisado quita los espacios del teléfono nuevo, así que la regla de M5 y la de M4 (que sí admite espacios) difieren; y S70 agrega el largo máximo del nombre en M5, aunque su contenido sigue siendo de M4.**
 - Supuesto: S43. Selector de cliente del modal. Reservas pide `GET /clientes?q=&limit=` a través de su propio `api.ts` (la ruta de M4 ya existe y es de solo lectura). Los resultados se leen como «Nombre · Teléfono», acotados a la primera página (sin paginar en pantalla; para afinar se sigue escribiendo). La búsqueda empieza con al menos un carácter escrito y espera una breve pausa al tipear (el diseño fija el valor). El modal de edición no cambia el cliente. Fuera de alcance: mostrar el nombre del cliente en la tabla de reservas (S23).
-- Supuesto: S66. Teléfono del cliente nuevo (corrección 2026-11-11, pedido de la responsable del módulo, **pendiente de validación del equipo**). `+` opcional solo al inicio, dígitos, espacios y guiones; entre 6 y 15 dígitos (15 es el máximo de E.164) y hasta 20 caracteres en total; se recortan los espacios de los extremos antes de validar y de guardar. Lo valida el esquema propio `ClienteNuevo` de M5 antes de llamar a M4, porque la regla de M4 (`validar_telefono` de `atencion/schemas.py`, compartida con el alta y la modificación de clientes) no acota el largo ni exige dígitos; M5 no puede cambiar `atencion` (AGENTS.md, sección 9.3), así que la carencia de M4 se avisa a su responsable. Precisa S42 solo para el teléfono. El campo del frontend filtra lo que se escribe y aplica la misma regla y los mismos textos (con «El teléfono …» en lugar de «telefono …»). Los 6, 15 y 20 son valores propuestos, no salen de la HU ni del diagrama.
-- Supuesto: S67. Capacidad de la mesa (corrección 2026-11-11, pedido de la responsable del módulo, **pendiente de validación del equipo**). Revierte S5: `cantidad_personas` no puede superar la capacidad de la mesa, en el alta y en la modificación, con 409 «La mesa {mesa_id} admite hasta {capacidad} personas». El issue #61 todavía dice que no se valida y debe actualizarse (lo hace una persona, no el agente). Orden de validación (precisa S17): en el alta, después de la existencia y del estado de la mesa y antes del cliente; en la modificación, después del estado de la reserva y antes de la fecha y la hora. La capacidad sale de `puente.obtener_mesa`; al modificar se usa la mesa de la reserva y, si M3 ya no la tiene, responde 404 (Supuesto: no hay capacidad contra la cual comparar). Si M3 reduce la capacidad de una mesa con reservas, la próxima modificación de esa reserva debe ajustar la cantidad. En el frontend, el alta valida contra la capacidad de la mesa elegida (el selector ya la conoce); la edición no, porque la fila no la trae, y muestra el 409 de la API como error general del modal.
+- Supuesto: S66. Teléfono del cliente nuevo (corrección 2026-11-11, pedido de la responsable del módulo, **pendiente de validación del equipo**; revisada el 2026-11-13, también a su pedido y pendiente de validación). `+` opcional solo al inicio, dígitos y guiones, sin ningún espacio en el interior; entre 6 y 15 dígitos (15 es el máximo de E.164) y hasta 20 caracteres en total; se recortan los espacios de los extremos antes de validar y de guardar (tolerancia de la API: el campo del frontend ya no deja escribir espacios). Lo valida el esquema propio `ClienteNuevo` de M5 antes de llamar a M4, porque la regla de M4 (`validar_telefono` de `atencion/schemas.py`, compartida con el alta y la modificación de clientes) no acota el largo ni exige dígitos y sí admite espacios; M5 no puede cambiar `atencion` (AGENTS.md, sección 9.3), así que la diferencia se avisa a su responsable. Precisa S42 solo para el teléfono: los clientes que ya están en M4 pueden tener espacios en el teléfono (por ejemplo «+54 280 1234567») y se siguen mostrando y eligiendo igual; solo el `cliente_nuevo` de M5 no los admite. El campo del frontend descarta los espacios al escribir o pegar, filtra el resto de lo no permitido y aplica la misma regla y los mismos textos (con «El teléfono …» en lugar de «telefono …»): «El teléfono solo admite dígitos, guiones y + al inicio». Los 6, 15 y 20 son valores propuestos, no salen de la HU ni del diagrama. Antes de la revisión del 2026-11-13, S66 admitía espacios y el mensaje decía «telefono solo admite dígitos, espacios, guiones y + al inicio».
+- Supuesto: S67. Capacidad de la mesa (corrección 2026-11-11, pedido de la responsable del módulo, **pendiente de validación del equipo**). Revierte S5: `cantidad_personas` no puede superar la capacidad de la mesa, en el alta y en la modificación, con 409 «La mesa {mesa_id} admite hasta {capacidad} personas». El issue #61 todavía dice que no se valida y debe actualizarse (lo hace una persona, no el agente). Orden de validación (precisa S17): en el alta, después de la existencia y del estado de la mesa y antes del cliente; en la modificación, después del estado de la reserva y antes de la fecha y la hora. La capacidad sale de `puente.obtener_mesa`; al modificar se usa la mesa de la reserva y, si M3 ya no la tiene, responde 404 (Supuesto: no hay capacidad contra la cual comparar). Si M3 reduce la capacidad de una mesa con reservas, la próxima modificación de esa reserva debe ajustar la cantidad. En el frontend, el alta valida contra la capacidad de la mesa elegida (el selector ya la conoce); la edición no, porque la fila no la trae. El error de capacidad, local o 409 de la API, se muestra bajo el campo Mesa y no bajo Cantidad de personas ni como error general del modal (S72).
 - Supuesto: S69. Ventana de ocupación de la mesa (reemplaza al «no se modela duración» de S4). Toda reserva `ACTIVA` o `ATENDIDA` ocupa su mesa durante una ventana fija de 2 horas que empieza en su `hora`; `CANCELADA_ANTICIPADA` y `CANCELADA_POR_AUSENCIA` no cuentan. Una reserva nueva en la mesa M, en el instante T (`fecha` y `hora` combinadas), choca con otra de M en el instante E si |T − E| < 2 horas (comparación estricta): las 21:00 chocan con las 22:59 y no con las 23:00, y lo mismo hacia atrás (las 19:01 chocan con las 21:00; las 19:00 no). La comparación usa instantes reales y se miran las reservas del día anterior, del mismo día y del siguiente, así que las 23:30 del día D chocan con las 00:30 del día D+1. La duración vive en una sola constante (`VENTANA_DE_OCUPACION`, en el `service`) y el `repository` la recibe como parámetro, sin importar nada del `service`. Hay una sola definición de «mesa ocupada»: la usan el alta, la modificación y `GET /reservas/mesas-disponibles`, de modo que la lista nunca ofrece una mesa que el alta rechazaría. Error: 409 «La mesa {mesa_id} ya tiene una reserva el {fecha} a las {hora}; cada reserva ocupa la mesa 2 horas», con la fecha y la hora de la reserva que conflicta; el 2 sale de la constante. Modificación: se excluye la propia reserva y la ventana se revisa solo si cambian `fecha` u `hora`, para no bloquear la edición de otros datos (por ejemplo `cantidad_personas`) en una reserva que ya se superponía con otra por datos anteriores a esta regla; la mesa no cambia (S27). Una reserva `ATENDIDA` cuenta porque el cliente sigue sentado en la mesa durante su ventana, aunque la reserva ya no esté `ACTIVA`. La duración de 2 horas es un valor único para todas las mesas, sectores y cantidades de personas, y no figura en la HU ni en el diagrama de clases: el equipo tiene que validarla. Límite conocido: el índice único parcial de la base solo protege el turno exacto (misma mesa, fecha y hora, reserva `ACTIVA`); si dos solicitudes simultáneas piden turnos distintos que se superponen, la verificación previa de cada una puede no ver a la otra y las dos pueden guardarse. En SQLite, que ejecuta una escritura a la vez, el margen es angosto, pero no hay un bloqueo por mesa ni una restricción de la base para la ventana, y esta spec no los agrega (no hay migración ni cambio de modelo). El frontend no cambia: el selector ya consume `mesas-disponibles` y muestra el `detalle` del servidor.
+- Supuesto: S70. Largo máximo del nombre del cliente nuevo (corrección 2026-11-13, pedido de la responsable del módulo, **pendiente de validación del equipo**). 60 caracteres, medidos sin los espacios de los extremos y sin modificar el valor: un nombre de 60 es válido y uno de 61 responde 422 «Datos invalidos. cliente_nuevo.nombre: nombre admite hasta 60 caracteres». Es un valor propuesto: no sale de la HU ni del diagrama de clases. Lo valida el esquema propio `ClienteNuevo` de M5 (constante `NOMBRE_LARGO_MAXIMO`) antes de llamar a M4. M4 tampoco acota el largo del nombre y M5 no puede cambiar `atencion` (AGENTS.md, sección 9.3), así que se avisa a su responsable. Precisa S42 solo para el largo: el contenido del nombre (obligatorio, solo letras y espacios) sigue siendo de M4 y M5 no lo copia en el backend. El frontend filtra al escribir o pegar todo lo que no sea una letra o un espacio (espejo de la regla de M4, que hay que actualizar si M4 cambia, como en S42), con `maxLength` de 60, y muestra «El nombre admite hasta 60 caracteres» si se supera.
+- Supuesto: S71. Desplegable «Clientes registrados» en el alta (corrección 2026-11-13, pedido de la responsable del módulo, **pendiente de validación del equipo**). Solo frontend. Lista los clientes de `GET /clientes?limit=100&offset=0` de M4 (permiso `CLIENTES_GESTIONAR`), pedido por el `api.ts` de `reservas` (S43), ordenados por nombre en el frontend, hasta 100 (el máximo de una página). Si hay más de 100 se avisa y se usa el buscador de S43. Elegir un cliente del desplegable equivale a elegirlo en el buscador. No cambia el contrato de M4 ni agrega endpoints a M5. El modal de edición no lo muestra (S43).
+- Supuesto: S72. Ubicación del error de capacidad (corrección 2026-11-13, pedido de la responsable del módulo, **pendiente de validación del equipo**). El error de capacidad de S67 se muestra bajo el campo Mesa y no bajo Cantidad de personas ni como alerta general del modal: la validación local del alta («La mesa elegida admite hasta N personas.») y el 409 del servidor «La mesa {id} admite hasta {capacidad} personas», en el alta y en la modificación (en la modificación el campo Mesa es de solo lectura y muestra el error). El frontend distingue este 409 de los demás por su mensaje; los demás 404, 409 y 422 siguen siendo error general. Precisa S34 y S67. El backend no cambia.
 
 ## Adenda 2026-11-12
 
@@ -1850,4 +1977,17 @@ Ocupación de la mesa por ventana de 2 horas, a pedido expreso del responsable d
 - El estado `OCUPADA` de la mesa en M3 (S30) sigue sin excluir una mesa por sí solo.
 - Sin migración, sin cambio de modelo y sin cambio de frontend; el índice único parcial queda como está y sigue siendo la defensa del turno exacto. El límite conocido de las solicitudes simultáneas con turnos superpuestos pero distintos está en S69.
 - Alcance de las reescrituras: S4, S7, S9, S17, S21 y S30 cambian de texto sin cambiar de número; se agrega S69. Se numeró S69 y no el siguiente de este archivo (S68) para evitar el choque con el supuesto S68 del PR #243, que sigue abierto y lo agrega en otro cambio. En este archivo el último número anterior es S67 (S66 y S67 llegaron con el PR #240); S44 a S65 están en los cambios hermanos de M5.
+- Todo lo anterior es un `Supuesto:` para que el equipo lo valide (AGENTS.md, sección 9.2).
+
+## Adenda 2026-11-13
+
+Validaciones del formulario de reserva, a pedido expreso de la responsable del módulo M5. Esta adenda **revisa S66** y agrega S70, S71 y S72:
+
+- El teléfono del cliente nuevo ya no admite espacios en el interior (S66 revisado): `+` opcional solo al inicio, dígitos y guiones; los espacios de los extremos se siguen recortando; 6 a 15 dígitos y 20 caracteres. El mensaje pasa a «telefono solo admite dígitos, guiones y + al inicio» y un espacio interior responde 422. El campo del frontend descarta los espacios al escribir o pegar.
+- El nombre del cliente nuevo admite hasta 60 caracteres (S70): lo valida el esquema propio `ClienteNuevo` de M5 y responde 422 «nombre admite hasta 60 caracteres» con 61 o más; el contenido del nombre sigue siendo de M4 (S42). El campo del frontend filtra lo que no sea letra o espacio y limita a 60.
+- El alta del formulario ofrece un desplegable «Clientes registrados» con los clientes de `GET /clientes?limit=100&offset=0` de M4 (S71). Es solo frontend.
+- El error de capacidad (local o 409) se muestra bajo el campo Mesa y no bajo Cantidad de personas ni como alerta general (S72). El backend no cambia.
+- Backend: solo cambia `ClienteNuevo` (la expresión regular del teléfono, su mensaje y un validador del largo del nombre). Sin migración, sin cambio de modelo, sin endpoints nuevos y sin cambios en M4 ni en `shared/`.
+- Alcance de las reescrituras: S66 cambia de texto sin cambiar de número; S42 y S67 reciben una nota; se agregan S70, S71 y S72. S68 pertenece al cambio HU-M5-06 y S69 es de este archivo, así que los números nuevos siguen desde S70; el último de este archivo es S72.
+- A avisar al responsable de M4: su regla de teléfono admite espacios y ni su regla de nombre ni la de teléfono acotan el largo; M5 no puede cambiar `atencion` (AGENTS.md, sección 9.3).
 - Todo lo anterior es un `Supuesto:` para que el equipo lo valide (AGENTS.md, sección 9.2).

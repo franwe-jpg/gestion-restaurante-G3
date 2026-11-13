@@ -42,12 +42,13 @@ class _DatosDelTurno(BaseModel):
     _hora_con_precision_de_minutos = field_validator("hora")(_hora_en_minutos)
 
 
-# Supuesto S66 (correccion de HU-M5-01-02-03, 2026-11-11, pendiente de validacion del equipo): el
-# telefono del cliente nuevo admite un `+` opcional solo al inicio, digitos, espacios y guiones;
-# entre 6 y 15 digitos (15 es el maximo de E.164) y hasta 20 caracteres en total. Los espacios de
-# los extremos se recortan antes de validar y de guardar. Lo valida M5 antes de llamar a M4 porque
-# la regla de M4 no acota el largo.
-_TELEFONO_FORMATO = re.compile(r"\+?[0-9 -]+")
+# Supuesto S66 (correccion de HU-M5-01-02-03, 2026-11-11; revisado el 2026-11-13, pendiente de
+# validacion del equipo): el telefono del cliente nuevo admite un `+` opcional solo al inicio,
+# digitos y guiones, sin espacios en el interior; entre 6 y 15 digitos (15 es el maximo de E.164)
+# y hasta 20 caracteres en total. Los espacios de los extremos se recortan antes de validar y de
+# guardar (tolerancia de la API). Lo valida M5 antes de llamar a M4 porque la regla de M4 no acota
+# el largo.
+_TELEFONO_FORMATO = re.compile(r"\+?[0-9-]+")
 _TELEFONO_LARGO_MAXIMO = 20
 _TELEFONO_DIGITOS_MINIMO = 6
 _TELEFONO_DIGITOS_MAXIMO = 15
@@ -64,7 +65,7 @@ def _telefono_valido(telefono: str) -> str:
         raise PydanticCustomError("telefono_obligatorio", "telefono es obligatorio")
     if _TELEFONO_FORMATO.fullmatch(recortado) is None:
         raise PydanticCustomError(
-            "telefono_caracteres", "telefono solo admite dígitos, espacios, guiones y + al inicio"
+            "telefono_caracteres", "telefono solo admite dígitos, guiones y + al inicio"
         )
     if len(recortado) > _TELEFONO_LARGO_MAXIMO:
         raise PydanticCustomError(
@@ -80,11 +81,30 @@ def _telefono_valido(telefono: str) -> str:
     return recortado
 
 
+# Supuesto S70 (HU-M5-01-02-03, 2026-11-13, pendiente de validacion del equipo): el nombre del
+# cliente nuevo admite hasta 60 caracteres. El valor no sale de la HU ni del diagrama. Se mide
+# sobre el nombre sin los espacios de los extremos, pero el valor no se modifica.
+NOMBRE_LARGO_MAXIMO = 60
+
+
+def _nombre_acotado(nombre: str) -> str:
+    """Devuelve el nombre sin cambios o lanza el error si el nombre recortado supera el maximo.
+
+    Solo acota el largo: el contenido del nombre sigue siendo de M4 (S42). Usa
+    `PydanticCustomError` por la misma razon que `_telefono_valido`.
+    """
+    if len(nombre.strip()) > NOMBRE_LARGO_MAXIMO:
+        raise PydanticCustomError(
+            "nombre_largo", f"nombre admite hasta {NOMBRE_LARGO_MAXIMO} caracteres"
+        )
+    return nombre
+
+
 class ClienteNuevo(BaseModel):
     """Cliente que se registra con la reserva (S40).
 
-    El nombre es solo de forma: su contenido lo valida M4 (S42). El teléfono lo valida este
-    esquema antes de llamar a M4 (S66) y se guarda ya recortado.
+    El contenido del nombre lo valida M4 (S42); este esquema solo acota su largo (S70). El
+    teléfono lo valida este esquema antes de llamar a M4 (S66) y se guarda ya recortado.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -92,6 +112,7 @@ class ClienteNuevo(BaseModel):
     nombre: StrictStr
     telefono: StrictStr
 
+    _nombre_con_largo_acotado = field_validator("nombre")(_nombre_acotado)
     _telefono_acotado = field_validator("telefono")(_telefono_valido)
 
 
