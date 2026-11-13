@@ -21,8 +21,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     const variantStyles: Record<ButtonVariant, string> = {
       default:
         'bg-brand text-brand-foreground enabled:hover:bg-brand-hover dark:ring-1 dark:ring-inset dark:ring-white/15',
-      secondary:
-        'bg-secondary text-secondary-foreground enabled:hover:bg-secondary-hover',
+      secondary: 'bg-secondary text-secondary-foreground enabled:hover:bg-secondary-hover',
       outline:
         'border border-slate-300 bg-white text-slate-700 enabled:hover:bg-slate-50 enabled:hover:text-slate-900',
       'brand-outline':

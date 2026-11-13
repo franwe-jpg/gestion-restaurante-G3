@@ -2,7 +2,14 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 
 import { registrarSesionVencida } from '../api/client';
 
-import { borrarRolActivo, borrarToken, guardarRolActivo, guardarToken, leerRolActivo, leerToken } from './almacenSesion';
+import {
+  borrarRolActivo,
+  borrarToken,
+  guardarRolActivo,
+  guardarToken,
+  leerRolActivo,
+  leerToken,
+} from './almacenSesion';
 import {
   cerrarSesion as cerrarSesionApi,
   iniciarSesion as iniciarSesionApi,

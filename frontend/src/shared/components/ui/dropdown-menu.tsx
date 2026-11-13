@@ -89,7 +89,11 @@ export function DropdownMenu({
             return (
               <div key={item.etiqueta}>
                 {item.separadorAntes && (
-                  <div role="separator" aria-hidden="true" className="mx-1 my-1 border-t border-slate-200" />
+                  <div
+                    role="separator"
+                    aria-hidden="true"
+                    className="mx-1 my-1 border-t border-slate-200"
+                  />
                 )}
                 <button
                   type="button"
