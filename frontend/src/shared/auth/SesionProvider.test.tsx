@@ -173,6 +173,34 @@ describe('SesionProvider', () => {
     expect(result.current.puede('CARTA_VER')).toBe(true);
     expect(result.current.puede('CARTA_GESTIONAR')).toBe(false);
   });
+
+  it('fijarRolActivo filtra los permisos al rol elegido', async () => {
+    guardarToken('tok-1');
+    vi.mocked(api.obtenerSesion).mockResolvedValue({
+      exito: true,
+      datos: { ...MOZO, roles: ['MOZO', 'CHEF'] },
+    });
+    const { result } = renderHook(() => useSesion(), { wrapper: envoltorio });
+    await waitFor(() => expect(result.current.usuario).not.toBeNull());
+
+    expect(result.current.rolActivo).toBeNull();
+    expect(result.current.puede('PAGOS_OPERAR')).toBe(true);
+
+    await act(async () => {
+      result.current.fijarRolActivo('CHEF');
+    });
+
+    expect(result.current.rolActivo).toBe('CHEF');
+    expect(result.current.puede('CARTA_VER')).toBe(true);
+    expect(result.current.puede('PAGOS_OPERAR')).toBe(false);
+
+    await act(async () => {
+      result.current.fijarRolActivo(null);
+    });
+
+    expect(result.current.rolActivo).toBeNull();
+    expect(result.current.puede('PAGOS_OPERAR')).toBe(true);
+  });
 });
 
 describe('useSesion', () => {

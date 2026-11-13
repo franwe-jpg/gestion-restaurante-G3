@@ -1,18 +1,29 @@
 import { permisosDe, type Rol } from '../shared/auth/permisos';
 import type { SesionContexto } from '../shared/auth/sesion-context';
+import type { UsuarioSesion } from '../shared/auth/types';
 
 /** Sesion falsa para pruebas: el `setup.ts` la entrega en lugar del `useSesion` real. */
 export function sesionDePrueba(
   roles: Rol[] = ['ENCARGADO'],
   cambios: Partial<SesionContexto> = {},
 ): SesionContexto {
-  const permisos = permisosDe(roles);
+  const usuario: UsuarioSesion = {
+    id: 1,
+    correo: 'prueba@resto.com',
+    roles,
+    nombre: null,
+    apellido: null,
+  };
+  const rolActivo = cambios.rolActivo ?? null;
+  const permisos = permisosDe(rolActivo === null ? roles : [rolActivo]);
   return {
-    usuario: { id: 1, correo: 'prueba@resto.com', roles, nombre: null, apellido: null },
+    usuario,
     cargando: false,
     iniciarSesion: () => Promise.resolve({ exito: true }),
     cerrarSesion: () => Promise.resolve(),
     puede: (permiso) => permisos.has(permiso),
+    rolActivo,
+    fijarRolActivo: () => undefined,
     ...cambios,
   };
 }
