@@ -126,6 +126,20 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: 'Reportes' })).toBeInTheDocument();
   });
 
+  it('monta el reporte de comandas por día y turno', async () => {
+    render(
+      <MemoryRouter initialEntries={['/reportes/comandas-ticket-promedio']}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Comandas y ticket promedio por día/turno',
+      }),
+    ).toBeInTheDocument();
+  });
+
   it('muestra la guía de componentes', () => {
     render(
       <MemoryRouter initialEntries={['/componentes']}>

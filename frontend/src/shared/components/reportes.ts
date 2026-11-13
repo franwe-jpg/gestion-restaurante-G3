@@ -36,4 +36,9 @@ export const REPORTES: ReporteDisponible[] = [
       'Lo cobrado en un período por cada medio de pago y el total adeudado de las facturas del período.',
     ruta: '/reportes/recaudacion-por-medio-de-pago',
   },
+  {
+    titulo: 'Comandas y ticket promedio por día/turno',
+    descripcion: 'Cantidad de comandas cerradas, importe total y ticket promedio por día y turno.',
+    ruta: '/reportes/comandas-ticket-promedio',
+  },
 ];

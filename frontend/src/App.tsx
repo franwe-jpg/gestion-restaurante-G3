@@ -64,6 +64,12 @@ const AtencionPage = lazy(() =>
   })),
 );
 
+const ReporteComandasPage = lazy(() =>
+  import('./modules/atencion/pages/ReporteComandasPage').then((modulo) => ({
+    default: modulo.ReporteComandasPage,
+  })),
+);
+
 const ReservasPage = lazy(() =>
   import('./modules/reservas/pages/ReservasPage').then((modulo) => ({
     default: modulo.ReservasPage,
@@ -116,6 +122,10 @@ export default function App() {
             <Route path="menus" element={conPermiso('MENUS_VER', <MenusPage />)} />
             <Route path="salon" element={conPermiso('SALON_VER', <SalonPage />)} />
             <Route path="atencion" element={conPermiso('COMANDAS_VER', <AtencionPage />)} />
+            <Route
+              path="reportes/comandas-ticket-promedio"
+              element={conPermiso('REPORTES_VER', <ReporteComandasPage />)}
+            />
             <Route path="reservas" element={conPermiso('RESERVAS_VER', <ReservasPage />)} />
             <Route
               path="reportes/reservas-ausentismo"

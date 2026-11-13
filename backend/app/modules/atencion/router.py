@@ -1,5 +1,6 @@
 """Rutas de Cliente y Comanda; delegan al servicio de M4."""
 
+from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Path, Query
@@ -7,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.modules.atencion import adaptadores, service
+from app.modules.atencion.reporte import TurnoReporte
 from app.modules.atencion.schemas import (
     ClienteModificar,
     ClienteSalida,
@@ -16,6 +18,7 @@ from app.modules.atencion.schemas import (
     EntregasComanda,
     FiltroClientes,
     PendientesComanda,
+    ReporteComandasTicketPromedio,
 )
 from app.shared.contratos.comanda import ComandaCrear, ComandaResumen, ComandaSalida, EstadoComanda
 from app.shared.paginacion import LIMIT_MAXIMO, LIMIT_POR_DEFECTO, Pagina, ParametrosPaginacion
@@ -60,6 +63,16 @@ def listar_comandas(
     return service.listar_comandas(
         db, ParametrosPaginacion(limit=limit, offset=offset), mesa_id, estado
     )
+
+
+@router.get("/reportes/comandas-ticket-promedio", dependencies=[requiere(Permiso.REPORTES_VER)])
+def generar_reporte_comandas(
+    db: Sesion,
+    fecha_desde: date | None = None,
+    fecha_hasta: date | None = None,
+    turno: TurnoReporte | None = None,
+) -> ReporteComandasTicketPromedio:
+    return service.generar_reporte_comandas(db, fecha_desde, fecha_hasta, turno)
 
 
 @router.post("/comandas/{comanda_id}/cerrar", dependencies=[requiere(Permiso.COMANDAS_OPERAR)])

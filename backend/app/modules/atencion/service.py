@@ -12,7 +12,7 @@ from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.modules.atencion import repository
+from app.modules.atencion import reporte, repository
 from app.modules.atencion.schemas import (
     ClienteModificar,
     ClienteNuevo,
@@ -22,7 +22,9 @@ from app.modules.atencion.schemas import (
     DetallePendiente,
     EntregaDetalle,
     EntregasComanda,
+    GrupoReporteComandas,
     PendientesComanda,
+    ReporteComandasTicketPromedio,
 )
 from app.shared.contratos.comanda import (
     ComandaCrear,
@@ -260,6 +262,42 @@ def listar_comandas(
         total=total,
         limit=parametros.limit,
         offset=parametros.offset,
+    )
+
+
+def generar_reporte_comandas(
+    db: Session,
+    fecha_desde: date | None,
+    fecha_hasta: date | None,
+    turno: reporte.TurnoReporte | None,
+) -> ReporteComandasTicketPromedio:
+    """HU-M4-11: total y ticket promedio de comandas cerradas, agrupadas por turno local."""
+    desde, hasta = reporte.validar_periodo(fecha_desde, fecha_hasta)
+    inicio, fin = reporte.intervalo_utc(desde, hasta)
+    filas = repository.resumir_comandas_por_dia_turno(db, inicio, fin, turno)
+    grupos = [_grupo_reporte(fila) for fila in filas]
+    total_comandas = sum(grupo.cantidad_comandas for grupo in grupos)
+    importe_total = sum((grupo.importe_total for grupo in grupos), reporte.CERO)
+    return ReporteComandasTicketPromedio(
+        fecha_desde=desde,
+        fecha_hasta=hasta,
+        turno=turno,
+        grupos=grupos,
+        total_comandas=total_comandas,
+        importe_total=importe_total,
+        ticket_promedio=reporte.calcular_promedio(importe_total, total_comandas),
+    )
+
+
+def _grupo_reporte(fila: tuple[str, str, int, Decimal]) -> GrupoReporteComandas:
+    fecha, turno, cantidad, importe_db = fila
+    importe = Decimal(str(importe_db)).quantize(reporte.CENTAVO)
+    return GrupoReporteComandas(
+        fecha=date.fromisoformat(fecha),
+        turno=reporte.TurnoReporte(turno),
+        cantidad_comandas=cantidad,
+        importe_total=importe,
+        ticket_promedio=reporte.calcular_promedio(importe, cantidad),
     )
 
 

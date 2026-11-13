@@ -1,9 +1,21 @@
 """Esquemas de Cliente y metadatos de Comanda; las salidas usan S2-01."""
 
 import re
+from datetime import date
+from decimal import Decimal
+from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field, StrictInt, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    PlainSerializer,
+    StrictInt,
+    field_validator,
+    model_validator,
+)
 
+from app.modules.atencion.reporte import TurnoReporte
 from app.shared.contratos.comanda import DetalleComandaCrear, EstadoComanda, EstadoEntrega
 from app.shared.paginacion import ParametrosPaginacion
 
@@ -103,3 +115,24 @@ class ClienteSalida(ClienteNuevo):
 
 class FiltroClientes(ParametrosPaginacion):
     q: str | None = None
+
+
+ImporteReporte = Annotated[Decimal, PlainSerializer(lambda valor: f"{valor:.2f}", return_type=str)]
+
+
+class GrupoReporteComandas(BaseModel):
+    fecha: date
+    turno: TurnoReporte
+    cantidad_comandas: int
+    importe_total: ImporteReporte
+    ticket_promedio: ImporteReporte
+
+
+class ReporteComandasTicketPromedio(BaseModel):
+    fecha_desde: date
+    fecha_hasta: date
+    turno: TurnoReporte | None
+    grupos: list[GrupoReporteComandas]
+    total_comandas: int
+    importe_total: ImporteReporte
+    ticket_promedio: ImporteReporte
