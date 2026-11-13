@@ -1,6 +1,6 @@
 """salon: acceso a datos. Nunca confirma la transaccion: lo hace el service (D-10)."""
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.modules.salon.models import Chef, Mesa, Mozo, Sector
@@ -91,7 +91,11 @@ def obtener_persona(db: Session, modelo: type[Persona], persona_id: int) -> Pers
 
 
 def listar_personas(
-    db: Session, modelo: type[Persona], parametros: ParametrosPaginacion, estado: Estado | None
+    db: Session,
+    modelo: type[Persona],
+    parametros: ParametrosPaginacion,
+    estado: Estado | None,
+    q: str | None = None,
 ) -> tuple[list[Persona], int]:
     """Pagina de mozos o chefs ordenada por apellido y nombre, y el total.
 
@@ -100,6 +104,14 @@ def listar_personas(
     consulta = select(modelo)
     if estado is not None:
         consulta = consulta.where(modelo.estado == estado)
+    if q and q.strip():
+        termino = q.strip()
+        consulta = consulta.where(
+            or_(
+                modelo.nombre.contains(termino, autoescape=True),
+                modelo.apellido.contains(termino, autoescape=True),
+            )
+        )
     consulta_ordenada = consulta.order_by(modelo.apellido, modelo.nombre, modelo.id)
     filas = db.scalars(aplicar(consulta_ordenada, parametros)).all()
     return list(filas), contar(db, consulta)

@@ -137,10 +137,14 @@ def dar_de_baja(db: Session, tipo: TipoDePersona, persona_id: int) -> PersonaSal
 
 
 def listar(
-    db: Session, tipo: TipoDePersona, parametros: ParametrosPaginacion, estado: Estado | None
+    db: Session,
+    tipo: TipoDePersona,
+    parametros: ParametrosPaginacion,
+    estado: Estado | None,
+    q: str | None = None,
 ) -> Pagina[PersonaSalida]:
     """Pagina de personas con sus correos, resueltos en una sola consulta."""
-    filas, total = repository.listar_personas(db, tipo.modelo, parametros, estado)
+    filas, total = repository.listar_personas(db, tipo.modelo, parametros, estado, q)
     ids = [fila.usuario_id for fila in filas if fila.usuario_id is not None]
     correos = usuarios_service.correos_por_id(db, ids)
     return Pagina[PersonaSalida](

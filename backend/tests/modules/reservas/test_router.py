@@ -1447,7 +1447,7 @@ def test_puente_real_cancelar_no_cambia_el_estado_de_la_mesa_en_m3(
 # los que asigna la base: las pruebas usan `reserva.id`, no un numero fijo. M4 es el doble del
 # puente.
 
-PEDIDO = {"detalles": [{"producto_id": 12, "cantidad": 2}]}
+PEDIDO = {"mozo_id": 31, "detalles": [{"producto_id": 12, "cantidad": 2}]}
 MENU_5 = {"menu_ejecutivo_id": 5, "cantidad": 1}
 MENU_6 = {"menu_ejecutivo_id": 6, "cantidad": 2}
 AL_MENOS_UN_PRODUCTO = "La comanda debe incluir al menos un producto"
@@ -1460,7 +1460,8 @@ def _ruta_comanda(reserva_id: object) -> str:
 
 
 def _atender(cliente: TestClient, reserva_id: object, cuerpo: dict = PEDIDO):
-    return cliente.post(_ruta_comanda(reserva_id), json=cuerpo)
+    datos = {"mozo_id": PEDIDO["mozo_id"], **cuerpo}
+    return cliente.post(_ruta_comanda(reserva_id), json=datos)
 
 
 def _de_hoy(fabrica_reserva, **cambios) -> Reserva:

@@ -16,6 +16,7 @@ from tests.modules.atencion.conftest import Salon
 def _pedido(salon: Salon, cantidad: int = 2) -> ComandaCrear:
     return ComandaCrear(
         mesa_id=salon.mesa_id,
+        mozo_id=salon.mozo_id,
         detalles=[DetalleComandaCrear(producto_id=salon.plato_id, cantidad=cantidad)],
     )
 
@@ -80,8 +81,10 @@ def test_crear_comanda_para_reserva_con_reserva_invalida_no_escribe(
 
 
 def test_crear_comanda_publica_no_vincula_reserva(db: Session, salon: Salon) -> None:
-    from app.modules.atencion.adaptadores import CatalogoDeCarta, MesasDeSalon
+    from app.modules.atencion.adaptadores import CatalogoDeCarta, MesasDeSalon, MozosDeSalon
 
-    salida = service.crear_comanda(db, _pedido(salon), MesasDeSalon(), CatalogoDeCarta())
+    salida = service.crear_comanda(
+        db, _pedido(salon), MesasDeSalon(), CatalogoDeCarta(), MozosDeSalon()
+    )
 
     assert salida.reserva_id is None

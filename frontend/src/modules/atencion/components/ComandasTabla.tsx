@@ -11,10 +11,12 @@ import {
   TableRow,
 } from '../../../shared/components/ui/table';
 import type { Pagina } from '../../../shared/types';
-import type { ComandaResumen } from '../types';
+import type { ComandaResumen, MozoSeleccionable } from '../types';
+import { nombreDeMozo } from './catalogoComanda';
 
 interface Props {
   pagina: Pagina<ComandaResumen>;
+  mozos: MozoSeleccionable[];
   hayFiltros: boolean;
   ocupado: boolean;
   /** Sin `COMANDAS_OPERAR` la fila solo permite ver el detalle. */
@@ -52,6 +54,7 @@ function TablaDeComandas({ pagina, ...fila }: PropsDeFila & { pagina: Pagina<Com
         <TableRow>
           <TableHead>Comanda</TableHead>
           <TableHead>Mesa</TableHead>
+          <TableHead>Mozo</TableHead>
           <TableHead>Estado</TableHead>
           <TableHead>Fecha local</TableHead>
           <TableHead>Acciones</TableHead>
@@ -244,11 +247,16 @@ function AccionesDeOperacion({
   );
 }
 
-function ComandaFila({ comanda, ...acciones }: AccionesProps) {
+function ComandaFila({
+  comanda,
+  mozos,
+  ...acciones
+}: AccionesProps & { mozos: MozoSeleccionable[] }) {
   return (
     <TableRow>
       <TableCell>Comanda #{comanda.id}</TableCell>
       <TableCell>{comanda.mesa_id}</TableCell>
+      <TableCell>{nombreDeMozo(mozos, comanda.mozo_id)}</TableCell>
       <TableCell>{comanda.estado}</TableCell>
       <TableCell>{new Date(comanda.fecha_hora).toLocaleString()}</TableCell>
       <AccionesComanda comanda={comanda} {...acciones} />

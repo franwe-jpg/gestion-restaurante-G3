@@ -36,6 +36,13 @@ class MesasDeSalon:
         salon_service.liberar_mesa(db, mesa_id)
 
 
+class MozosDeSalon:
+    """Valida mozos usando exclusivamente el servicio público de M3."""
+
+    def validar_habilitado(self, db: Session, mozo_id: int) -> None:
+        salon_service.validar_mozo_habilitado(db, mozo_id)
+
+
 class CatalogoDeCarta:
     """Implementa `CatalogoPort` con los servicios de productos (M1) y menús (M2)."""
 

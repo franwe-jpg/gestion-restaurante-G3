@@ -17,6 +17,7 @@ from app.modules.menus import service as menus_service
 from app.modules.pagos import service as pagos_service
 from app.modules.productos import service as productos_service
 from app.modules.salon import service as salon_service
+from app.modules.salon.schemas import MozoCrear
 from app.shared.contratos.comanda import ComandaSalida, EstadoComanda, EstadoEntrega
 from app.shared.models import Categoria
 from app.shared.models.enums import Rol
@@ -58,6 +59,7 @@ def test_listar_comandas_incluye_mesa_estado_sin_filtro_implicito(
     assert [item["id"] for item in pagina["items"]] == [cerrada.id, comanda.id]
     assert [item["estado"] for item in pagina["items"]] == ["CERRADA", "ABIERTA"]
     assert pagina["items"][0]["mesa_id"] == 1
+    assert pagina["items"][0]["mozo_id"] is None
     assert pagina["items"][0]["fecha_hora"] == "2026-10-31T12:30:15.123456Z"
 
 
@@ -466,6 +468,7 @@ def test_crear_comanda_con_mesa_y_catalogo_reales_ocupa_la_mesa(
 ) -> None:
     pedido = {
         "mesa_id": salon.mesa_id,
+        "mozo_id": salon.mozo_id,
         "detalles": [
             {"producto_id": salon.plato_id, "cantidad": 2},
             {"menu_ejecutivo_id": salon.menu_id, "cantidad": 1},
@@ -489,7 +492,11 @@ def test_crear_comanda_con_mesa_y_catalogo_reales_ocupa_la_mesa(
 
 
 def test_crear_comanda_mesa_inexistente_devuelve_404(cliente: TestClient, salon) -> None:
-    pedido = {"mesa_id": 999, "detalles": [{"producto_id": salon.plato_id, "cantidad": 1}]}
+    pedido = {
+        "mesa_id": 999,
+        "mozo_id": salon.mozo_id,
+        "detalles": [{"producto_id": salon.plato_id, "cantidad": 1}],
+    }
 
     respuesta = cliente.post(RUTA_COMANDAS, json=pedido)
 
@@ -497,11 +504,82 @@ def test_crear_comanda_mesa_inexistente_devuelve_404(cliente: TestClient, salon)
     assert respuesta.json() == {"detalle": "La mesa 999 no existe"}
 
 
+def test_crear_comanda_sin_mozo_devuelve_422(cliente: TestClient, db: Session, salon) -> None:
+    respuesta = cliente.post(
+        RUTA_COMANDAS,
+        json={
+            "mesa_id": salon.mesa_id,
+            "detalles": [{"producto_id": salon.plato_id, "cantidad": 1}],
+        },
+    )
+
+    assert respuesta.status_code == 422
+    assert "mozo_id" in respuesta.json()["detalle"]
+    assert _estado_mesa(db, salon.mesa_id) == "LIBRE"
+
+
+def test_crear_comanda_mozo_inexistente_devuelve_404_y_no_ocupa_mesa(
+    cliente: TestClient, salon
+) -> None:
+    respuesta = cliente.post(
+        RUTA_COMANDAS,
+        json={
+            "mesa_id": salon.mesa_id,
+            "mozo_id": 999,
+            "detalles": [{"producto_id": salon.plato_id, "cantidad": 1}],
+        },
+    )
+
+    assert respuesta.status_code == 404
+    assert respuesta.json() == {"detalle": "El mozo 999 no existe"}
+    assert cliente.get(RUTA_COMANDAS).json()["total"] == 0
+
+
+def test_crear_comanda_mozo_deshabilitado_devuelve_409_y_no_ocupa_mesa(
+    cliente: TestClient, db: Session, salon
+) -> None:
+    salon_service.dar_de_baja_mozo(db, salon.mozo_id)
+    respuesta = cliente.post(
+        RUTA_COMANDAS,
+        json={
+            "mesa_id": salon.mesa_id,
+            "mozo_id": salon.mozo_id,
+            "detalles": [{"producto_id": salon.plato_id, "cantidad": 1}],
+        },
+    )
+
+    assert respuesta.status_code == 409
+    assert "deshabilitado" in respuesta.json()["detalle"]
+    assert cliente.get(RUTA_COMANDAS).json()["total"] == 0
+
+
+def test_asignar_mozo_a_comanda_historica_expone_el_id_en_respuesta_y_listado(
+    cliente: TestClient, db: Session, comanda: Comanda
+) -> None:
+    mozo = salon_service.crear_mozo(
+        db,
+        MozoCrear(
+            dni="35987654",
+            nombre="Ana",
+            apellido="Paz",
+            correo="mozo35987654@resto.com",
+            contrasena="Clave1234",
+        ),
+    )
+    respuesta = cliente.put(f"{RUTA_COMANDAS}/{comanda.id}/mozo", json={"mozo_id": mozo.id})
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["mozo_id"] == mozo.id
+    pagina = cliente.get(RUTA_COMANDAS).json()
+    assert pagina["items"][0]["mozo_id"] == mozo.id
+
+
 def test_crear_comanda_mesa_con_comanda_abierta_devuelve_409(
     cliente: TestClient, db: Session, salon
 ) -> None:
     pedido = {
         "mesa_id": salon.mesa_id,
+        "mozo_id": salon.mozo_id,
         "detalles": [{"producto_id": salon.plato_id, "cantidad": 1}],
     }
     creada = cliente.post(RUTA_COMANDAS, json=pedido)
@@ -523,6 +601,7 @@ def test_crear_comanda_mesa_fuera_de_servicio_devuelve_409(
     db.commit()
     pedido = {
         "mesa_id": salon.mesa_id,
+        "mozo_id": salon.mozo_id,
         "detalles": [{"producto_id": salon.plato_id, "cantidad": 1}],
     }
 
@@ -542,7 +621,10 @@ def test_crear_comanda_mesa_fuera_de_servicio_devuelve_409(
 def test_crear_comanda_item_inexistente_devuelve_404_y_mesa_libre(
     cliente: TestClient, db: Session, salon, detalle: dict, mensaje: str
 ) -> None:
-    respuesta = cliente.post(RUTA_COMANDAS, json={"mesa_id": salon.mesa_id, "detalles": [detalle]})
+    respuesta = cliente.post(
+        RUTA_COMANDAS,
+        json={"mesa_id": salon.mesa_id, "mozo_id": salon.mozo_id, "detalles": [detalle]},
+    )
 
     assert respuesta.status_code == 404
     assert respuesta.json() == {"detalle": mensaje}
@@ -561,7 +643,10 @@ def test_crear_comanda_item_deshabilitado_devuelve_409_y_mesa_libre(
         menus_service.dar_de_baja_menu_ejecutivo(db, salon.menu_id)
         detalle = {"menu_ejecutivo_id": salon.menu_id, "cantidad": 1}
 
-    respuesta = cliente.post(RUTA_COMANDAS, json={"mesa_id": salon.mesa_id, "detalles": [detalle]})
+    respuesta = cliente.post(
+        RUTA_COMANDAS,
+        json={"mesa_id": salon.mesa_id, "mozo_id": salon.mozo_id, "detalles": [detalle]},
+    )
 
     assert respuesta.status_code == 409
     assert "está deshabilitado" in respuesta.json()["detalle"]
@@ -575,6 +660,7 @@ def test_crear_comanda_item_deshabilitado_devuelve_409_y_mesa_libre(
 def _abrir_comanda(cliente: TestClient, salon) -> int:
     pedido = {
         "mesa_id": salon.mesa_id,
+        "mozo_id": salon.mozo_id,
         "detalles": [{"producto_id": salon.plato_id, "cantidad": 1}],
     }
     respuesta = cliente.post(RUTA_COMANDAS, json=pedido)
@@ -613,6 +699,7 @@ def test_cerrar_comanda_permite_nueva_comanda_en_la_mesa(
 
     pedido = {
         "mesa_id": salon.mesa_id,
+        "mozo_id": salon.mozo_id,
         "detalles": [{"producto_id": salon.plato_id, "cantidad": 2}],
     }
     nueva = cliente.post(RUTA_COMANDAS, json=pedido)

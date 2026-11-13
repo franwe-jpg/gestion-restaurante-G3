@@ -12,6 +12,7 @@ import {
   crearComandaDesdeReserva,
   crearReserva,
   listarMesasDisponibles,
+  listarMozosHabilitados,
   listarProductosHabilitados,
   listarReservas,
   modificarReserva,
@@ -20,6 +21,7 @@ import type {
   ClienteEncontrado,
   ComandaCreada,
   MesaDisponible,
+  MozoSeleccionable,
   ProductoHabilitado,
   Reserva,
 } from '../types';
@@ -163,6 +165,7 @@ beforeEach(() => {
   vi.setSystemTime(new Date(2026, 10, 2, 12, 0));
   vi.mocked(listarReservas).mockResolvedValue(pagina([RESERVA]));
   vi.mocked(listarMesasDisponibles).mockResolvedValue({ datos: [MESA_5], exito: true });
+  vi.mocked(listarMozosHabilitados).mockResolvedValue({ exito: true, datos: [MOZO_31] });
   vi.mocked(buscarClientes).mockResolvedValue(clientes([ANA]));
 });
 
@@ -637,11 +640,22 @@ describe('ReservasPage: cancelar una reserva (HU-M5-04-05)', () => {
 const ACTIVA_10: Reserva = { ...RESERVA, id: 10, mesa_id: 5 };
 const ACTIVA_11: Reserva = { ...RESERVA, id: 11, hora: '22:00', mesa_id: 6 };
 const COMANDA_31: ComandaCreada = { id: 31, mesa_id: 5, reserva_id: 10, estado: 'ABIERTA' };
+const MOZO_31: MozoSeleccionable = {
+  id: 31,
+  nombre: 'Lucía',
+  apellido: 'Paz',
+  estado: 'HABILITADO',
+};
 
 /** Pulsa «Crear comanda» en la fila que ocupa ese lugar de la tabla (la primera por defecto). */
 async function crearComanda(fila = 0) {
   fireEvent.click(screen.getAllByRole('button', { name: 'Crear comanda' })[fila]!);
   await asentar();
+}
+
+async function elegirMozo() {
+  fireEvent.focus(screen.getByRole('combobox', { name: /Mozo/ }));
+  fireEvent.click(await screen.findByRole('option', { name: 'Lucía Paz' }));
 }
 
 /** Productos habilitados que ofrece la API simulada en el desplegable del modal. */
@@ -775,10 +789,12 @@ describe('ReservasPage: guardar la comanda (HU-M5-06)', () => {
     await screen.findByText('Cliente n.º 7');
     await crearComanda();
     escribirLinea('Milanesa', '2');
+    await elegirMozo();
 
     await pulsar('Guardar comanda');
 
     expect(crearComandaDesdeReserva).toHaveBeenCalledExactlyOnceWith(10, {
+      mozo_id: 31,
       detalles: [{ producto_id: 12, cantidad: 2 }],
     });
     expect(mostrarToast).toHaveBeenCalledExactlyOnceWith({
@@ -803,6 +819,7 @@ describe('ReservasPage: guardar la comanda (HU-M5-06)', () => {
     await screen.findByText('Cliente n.º 7');
     await crearComanda();
     escribirLinea('Milanesa', '2');
+    await elegirMozo();
 
     await pulsar('Guardar comanda');
 
@@ -859,6 +876,7 @@ describe('ReservasPage: doble clic en «Guardar comanda» (HU-M5-06)', () => {
     await screen.findByText('Cliente n.º 7');
     await crearComanda();
     escribirLinea('Milanesa', '2');
+    await elegirMozo();
 
     const guardar = screen.getByRole('button', { name: 'Guardar comanda' });
     fireEvent.click(guardar);

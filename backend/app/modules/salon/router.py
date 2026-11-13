@@ -96,7 +96,7 @@ def crear_mozo(datos: MozoCrear, db: Sesion) -> MozoSalida:
 
 @router.get("/mozos", dependencies=[requiere(Permiso.SALON_GESTIONAR)])
 def listar_mozos(db: Sesion, filtro: Annotated[FiltroMozos, Query()]) -> Pagina[MozoSalida]:
-    return service.listar_mozos(db, filtro, filtro.estado)
+    return service.listar_mozos(db, filtro, filtro.estado, filtro.q)
 
 
 @router.put("/mozos/{mozo_id}", dependencies=[requiere(Permiso.SALON_GESTIONAR)])

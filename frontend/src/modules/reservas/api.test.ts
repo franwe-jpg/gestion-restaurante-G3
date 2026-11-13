@@ -10,6 +10,7 @@ import {
   crearReserva,
   descargarReporteReservasAusentismoPdf,
   listarMesasDisponibles,
+  listarMozosHabilitados,
   listarProductosHabilitados,
   listarReservas,
   modificarReserva,
@@ -19,6 +20,7 @@ import type {
   ComandaCreada,
   ComandaDesdeReservaCrear,
   MesaDisponible,
+  MozoSeleccionable,
   ProductoHabilitado,
   Reserva,
   ReservaCrear,
@@ -116,7 +118,10 @@ describe('api de reservas: cancelaciones (HU-M5-04-05)', () => {
 });
 
 describe('api de reservas: comanda desde una reserva (HU-M5-06)', () => {
-  const DATOS: ComandaDesdeReservaCrear = { detalles: [{ producto_id: 12, cantidad: 2 }] };
+  const DATOS: ComandaDesdeReservaCrear = {
+    mozo_id: 31,
+    detalles: [{ producto_id: 12, cantidad: 2 }],
+  };
 
   it('crea la comanda con POST /reservas/{id}/comanda y devuelve la comanda como éxito', async () => {
     const comanda: ComandaCreada = { id: 31, mesa_id: 5, reserva_id: 10, estado: 'ABIERTA' };
@@ -144,6 +149,39 @@ describe('api de reservas: comanda desde una reserva (HU-M5-06)', () => {
       exito: false,
       error: 'La reserva 10 ya fue atendida',
     });
+  });
+});
+
+describe('api de reservas: selección de mozos habilitados para abrir una comanda', () => {
+  it('lee y agrega todas las páginas de mozos habilitados de M3', async () => {
+    const mozo: MozoSeleccionable = {
+      id: 31,
+      nombre: 'Lucía',
+      apellido: 'Paz',
+      estado: 'HABILITADO',
+    };
+    const otraPagina: MozoSeleccionable = {
+      id: 32,
+      nombre: 'Ana',
+      apellido: 'Sosa',
+      estado: 'HABILITADO',
+    };
+    const get = vi
+      .spyOn(clienteHttp, 'get')
+      .mockResolvedValueOnce({
+        exito: true,
+        datos: { items: [mozo], total: 2, limit: 1, offset: 0 },
+      })
+      .mockResolvedValueOnce({
+        exito: true,
+        datos: { items: [otraPagina], total: 2, limit: 1, offset: 1 },
+      });
+
+    const resultado = await listarMozosHabilitados();
+
+    expect(get).toHaveBeenNthCalledWith(1, '/mozos?estado=HABILITADO&limit=100&offset=0');
+    expect(get).toHaveBeenNthCalledWith(2, '/mozos?estado=HABILITADO&limit=100&offset=1');
+    expect(resultado).toEqual({ exito: true, datos: [mozo, otraPagina] });
   });
 });
 

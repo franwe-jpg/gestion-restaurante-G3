@@ -111,6 +111,7 @@ def crear_comanda_de_reserva(
     db: Session,
     mesa_id: int,
     reserva_id: int,
+    mozo_id: int,
     detalles: list[DetalleComandaCrear],
     observaciones: str | None,
 ) -> ComandaSalida:
@@ -120,5 +121,10 @@ def crear_comanda_de_reserva(
     `ComandaCrear` no tiene `reserva_id` y lo ignoraria en silencio. Los errores de M4 suben tal
     cual; el commit o el rollback los hace `service.crear_comanda`.
     """
-    datos = ComandaCrear(mesa_id=mesa_id, detalles=detalles, observaciones=observaciones)
+    datos = ComandaCrear(
+        mesa_id=mesa_id,
+        mozo_id=mozo_id,
+        detalles=detalles,
+        observaciones=observaciones,
+    )
     return atencion_service.crear_comanda_para_reserva(db, datos, reserva_id)

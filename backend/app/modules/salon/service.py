@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.modules.atencion import service as atencion_service
 from app.modules.salon import personas, reporte, repository
-from app.modules.salon.models import Mesa, Sector
+from app.modules.salon.models import Mesa, Mozo, Sector
 from app.modules.salon.schemas import (
     ChefCrear,
     ChefModificar,
@@ -241,10 +241,13 @@ def dar_de_baja_mozo(db: Session, mozo_id: int) -> MozoSalida:
 
 
 def listar_mozos(
-    db: Session, parametros: ParametrosPaginacion, estado: Estado | None = None
+    db: Session,
+    parametros: ParametrosPaginacion,
+    estado: Estado | None = None,
+    q: str | None = None,
 ) -> Pagina[MozoSalida]:
     """Listado paginado de mozos; con `estado=HABILITADO` son los disponibles (HU-M3-12)."""
-    return personas.listar(db, personas.MOZO, parametros, estado)
+    return personas.listar(db, personas.MOZO, parametros, estado, q)
 
 
 def crear_chef(db: Session, datos: ChefCrear) -> ChefSalida:
@@ -267,6 +270,16 @@ def listar_chefs(
 ) -> Pagina[ChefSalida]:
     """Listado paginado de chefs (HU-TR-01)."""
     return personas.listar(db, personas.CHEF, parametros, estado)
+
+
+def validar_mozo_habilitado(db: Session, mozo_id: int) -> MozoSalida:
+    """Valida que el mozo exista y esté habilitado para una comanda nueva."""
+    mozo = repository.obtener_persona(db, Mozo, mozo_id)
+    if mozo is None:
+        raise NoEncontradoError(f"El mozo {mozo_id} no existe")
+    if mozo.estado != Estado.HABILITADO:
+        raise ReglaDeNegocioError(f"El mozo {mozo_id} está deshabilitado")
+    return MozoSalida.model_validate(mozo)
 
 
 def generar_reporte_mozos(

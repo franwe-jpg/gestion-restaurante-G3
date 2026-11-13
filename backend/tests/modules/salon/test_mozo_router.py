@@ -170,6 +170,25 @@ def test_listar_mozos_pagina_sin_cambiar_el_total(cliente: TestClient, fabrica_m
     assert respuesta.json()["total"] == 3
 
 
+def test_listar_mozos_busca_nombre_en_la_pagina_filtrada(cliente: TestClient, fabrica_mozo) -> None:
+    fabrica_mozo(dni="30123456", nombre="Ana", apellido="Paz")
+    fabrica_mozo(dni="35987654", nombre="Ana", apellido="Ríos")
+    fabrica_mozo(dni="35123456", nombre="Bruno", apellido="Ocampo")
+    fabrica_mozo(dni="40111222", nombre="Ana", apellido="Ruiz", estado=Estado.DESHABILITADO)
+
+    respuesta = cliente.get(f"{RUTA}?q=Ana&estado=HABILITADO&limit=1&offset=1")
+
+    assert respuesta.status_code == 200
+    assert [(mozo["nombre"], mozo["apellido"]) for mozo in respuesta.json()["items"]] == [
+        ("Ana", "Ríos")
+    ]
+    assert (respuesta.json()["total"], respuesta.json()["limit"], respuesta.json()["offset"]) == (
+        2,
+        1,
+        1,
+    )
+
+
 @pytest.mark.parametrize(
     "consulta",
     ["limit=0", "limit=101", "offset=-1", "estado=ACTIVO"],

@@ -37,8 +37,8 @@ def test_datos_detalle_referencia_y_cantidad(datos: dict, valido: bool) -> None:
 
 def test_datos_comanda_requiere_detalles() -> None:
     with pytest.raises(ValidationError):
-        ComandaCrear(mesa_id=7, detalles=[])
-    pedido = ComandaCrear(mesa_id=7, detalles=[{"producto_id": 12, "cantidad": 2}])
+        ComandaCrear(mesa_id=7, mozo_id=1, detalles=[])
+    pedido = ComandaCrear(mesa_id=7, mozo_id=1, detalles=[{"producto_id": 12, "cantidad": 2}])
     assert pedido.detalles[0].producto_id == 12
 
 
@@ -72,7 +72,7 @@ def fake() -> ComandaFake:
 
 def pedido(mesa_id: int = 7, *, menu: bool = False) -> ComandaCrear:
     referencia = {"menu_ejecutivo_id": 5} if menu else {"producto_id": 12}
-    return ComandaCrear(mesa_id=mesa_id, detalles=[{**referencia, "cantidad": 2}])
+    return ComandaCrear(mesa_id=mesa_id, mozo_id=1, detalles=[{**referencia, "cantidad": 2}])
 
 
 @pytest.fixture
@@ -282,7 +282,7 @@ def fake_reserva(fake: ComandaFake) -> ComandaFake:
 
 def test_reserva_activa_confirmada_crea_en_mesa_heredada(fake_reserva: ComandaFake) -> None:
     assert fake_reserva.listar_comandas().total == 0  # Booking itself creates no empty order.
-    creada = fake_reserva.crear_desde_reserva(5, pedido().detalles)
+    creada = fake_reserva.crear_desde_reserva(5, pedido().detalles, mozo_id=1)
     assert (creada.mesa_id, creada.reserva_id, creada.estado) == (8, 5, "ABIERTA")
     assert (fake_reserva.reservas[5].estado, fake_reserva.reservas[5].comanda_id) == (
         "ATENDIDA",
@@ -292,7 +292,7 @@ def test_reserva_activa_confirmada_crea_en_mesa_heredada(fake_reserva: ComandaFa
 
 
 def test_reserva_vinculada_no_agrega_cliente_propio(fake_reserva: ComandaFake) -> None:
-    creada = fake_reserva.crear_desde_reserva(5, pedido().detalles)
+    creada = fake_reserva.crear_desde_reserva(5, pedido().detalles, mozo_id=1)
     assert creada.reserva_id == 5
     assert "cliente" not in creada.model_dump()
     assert fake_reserva.consultar_comanda(creada.id).reserva_id == 5
@@ -303,7 +303,7 @@ def test_reserva_activa_admite_producto_y_menu_en_mismo_pedido(fake_reserva: Com
         DetalleComandaCrear(producto_id=12, cantidad=2),
         DetalleComandaCrear(menu_ejecutivo_id=5, cantidad=1),
     ]
-    creada = fake_reserva.crear_desde_reserva(5, detalles)
+    creada = fake_reserva.crear_desde_reserva(5, detalles, mozo_id=1)
     assert (creada.estado, creada.mesa_id, creada.reserva_id) == ("ABIERTA", 8, 5)
     assert (fake_reserva.reservas[5].estado, fake_reserva.reservas[5].comanda_id) == (
         "ATENDIDA",
@@ -320,7 +320,7 @@ def test_reserva_activa_admite_producto_y_menu_en_mismo_pedido(fake_reserva: Com
 def test_reserva_no_activa_no_crea(fake_reserva: ComandaFake, estado: str) -> None:
     fake_reserva.reservas[5].estado = estado
     with pytest.raises(ReglaDeNegocioError, match="reserva"):
-        fake_reserva.crear_desde_reserva(5, pedido().detalles)
+        fake_reserva.crear_desde_reserva(5, pedido().detalles, mozo_id=1)
     assert fake_reserva.listar_comandas().total == 0
     assert fake_reserva.mesas[8] == "LIBRE"
 
@@ -328,16 +328,18 @@ def test_reserva_no_activa_no_crea(fake_reserva: ComandaFake, estado: str) -> No
 def test_reserva_otra_fecha_no_crea(fake_reserva: ComandaFake) -> None:
     fake_reserva.reservas[5].fecha = date(2026, 10, 30)
     with pytest.raises(ReglaDeNegocioError, match="fecha"):
-        fake_reserva.crear_desde_reserva(5, pedido().detalles)
+        fake_reserva.crear_desde_reserva(5, pedido().detalles, mozo_id=1)
     assert fake_reserva.reservas[5].estado == "ACTIVA"
     assert fake_reserva.listar_comandas().total == 0
 
 
 def test_reserva_sin_productos_o_cantidad_invalida_no_muta(fake_reserva: ComandaFake) -> None:
     with pytest.raises(DatosInvalidosError, match="producto"):
-        fake_reserva.crear_desde_reserva(5, [])
+        fake_reserva.crear_desde_reserva(5, [], mozo_id=1)
     with pytest.raises(DatosInvalidosError, match="producto"):
-        fake_reserva.crear_desde_reserva(5, [DetalleComandaCrear(menu_ejecutivo_id=5, cantidad=1)])
+        fake_reserva.crear_desde_reserva(
+            5, [DetalleComandaCrear(menu_ejecutivo_id=5, cantidad=1)], mozo_id=1
+        )
     with pytest.raises(ValidationError):
         DetalleComandaCrear(producto_id=12, cantidad=0)
     assert (fake_reserva.reservas[5].estado, fake_reserva.listar_comandas().total) == ("ACTIVA", 0)
@@ -383,7 +385,7 @@ def test_aislamiento_reserva_no_filtra_cambios_entre_contextos(fake_reserva: Com
         fake_reserva.reloj,
         reservas=fake_reserva.reservas,
     )
-    fake_reserva.crear_desde_reserva(5, pedido().detalles)
+    fake_reserva.crear_desde_reserva(5, pedido().detalles, mozo_id=1)
     assert (otra.reservas[5].estado, otra.mesas[8], otra.listar_comandas().total) == (
         "ACTIVA",
         "LIBRE",
@@ -394,6 +396,7 @@ def test_aislamiento_reserva_no_filtra_cambios_entre_contextos(fake_reserva: Com
 def test_aislamiento_catalogo_faltante_no_muta_estado(fake: ComandaFake) -> None:
     datos = ComandaCrear(
         mesa_id=7,
+        mozo_id=1,
         detalles=[
             {"producto_id": 12, "cantidad": 1},
             {"producto_id": 99, "cantidad": 1},
@@ -407,7 +410,7 @@ def test_aislamiento_catalogo_faltante_no_muta_estado(fake: ComandaFake) -> None
 def test_aislamiento_reserva_catalogo_faltante_no_muta_estado(fake_reserva: ComandaFake) -> None:
     detalles = [DetalleComandaCrear(producto_id=99, cantidad=1)]
     with pytest.raises(NoEncontradoError, match="producto"):
-        fake_reserva.crear_desde_reserva(5, detalles)
+        fake_reserva.crear_desde_reserva(5, detalles, mozo_id=1)
     assert (
         fake_reserva.reservas[5].estado,
         fake_reserva.mesas[8],
@@ -440,7 +443,7 @@ def test_aislamiento_reserva_entrada_alterada_no_crea(fake_reserva: ComandaFake)
     detalles = pedido().detalles
     detalles[0].cantidad = 0
     with pytest.raises(ValidationError):
-        fake_reserva.crear_desde_reserva(5, detalles)
+        fake_reserva.crear_desde_reserva(5, detalles, mozo_id=1)
     assert (fake_reserva.reservas[5].estado, fake_reserva.listar_comandas().total) == ("ACTIVA", 0)
 
 
