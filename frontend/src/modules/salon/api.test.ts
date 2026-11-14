@@ -3,17 +3,39 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { clienteHttp } from '../../shared/api/client';
 
 import {
+  crearChef,
   crearMesa,
+  crearMozo,
   crearSector,
+  eliminarChef,
   eliminarMesa,
+  eliminarMozo,
   eliminarSector,
+  listarChefs,
   listarMesas,
+  listarMozos,
+  listarMozosDisponibles,
   listarSectores,
   listarSectoresHabilitados,
+  modificarChef,
   modificarMesa,
+  modificarMozo,
   modificarSector,
+  obtenerReporteMozos,
 } from './api';
-import type { MesaCrear, MesaModificar, Sector, SectorCrear, SectorModificar } from './types';
+import type {
+  Chef,
+  ChefCrear,
+  ChefModificar,
+  MesaCrear,
+  MesaModificar,
+  Mozo,
+  MozoCrear,
+  MozoModificar,
+  Sector,
+  SectorCrear,
+  SectorModificar,
+} from './types';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -221,6 +243,195 @@ describe('modificarMesa', () => {
     const resultado = await modificarMesa(3, datos);
 
     expect(put).toHaveBeenCalledWith('/mesas/3', datos);
+    expect(resultado).toBe(respuesta);
+  });
+});
+
+const MOZO: Mozo = {
+  id: 1,
+  dni: '30123456',
+  nombre: 'Juan',
+  apellido: 'Fernández',
+  telefono: '280 412-3456',
+  estado: 'HABILITADO',
+  correo: 'juan@resto.com',
+};
+
+describe('crearMozo', () => {
+  it('envía el alta por POST a /mozos y devuelve el mozo creado (CA 1 de #43)', async () => {
+    const datos: MozoCrear = {
+      dni: '30123456',
+      nombre: 'Juan',
+      apellido: 'Fernández',
+      telefono: '280 412-3456',
+      correo: 'juan@resto.com',
+      contrasena: 'clave-1234',
+    };
+    const respuesta = { datos: MOZO, exito: true };
+    const post = vi.spyOn(clienteHttp, 'post').mockResolvedValue(respuesta);
+
+    const resultado = await crearMozo(datos);
+
+    expect(post).toHaveBeenCalledWith('/mozos', datos);
+    expect(resultado).toBe(respuesta);
+  });
+});
+
+describe('modificarMozo', () => {
+  it('envía la modificación por PUT a /mozos/{id} (CA 1 de #44)', async () => {
+    const datos: MozoModificar = {
+      dni: '35987654',
+      nombre: 'Juan Carlos',
+      apellido: 'Pérez',
+      telefono: null,
+      correo: 'juan@resto.com',
+    };
+    const respuesta = { datos: { ...MOZO, ...datos }, exito: true };
+    const put = vi.spyOn(clienteHttp, 'put').mockResolvedValue(respuesta);
+
+    const resultado = await modificarMozo(1, datos);
+
+    expect(put).toHaveBeenCalledWith('/mozos/1', datos);
+    expect(resultado).toBe(respuesta);
+  });
+});
+
+describe('listarMozos', () => {
+  it('pide todos los mozos paginados, sin filtro de estado (CA 3 de #46)', async () => {
+    const respuesta = {
+      datos: { items: [MOZO], total: 1, limit: 50, offset: 50 },
+      exito: true,
+    };
+    const get = vi.spyOn(clienteHttp, 'get').mockResolvedValue(respuesta);
+
+    const resultado = await listarMozos(50, 50);
+
+    expect(get).toHaveBeenCalledWith('/mozos?limit=50&offset=50');
+    expect(resultado).toBe(respuesta);
+  });
+});
+
+describe('listarMozosDisponibles', () => {
+  it('pide solo los mozos habilitados (CA 4 de #46)', async () => {
+    const respuesta = {
+      datos: { items: [MOZO], total: 1, limit: 100, offset: 0 },
+      exito: true,
+    };
+    const get = vi.spyOn(clienteHttp, 'get').mockResolvedValue(respuesta);
+
+    const resultado = await listarMozosDisponibles();
+
+    expect(get).toHaveBeenCalledWith('/mozos?estado=HABILITADO&limit=100&offset=0');
+    expect(resultado).toBe(respuesta);
+  });
+});
+
+describe('eliminarMozo', () => {
+  it('da de baja el mozo con POST a /mozos/{id}/baja (CA 1 de #45)', async () => {
+    const respuesta = { datos: { ...MOZO, estado: 'DESHABILITADO' as const }, exito: true };
+    const post = vi.spyOn(clienteHttp, 'post').mockResolvedValue(respuesta);
+
+    const resultado = await eliminarMozo(1);
+
+    expect(post).toHaveBeenCalledWith('/mozos/1/baja', {});
+    expect(resultado).toBe(respuesta);
+  });
+});
+
+describe('obtenerReporteMozos', () => {
+  it('arma la consulta con el período y los dos filtros opcionales (HU-M3-13)', async () => {
+    const get = vi.spyOn(clienteHttp, 'get').mockResolvedValue({ datos: null, exito: false });
+
+    await obtenerReporteMozos('2026-11-01', '2026-11-05', 3, 2);
+
+    expect(get).toHaveBeenCalledWith(
+      '/reportes/mesas-ventas-por-mozo?fecha_desde=2026-11-01&fecha_hasta=2026-11-05&mozo_id=3&sector_id=2',
+    );
+  });
+
+  it('omite mozo y sector cuando no se eligen (HU-M3-13)', async () => {
+    const get = vi.spyOn(clienteHttp, 'get').mockResolvedValue({ datos: null, exito: false });
+
+    await obtenerReporteMozos('2026-11-01', '2026-11-05');
+
+    expect(get).toHaveBeenCalledWith(
+      '/reportes/mesas-ventas-por-mozo?fecha_desde=2026-11-01&fecha_hasta=2026-11-05',
+    );
+  });
+});
+
+const CHEF: Chef = {
+  id: 4,
+  dni: '28111222',
+  nombre: 'Marta',
+  apellido: 'Gómez',
+  telefono: null,
+  estado: 'HABILITADO',
+  correo: 'marta@resto.com',
+};
+
+describe('crearChef', () => {
+  it('envía el alta por POST a /chefs con correo y contraseña', async () => {
+    const datos: ChefCrear = {
+      dni: '28111222',
+      nombre: 'Marta',
+      apellido: 'Gómez',
+      telefono: null,
+      correo: 'marta@resto.com',
+      contrasena: 'clave-1234',
+    };
+    const respuesta = { datos: CHEF, exito: true };
+    const post = vi.spyOn(clienteHttp, 'post').mockResolvedValue(respuesta);
+
+    const resultado = await crearChef(datos);
+
+    expect(post).toHaveBeenCalledWith('/chefs', datos);
+    expect(resultado).toBe(respuesta);
+  });
+});
+
+describe('modificarChef', () => {
+  it('envía la modificación por PUT a /chefs/{id}; la contraseña es opcional', async () => {
+    const datos: ChefModificar = {
+      dni: '28111222',
+      nombre: 'Marta',
+      apellido: 'Gómez',
+      telefono: '280 1',
+      correo: 'marta@resto.com',
+    };
+    const respuesta = { datos: { ...CHEF, telefono: '280 1' }, exito: true };
+    const put = vi.spyOn(clienteHttp, 'put').mockResolvedValue(respuesta);
+
+    const resultado = await modificarChef(4, datos);
+
+    expect(put).toHaveBeenCalledWith('/chefs/4', datos);
+    expect(resultado).toBe(respuesta);
+  });
+});
+
+describe('listarChefs', () => {
+  it('pide los chefs paginados', async () => {
+    const respuesta = {
+      datos: { items: [CHEF], total: 1, limit: 50, offset: 50 },
+      exito: true,
+    };
+    const get = vi.spyOn(clienteHttp, 'get').mockResolvedValue(respuesta);
+
+    const resultado = await listarChefs(50, 50);
+
+    expect(get).toHaveBeenCalledWith('/chefs?limit=50&offset=50');
+    expect(resultado).toBe(respuesta);
+  });
+});
+
+describe('eliminarChef', () => {
+  it('da de baja con POST a /chefs/{id}/baja', async () => {
+    const respuesta = { datos: { ...CHEF, estado: 'DESHABILITADO' as const }, exito: true };
+    const post = vi.spyOn(clienteHttp, 'post').mockResolvedValue(respuesta);
+
+    const resultado = await eliminarChef(4);
+
+    expect(post).toHaveBeenCalledWith('/chefs/4/baja', {});
     expect(resultado).toBe(respuesta);
   });
 });

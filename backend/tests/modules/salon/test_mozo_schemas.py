@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.modules.salon.schemas import MozoCrear, MozoModificar, MozoSalida
+from app.modules.salon.schemas import MozoCrear, MozoModificar, MozoSalida, PersonaCrear
 from app.shared.models import Estado
 
 
@@ -14,6 +14,8 @@ def _mozo(**cambios) -> MozoCrear:
             "nombre": "Juan",
             "apellido": "Fernández",
             "telefono": "280 412-3456",
+            "correo": "juan@resto.com",
+            "contrasena": "Clave1234",
         }
         | cambios
     )
@@ -107,8 +109,8 @@ def test_campos_desconocidos_se_rechazan(campo: str, valor: object) -> None:
 
 
 def test_mozo_modificar_hereda_las_reglas_del_alta() -> None:
-    assert issubclass(MozoModificar, MozoCrear)
-    assert set(MozoModificar.model_fields) == {"dni", "nombre", "apellido", "telefono"}
+    assert issubclass(MozoModificar, PersonaCrear)
+    assert set(MozoModificar.model_fields) == set(MozoCrear.model_fields)
 
 
 def test_mozo_salida_expone_todos_los_datos() -> None:
@@ -128,4 +130,5 @@ def test_mozo_salida_expone_todos_los_datos() -> None:
         "apellido": "Fernández",
         "telefono": None,
         "estado": "HABILITADO",
+        "correo": None,
     }

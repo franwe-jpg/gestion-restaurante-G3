@@ -1,0 +1,150 @@
+import type { FormEvent } from 'react';
+
+import { Alert } from '../../../shared/components/ui/alert';
+import { Button } from '../../../shared/components/ui/button';
+import { Dialog } from '../../../shared/components/ui/dialog';
+import { FormField } from '../../../shared/components/ui/form-field';
+import { Input } from '../../../shared/components/ui/input';
+
+import type { Reserva } from '../types';
+
+import { useFormularioReserva } from './useFormularioReserva';
+import type { CampoReserva } from './useFormularioReserva';
+import { SelectorCliente } from './SelectorCliente';
+import { SelectorMesa } from './SelectorMesa';
+
+export interface ReservaFormDialogProps {
+  /** Con `reserva` el modal modifica esa fila; sin ella da de alta una reserva nueva. */
+  reserva?: Reserva;
+  onGuardado: () => void;
+  onOpenChange: (abierto: boolean) => void;
+}
+
+const ID_FORMULARIO_RESERVA = 'formulario-reserva';
+
+type Formulario = ReturnType<typeof useFormularioReserva>;
+
+interface CampoReservaProps {
+  formulario: Formulario;
+  campo: CampoReserva;
+  etiqueta: string;
+  /** Sin `tipo` el campo es numérico: cantidad y la mesa de solo lectura de la edición (S13). */
+  tipo?: 'date' | 'time';
+  deshabilitado?: boolean;
+}
+
+function CampoReserva({ formulario, campo, etiqueta, tipo, deshabilitado }: CampoReservaProps) {
+  const id = `reserva-${campo}`;
+  const error = formulario.errores[campo];
+  return (
+    <FormField id={id} label={etiqueta} required error={error}>
+      <Input
+        id={id}
+        type={tipo}
+        inputMode={tipo ? undefined : 'numeric'}
+        value={formulario.datos[campo]}
+        disabled={deshabilitado}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? `${id}-error` : undefined}
+        onChange={(evento) => formulario.cambiar(campo, evento.target.value)}
+      />
+    </FormField>
+  );
+}
+
+/**
+ * En el alta Cliente se busca entre los registrados o se carga uno nuevo; en la edición no cambia:
+ * es un campo de solo lectura con el `cliente_id` de la fila y no pide la búsqueda (S43).
+ */
+function CampoCliente({ formulario, reserva }: { formulario: Formulario; reserva?: Reserva }) {
+  if (reserva) {
+    return (
+      <FormField id="reserva-cliente" label="Cliente (número)" required>
+        <Input id="reserva-cliente" inputMode="numeric" value={reserva.cliente_id} disabled />
+      </FormField>
+    );
+  }
+  return (
+    <SelectorCliente
+      seleccion={formulario.datos.cliente}
+      errores={formulario.errores}
+      onCambiar={formulario.elegirCliente}
+    />
+  );
+}
+
+/**
+ * En el alta Mesa se elige entre las mesas disponibles para la fecha y la hora; en la edición no
+ * cambia: sigue siendo un campo de solo lectura con el `mesa_id` de la fila y no pide la lista.
+ */
+function CampoMesa({ formulario, edicion }: { formulario: Formulario; edicion: boolean }) {
+  if (edicion) {
+    return (
+      <CampoReserva formulario={formulario} campo="mesa" etiqueta="Mesa (número)" deshabilitado />
+    );
+  }
+  return (
+    <SelectorMesa
+      estado={formulario.estadoMesas}
+      valor={formulario.mesaVigente}
+      error={formulario.errores.mesa}
+      onCambiar={(mesa) => formulario.cambiar('mesa', mesa)}
+    />
+  );
+}
+
+/**
+ * Se monta solo mientras debe verse un modal: la página decide si se muestra. El alta parte de
+ * campos vacíos y la edición, de los datos de la fila. En la edición Cliente y Mesa no se pueden
+ * cambiar.
+ */
+export function ReservaFormDialog({ reserva, onGuardado, onOpenChange }: ReservaFormDialogProps) {
+  const formulario = useFormularioReserva({ reserva, onGuardado });
+  const { errores } = formulario;
+  const edicion = reserva !== undefined;
+
+  const alEnviar = (evento: FormEvent<HTMLFormElement>) => {
+    evento.preventDefault();
+    void formulario.enviar();
+  };
+
+  return (
+    <Dialog
+      open
+      onOpenChange={onOpenChange}
+      title={edicion ? 'Modificar reserva' : 'Nueva reserva'}
+      description={
+        edicion
+          ? 'Cambiá la fecha, la hora y la cantidad de personas. La mesa y el cliente no cambian.'
+          : 'Completá el cliente, la fecha, la hora, las personas y la mesa del turno.'
+      }
+      size="lg"
+      footer={
+        <>
+          <Button variant="brand-outline" onClick={() => onOpenChange(false)}>
+            Cancelar
+          </Button>
+          <Button
+            type="submit"
+            form={ID_FORMULARIO_RESERVA}
+            disabled={formulario.guardarDeshabilitado}
+          >
+            Guardar reserva
+          </Button>
+        </>
+      }
+    >
+      <form id={ID_FORMULARIO_RESERVA} noValidate onSubmit={alEnviar} className="space-y-4">
+        {errores.general && <Alert variant="danger">{errores.general}</Alert>}
+        <CampoCliente formulario={formulario} reserva={reserva} />
+        <fieldset className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <legend className="sr-only">Día y horario</legend>
+          <CampoReserva formulario={formulario} campo="fecha" etiqueta="Fecha" tipo="date" />
+          <CampoReserva formulario={formulario} campo="hora" etiqueta="Hora" tipo="time" />
+        </fieldset>
+        <CampoReserva formulario={formulario} campo="cantidad" etiqueta="Cantidad de personas" />
+        <CampoMesa formulario={formulario} edicion={edicion} />
+      </form>
+    </Dialog>
+  );
+}

@@ -1,1 +1,179 @@
-"""menus: endpoints HTTP."""
+"""menus: endpoints HTTP. Solo delega al service (D-02)."""
+
+from collections.abc import Callable
+from datetime import date
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
+from fastapi.exceptions import RequestValidationError
+from pydantic import BaseModel, ValidationError
+from sqlalchemy.orm import Session
+
+from app.database import get_db
+from app.modules.menus import service
+from app.modules.menus.schemas import (
+    FiltroMenusDelDia,
+    FiltroMenusEjecutivos,
+    FiltroPromociones,
+    MenuDelDiaCrear,
+    MenuDelDiaListado,
+    MenuDelDiaModificar,
+    MenuDelDiaSalida,
+    MenuEjecutivoActualizar,
+    MenuEjecutivoCrear,
+    MenuEjecutivoListado,
+    MenuEjecutivoSalida,
+    PromocionCrear,
+    PromocionListado,
+    PromocionModificar,
+    PromocionSalida,
+    ReporteImpactoPromociones,
+)
+from app.modules.productos import imagenes
+from app.shared.paginacion import Pagina
+from app.shared.permisos import Permiso
+from app.shared.seguridad import requiere
+
+router = APIRouter()
+
+Sesion = Annotated[Session, Depends(get_db)]
+
+
+def datos_de[T: BaseModel](modelo: type[T]) -> Callable[..., T]:
+    """Dependencia que lee la parte `datos` (JSON) de un multipart y la valida con `modelo`.
+
+    Misma forma que la de productos; los errores salen como `RequestValidationError` con `loc`
+    bajo `body`, para que el manejador de main.py los responda como 422 con `detalle`.
+    """
+
+    def dependencia(datos: Annotated[str, Form()]) -> T:
+        try:
+            return modelo.model_validate_json(datos)
+        except ValidationError as error:
+            fallas = [
+                {**falla, "loc": ("body", *(falla["loc"] or ("datos",)))}
+                for falla in error.errors(include_url=False, include_context=False)
+            ]
+            raise RequestValidationError(fallas) from error
+
+    return dependencia
+
+
+def leer_imagen(imagen: UploadFile | None) -> bytes | None:
+    """Lee a lo sumo 5 MB + 1 byte: el service rechaza lo que supere el tope (protege la RAM)."""
+    if imagen is None:
+        return None
+    return imagen.file.read(imagenes.TAMANO_MAXIMO_BYTES + 1)
+
+
+@router.post(
+    "/menus-del-dia",
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[requiere(Permiso.MENUS_GESTIONAR)],
+)
+def crear_menu_del_dia(
+    datos: Annotated[MenuDelDiaCrear, Depends(datos_de(MenuDelDiaCrear))],
+    db: Sesion,
+    imagen: Annotated[UploadFile | None, File()] = None,
+) -> MenuDelDiaSalida:
+    return service.crear_menu_del_dia(db, datos, leer_imagen(imagen))
+
+
+@router.get("/menus-del-dia", dependencies=[requiere(Permiso.MENUS_VER)])
+def listar_menus_del_dia(
+    db: Sesion, filtro: Annotated[FiltroMenusDelDia, Query()]
+) -> Pagina[MenuDelDiaListado]:
+    return service.listar_menus_del_dia(db, filtro, filtro.estado_elegido())
+
+
+@router.get("/menus-del-dia/{menu_id}", dependencies=[requiere(Permiso.MENUS_VER)])
+def consultar_menu_del_dia(menu_id: int, db: Sesion) -> MenuDelDiaSalida:
+    return service.obtener_menu_del_dia(db, menu_id)
+
+
+@router.put("/menus-del-dia/{menu_id}", dependencies=[requiere(Permiso.MENUS_GESTIONAR)])
+def modificar_menu_del_dia(
+    menu_id: int,
+    datos: Annotated[MenuDelDiaModificar, Depends(datos_de(MenuDelDiaModificar))],
+    db: Sesion,
+    imagen: Annotated[UploadFile | None, File()] = None,
+) -> MenuDelDiaSalida:
+    return service.modificar_menu_del_dia(db, menu_id, datos, leer_imagen(imagen))
+
+
+@router.post("/menus-del-dia/{menu_id}/baja", dependencies=[requiere(Permiso.MENUS_GESTIONAR)])
+def dar_de_baja_menu_del_dia(menu_id: int, db: Sesion) -> MenuDelDiaSalida:
+    return service.dar_de_baja_menu_del_dia(db, menu_id)
+
+
+@router.post(
+    "/menus-ejecutivos",
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[requiere(Permiso.MENUS_GESTIONAR)],
+)
+def crear_menu_ejecutivo(datos: MenuEjecutivoCrear, db: Sesion) -> MenuEjecutivoSalida:
+    return service.crear_menu_ejecutivo(db, datos)
+
+
+@router.get("/menus-ejecutivos", dependencies=[requiere(Permiso.MENUS_VER)])
+def listar_menus_ejecutivos(
+    db: Sesion, filtro: Annotated[FiltroMenusEjecutivos, Query()]
+) -> Pagina[MenuEjecutivoListado]:
+    return service.listar_menus_ejecutivos(db, filtro)
+
+
+@router.get("/menus-ejecutivos/{menu_id}", dependencies=[requiere(Permiso.MENUS_VER)])
+def consultar_menu_ejecutivo(menu_id: int, db: Sesion) -> MenuEjecutivoSalida:
+    return service.obtener_menu_ejecutivo(db, menu_id)
+
+
+@router.put("/menus-ejecutivos/{menu_id}", dependencies=[requiere(Permiso.MENUS_GESTIONAR)])
+def modificar_menu_ejecutivo(
+    menu_id: int, datos: MenuEjecutivoActualizar, db: Sesion
+) -> MenuEjecutivoSalida:
+    return service.modificar_menu_ejecutivo(db, menu_id, datos)
+
+
+@router.post("/menus-ejecutivos/{menu_id}/baja", dependencies=[requiere(Permiso.MENUS_GESTIONAR)])
+def dar_de_baja_menu_ejecutivo(menu_id: int, db: Sesion) -> MenuEjecutivoSalida:
+    return service.dar_de_baja_menu_ejecutivo(db, menu_id)
+
+
+@router.post(
+    "/promociones",
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[requiere(Permiso.MENUS_GESTIONAR)],
+)
+def crear_promocion(datos: PromocionCrear, db: Sesion) -> PromocionSalida:
+    return service.crear_promocion(db, datos)
+
+
+@router.put("/promociones/{promocion_id}", dependencies=[requiere(Permiso.MENUS_GESTIONAR)])
+def modificar_promocion(
+    promocion_id: int, datos: PromocionModificar, db: Sesion
+) -> PromocionSalida:
+    return service.modificar_promocion(db, promocion_id, datos)
+
+
+@router.post(
+    "/promociones/{promocion_id}/finalizar", dependencies=[requiere(Permiso.MENUS_GESTIONAR)]
+)
+def finalizar_promocion(promocion_id: int, db: Sesion) -> PromocionSalida:
+    return service.finalizar_promocion(db, promocion_id)
+
+
+@router.get("/promociones", dependencies=[requiere(Permiso.MENUS_VER)])
+def listar_promociones(
+    db: Sesion, filtro: Annotated[FiltroPromociones, Query()]
+) -> Pagina[PromocionListado]:
+    return service.listar_promociones(db, filtro)
+
+
+@router.get("/reportes/impacto-promociones", dependencies=[requiere(Permiso.REPORTES_VER)])
+def reporte_impacto_promociones(
+    db: Sesion,
+    fecha_desde: date | None = None,
+    fecha_hasta: date | None = None,
+    promocion_id: Annotated[int | None, Query(gt=0)] = None,
+) -> ReporteImpactoPromociones:
+    return service.generar_reporte_impacto_promociones(db, fecha_desde, fecha_hasta, promocion_id)

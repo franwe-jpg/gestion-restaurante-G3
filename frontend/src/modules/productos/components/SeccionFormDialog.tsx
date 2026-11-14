@@ -45,7 +45,7 @@ interface PieDelDialogoProps {
 function PieDelDialogo({ enviando, onCancelar, onGuardar }: PieDelDialogoProps) {
   return (
     <>
-      <Button variant="outline" onClick={onCancelar}>
+      <Button variant="brand-outline" onClick={onCancelar}>
         Cancelar
       </Button>
       <Button onClick={onGuardar} disabled={enviando}>

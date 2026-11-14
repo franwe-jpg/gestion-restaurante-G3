@@ -8,6 +8,8 @@ pydantic-settings==2.16.0
 python-multipart==0.0.32
 Pillow==13.0.0
 pillow-heif==1.8.1
+fpdf2==2.9.0
+bcrypt==5.0.0
 
 # Desarrollo y pruebas
 pytest==9.1.1

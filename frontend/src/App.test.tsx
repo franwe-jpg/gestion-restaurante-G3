@@ -21,9 +21,28 @@ afterEach(() => {
 });
 
 describe('App', () => {
-  it('muestra el panel de inicio sin consultar el backend', () => {
-    const fetchMock = vi.fn();
-    vi.stubGlobal('fetch', fetchMock);
+  it('muestra el panel de inicio con los accesos rápidos, el mapa y la caja', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url: string) =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          json: () =>
+            Promise.resolve(
+              url.includes('/reportes/caja-del-dia')
+                ? {
+                    fecha: '2026-11-09',
+                    por_medio_pago: [],
+                    total_cobrado: '0.00',
+                    adeudado: { cantidad_facturas: 0, monto: '0.00' },
+                  }
+                : { items: [], total: 0, limit: 100, offset: 0 },
+            ),
+        } as Response),
+      ),
+    );
 
     render(
       <MemoryRouter initialEntries={['/']}>
@@ -32,8 +51,9 @@ describe('App', () => {
     );
 
     expect(screen.getByRole('heading', { name: 'Panel de Administración' })).toBeInTheDocument();
-    expect(screen.getAllByRole('link', { name: /Productos y Carta/ }).length).toBeGreaterThan(0);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(screen.getByRole('link', { name: 'Nueva comanda' })).toBeInTheDocument();
+    expect(await screen.findByText('No hay mesas registradas')).toBeInTheDocument();
+    expect(await screen.findByText('Todavía no hay cobros hoy')).toBeInTheDocument();
   });
 
   it('monta la pantalla de estado en /salud', async () => {
@@ -68,6 +88,58 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: 'Carta' })).toBeInTheDocument();
   });
 
+  it('monta la pantalla del reporte de mas vendidos', async () => {
+    render(
+      <MemoryRouter initialEntries={['/reportes/productos-mas-vendidos']}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(
+      await screen.findByRole('heading', { name: 'Productos más vendidos' }),
+    ).toBeInTheDocument();
+  });
+
+  it('en la pantalla del reporte el menu lateral marca Reportes como activo', async () => {
+    render(
+      <MemoryRouter initialEntries={['/reportes/productos-mas-vendidos']}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole('heading', { name: 'Productos más vendidos' });
+    const enlaces = screen.getAllByRole('link', { name: /Reportes/ });
+    expect(enlaces.some((e) => e.getAttribute('aria-current') === 'page')).toBe(true);
+    expect(screen.getByRole('link', { name: /Productos y Carta/ })).not.toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+  });
+
+  it('monta la pagina compartida de reportes', () => {
+    render(
+      <MemoryRouter initialEntries={['/reportes']}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole('heading', { name: 'Reportes' })).toBeInTheDocument();
+  });
+
+  it('monta el reporte de comandas por día y turno', async () => {
+    render(
+      <MemoryRouter initialEntries={['/reportes/comandas-ticket-promedio']}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Comandas y ticket promedio por día/turno',
+      }),
+    ).toBeInTheDocument();
+  });
+
   it('muestra la guía de componentes', () => {
     render(
       <MemoryRouter initialEntries={['/componentes']}>
@@ -97,71 +169,5 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: 'Productos y Carta' })).toBeInTheDocument();
     expect(await screen.findByText('No hay productos habilitados')).toBeInTheDocument();
-  });
-
-  it.each([
-    ['/productos/platos/nuevo', 'Nuevo plato'],
-    ['/productos/postres/nuevo', 'Nuevo postre'],
-    ['/productos/bebidas/nuevo', 'Nueva bebida'],
-    ['/productos/nuevo', 'Nuevo plato'],
-  ])('monta el formulario de alta de %s con el título %s', async (ruta, titulo) => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        json: () => Promise.resolve({ items: [], total: 0, limit: 100, offset: 0 }),
-      } as Response),
-    );
-
-    render(
-      <MemoryRouter initialEntries={[ruta]}>
-        <App />
-      </MemoryRouter>,
-    );
-
-    expect(await screen.findByRole('heading', { name: titulo })).toBeInTheDocument();
-    expect(await screen.findByText('Primero hay que crear una sección')).toBeInTheDocument();
-  });
-
-  it.each([
-    ['PLATO', 'platos', 'Editar plato'],
-    ['POSTRE', 'postres', 'Editar postre'],
-    ['BEBIDA', 'bebidas', 'Editar bebida'],
-  ] as const)('monta la pantalla de edición de %s', async (categoria, segmento, titulo) => {
-    const plato = {
-      id: 7,
-      nombre: 'Milanesa',
-      categoria,
-      precio: '12500.50',
-      ingredientes: ['Pan'],
-      descripcion: null,
-      etiquetas: [],
-      estado: 'HABILITADO',
-      seccion: { id: 3, nombre: 'Platos' },
-      imagen_url: null,
-    };
-    const secciones = { items: [], total: 0, limit: 100, offset: 0 };
-    vi.stubGlobal(
-      'fetch',
-      vi.fn((url: string) =>
-        Promise.resolve({
-          ok: true,
-          status: 200,
-          statusText: 'OK',
-          json: () => Promise.resolve(url.includes(`/${segmento}/7`) ? plato : secciones),
-        } as Response),
-      ),
-    );
-
-    render(
-      <MemoryRouter initialEntries={[`/productos/${segmento}/7/editar`]}>
-        <App />
-      </MemoryRouter>,
-    );
-
-    expect(await screen.findByRole('heading', { name: titulo })).toBeInTheDocument();
-    expect(await screen.findByDisplayValue('Milanesa')).toBeInTheDocument();
   });
 });

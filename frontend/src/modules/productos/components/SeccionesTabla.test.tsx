@@ -61,4 +61,10 @@ describe('SeccionesTabla', () => {
 
     expect(screen.getByText('No se pudo conectar con el backend')).toBeInTheDocument();
   });
+
+  it('sin renderAcciones no hay columna de acciones', () => {
+    render(<SeccionesTabla secciones={SECCIONES} />);
+
+    expect(screen.queryByRole('columnheader', { name: 'Acciones' })).not.toBeInTheDocument();
+  });
 });

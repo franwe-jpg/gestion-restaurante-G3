@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Activity, AlertTriangle, CheckCircle2, RefreshCw, XCircle } from 'lucide-react';
+import { Activity, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
 
 import { obtenerSalud } from '../api';
 import type { EstadoServicio, RespuestaApi } from '../types';
@@ -53,13 +53,12 @@ export function EstadoBackend() {
         descripcion="Monitoreo de conectividad y estado operativo de la API gastronómica."
         acciones={
           <Button
-            variant="outline"
+            variant="brand-outline"
             size="sm"
             onClick={consultarSalud}
             disabled={cargando}
             aria-label="Reintentar verificación de estado"
           >
-            <RefreshCw className={`mr-2 h-4 w-4 ${cargando ? 'animate-spin' : ''}`} />
             Actualizar estado
           </Button>
         }
@@ -86,20 +85,20 @@ export function EstadoBackend() {
           {cargando ? (
             <p className="text-sm text-slate-500">Consultando /api/v1/salud...</p>
           ) : error ? (
-            <div className="rounded-md border border-red-200 bg-red-50 p-4">
+            <div className="rounded-md border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950/50">
               <div className="flex items-start gap-3">
-                <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
+                <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-600 dark:text-red-400" />
                 <div>
-                  <h4 className="text-sm font-semibold text-red-900">
+                  <h4 className="text-sm font-semibold text-red-900 dark:text-red-200">
                     Error al contactar el backend
                   </h4>
-                  <p className="mt-1 text-xs text-red-700">{error}</p>
+                  <p className="mt-1 text-xs text-red-700 dark:text-red-300">{error}</p>
                 </div>
               </div>
             </div>
           ) : datos ? (
             <div className="space-y-3">
-              <div className="flex items-center gap-2 text-emerald-700">
+              <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
                 <CheckCircle2 className="h-5 w-5" />
                 <span className="text-sm font-medium">Estado del servicio: {datos.estado}</span>
               </div>
@@ -109,7 +108,7 @@ export function EstadoBackend() {
               )}
             </div>
           ) : (
-            <div className="flex items-center gap-2 text-amber-700">
+            <div className="flex items-center gap-2 text-amber-700 dark:text-amber-300">
               <AlertTriangle className="h-5 w-5" />
               <span className="text-sm">Sin información de respuesta disponible.</span>
             </div>

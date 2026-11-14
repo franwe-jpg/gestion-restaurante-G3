@@ -1,0 +1,202 @@
+import { CalendarDays, CalendarX, ClipboardList, Pencil, UserX } from 'lucide-react';
+
+import { EmptyState } from '../../../shared/components/EmptyState';
+import { Button } from '../../../shared/components/ui/button';
+import { DataTable } from '../../../shared/components/ui/data-table';
+import type { ColumnaTabla } from '../../../shared/components/ui/data-table';
+import { StatusBadge } from '../../../shared/components/ui/status-badge';
+import type { Reserva } from '../types';
+
+import { atencionDeReserva } from './atencionDeReserva';
+import { useAhoraDelRestaurante } from './useAhoraDelRestaurante';
+
+export interface ReservasTablaProps {
+  reservas: Reserva[];
+  cargando?: boolean;
+  error?: string | null;
+  onReintentar?: () => void;
+  /**
+   * Las cuatro acciones van juntas (permiso `RESERVAS_OPERAR`): si falta alguna, la tabla no
+   * muestra la columna de acciones.
+   * Se ofrece solo en las filas `ACTIVA` y queda deshabilitada hasta el día y la hora de la reserva
+   * en la hora del restaurante (HU-M5-06); el backend sigue decidiendo (S59).
+   */
+  onCrearComanda?: (reserva: Reserva) => void;
+  /** Se ofrece solo en las filas `ACTIVA`: las demás reservas no se modifican (HU-M5-02 CA 5). */
+  onModificar?: (reserva: Reserva) => void;
+  /** Se ofrece solo en las filas `ACTIVA`, con la misma regla que `onModificar` (HU-M5-04). */
+  onCancelarAnticipada?: (reserva: Reserva) => void;
+  /** Se ofrece solo en las filas `ACTIVA`, con la misma regla que `onModificar` (HU-M5-05). */
+  onCancelarPorAusencia?: (reserva: Reserva) => void;
+}
+
+const MENSAJE_ERROR = 'No se pudieron cargar las reservas.';
+
+/** Cliente y mesa se muestran por su número: M3 y M4 todavía no exponen sus nombres (S13, S23). */
+const COLUMNAS: ColumnaTabla<Reserva>[] = [
+  {
+    clave: 'hora',
+    encabezado: 'Hora',
+    className: 'whitespace-nowrap',
+    render: (r) => <span className="font-bold tabular-nums">{r.hora}</span>,
+  },
+  {
+    clave: 'cliente',
+    encabezado: 'Cliente',
+    className: 'min-w-36',
+    render: (r) => <span className="font-medium text-slate-900">Cliente n.º {r.cliente_id}</span>,
+  },
+  {
+    clave: 'personas',
+    encabezado: 'Personas',
+    className: 'tabular-nums',
+    render: (r) => <span className="tabular-nums">{r.cantidad_personas}</span>,
+  },
+  {
+    clave: 'mesa',
+    encabezado: 'Mesa',
+    className: 'min-w-32 whitespace-nowrap',
+    render: (r) => `Mesa n.º ${r.mesa_id}`,
+  },
+  {
+    clave: 'estado',
+    encabezado: 'Estado',
+    render: (r) => <StatusBadge estado={r.estado} />,
+  },
+];
+
+type AccionesDeFila = Required<
+  Pick<
+    ReservasTablaProps,
+    'onCrearComanda' | 'onModificar' | 'onCancelarAnticipada' | 'onCancelarPorAusencia'
+  >
+> & { ahora: Date };
+
+interface BotonCrearComandaProps {
+  reserva: Reserva;
+  ahora: Date;
+  onCrearComanda: (reserva: Reserva) => void;
+}
+
+/**
+ * Deshabilitado, con el motivo a la vista, mientras la reserva no se puede atender (HU-M5-06). El
+ * `Button` deshabilitado se ve gris y lavado (`saturate-0`, `opacity-40`) con cursor de prohibido;
+ * el contenedor repite el `title` y expone el motivo a lectores de pantalla.
+ */
+function BotonCrearComanda({ reserva, ahora, onCrearComanda }: BotonCrearComandaProps) {
+  const atencion = atencionDeReserva(reserva, ahora);
+  const motivo = atencion.disponible ? undefined : atencion.motivo;
+  const idMotivo = `motivo-comanda-${reserva.id}`;
+  return (
+    <span className="inline-flex" title={motivo ?? 'Crear comanda'}>
+      <Button
+        variant="ghost"
+        size="sm"
+        aria-label="Crear comanda"
+        disabled={!atencion.disponible}
+        title={motivo}
+        aria-describedby={motivo === undefined ? undefined : idMotivo}
+        onClick={() => onCrearComanda(reserva)}
+      >
+        <ClipboardList className="h-4 w-4" aria-hidden="true" />
+      </Button>
+      {motivo !== undefined && (
+        <span id={idMotivo} className="sr-only">
+          {motivo}
+        </span>
+      )}
+    </span>
+  );
+}
+
+function columnaAcciones({
+  ahora,
+  onCrearComanda,
+  onModificar,
+  onCancelarAnticipada,
+  onCancelarPorAusencia,
+}: AccionesDeFila): ColumnaTabla<Reserva> {
+  return {
+    clave: 'acciones',
+    encabezado: <span className="sr-only">Acciones</span>,
+    className: 'text-right',
+    render: (r) =>
+      r.estado === 'ACTIVA' ? (
+        <div className="flex justify-end gap-1">
+          <BotonCrearComanda reserva={r} ahora={ahora} onCrearComanda={onCrearComanda} />
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-label="Modificar reserva"
+            title="Modificar reserva"
+            onClick={() => onModificar(r)}
+          >
+            <Pencil className="h-4 w-4" aria-hidden="true" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-label="Cancelar reserva"
+            title="Cancelar reserva"
+            onClick={() => onCancelarAnticipada(r)}
+          >
+            <CalendarX className="h-4 w-4" aria-hidden="true" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-label="Cancelar por ausencia"
+            title="Cancelar por ausencia"
+            onClick={() => onCancelarPorAusencia(r)}
+          >
+            <UserX className="h-4 w-4" aria-hidden="true" />
+          </Button>
+        </div>
+      ) : null,
+  };
+}
+
+export function ReservasTabla({
+  reservas,
+  cargando,
+  error,
+  onReintentar,
+  onCrearComanda,
+  onModificar,
+  onCancelarAnticipada,
+  onCancelarPorAusencia,
+}: ReservasTablaProps) {
+  const ahora = useAhoraDelRestaurante();
+  const conAcciones =
+    onCrearComanda && onModificar && onCancelarAnticipada && onCancelarPorAusencia;
+  return (
+    <DataTable
+      columnas={
+        conAcciones
+          ? [
+              ...COLUMNAS,
+              columnaAcciones({
+                ahora,
+                onCrearComanda,
+                onModificar,
+                onCancelarAnticipada,
+                onCancelarPorAusencia,
+              }),
+            ]
+          : COLUMNAS
+      }
+      filas={reservas}
+      obtenerClave={(reserva) => reserva.id}
+      cargando={cargando}
+      error={error ? MENSAJE_ERROR : null}
+      onReintentar={onReintentar}
+      vacio={
+        <EmptyState
+          icono={CalendarDays}
+          titulo="Sin reservas"
+          descripcion="No hay reservas para los filtros elegidos."
+        />
+      }
+    />
+  );
+}

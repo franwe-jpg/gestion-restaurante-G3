@@ -51,23 +51,12 @@ export const ETIQUETAS_CATEGORIA: Record<Categoria, string> = {
   MENU_DEL_DIA: 'Menú del día',
 };
 
-// Edición (HU-M1-02-03, E10; HU-M1-05-06, F3; HU-M1-07-08-09, G3): platos, postres y bebidas tienen pantalla de edición.
+// Edición (HU-M1-02-03, E10; HU-M1-05-06, F3; HU-M1-07-08-09, G3): platos, postres y bebidas se editan en un diálogo.
 export type CategoriaEdicion = Extract<CategoriaAlta, 'PLATO' | 'POSTRE' | 'BEBIDA'>;
 
 /** Solo las categorías con configuración de edición se editan y se dan de baja (E21, S31). */
 export function esCategoriaEdicion(categoria: Categoria): categoria is CategoriaEdicion {
   return categoria in CONFIGURACIONES_EDICION;
-}
-
-const SEGMENTOS_RUTA: Record<CategoriaAlta, string> = {
-  PLATO: 'platos',
-  POSTRE: 'postres',
-  BEBIDA: 'bebidas',
-};
-
-/** Ruta de la pantalla de edición de un producto (F4). */
-export function rutaDeEdicion(categoria: CategoriaEdicion, id: number): string {
-  return `/productos/${SEGMENTOS_RUTA[categoria]}/${id}/editar`;
 }
 
 export interface ConfiguracionEdicion {

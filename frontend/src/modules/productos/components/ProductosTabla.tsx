@@ -5,6 +5,7 @@ import { EmptyState } from '../../../shared/components/EmptyState';
 import { Badge } from '../../../shared/components/ui/badge';
 import { DataTable } from '../../../shared/components/ui/data-table';
 import type { ColumnaTabla } from '../../../shared/components/ui/data-table';
+import { StatusBadge } from '../../../shared/components/ui/status-badge';
 import { formatearMoneda } from '../../../shared/lib/format';
 import { ETIQUETAS_CATEGORIA } from '../categorias';
 import type { ProductoListado } from '../types';
@@ -34,7 +35,7 @@ function Etiquetas({ etiquetas }: { etiquetas: string[] }) {
 function columnas(
   renderAcciones?: (producto: ProductoListado) => ReactNode,
 ): ColumnaTabla<ProductoListado>[] {
-  return [
+  const base: ColumnaTabla<ProductoListado>[] = [
     { clave: 'nombre', encabezado: 'Nombre', render: (p) => p.nombre },
     {
       clave: 'categoria',
@@ -56,16 +57,17 @@ function columnas(
     {
       clave: 'estado',
       encabezado: 'Estado',
-      render: (p) => (
-        <Badge variant={p.estado === 'HABILITADO' ? 'success' : 'neutral'}>
-          {p.estado === 'HABILITADO' ? 'Habilitado' : 'Deshabilitado'}
-        </Badge>
-      ),
+      render: (p) => <StatusBadge estado={p.estado} />,
     },
+  ];
+  // Sin permiso de gestion no hay columna de acciones.
+  if (!renderAcciones) return base;
+  return [
+    ...base,
     {
       clave: 'acciones',
       encabezado: <span className="sr-only">Acciones</span>,
-      render: (p) => renderAcciones?.(p) ?? null,
+      render: (p) => renderAcciones(p),
       className: 'w-28',
     },
   ];
@@ -79,16 +81,6 @@ export function ProductosTabla({
   onReintentar,
   renderAcciones,
 }: ProductosTablaProps) {
-  if (!cargando && !error && productos.length === 0) {
-    return (
-      <EmptyState
-        icono={UtensilsCrossed}
-        titulo={filtro.vacioTitulo}
-        descripcion={filtro.vacioDescripcion}
-      />
-    );
-  }
-
   return (
     <DataTable
       columnas={columnas(renderAcciones)}
@@ -97,6 +89,13 @@ export function ProductosTabla({
       cargando={cargando}
       error={error}
       onReintentar={onReintentar}
+      vacio={
+        <EmptyState
+          icono={UtensilsCrossed}
+          titulo={filtro.vacioTitulo}
+          descripcion={filtro.vacioDescripcion}
+        />
+      }
     />
   );
 }

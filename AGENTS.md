@@ -82,6 +82,7 @@ Las reglas que más se rompen:
 - **Frontend:** toda llamada a la API pasa por el `api.ts` del módulo; los componentes no usan `fetch` (D-16). Prohibido `any`.
 - **Frontend:** antes de crear un componente, buscarlo en `frontend/src/shared/components/` (la guía visual está en la ruta `/componentes`).
 - **Frontend:** las pantallas se guían por la maqueta `SPRINT-2/S2-04-maqueta/`: menú lateral, encabezado, distribución de listados y formularios, colores y textos. Es una referencia, no un límite. Si la HU, la spec o un diseño posterior difieren, o la función no está en la maqueta, se implementa lo que corresponde con el mismo estilo, y la diferencia se anota en el PR.
+- **Frontend:** los formularios de alta y edición se abren en un modal sobre la misma página (`Dialog` de `frontend/src/shared/components/ui/`, como `SeccionFormDialog` o `MesaFormDialog`). La maqueta los muestra en una página aparte (`producto-nuevo.html`, `comanda-nueva.html`); en eso no se sigue la maqueta.
 - Funciones de hasta 50 líneas y complejidad ciclomática 10 (RNF-MAN-05).
 
 ### Historias de usuario

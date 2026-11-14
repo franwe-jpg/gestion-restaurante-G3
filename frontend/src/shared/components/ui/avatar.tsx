@@ -19,7 +19,7 @@ export function Avatar({ nombre, src, className }: AvatarProps) {
   return (
     <span
       className={cn(
-        'inline-flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-amber-100 text-xs font-semibold text-amber-900',
+        'inline-flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-amber-100 text-xs font-semibold text-amber-900 dark:bg-amber-900 dark:text-amber-100',
         className,
       )}
       title={nombre}

@@ -15,6 +15,20 @@
     />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
+    <script>
+      // Aplica el tema antes del primer pintado para evitar el destello claro.
+      (() => {
+        try {
+          const guardado = localStorage.getItem('gestion-restaurante.tema');
+          const prefiereOscuro = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          if (guardado === 'oscuro' || (guardado === null && prefiereOscuro)) {
+            document.documentElement.classList.add('dark');
+          }
+        } catch {
+          /* Sin acceso a localStorage: se queda en claro. */
+        }
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

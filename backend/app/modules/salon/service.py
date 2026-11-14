@@ -1,17 +1,24 @@
 """salon: reglas de negocio y transacciones."""
 
+from datetime import date
+
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.modules.salon import repository
+from app.modules.atencion import service as atencion_service
+from app.modules.salon import personas, reporte, repository
 from app.modules.salon.models import Mesa, Mozo, Sector
 from app.modules.salon.schemas import (
+    ChefCrear,
+    ChefModificar,
+    ChefSalida,
     MesaCrear,
     MesaModificar,
     MesaSalida,
     MozoCrear,
     MozoModificar,
     MozoSalida,
+    ReporteMesasVentasPorMozo,
     SectorCrear,
     SectorModificar,
     SectorResumen,
@@ -148,6 +155,37 @@ def eliminar_mesa(db: Session, mesa_id: int) -> None:
     db.commit()
 
 
+def _mesa_existente(db: Session, mesa_id: int) -> Mesa:
+    mesa = repository.obtener_mesa(db, mesa_id)
+    if mesa is None:
+        raise NoEncontradoError(f"La mesa {mesa_id} no existe")
+    return mesa
+
+
+def obtener_mesa(db: Session, mesa_id: int) -> MesaSalida:
+    """Consulta una mesa con su sector y estado; no modifica datos (HU-M4-04)."""
+    mesa = _mesa_existente(db, mesa_id)
+    return _a_salida(mesa, repository.obtener_sector(db, mesa.sector_id))
+
+
+def ocupar_mesa(db: Session, mesa_id: int) -> None:
+    """LIBRE -> OCUPADA sin commit: quien llama cierra la transaccion (HU-M4-04)."""
+    mesa = _mesa_existente(db, mesa_id)
+    if mesa.estado != EstadoMesa.LIBRE:
+        raise ReglaDeNegocioError(f"La mesa {mesa.numero} no está libre")
+    mesa.estado = EstadoMesa.OCUPADA
+
+
+def liberar_mesa(db: Session, mesa_id: int) -> None:
+    """OCUPADA -> LIBRE sin commit al cerrar la comanda (HU-M4-09).
+
+    Si la mesa no está OCUPADA no la cambia ni falla: el cierre no depende de su estado.
+    """
+    mesa = _mesa_existente(db, mesa_id)
+    if mesa.estado == EstadoMesa.OCUPADA:
+        mesa.estado = EstadoMesa.LIBRE
+
+
 def listar_sectores(
     db: Session, parametros: ParametrosPaginacion, estado: Estado | None = None
 ) -> Pagina[SectorSalida]:
@@ -187,72 +225,74 @@ def listar_mesas(db: Session, parametros: ParametrosPaginacion) -> Pagina[MesaSa
     )
 
 
-def _validar_dni_libre(db: Session, dni: str, excluir_id: int | None = None) -> None:
-    if repository.existe_dni(db, dni, excluir_id):
-        raise ReglaDeNegocioError(f"Ya existe un mozo con el DNI {dni}")
-
-
-def _guardar_mozo(db: Session, datos: MozoCrear) -> Mozo:
-    mozo = Mozo(
-        dni=datos.dni,
-        nombre=datos.nombre,
-        apellido=datos.apellido,
-        telefono=datos.telefono,
-        estado=Estado.HABILITADO,
-    )
-    try:
-        repository.agregar(db, mozo)
-        db.commit()
-    except IntegrityError as error:
-        db.rollback()
-        raise ReglaDeNegocioError(f"Ya existe un mozo con el DNI {datos.dni}") from error
-    return mozo
-
-
 def crear_mozo(db: Session, datos: MozoCrear) -> MozoSalida:
-    """Alta de mozo: el sistema lo deja Habilitado (HU-M3-09)."""
-    _validar_dni_libre(db, datos.dni)
-    return MozoSalida.model_validate(_guardar_mozo(db, datos))
+    """Alta de mozo y de su usuario en una transaccion (HU-M3-09, HU-TR-01)."""
+    return personas.crear(db, personas.MOZO, datos)
 
 
 def modificar_mozo(db: Session, mozo_id: int, datos: MozoModificar) -> MozoSalida:
-    """Reemplazo completo de los datos; el estado no se toca (HU-M3-10)."""
-    mozo = repository.obtener_mozo(db, mozo_id)
-    if mozo is None:
-        raise NoEncontradoError(f"El mozo {mozo_id} no existe")
-    _validar_dni_libre(db, datos.dni, mozo.id)
-    mozo.dni = datos.dni
-    mozo.nombre = datos.nombre
-    mozo.apellido = datos.apellido
-    mozo.telefono = datos.telefono
-    try:
-        db.commit()
-    except IntegrityError as error:
-        db.rollback()
-        raise ReglaDeNegocioError(f"Ya existe un mozo con el DNI {datos.dni}") from error
-    return MozoSalida.model_validate(mozo)
+    """Reemplazo completo de los datos y las credenciales; el estado no se toca (HU-M3-10)."""
+    return personas.modificar(db, personas.MOZO, mozo_id, datos)
 
 
 def dar_de_baja_mozo(db: Session, mozo_id: int) -> MozoSalida:
-    """Baja lógica: el mozo deja de estar disponible y conserva sus datos (HU-M3-11)."""
-    mozo = repository.obtener_mozo(db, mozo_id)
-    if mozo is None:
-        raise NoEncontradoError(f"El mozo {mozo_id} no existe")
-    if mozo.estado == Estado.DESHABILITADO:
-        raise ReglaDeNegocioError("El mozo ya está dado de baja")
-    mozo.estado = Estado.DESHABILITADO
-    db.commit()
-    return MozoSalida.model_validate(mozo)
+    """Baja lógica: el mozo y su usuario quedan deshabilitados (HU-M3-11, S4)."""
+    return personas.dar_de_baja(db, personas.MOZO, mozo_id)
 
 
 def listar_mozos(
-    db: Session, parametros: ParametrosPaginacion, estado: Estado | None = None
+    db: Session,
+    parametros: ParametrosPaginacion,
+    estado: Estado | None = None,
+    q: str | None = None,
 ) -> Pagina[MozoSalida]:
     """Listado paginado de mozos; con `estado=HABILITADO` son los disponibles (HU-M3-12)."""
-    mozos, total = repository.listar_mozos(db, parametros, estado)
-    return Pagina[MozoSalida](
-        items=[MozoSalida.model_validate(mozo) for mozo in mozos],
-        total=total,
-        limit=parametros.limit,
-        offset=parametros.offset,
-    )
+    return personas.listar(db, personas.MOZO, parametros, estado, q)
+
+
+def crear_chef(db: Session, datos: ChefCrear) -> ChefSalida:
+    """Alta de chef y de su usuario en una transaccion (HU-TR-01)."""
+    return personas.crear(db, personas.CHEF, datos)
+
+
+def modificar_chef(db: Session, chef_id: int, datos: ChefModificar) -> ChefSalida:
+    """Reemplazo completo de los datos y las credenciales del chef (HU-TR-01)."""
+    return personas.modificar(db, personas.CHEF, chef_id, datos)
+
+
+def dar_de_baja_chef(db: Session, chef_id: int) -> ChefSalida:
+    """Baja lógica: el chef y su usuario quedan deshabilitados (HU-TR-01, S4)."""
+    return personas.dar_de_baja(db, personas.CHEF, chef_id)
+
+
+def listar_chefs(
+    db: Session, parametros: ParametrosPaginacion, estado: Estado | None = None
+) -> Pagina[ChefSalida]:
+    """Listado paginado de chefs (HU-TR-01)."""
+    return personas.listar(db, personas.CHEF, parametros, estado)
+
+
+def validar_mozo_habilitado(db: Session, mozo_id: int) -> MozoSalida:
+    """Valida que el mozo exista y esté habilitado para una comanda nueva."""
+    mozo = repository.obtener_persona(db, Mozo, mozo_id)
+    if mozo is None:
+        raise NoEncontradoError(f"El mozo {mozo_id} no existe")
+    if mozo.estado != Estado.HABILITADO:
+        raise ReglaDeNegocioError(f"El mozo {mozo_id} está deshabilitado")
+    return MozoSalida.model_validate(mozo)
+
+
+def generar_reporte_mozos(
+    db: Session,
+    fecha_desde: date | None,
+    fecha_hasta: date | None,
+    mozo_id: int | None = None,
+    sector_id: int | None = None,
+) -> ReporteMesasVentasPorMozo:
+    """Mesas atendidas y ventas por mozo en el período (HU-M3-13). Solo lectura."""
+    desde, hasta = reporte.validar_periodo(fecha_desde, fecha_hasta)
+    mozos = repository.mozos_para_reporte(db, mozo_id)
+    mesas = repository.ids_mesas_del_sector(db, sector_id) if sector_id is not None else None
+    inicio, fin = reporte.intervalo_utc(desde, hasta)
+    ventas = atencion_service.sumar_ventas_por_mozo_mesa(db, inicio, fin, mesas)
+    return reporte.armar_reporte(desde, hasta, reporte.armar_lineas(mozos, ventas))

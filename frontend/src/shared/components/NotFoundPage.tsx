@@ -14,7 +14,11 @@ export function NotFoundPage() {
       descripcion="La ruta que buscás no existe o el módulo todavía no está disponible."
       icono={Compass}
       tono="brand"
-      acciones={<Button onClick={() => navigate('/')}>Volver al inicio</Button>}
+      acciones={
+        <Button variant="brand-outline" onClick={() => navigate('/')}>
+          Volver al inicio
+        </Button>
+      }
     />
   );
 }

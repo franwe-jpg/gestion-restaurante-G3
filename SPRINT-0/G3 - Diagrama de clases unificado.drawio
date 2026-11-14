@@ -101,16 +101,16 @@
           <mxGeometry height="80" width="380" y="164" as="geometry" />
         </mxCell>
         <mxCell id="dom-Mozo" parent="1" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#fff2cc;strokeColor=#d6b656;swimlaneFillColor=#ffffff;" value="&lt;b&gt;Mozo&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;M3 · Salón y Mozos&lt;/font&gt;" vertex="1">
-          <mxGeometry height="226" width="300" x="1780" y="560" as="geometry" />
+          <mxGeometry height="246" width="300" x="1780" y="560" as="geometry" />
         </mxCell>
-        <mxCell id="dom-a25" parent="dom-Mozo" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="- id: int&lt;br&gt;- dni: str {7-8 dígitos, único}&lt;br&gt;- nombre: str&lt;br&gt;- apellido: str&lt;br&gt;- telefono: str [0..1]&lt;br&gt;- estado: Estado = HABILITADO" vertex="1">
-          <mxGeometry height="116" width="300" y="40" as="geometry" />
+        <mxCell id="dom-a25" parent="dom-Mozo" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="- id: int&lt;br&gt;- dni: str {7-8 dígitos, único}&lt;br&gt;- nombre: str&lt;br&gt;- apellido: str&lt;br&gt;- telefono: str [0..1]&lt;br&gt;- usuario: Usuario [0..1]&lt;br&gt;- estado: Estado = HABILITADO" vertex="1">
+          <mxGeometry height="136" width="300" y="40" as="geometry" />
         </mxCell>
         <mxCell id="dom-l26" parent="dom-Mozo" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;" value="" vertex="1">
-          <mxGeometry height="8" width="300" y="156" as="geometry" />
+          <mxGeometry height="8" width="300" y="176" as="geometry" />
         </mxCell>
         <mxCell id="dom-m27" parent="dom-Mozo" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="+ modificar(datos)&lt;br&gt;+ deshabilitar()&lt;br&gt;+ habilitar()" vertex="1">
-          <mxGeometry height="62" width="300" y="164" as="geometry" />
+          <mxGeometry height="62" width="300" y="184" as="geometry" />
         </mxCell>
         <mxCell id="dom-Mesa" parent="1" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#fff2cc;strokeColor=#d6b656;swimlaneFillColor=#ffffff;" value="&lt;b&gt;Mesa&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;M3 · Salón y Mozos&lt;/font&gt;" vertex="1">
           <mxGeometry height="208" width="300" x="2240" y="330" as="geometry" />
@@ -243,6 +243,90 @@
         </mxCell>
         <mxCell id="dom-a54" parent="dom-enumTipoMedioPago" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="  EFECTIVO&lt;br&gt;  TARJETA&lt;br&gt;  TRANSFERENCIA&lt;br&gt;  BILLETERA_VIRTUAL" vertex="1">
           <mxGeometry height="80" width="220" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-Usuario" parent="1" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#fff2cc;strokeColor=#d6b656;swimlaneFillColor=#ffffff;" value="&lt;b&gt;Usuario&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;M3 · Salón y Mozos (acceso)&lt;/font&gt;" vertex="1">
+          <mxGeometry height="208" width="340" x="2640" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-Usuario-a" parent="dom-Usuario" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="- id: int&lt;br&gt;- correo: str {≤254, único sin distinguir mayúsculas}&lt;br&gt;- contrasenaHash: str {bcrypt}&lt;br&gt;- roles: Set[Rol] {≥1}&lt;br&gt;- estado: Estado = HABILITADO" vertex="1">
+          <mxGeometry height="99" width="340" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-Usuario-l" parent="dom-Usuario" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;" value="" vertex="1">
+          <mxGeometry height="8" width="340" y="139" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-Usuario-o" parent="dom-Usuario" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="+ verificarContrasena(contrasena): bool&lt;br&gt;+ tienePermiso(permiso): bool&lt;br&gt;+ deshabilitar()" vertex="1">
+          <mxGeometry height="61" width="340" y="147" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-Sesion" parent="1" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#fff2cc;strokeColor=#d6b656;swimlaneFillColor=#ffffff;" value="&lt;b&gt;Sesion&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;M3 · Salón y Mozos (acceso)&lt;/font&gt;" vertex="1">
+          <mxGeometry height="151" width="300" x="3080" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-Sesion-a" parent="dom-Sesion" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="- id: int&lt;br&gt;- tokenHash: str {SHA-256, único}&lt;br&gt;- creadaEn: datetime&lt;br&gt;- venceEn: datetime" vertex="1">
+          <mxGeometry height="80" width="300" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-Sesion-l" parent="dom-Sesion" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;" value="" vertex="1">
+          <mxGeometry height="8" width="300" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-Sesion-o" parent="dom-Sesion" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="+ estaVigente(): bool" vertex="1">
+          <mxGeometry height="23" width="300" y="128" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-Chef" parent="1" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#fff2cc;strokeColor=#d6b656;swimlaneFillColor=#ffffff;" value="&lt;b&gt;Chef&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;M3 · Salón y Mozos&lt;/font&gt;" vertex="1">
+          <mxGeometry height="246" width="340" x="2640" y="680" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-Chef-a" parent="dom-Chef" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="- id: int&lt;br&gt;- dni: str {7-8 dígitos, único}&lt;br&gt;- nombre: str&lt;br&gt;- apellido: str&lt;br&gt;- telefono: str [0..1]&lt;br&gt;- usuario: Usuario [0..1]&lt;br&gt;- estado: Estado = HABILITADO" vertex="1">
+          <mxGeometry height="137" width="340" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-Chef-l" parent="dom-Chef" style="line;strokeWidth=1;fillColor=none;align=left;verticalAlign=middle;spacingTop=-1;spacingLeft=3;spacingRight=3;rotatable=0;labelPosition=right;points=[];portConstraint=eastwest;" value="" vertex="1">
+          <mxGeometry height="8" width="340" y="177" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-Chef-o" parent="dom-Chef" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="+ modificar(datos)&lt;br&gt;+ deshabilitar()&lt;br&gt;+ habilitar()" vertex="1">
+          <mxGeometry height="61" width="340" y="185" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-enumRol" parent="1" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;whiteSpace=wrap;fillColor=#fff2cc;strokeColor=#d6b656;swimlaneFillColor=#ffffff;" value="&lt;b&gt;«enumeración» Rol&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;M3 · Salón y Mozos (acceso)&lt;/font&gt;" vertex="1">
+          <mxGeometry height="109" width="300" x="3080" y="680" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-enumRol-a" parent="dom-enumRol" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;fontFamily=Courier New;fontSize=11;" value="ENCARGADO&lt;br&gt;MOZO&lt;br&gt;CHEF" vertex="1">
+          <mxGeometry height="61" width="300" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-eMozoUsuario" edge="1" parent="1" source="dom-Mozo" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;endArrow=none;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.3;entryDx=0;entryDy=0;" target="dom-Usuario" value="tiene acceso con">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-eMozoUsuario-m0" connectable="0" parent="dom-eMozoUsuario" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="0..1" vertex="1">
+          <mxGeometry relative="1" x="-0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-eMozoUsuario-m1" connectable="0" parent="dom-eMozoUsuario" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="1" vertex="1">
+          <mxGeometry relative="1" x="0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-eChefUsuario" edge="1" parent="1" source="dom-Chef" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;endArrow=none;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="dom-Usuario" value="tiene acceso con">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-eChefUsuario-m0" connectable="0" parent="dom-eChefUsuario" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="0..1" vertex="1">
+          <mxGeometry relative="1" x="-0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-eChefUsuario-m1" connectable="0" parent="dom-eChefUsuario" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="1" vertex="1">
+          <mxGeometry relative="1" x="0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-eUsuarioSesion" edge="1" parent="1" source="dom-Usuario" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;endArrow=none;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="dom-Sesion" value="inicia">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dom-eUsuarioSesion-m0" connectable="0" parent="dom-eUsuarioSesion" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="1" vertex="1">
+          <mxGeometry relative="1" x="-0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-eUsuarioSesion-m1" connectable="0" parent="dom-eUsuarioSesion" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;" value="0..*" vertex="1">
+          <mxGeometry relative="1" x="0.8" as="geometry">
+            <mxPoint y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dom-eUsuarioRol" edge="1" parent="1" source="dom-Usuario" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;dashed=1;endArrow=open;endSize=10;" target="dom-enumRol" value="">
+          <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="dom-legend" parent="1" style="shape=note;html=1;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;size=14;fillColor=#fffbe6;strokeColor=#b3a14a;fontSize=11;" value="&lt;b&gt;Leyenda&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#6c8ebf&quot;&gt;■&lt;/font&gt; M1 · Productos y Carta&lt;br&gt;&lt;font color=&quot;#82b366&quot;&gt;■&lt;/font&gt; M2 · Menús y Promociones&lt;br&gt;&lt;font color=&quot;#d6b656&quot;&gt;■&lt;/font&gt; M3 · Salón y Mozos&lt;br&gt;&lt;font color=&quot;#d79b00&quot;&gt;■&lt;/font&gt; M4 · Atención al Público&lt;br&gt;&lt;font color=&quot;#9673a6&quot;&gt;■&lt;/font&gt; M5 · Reservas&lt;br&gt;&lt;font color=&quot;#b85450&quot;&gt;■&lt;/font&gt; M6 · Pagos&lt;br&gt;&lt;br&gt;◆ composición · ⟶ punteada: dependencia&lt;br&gt;Las clases de reportes están en la página «Reportes»." vertex="1">
           <mxGeometry height="230" width="340" x="1360" y="1340" as="geometry" />

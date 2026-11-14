@@ -1,10 +1,10 @@
 import { LayoutGrid, Pencil, Trash2 } from 'lucide-react';
 
 import { EmptyState } from '../../../shared/components/EmptyState';
-import { Badge } from '../../../shared/components/ui/badge';
 import { Button } from '../../../shared/components/ui/button';
 import { DataTable } from '../../../shared/components/ui/data-table';
 import type { ColumnaTabla } from '../../../shared/components/ui/data-table';
+import { StatusBadge } from '../../../shared/components/ui/status-badge';
 import type { Sector } from '../types';
 
 export interface SectoresTablaProps {
@@ -12,8 +12,9 @@ export interface SectoresTablaProps {
   cargando?: boolean;
   error?: string | null;
   onReintentar?: () => void;
-  onEditar: (sector: Sector) => void;
-  onEliminar: (sector: Sector) => void;
+  /** Sin `onEditar` y `onEliminar` (rol sin `SALON_GESTIONAR`) no hay columna de acciones. */
+  onEditar?: (sector: Sector) => void;
+  onEliminar?: (sector: Sector) => void;
 }
 
 interface AccionesSectorProps {
@@ -29,6 +30,7 @@ function AccionesSector({ sector, onEditar, onEliminar }: AccionesSectorProps) {
         variant="ghost"
         size="sm"
         aria-label={`Editar «${sector.nombre}»`}
+        title={`Editar «${sector.nombre}»`}
         onClick={() => onEditar(sector)}
       >
         <Pencil className="h-4 w-4" aria-hidden="true" />
@@ -39,6 +41,7 @@ function AccionesSector({ sector, onEditar, onEliminar }: AccionesSectorProps) {
           variant="ghost"
           size="sm"
           aria-label={`Eliminar «${sector.nombre}»`}
+          title={`Eliminar «${sector.nombre}»`}
           onClick={() => onEliminar(sector)}
         >
           <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -50,10 +53,10 @@ function AccionesSector({ sector, onEditar, onEliminar }: AccionesSectorProps) {
 }
 
 function columnas(
-  onEditar: (sector: Sector) => void,
-  onEliminar: (sector: Sector) => void,
+  onEditar?: (sector: Sector) => void,
+  onEliminar?: (sector: Sector) => void,
 ): ColumnaTabla<Sector>[] {
-  return [
+  const base: ColumnaTabla<Sector>[] = [
     {
       clave: 'nombre',
       encabezado: 'Nombre',
@@ -67,12 +70,12 @@ function columnas(
     {
       clave: 'estado',
       encabezado: 'Estado',
-      render: (sector) => (
-        <Badge variant={sector.estado === 'HABILITADO' ? 'success' : 'neutral'}>
-          {sector.estado === 'HABILITADO' ? 'Habilitado' : 'Deshabilitado'}
-        </Badge>
-      ),
+      render: (sector) => <StatusBadge estado={sector.estado} />,
     },
+  ];
+  if (!onEditar || !onEliminar) return base;
+  return [
+    ...base,
     {
       clave: 'acciones',
       encabezado: <span className="sr-only">Acciones</span>,

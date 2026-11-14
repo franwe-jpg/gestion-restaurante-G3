@@ -14,7 +14,7 @@ export function CartaPage() {
   const carta = useApi(() => obtenerCarta(estado), `carta-${estado}`);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <Breadcrumbs
         items={[{ etiqueta: 'Productos y Carta', ruta: '/productos' }, { etiqueta: 'Carta' }]}
       />

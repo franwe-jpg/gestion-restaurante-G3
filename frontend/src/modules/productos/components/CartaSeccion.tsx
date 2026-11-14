@@ -14,13 +14,26 @@ export interface CartaSeccionProps {
   filtro: FiltroEstado;
 }
 
+function cantidadProductos(cantidad: number): string {
+  return cantidad === 1 ? '1 producto' : `${cantidad} productos`;
+}
+
 export function CartaSeccion({ seccion, filtro }: CartaSeccionProps) {
   const mostrarEstado = filtro !== 'HABILITADO';
   const habilitada = seccion.estado === 'HABILITADO';
   return (
-    <section id={`seccion-${seccion.id}`} className="scroll-mt-4 space-y-3">
-      <div className="flex items-center gap-2">
-        <h2 className="text-xl font-semibold text-slate-900">{seccion.nombre}</h2>
+    <section
+      id={`seccion-${seccion.id}`}
+      aria-labelledby={`titulo-seccion-${seccion.id}`}
+      className="scroll-mt-4 space-y-3"
+    >
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+        <h2 id={`titulo-seccion-${seccion.id}`} className="text-xl font-semibold text-slate-900">
+          {seccion.nombre}
+        </h2>
+        <span className="text-sm text-slate-500">
+          {cantidadProductos(seccion.productos.length)}
+        </span>
         {mostrarEstado && (
           <Badge variant={habilitada ? 'success' : 'neutral'}>
             {habilitada ? 'Habilitada' : 'Deshabilitada'}

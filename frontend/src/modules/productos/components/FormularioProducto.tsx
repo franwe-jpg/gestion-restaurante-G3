@@ -1,14 +1,14 @@
 import type { ReactNode } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
 import { Alert } from '../../../shared/components/ui/alert';
-import { Button } from '../../../shared/components/ui/button';
-import { Card, CardContent } from '../../../shared/components/ui/card';
 import { FormField } from '../../../shared/components/ui/form-field';
 import { Input } from '../../../shared/components/ui/input';
 import { Select } from '../../../shared/components/ui/select';
+import { Separator } from '../../../shared/components/ui/separator';
 import { Textarea } from '../../../shared/components/ui/textarea';
 import { Switch } from '../../../shared/components/ui/switch';
+import { formatearMoneda } from '../../../shared/lib/format';
 import type { ConfiguracionAlta } from '../categorias';
 import type { Estado } from '../types';
 
@@ -22,17 +22,20 @@ import {
   ETIQUETAS_TOPE,
   INGREDIENTE_MAXIMO,
   INGREDIENTES_TOPE,
+  convertirPrecio,
 } from './validarProducto';
 
 type Formulario = ReturnType<typeof useFormularioProducto>;
 
-/** Lo que solo existe al editar: estado editable, imagen vigente y acciones extra. */
+/** El diálogo envía el formulario desde su pie con `<button form={ID_FORMULARIO_PRODUCTO}>`. */
+export const ID_FORMULARIO_PRODUCTO = 'formulario-producto';
+
+/** Lo que solo existe al editar: estado editable e imagen vigente. */
 export interface EdicionFormulario {
   estado: Estado;
   onCambiarEstado: (estado: Estado) => void;
   imagenActual: string | null;
   onQuitarImagenActual: () => void;
-  acciones?: ReactNode;
 }
 
 function CampoEstado({ edicion }: { edicion?: EdicionFormulario }) {
@@ -156,95 +159,123 @@ function CamposDeTexto({
   );
 }
 
-function AvisoSinSecciones({ mensaje }: { mensaje: string }) {
+interface AvisoSinSeccionesProps {
+  mensaje: string;
+  /** Lleva a la pestaña «Secciones» de la misma página (cierra el diálogo). */
+  onIrASecciones?: () => void;
+}
+
+function AvisoSinSecciones({ mensaje, onIrASecciones }: AvisoSinSeccionesProps) {
   return (
     <Alert variant="warning" titulo="Primero hay que crear una sección">
       {mensaje}{' '}
-      <Link to="/productos?pestania=secciones" className="font-medium underline">
+      <Link
+        to="/productos?pestania=secciones"
+        className="font-medium underline"
+        onClick={onIrASecciones}
+      >
         Ir a Secciones
       </Link>
     </Alert>
   );
 }
 
-function Botones({
-  guardar,
-  deshabilitado,
-  acciones,
-}: {
-  guardar: string;
-  deshabilitado: boolean;
-  acciones?: ReactNode;
-}) {
-  const navigate = useNavigate();
-  return (
-    <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-4">
-      {acciones && <div className="mr-auto">{acciones}</div>}
-      <Button variant="outline" onClick={() => navigate('/productos')}>
-        Cancelar
-      </Button>
-      <Button type="submit" disabled={deshabilitado}>
-        {guardar}
-      </Button>
-    </div>
-  );
-}
-
 export interface FormularioProductoProps {
   f: Formulario;
-  configuracion: Pick<
-    ConfiguracionAlta,
-    'botonGuardar' | 'avisoSinSecciones' | 'ingredientesObligatorios'
-  >;
+  configuracion: Pick<ConfiguracionAlta, 'avisoSinSecciones' | 'ingredientesObligatorios'>;
   secciones: OpcionSeccion[];
   errorDeCarga: string | null;
   edicion?: EdicionFormulario;
+  onIrASecciones?: () => void;
 }
 
+/** Agrupa campos afines con un encabezado propio, como en la maqueta. */
+function SeccionDelFormulario({ titulo, children }: { titulo: string; children: ReactNode }) {
+  return (
+    <section aria-label={titulo} className="space-y-4">
+      <h3 className="text-sm font-semibold tracking-wide text-slate-900">{titulo}</h3>
+      {children}
+    </section>
+  );
+}
+
+function precioDeVistaPrevia(precio: string): string {
+  if (precio.trim() === '') return 'Precio sin definir';
+  const convertido = convertirPrecio(precio);
+  if (convertido === null) return precio;
+  return formatearMoneda(Number(convertido));
+}
+
+/** Miniatura viva de la tarjeta tal como aparece en la carta. */
+function VistaPrevia({ f }: { f: Formulario }) {
+  const nombre = f.nombre.trim() === '' ? 'Sin nombre' : f.nombre.trim();
+  const descripcion = f.descripcion.trim() === '' ? 'Sin descripción' : f.descripcion.trim();
+  // Las etiquetas se resumen en un conteo: los textos ya aparecen como remisibles arriba.
+  const etiquetas =
+    f.etiquetas.length === 0
+      ? 'Sin etiquetas'
+      : `${f.etiquetas.length} ${f.etiquetas.length === 1 ? 'etiqueta' : 'etiquetas'}`;
+  return (
+    <article
+      aria-label="Vista previa en la carta"
+      className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-base font-semibold text-slate-900">{nombre}</p>
+        <p className="font-semibold text-slate-900">{precioDeVistaPrevia(f.precio)}</p>
+      </div>
+      <p className="text-sm text-slate-600">{descripcion}</p>
+      <p className="text-xs text-slate-500">{etiquetas}</p>
+    </article>
+  );
+}
+
+/** Campos del producto; los botones de guardar y cancelar los pone el diálogo que lo contiene. */
 export function FormularioProducto({
   f,
   configuracion,
   secciones,
   errorDeCarga,
   edicion,
+  onIrASecciones,
 }: FormularioProductoProps) {
-  const sinSecciones = secciones.length === 0;
-
   return (
     <form
+      id={ID_FORMULARIO_PRODUCTO}
       noValidate
-      className="flex flex-wrap items-start gap-5"
+      className="space-y-6"
       onSubmit={(evento) => {
         evento.preventDefault();
         void f.enviar();
       }}
     >
-      <Card className="min-w-0 flex-[999_1_480px]">
-        <CardContent className="space-y-5 pt-6">
-          {errorDeCarga && <Alert variant="danger">{errorDeCarga}</Alert>}
-          {!errorDeCarga && sinSecciones && (
-            <AvisoSinSecciones mensaje={configuracion.avisoSinSecciones} />
-          )}
-          {f.errores.general && <Alert variant="danger">{f.errores.general}</Alert>}
-          <CamposPrincipales f={f} secciones={secciones} edicion={edicion} />
-          <CamposDeTexto f={f} ingredientesObligatorios={configuracion.ingredientesObligatorios} />
-          <Botones
-            guardar={configuracion.botonGuardar}
-            deshabilitado={sinSecciones || f.enviando}
-            acciones={edicion?.acciones}
-          />
-        </CardContent>
-      </Card>
-      <Card className="min-w-0 flex-[1_1_320px]">
-        <CardContent className="space-y-3 pt-6">
-          <span className="text-sm font-medium text-slate-700">Imagen</span>
-          <SelectorImagen
-            onCambiar={f.setImagen}
-            imagenActual={edicion?.imagenActual}
-            onQuitarActual={edicion?.onQuitarImagenActual}
-          />
-        </CardContent>
-      </Card>
+      {errorDeCarga && <Alert variant="danger">{errorDeCarga}</Alert>}
+      {!errorDeCarga && secciones.length === 0 && (
+        <AvisoSinSecciones
+          mensaje={configuracion.avisoSinSecciones}
+          onIrASecciones={onIrASecciones}
+        />
+      )}
+      {f.errores.general && <Alert variant="danger">{f.errores.general}</Alert>}
+      <SeccionDelFormulario titulo="Datos principales">
+        <CamposPrincipales f={f} secciones={secciones} edicion={edicion} />
+      </SeccionDelFormulario>
+      <Separator />
+      <SeccionDelFormulario titulo="Detalle">
+        <CamposDeTexto f={f} ingredientesObligatorios={configuracion.ingredientesObligatorios} />
+      </SeccionDelFormulario>
+      <Separator />
+      <SeccionDelFormulario titulo="Imagen">
+        <SelectorImagen
+          onCambiar={f.setImagen}
+          imagenActual={edicion?.imagenActual}
+          onQuitarActual={edicion?.onQuitarImagenActual}
+        />
+      </SeccionDelFormulario>
+      <Separator />
+      <SeccionDelFormulario titulo="Así se ve en la carta">
+        <VistaPrevia f={f} />
+      </SeccionDelFormulario>
     </form>
   );
 }

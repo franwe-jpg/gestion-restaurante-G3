@@ -1,17 +1,13 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import {
-  Bell,
   BookOpen,
   CalendarDays,
-  CheckCircle2,
   ClipboardList,
   CreditCard,
-  Download,
   Eye,
   Info,
   Pencil,
-  Plus,
   Settings,
   Trash2,
   TrendingUp,
@@ -92,7 +88,7 @@ const PALETA = [
   { nombre: 'Danger', clase: 'bg-danger', texto: 'text-danger-foreground', hex: '#be123c' },
   { nombre: 'Warning', clase: 'bg-warning', texto: 'text-warning-foreground', hex: '#f59e0b' },
   { nombre: 'Info', clase: 'bg-info', texto: 'text-info-foreground', hex: '#0369a1' },
-  { nombre: 'Light', clase: 'bg-light', texto: 'text-slate-900', hex: '#f8fafc' },
+  { nombre: 'Light', clase: 'bg-light', texto: 'text-light-foreground', hex: '#f8fafc' },
   { nombre: 'Dark', clase: 'bg-dark', texto: 'text-dark-foreground', hex: '#0f172a' },
 ] as const;
 
@@ -174,22 +170,59 @@ const DATOS_REPORTE = [
 ];
 
 interface SeccionProps {
+  id: string;
+  numero: string;
   titulo: string;
   descripcion: string;
   children: ReactNode;
 }
 
-function Seccion({ titulo, descripcion, children }: SeccionProps) {
+/** Bloque del catálogo: sección anclable con numeración visible y aire propio. */
+function Seccion({ id, numero, titulo, descripcion, children }: SeccionProps) {
+  const tituloId = `${id}-titulo`;
   return (
-    <section className="space-y-4">
-      <div>
-        <h2 className="text-lg font-semibold tracking-tight text-slate-900">{titulo}</h2>
-        <p className="text-sm text-slate-500">{descripcion}</p>
+    <section id={id} aria-labelledby={tituloId} className="scroll-mt-24 space-y-4">
+      <div className="flex items-baseline gap-3">
+        <span
+          aria-hidden="true"
+          className="bg-primary-subtle text-primary-strong shrink-0 rounded-md px-2 py-0.5 text-xs font-bold"
+        >
+          {numero}
+        </span>
+        <div>
+          <h2 id={tituloId} className="text-lg font-semibold tracking-tight text-slate-900">
+            {titulo}
+          </h2>
+          <p className="text-sm text-pretty text-slate-500">{descripcion}</p>
+        </div>
       </div>
       {children}
     </section>
   );
 }
+
+const SECCIONES_CATALOGO = [
+  { id: 'botones', numero: '01', titulo: 'Botones' },
+  { id: 'formularios', numero: '02', titulo: 'Formularios' },
+  { id: 'feedback', numero: '03', titulo: 'Feedback' },
+  { id: 'estados', numero: '04', titulo: 'Etiquetas de estado' },
+  { id: 'paleta', numero: '05', titulo: 'Paleta de colores' },
+  { id: 'tarjetas', numero: '06', titulo: 'Tarjetas' },
+  { id: 'listas', numero: '07', titulo: 'Listas' },
+  { id: 'tablas', numero: '08', titulo: 'Tablas' },
+  { id: 'tabla-datos', numero: '09', titulo: 'Tabla de datos' },
+  { id: 'paginador', numero: '10', titulo: 'Paginador' },
+  { id: 'separadores', numero: '11', titulo: 'Separadores' },
+  { id: 'vacios', numero: '12', titulo: 'Estados vacíos' },
+  { id: 'panel-lateral', numero: '13', titulo: 'Panel lateral' },
+  { id: 'modales', numero: '14', titulo: 'Modales' },
+  { id: 'navegacion', numero: '15', titulo: 'Navegación' },
+  { id: 'resumenes', numero: '16', titulo: 'Resúmenes y estados' },
+  { id: 'overlays', numero: '17', titulo: 'Overlays' },
+  { id: 'reportes', numero: '18', titulo: 'Reportes' },
+  { id: 'formato', numero: '19', titulo: 'Formato de datos' },
+  { id: 'errores', numero: '20', titulo: 'Páginas de error' },
+] as const;
 
 export function ComponentesPage() {
   const [sheetAbierto, setSheetAbierto] = useState(false);
@@ -299,19 +332,59 @@ export function ComponentesPage() {
   ];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       <PageHeader
         titulo="Guía de componentes"
-        descripcion="Referencia visual de los bloques reutilizables disponibles para los seis módulos."
+        descripcion="Referencia visual de los bloques reutilizables disponibles para los seis módulos. Cada sección muestra el componente en uso real: todos los botones abren, filtran o confirman algo."
         acciones={
-          <Button>
-            <Plus className="h-4 w-4" />
-            Acción principal
-          </Button>
+          <>
+            <Button
+              variant="brand-outline"
+              size="sm"
+              onClick={() =>
+                document
+                  .getElementById('tabla-datos')
+                  ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+              }
+            >
+              Ver tabla de datos
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() =>
+                document
+                  .getElementById('formularios')
+                  ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+              }
+            >
+              Ver formularios
+            </Button>
+          </>
         }
       />
 
+      <nav aria-label="Secciones de la guía">
+        <ol className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+          {SECCIONES_CATALOGO.map((seccion) => (
+            <li key={seccion.id}>
+              <a
+                href={`#${seccion.id}`}
+                className="focus-visible:ring-primary flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2"
+              >
+                <span aria-hidden="true" className="text-xs font-bold text-slate-400">
+                  {seccion.numero}
+                </span>
+                {seccion.titulo}
+              </a>
+            </li>
+          ))}
+        </ol>
+      </nav>
+
       <Seccion
+        id="botones"
+        numero="01"
         titulo="Botones"
         descripcion="Variantes, tamaños y estados. Usar la variante según la jerarquía de la acción."
       >
@@ -321,11 +394,9 @@ export function ComponentesPage() {
               <Button>Primario</Button>
               <Button variant="secondary">Secundario</Button>
               <Button variant="outline">Contorno</Button>
+              <Button variant="brand-outline">Contorno marca</Button>
               <Button variant="ghost">Fantasma</Button>
-              <Button variant="danger">
-                <Trash2 className="h-4 w-4" />
-                Eliminar
-              </Button>
+              <Button variant="danger">Eliminar</Button>
               <Button disabled>Deshabilitado</Button>
             </div>
 
@@ -335,8 +406,7 @@ export function ComponentesPage() {
               <Button size="sm">Pequeño</Button>
               <Button size="md">Mediano</Button>
               <Button size="lg">Grande</Button>
-              <Button variant="outline" size="sm">
-                <Download className="h-4 w-4" />
+              <Button variant="brand-outline" size="sm">
                 Exportar
               </Button>
             </div>
@@ -345,6 +415,8 @@ export function ComponentesPage() {
       </Seccion>
 
       <Seccion
+        id="formularios"
+        numero="02"
         titulo="Formularios"
         descripcion="Controles base para los ABM de los módulos: texto, selección, fechas y estados."
       >
@@ -428,6 +500,8 @@ export function ComponentesPage() {
       </Seccion>
 
       <Seccion
+        id="feedback"
+        numero="03"
         titulo="Feedback"
         descripcion="Mensajes inline, notificaciones, estados de carga y error."
       >
@@ -449,6 +523,7 @@ export function ComponentesPage() {
         <Card>
           <CardContent className="flex flex-wrap items-center gap-3 pt-6">
             <Button
+              variant="brand-outline"
               onClick={() =>
                 mostrarToast({
                   titulo: 'Comanda creada',
@@ -457,11 +532,10 @@ export function ComponentesPage() {
                 })
               }
             >
-              <Bell className="h-4 w-4" />
               Mostrar toast
             </Button>
             <Button
-              variant="outline"
+              variant="brand-outline"
               onClick={() =>
                 mostrarToast({
                   titulo: 'No se pudo conectar',
@@ -488,6 +562,8 @@ export function ComponentesPage() {
       </Seccion>
 
       <Seccion
+        id="estados"
+        numero="04"
         titulo="Etiquetas de estado"
         descripcion="Para indicar el estado de una mesa, una comanda o un pago sin depender del color."
       >
@@ -502,6 +578,8 @@ export function ComponentesPage() {
       </Seccion>
 
       <Seccion
+        id="paleta"
+        numero="05"
         titulo="Paleta de colores"
         descripcion="Tokens semánticos definidos en src/index.css. Se usan como bg-<color>, text-<color>, border-<color>, etc."
       >
@@ -524,6 +602,8 @@ export function ComponentesPage() {
       </Seccion>
 
       <Seccion
+        id="tarjetas"
+        numero="06"
         titulo="Tarjetas"
         descripcion="Contenedores para agrupar información, métricas o accesos rápidos."
       >
@@ -553,7 +633,7 @@ export function ComponentesPage() {
               <p className="text-xs text-slate-500">comandas del turno</p>
             </CardContent>
             <CardFooter>
-              <Button variant="outline" size="sm">
+              <Button variant="brand-outline" size="sm">
                 Ver detalle
               </Button>
             </CardFooter>
@@ -561,22 +641,27 @@ export function ComponentesPage() {
 
           <Card>
             <CardHeader>
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-50 text-amber-800">
+              <div className="bg-primary-subtle text-primary-strong flex h-10 w-10 items-center justify-center rounded-lg">
                 <UtensilsCrossed className="h-5 w-5" aria-hidden="true" />
               </div>
               <CardTitle className="pt-2">Acceso a módulo</CardTitle>
               <CardDescription>Tarjeta de navegación con icono.</CardDescription>
             </CardHeader>
             <CardContent>
-              <Button variant="ghost" size="sm" className="px-0">
+              <Link
+                to="/productos"
+                className="focus-visible:ring-primary inline-flex items-center gap-1 rounded-md px-0 py-1 text-sm font-medium text-slate-700 hover:text-slate-900 hover:underline focus-visible:outline-none focus-visible:ring-2"
+              >
                 Ir a Productos y Carta
-              </Button>
+              </Link>
             </CardContent>
           </Card>
         </div>
       </Seccion>
 
       <Seccion
+        id="listas"
+        numero="07"
         titulo="Listas"
         descripcion="Filas con icono, título y descripción. Sirven para mesas, comandas, reservas o movimientos."
       >
@@ -633,6 +718,8 @@ export function ComponentesPage() {
       </Seccion>
 
       <Seccion
+        id="tablas"
+        numero="08"
         titulo="Tablas"
         descripcion="Grilla de datos para listados paginados. Es la base de mesas, comandas, reservas y pagos."
       >
@@ -710,6 +797,8 @@ export function ComponentesPage() {
       </Seccion>
 
       <Seccion
+        id="tabla-datos"
+        numero="09"
         titulo="Tabla de datos"
         descripcion="DataTable con búsqueda, filtros, acciones por fila y exportación a CSV."
       >
@@ -769,6 +858,8 @@ export function ComponentesPage() {
       </Seccion>
 
       <Seccion
+        id="paginador"
+        numero="10"
         titulo="Paginador"
         descripcion="Navegación para listados paginados. Acompaña a la tabla y respeta el límite de 50 registros por página (D-27)."
       >
@@ -794,6 +885,8 @@ export function ComponentesPage() {
       </Seccion>
 
       <Seccion
+        id="separadores"
+        numero="11"
         titulo="Separadores"
         descripcion="Divisores horizontales y verticales para agrupar contenido."
       >
@@ -814,6 +907,8 @@ export function ComponentesPage() {
       </Seccion>
 
       <Seccion
+        id="vacios"
+        numero="12"
         titulo="Estados vacíos"
         descripcion="Para listados sin datos o módulos todavía no implementados."
       >
@@ -824,8 +919,7 @@ export function ComponentesPage() {
               titulo="Todavía no hay promociones"
               descripcion="Cuando se cargue la primera promoción, va a aparecer en este listado."
               accion={
-                <Button size="sm">
-                  <Plus className="h-4 w-4" />
+                <Button variant="brand-outline" size="sm">
                   Nueva promoción
                 </Button>
               }
@@ -835,13 +929,14 @@ export function ComponentesPage() {
       </Seccion>
 
       <Seccion
+        id="panel-lateral"
+        numero="13"
         titulo="Panel lateral"
         descripcion="Drawer reutilizable para menú móvil, filtros o formularios rápidos."
       >
         <Card>
           <CardContent className="flex flex-wrap items-center gap-3 pt-6">
-            <Button variant="outline" onClick={() => setSheetAbierto(true)}>
-              <Settings className="h-4 w-4" />
+            <Button variant="brand-outline" onClick={() => setSheetAbierto(true)}>
               Abrir panel lateral
             </Button>
             <span className="text-sm text-slate-500">
@@ -865,8 +960,7 @@ export function ComponentesPage() {
               <Info className="h-4 w-4" aria-hidden="true" />
               El componente ya maneja foco, Escape y bloqueo del scroll.
             </div>
-            <Button size="sm" onClick={() => setSheetAbierto(false)}>
-              <CheckCircle2 className="h-4 w-4" />
+            <Button variant="brand-outline" size="sm" onClick={() => setSheetAbierto(false)}>
               Entendido
             </Button>
           </div>
@@ -874,13 +968,14 @@ export function ComponentesPage() {
       </Seccion>
 
       <Seccion
+        id="modales"
+        numero="14"
         titulo="Modales"
         descripcion="Ventanas de confirmación para acciones destructivas o cambios que necesitan confirmación."
       >
         <Card>
           <CardContent className="flex flex-wrap items-center gap-3 pt-6">
             <Button variant="danger" onClick={() => setModalAbierto(true)}>
-              <Trash2 className="h-4 w-4" />
               Eliminar mesa
             </Button>
             <span className="text-sm text-slate-500">
@@ -896,7 +991,7 @@ export function ComponentesPage() {
           description="Esta acción no se puede deshacer."
           footer={
             <>
-              <Button variant="outline" onClick={() => setModalAbierto(false)}>
+              <Button variant="brand-outline" onClick={() => setModalAbierto(false)}>
                 Cancelar
               </Button>
               <Button variant="danger" onClick={() => setModalAbierto(false)}>
@@ -913,6 +1008,8 @@ export function ComponentesPage() {
       </Seccion>
 
       <Seccion
+        id="navegacion"
+        numero="15"
         titulo="Navegación"
         descripcion="Migas de pan y pestañas para organizar subsecciones dentro de un módulo."
       >
@@ -921,7 +1018,7 @@ export function ComponentesPage() {
             <Breadcrumbs
               items={[
                 { etiqueta: 'Inicio', ruta: '/' },
-                { etiqueta: 'Salón y Mozos', ruta: '/salon' },
+                { etiqueta: 'Salón, Mozos y Chefs', ruta: '/salon' },
                 { etiqueta: 'Mesas' },
               ]}
             />
@@ -958,6 +1055,8 @@ export function ComponentesPage() {
       </Seccion>
 
       <Seccion
+        id="resumenes"
+        numero="16"
         titulo="Resúmenes y estados"
         descripcion="Tarjetas de métricas, fichas de detalle, avatares y badges de estado."
       >
@@ -1011,16 +1110,21 @@ export function ComponentesPage() {
         </Card>
       </Seccion>
 
-      <Seccion titulo="Overlays" descripcion="Tooltips, popovers y confirmaciones reutilizables.">
+      <Seccion
+        id="overlays"
+        numero="17"
+        titulo="Overlays"
+        descripcion="Tooltips, popovers y confirmaciones reutilizables."
+      >
         <Card>
           <CardContent className="flex flex-wrap items-center gap-3 pt-6">
             <Tooltip contenido="Actualizar estado">
-              <Button variant="outline" size="sm" aria-label="Actualizar estado">
+              <Button variant="brand-outline" size="sm" aria-label="Actualizar estado">
                 <Settings className="h-4 w-4" />
               </Button>
             </Tooltip>
 
-            <Popover trigger={<Button variant="outline">Filtros avanzados</Button>}>
+            <Popover trigger={<Button variant="brand-outline">Filtros avanzados</Button>}>
               <p className="font-medium text-slate-900">Filtros</p>
               <p className="mt-1 text-slate-500">
                 Acá puede ir un formulario breve de filtros o acciones rápidas.
@@ -1042,7 +1146,6 @@ export function ComponentesPage() {
                 });
               }}
             >
-              <Trash2 className="h-4 w-4" />
               Eliminar con confirmación
             </Button>
           </CardContent>
@@ -1050,6 +1153,8 @@ export function ComponentesPage() {
       </Seccion>
 
       <Seccion
+        id="reportes"
+        numero="18"
         titulo="Reportes"
         descripcion="Contenedores de gráficos y exportación para los reportes por módulo."
       >
@@ -1062,7 +1167,7 @@ export function ComponentesPage() {
             {DATOS_REPORTE.map((item) => (
               <div key={item.dia} className="flex flex-1 flex-col items-center gap-2">
                 <div
-                  className="w-full rounded-t bg-amber-600/80"
+                  className="w-full rounded-t bg-primary/80"
                   style={{ height: `${Math.round((item.ventas / maxVentas) * 100)}%` }}
                   title={`${item.dia}: ${formatearMoneda(item.ventas)}`}
                 />
@@ -1080,6 +1185,8 @@ export function ComponentesPage() {
       </Seccion>
 
       <Seccion
+        id="formato"
+        numero="19"
         titulo="Formato de datos"
         descripcion="Helpers para mostrar moneda, fechas, horas y números de forma consistente."
       >
@@ -1110,6 +1217,8 @@ export function ComponentesPage() {
       </Seccion>
 
       <Seccion
+        id="errores"
+        numero="20"
         titulo="Páginas de error"
         descripcion="Rutas reutilizables para 403, 404, 500 y 503, más el límite de errores por módulo."
       >
@@ -1117,17 +1226,26 @@ export function ComponentesPage() {
           <CardContent className="flex flex-wrap items-center gap-4 pt-6">
             <Link
               to="/ruta-inexistente"
-              className="text-sm font-medium text-amber-800 hover:underline"
+              className="focus-visible:ring-primary text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2"
             >
               Ver página 404
             </Link>
-            <Link to="/403" className="text-sm font-medium text-amber-800 hover:underline">
+            <Link
+              to="/403"
+              className="focus-visible:ring-primary text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2"
+            >
               Ver página 403
             </Link>
-            <Link to="/500" className="text-sm font-medium text-amber-800 hover:underline">
+            <Link
+              to="/500"
+              className="focus-visible:ring-primary text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2"
+            >
               Ver página 500
             </Link>
-            <Link to="/503" className="text-sm font-medium text-amber-800 hover:underline">
+            <Link
+              to="/503"
+              className="focus-visible:ring-primary text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2"
+            >
               Ver página 503
             </Link>
             <span className="text-sm text-slate-500">

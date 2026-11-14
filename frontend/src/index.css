@@ -1,5 +1,7 @@
 @import 'tailwindcss';
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-sans: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-display:
@@ -69,6 +71,164 @@
   --color-dark-border: #cbd5e1;
   --color-dark-strong: #0f172a;
   --color-dark-foreground: #ffffff;
+}
+
+/* Colores del croquis del local (SVG), separados del tema de la UI. */
+:root {
+  --plano-piso: #f3f4f6;
+  --plano-pared-exterior: #475569;
+  --plano-pared-interior: #64748b;
+  --plano-detalle: #94a3b8;
+  --plano-bloque: #ffffff;
+  --plano-rayado: #e2e8f0;
+}
+
+/* Modo oscuro: se reasignan los tokens neutros y semánticos.
+   Los componentes usan las variables de Tailwind, así que cambian sin tocar cada clase. */
+.dark {
+  color-scheme: dark;
+
+  --color-white: #1c1917;
+
+  --color-slate-50: #0c0a09;
+  --color-slate-100: #1c1917;
+  --color-slate-200: #292524;
+  --color-slate-300: #44403c;
+  --color-slate-400: #57534e;
+  --color-slate-500: #78716c;
+  --color-slate-600: #a8a29e;
+  --color-slate-700: #d6d3d1;
+  --color-slate-800: #e7e5e4;
+  --color-slate-900: #f5f5f4;
+  --color-slate-950: #fafaf9;
+
+  --color-gray-100: #1c1917;
+  --color-gray-200: #292524;
+  --color-gray-300: #44403c;
+  --color-gray-400: #57534e;
+  --color-gray-500: #78716c;
+  --color-gray-600: #a8a29e;
+  --color-gray-700: #d6d3d1;
+  --color-gray-800: #e7e5e4;
+
+  --color-brand: #fbbf24;
+  --color-brand-hover: #fcd34a;
+  --color-brand-subtle: rgb(251 191 36 / 0.12);
+  --color-brand-border: rgb(251 191 36 / 0.35);
+  --color-brand-foreground: #1c1917;
+
+  --color-primary: #fbbf24;
+  --color-primary-hover: #fcd34a;
+  --color-primary-subtle: rgb(251 191 36 / 0.12);
+  --color-primary-border: rgb(251 191 36 / 0.35);
+  --color-primary-strong: #fde68a;
+  --color-primary-foreground: #1c1917;
+
+  --color-secondary: #d6d3d1;
+  --color-secondary-hover: #e7e5e4;
+  --color-secondary-subtle: #1c1917;
+  --color-secondary-border: #292524;
+  --color-secondary-strong: #f5f5f4;
+  --color-secondary-foreground: #0c0a09;
+
+  --color-success: #34d399;
+  --color-success-hover: #10b981;
+  --color-success-subtle: #052e2b;
+  --color-success-border: #047857;
+  --color-success-strong: #a7f3d0;
+  --color-success-foreground: #022c22;
+
+  --color-danger: #fb7185;
+  --color-danger-hover: #fda4af;
+  --color-danger-subtle: rgb(251 113 133 / 0.14);
+  --color-danger-border: rgb(251 113 133 / 0.45);
+  --color-danger-strong: #fecdd3;
+  --color-danger-foreground: #4c0519;
+
+  --color-warning: #fbbf24;
+  --color-warning-hover: #f59e0b;
+  --color-warning-subtle: #451a03;
+  --color-warning-border: #b45309;
+  --color-warning-strong: #fde68a;
+  --color-warning-foreground: #1c1917;
+
+  --color-info: #38bdf8;
+  --color-info-hover: #0ea5e9;
+  --color-info-subtle: #082f49;
+  --color-info-border: #0369a1;
+  --color-info-strong: #bae6fd;
+  --color-info-foreground: #082f49;
+
+  --plano-piso: #0c0a09;
+  --plano-pared-exterior: #a8a29e;
+  --plano-pared-interior: #78716c;
+  --plano-detalle: #57534e;
+  --plano-bloque: #1c1917;
+  --plano-rayado: #292524;
+}
+
+/* Base accesible del shell: foco visible, cuerpo y respeto a movimiento reducido. */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--color-light);
+    color: var(--color-dark);
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .dark body {
+    background-color: var(--color-slate-50);
+    color: var(--color-slate-900);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  ::selection {
+    background-color: var(--color-primary-border);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* Enlace de salto al contenido: visible solo con teclado. */
+.enlace-salto {
+  position: absolute;
+  top: -100px;
+  left: 16px;
+  z-index: 100;
+  border-radius: 8px;
+  background-color: var(--color-dark);
+  color: var(--color-dark-foreground);
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: top 0.15s ease-in-out;
+}
+
+.enlace-salto:focus-visible {
+  top: 12px;
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 /* Custom scrollbars for clean dashboards */

@@ -41,6 +41,12 @@ Cada archivo tiene un solo trabajo (D-01, D-02, D-03):
 
 Un módulo solo puede llamar al `service` de otro, nunca a su `router`, `repository`, `models` ni `schemas` (RNF-MAN-09). La CI lo verifica con `import-linter` (D-04).
 
+Desde HU-TR-01 (inicio de sesión y roles) rigen tres contratos más, que también verifica `import-linter`:
+
+- El módulo `usuarios` entra en la regla anterior como cualquier otro: los demás módulos y `app/shared/` solo usan `usuarios.service`.
+- Solo los `router` pueden importar `app/shared/seguridad.py` (D-13): declaran `dependencies=[requiere(Permiso.X)]` en cada endpoint. `service`, `repository`, `models` y `schemas` no lo importan.
+- `app/shared/` no importa `app/modules/`. La única excepción es `seguridad.py`, que resuelve el usuario de la sesión con `usuarios.service` (`ignore_imports` en `backend/pyproject.toml`).
+
 ```python
 # Bien: el router solo delega
 @router.get("/{mesa_id}", response_model=MesaSalida)

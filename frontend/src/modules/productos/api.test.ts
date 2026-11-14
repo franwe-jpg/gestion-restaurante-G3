@@ -7,6 +7,7 @@ import {
   crearSeccion,
   darDeBajaProducto,
   darDeBajaSeccion,
+  descargarReportePdf,
   listarProductos,
   listarProductosHabilitados,
   listarSecciones,
@@ -15,6 +16,7 @@ import {
   modificarSeccion,
   obtenerCarta,
   obtenerProducto,
+  obtenerReporteMasVendidos,
   urlDeImagen,
 } from './api';
 import type {
@@ -280,5 +282,31 @@ describe('obtenerCarta', () => {
     const resultado = await obtenerCarta('DESHABILITADO');
 
     expect(resultado).toEqual({ datos: null, exito: false, error: 'Sin conexión' });
+  });
+});
+
+describe('api del reporte de productos mas vendidos', () => {
+  it('consulta el reporte JSON con el periodo', async () => {
+    const get = vi
+      .spyOn(clienteHttp, 'get')
+      .mockResolvedValue({ datos: null, exito: false, error: 'x' });
+
+    await obtenerReporteMasVendidos('2026-11-01', '2026-11-05');
+
+    expect(get).toHaveBeenCalledWith(
+      '/reportes/productos-mas-vendidos?fecha_desde=2026-11-01&fecha_hasta=2026-11-05',
+    );
+  });
+
+  it('descarga el PDF con el mismo periodo', async () => {
+    const obtener = vi
+      .spyOn(clienteHttp, 'obtenerArchivo')
+      .mockResolvedValue({ datos: null, exito: false, error: 'x' });
+
+    await descargarReportePdf('2026-11-01', '2026-11-05');
+
+    expect(obtener).toHaveBeenCalledWith(
+      '/reportes/productos-mas-vendidos/pdf?fecha_desde=2026-11-01&fecha_hasta=2026-11-05',
+    );
   });
 });

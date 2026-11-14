@@ -772,3 +772,199 @@ def test_listar_carta_sin_secciones_omite_la_consulta_de_productos(db: Session) 
     )
 
     assert sentencias == 2
+
+
+# --- API publica para otros modulos (M2, HU-M2-04) --------------------------------
+# M2 arma el menu del dia sobre `Producto`, pero no puede importar estos schemas: llama a
+# estas funciones con valores simples (D-03, contrato de importaciones).
+
+
+def _menu_del_dia(seccion_id: int, nombre: str = "Guiso de lentejas", **extra) -> dict:
+    base = {
+        "nombre": nombre,
+        "seccion_id": seccion_id,
+        "precio": Decimal("9900.00"),
+        "ingredientes": ["Lentejas"],
+        "descripcion": None,
+        "etiquetas": [],
+    }
+    return base | extra
+
+
+def test_crear_producto_de_categoria_crea_menu_del_dia_habilitado(
+    db: Session, fabrica_seccion, directorio_media: Path
+) -> None:
+    seccion = fabrica_seccion("Principales")
+
+    salida = service.crear_producto_de_categoria(
+        db, Categoria.MENU_DEL_DIA, **_menu_del_dia(seccion.id, "  Guiso ")
+    )
+
+    assert salida.categoria == Categoria.MENU_DEL_DIA
+    assert salida.estado == Estado.HABILITADO
+    assert salida.nombre == "Guiso"
+    assert salida.seccion.id == seccion.id
+    assert db.get(Producto, salida.id).nombre_normalizado == "guiso"
+
+
+def test_crear_producto_de_categoria_permite_el_mismo_nombre_que_un_plato(
+    db: Session, fabrica_seccion, directorio_media: Path
+) -> None:
+    seccion = fabrica_seccion("Principales")
+    service.crear_producto(db, _plato(seccion.id, "Guiso"), None)
+
+    salida = service.crear_producto_de_categoria(
+        db, Categoria.MENU_DEL_DIA, **_menu_del_dia(seccion.id, "Guiso")
+    )
+
+    assert salida.nombre == "Guiso"
+
+
+def test_crear_producto_de_categoria_rechaza_nombre_repetido_en_su_categoria(
+    db: Session, fabrica_seccion, directorio_media: Path
+) -> None:
+    seccion = fabrica_seccion("Principales")
+    service.crear_producto_de_categoria(
+        db, Categoria.MENU_DEL_DIA, **_menu_del_dia(seccion.id, "Guiso")
+    )
+
+    with pytest.raises(ReglaDeNegocioError, match="El producto ya está registrado"):
+        service.crear_producto_de_categoria(
+            db, Categoria.MENU_DEL_DIA, **_menu_del_dia(seccion.id, "guiso")
+        )
+
+
+def test_crear_producto_de_categoria_usa_el_mensaje_del_modulo_que_llama(
+    db: Session, fabrica_seccion, directorio_media: Path
+) -> None:
+    seccion = fabrica_seccion("Principales")
+    service.crear_producto_de_categoria(
+        db, Categoria.MENU_DEL_DIA, **_menu_del_dia(seccion.id, "Guiso")
+    )
+
+    with pytest.raises(ReglaDeNegocioError, match="El menú del día ya está registrado"):
+        service.crear_producto_de_categoria(
+            db,
+            Categoria.MENU_DEL_DIA,
+            mensaje_nombre_repetido="El menú del día ya está registrado",
+            **_menu_del_dia(seccion.id, "Guiso"),
+        )
+
+
+def test_crear_producto_de_categoria_con_seccion_deshabilitada_lanza_regla_de_negocio(
+    db: Session, fabrica_seccion, directorio_media: Path
+) -> None:
+    seccion = fabrica_seccion("Principales", estado=Estado.DESHABILITADO)
+
+    with pytest.raises(ReglaDeNegocioError, match="está deshabilitada"):
+        service.crear_producto_de_categoria(db, Categoria.MENU_DEL_DIA, **_menu_del_dia(seccion.id))
+
+
+def test_crear_producto_de_categoria_con_seccion_inexistente_lanza_no_encontrado(
+    db: Session, directorio_media: Path
+) -> None:
+    with pytest.raises(NoEncontradoError):
+        service.crear_producto_de_categoria(db, Categoria.MENU_DEL_DIA, **_menu_del_dia(9999))
+
+
+def test_crear_producto_de_categoria_guarda_la_imagen(
+    db: Session, fabrica_seccion, directorio_media: Path
+) -> None:
+    seccion = fabrica_seccion("Principales")
+
+    salida = service.crear_producto_de_categoria(
+        db, Categoria.MENU_DEL_DIA, imagen=_jpeg(), **_menu_del_dia(seccion.id)
+    )
+
+    archivo = salida.imagen_url.removeprefix("/media/")
+    assert (directorio_media / archivo).is_file()
+
+
+def test_modificar_producto_de_categoria_cambia_los_datos(
+    db: Session, fabrica_seccion, directorio_media: Path
+) -> None:
+    seccion = fabrica_seccion("Principales")
+    creado = service.crear_producto_de_categoria(
+        db, Categoria.MENU_DEL_DIA, **_menu_del_dia(seccion.id)
+    )
+
+    salida = service.modificar_producto_de_categoria(
+        db,
+        Categoria.MENU_DEL_DIA,
+        creado.id,
+        nombre="Guiso de arroz",
+        seccion_id=seccion.id,
+        precio=Decimal("10500.00"),
+        ingredientes=["Arroz"],
+        descripcion="Con pan",
+        etiquetas=["Casero"],
+    )
+
+    assert (salida.nombre, salida.precio) == ("Guiso de arroz", Decimal("10500.00"))
+    assert (salida.ingredientes, salida.descripcion) == (["Arroz"], "Con pan")
+    assert salida.etiquetas == ["Casero"]
+
+
+def test_modificar_producto_de_categoria_reactiva(
+    db: Session, fabrica_seccion, directorio_media: Path
+) -> None:
+    seccion = fabrica_seccion("Principales")
+    creado = service.crear_producto_de_categoria(
+        db, Categoria.MENU_DEL_DIA, **_menu_del_dia(seccion.id)
+    )
+    service.dar_de_baja_producto(db, Categoria.MENU_DEL_DIA, creado.id)
+
+    salida = service.modificar_producto_de_categoria(
+        db,
+        Categoria.MENU_DEL_DIA,
+        creado.id,
+        estado=Estado.HABILITADO,
+        **_menu_del_dia(seccion.id),
+    )
+
+    assert salida.estado == Estado.HABILITADO
+
+
+def test_modificar_producto_de_categoria_de_otra_categoria_lanza_no_encontrado(
+    db: Session, fabrica_seccion, directorio_media: Path
+) -> None:
+    seccion = fabrica_seccion("Principales")
+    plato = service.crear_producto(db, _plato(seccion.id), None)
+
+    with pytest.raises(NoEncontradoError):
+        service.modificar_producto_de_categoria(
+            db, Categoria.MENU_DEL_DIA, plato.id, **_menu_del_dia(seccion.id)
+        )
+
+
+def test_obtener_productos_por_ids_conserva_el_orden(
+    db: Session, fabrica_seccion, fabrica_producto
+) -> None:
+    seccion = fabrica_seccion("Principales")
+    primero = fabrica_producto(seccion, "Uno")
+    segundo = fabrica_producto(seccion, "Dos")
+
+    salida = service.obtener_productos_por_ids(db, [segundo.id, primero.id])
+
+    assert [producto.nombre for producto in salida] == ["Dos", "Uno"]
+
+
+def test_obtener_productos_por_ids_incluye_los_deshabilitados(
+    db: Session, fabrica_seccion, fabrica_producto
+) -> None:
+    seccion = fabrica_seccion("Principales")
+    apagado = fabrica_producto(seccion, "Guiso", estado=Estado.DESHABILITADO)
+
+    salida = service.obtener_productos_por_ids(db, [apagado.id])
+
+    assert salida[0].estado == Estado.DESHABILITADO
+
+
+def test_obtener_productos_por_ids_con_id_inexistente_lanza_no_encontrado(
+    db: Session, fabrica_seccion, fabrica_producto
+) -> None:
+    seccion = fabrica_seccion("Principales")
+    existente = fabrica_producto(seccion)
+
+    with pytest.raises(NoEncontradoError, match="9999"):
+        service.obtener_productos_por_ids(db, [existente.id, 9999])

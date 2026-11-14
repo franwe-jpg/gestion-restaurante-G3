@@ -3,9 +3,9 @@
 **ISFPP 2026 · Sistema de Gestión de Restaurante · Grupo 3**\
 Responsable: Federico Cabaña · Sprint 1, semana 2 · Issue #145
 
-Un criterio de conformidad es una pregunta de sí o no que comprueba que un documento del proyecto cumple las reglas del equipo. Cada documento tiene su checklist, de 5 a 8 preguntas. Se responde marcando una sola casilla por pregunta. Un «No» indica que el documento hay que corregirlo antes de darlo por terminado.
+Un criterio de conformidad es una pregunta de sí o no que comprueba que un documento del proyecto cumple las reglas del equipo. La consigna pide cuatro checklists: Especificación de Historias de Usuarios, Estándares de Diseño (diagrama de clases), Estándares de Codificación y Estándares para el análisis de riesgos (tabla de riesgos). Cada checklist tiene de 4 a 12 preguntas. Se responde marcando una sola casilla por pregunta. Un «No» indica que el documento hay que corregirlo antes de darlo por terminado.
 
-## 1. Historias de usuario
+## 1. Especificación de Historias de Usuarios
 
 Fuente: `AGENTS.md`, sección «Historias de usuario». Se responde para cada HU.
 
@@ -18,7 +18,7 @@ Fuente: `AGENTS.md`, sección «Historias de usuario». Se responde para cada HU
 | 5 | ¿Cada supuesto de la HU lleva la etiqueta `Supuesto:`? | ☐ | ☐ |
 | 6 | ¿La HU evita inventar requerimientos que la consigna no pide? | ☐ | ☐ |
 
-## 2. Diagrama de clases
+## 2. Estándares de Diseño (diagrama de clases)
 
 Fuente: el issue #145. Se responde sobre el diagrama unificado.
 
@@ -30,24 +30,54 @@ Fuente: el issue #145. Se responde sobre el diagrama unificado.
 | 4 | ¿Cada clase indica la etiqueta del módulo al que pertenece? | ☐ | ☐ |
 | 5 | ¿Las multiplicidades reflejan los casos opcionales de las HU (por ejemplo, una comanda sin reserva)? | ☐ | ☐ |
 
-## 3. Estándares de codificación
+## 3. Estándares de Codificación
 
-Fuentes: `SPRINT-1/S1-03-estandares-backend.md` (backend) y `SPRINT-1/S1-02-estandares-frontend.md` (frontend). Se responde sobre el código de cada PR.
+Hay un checklist por lenguaje. Se responde sobre el código de cada PR: el 3.1 para lo que toca `backend/` y el 3.2 para lo que toca `frontend/`.
+
+### 3.1 Python (backend)
+
+Fuente: `SPRINT-1/S1-03-estandares-backend.md`.
 
 | # | Pregunta | Sí | No |
 | --- | --- | --- | --- |
-| 1 | ¿Los nombres siguen la convención del lenguaje (backend: `snake_case` y `PascalCase`; frontend: `camelCase` y `PascalCase`)? | ☐ | ☐ |
-| 2 | ¿Los nombres de negocio están en español y son iguales a los del diagrama de clases? | ☐ | ☐ |
-| 3 | ¿Se respeta la separación de capas (backend: el `router` solo delega al `service`; frontend: las llamadas a la API están solo en `api.ts`)? | ☐ | ☐ |
-| 4 | ¿Cada módulo evita usar las partes internas de otro (backend: solo llama a su `service`; frontend: no importa sus archivos internos)? | ☐ | ☐ |
+| 1 | ¿Las funciones, variables y archivos están en `snake_case`, las clases en `PascalCase` y las constantes en `MAYUSCULAS`? | ☐ | ☐ |
+| 2 | ¿Los nombres de negocio están en español e iguales al diagrama de clases, las palabras técnicas en inglés y las rutas de la API en plural y en español (`/api/v1/mesas`)? | ☐ | ☐ |
+| 3 | ¿Se respetan las capas: el `router` solo delega al `service`, el `service` no depende de FastAPI ni escribe consultas, y el `repository` no tiene reglas de negocio ni confirma transacciones? | ☐ | ☐ |
+| 4 | ¿Un módulo solo llama al `service` de otro, nunca a su `router`, `repository`, `models` ni `schemas` (`lint-imports` pasa)? | ☐ | ☐ |
 | 5 | ¿Ninguna función supera las 50 líneas ni la complejidad ciclomática 10? | ☐ | ☐ |
-| 6 | ¿Todo está tipado (backend: type hints en todas las funciones; frontend: sin `any`)? | ☐ | ☐ |
-| 7 | ¿El código no contiene claves ni datos secretos, ni SQL armado con texto? | ☐ | ☐ |
-| 8 | ¿El lint, el formato y las pruebas pasan sin errores (Ruff y pytest en backend; ESLint, Prettier, `typecheck` y pruebas en frontend)? | ☐ | ☐ |
+| 6 | ¿Todas las funciones tienen type hints en sus parámetros y en el retorno? | ☐ | ☐ |
+| 7 | ¿Los datos que entran se validan con esquemas Pydantic de `schemas.py`, y la API devuelve esquemas y nunca modelos de la base? | ☐ | ☐ |
+| 8 | ¿Los errores de negocio usan las excepciones de `shared/excepciones.py` y responden `{"detalle": "mensaje"}` con `404`, `409` o `422`, sin trazas, rutas ni SQL? | ☐ | ☐ |
+| 9 | ¿Los listados están paginados con `limit` y `offset` mediante `shared/paginacion.py` (D-27)? | ☐ | ☐ |
+| 10 | ¿Las consultas usan el ORM o parámetros, nunca SQL armado con texto, y el esquema cambia solo con migraciones de Alembic? | ☐ | ☐ |
+| 11 | ¿El código no contiene claves, tokens ni datos secretos? | ☐ | ☐ |
+| 12 | ¿Las pruebas siguen la estructura de `modules/` y el nombre `test_<función>_<caso>`, y pasan `ruff check`, `ruff format --check` y `pytest`? | ☐ | ☐ |
 
-## 4. Tabla de riesgos
+### 3.2 TypeScript (frontend)
 
-Fuente: `material-catedra/Correcciones_Riesgos_TP5_Guia_ISFPP.md`, «Guía para la ISFPP: checklist por riesgo». Se responde para cada riesgo de la tabla.
+Fuente: `SPRINT-1/S1-02-estandares-frontend.md` y `AGENTS.md`, sección 5 (preguntas 9 y 10).
+
+| # | Pregunta | Sí | No |
+| --- | --- | --- | --- |
+| 1 | ¿Los componentes y tipos están en `PascalCase`, las variables y funciones en `camelCase`, las constantes en `MAYÚSCULAS`, y hay un componente por archivo con su mismo nombre? | ☐ | ☐ |
+| 2 | ¿Los nombres de negocio están en español e iguales al diagrama de clases, sin traducciones ni sinónimos? | ☐ | ☐ |
+| 3 | ¿El módulo respeta la estructura `pages/`, `components/`, `api.ts` y `types.ts`, no importa archivos de otro módulo y lo común está en `shared/`? | ☐ | ☐ |
+| 4 | ¿Los componentes son funcionales con hooks (salvo `ErrorBoundary`) y tienen las props tipadas? | ☐ | ☐ |
+| 5 | ¿Las llamadas a la API están solo en el `api.ts` del módulo, con el cliente de `shared/api`, sin `fetch` en los componentes y leyendo `import.meta.env` solo ahí? | ☐ | ☐ |
+| 6 | ¿Ninguna función supera las 50 líneas ni la complejidad ciclomática 10? | ☐ | ☐ |
+| 7 | ¿El código no usa `any` (usa `unknown` y valida), los tipos de la API están en `types.ts` y los tipos se importan con `import type`? | ☐ | ☐ |
+| 8 | ¿El código no contiene claves, tokens privados ni rutas internas, y la configuración sale de variables de entorno? | ☐ | ☐ |
+| 9 | ¿Los formularios de alta y edición se abren en un modal (`Dialog` de `shared/components/ui/`) sobre la misma página? | ☐ | ☐ |
+| 10 | ¿La pantalla sigue la maqueta de `SPRINT-2/S2-04-maqueta/` (menú lateral, encabezado, distribución, colores y textos), y cada diferencia está anotada en el PR? | ☐ | ☐ |
+| 11 | ¿Pasan `npm run lint` (0 errores y 0 advertencias), `npm run format:check`, `npm run typecheck` y las pruebas? | ☐ | ☐ |
+
+## 4. Estándares para el análisis de riesgos (tabla de riesgos)
+
+Fuente: `material-catedra/Correcciones_Riesgos_TP5_Guia_ISFPP.md`. Hay dos checklists: el 4.1 se responde para cada riesgo y el 4.2 una vez sobre la tabla completa.
+
+### 4.1 Cada riesgo
+
+Fuente: «Guía para la ISFPP: checklist por riesgo».
 
 | # | Pregunta | Sí | No |
 | --- | --- | --- | --- |
@@ -59,7 +89,20 @@ Fuente: `material-catedra/Correcciones_Riesgos_TP5_Guia_ISFPP.md`, «Guía para 
 | 6 | ¿La mitigación es proporcional al impacto? | ☐ | ☐ |
 | 7 | ¿Tiene disparador y responsable? | ☐ | ☐ |
 
+### 4.2 Conjunto de riesgos
+
+Fuente: «Guía para el conjunto de riesgos».
+
+| # | Pregunta | Sí | No |
+| --- | --- | --- | --- |
+| 1 | ¿La tabla está ordenada por exposición (E = P × I), con los tres valores visibles? | ☐ | ☐ |
+| 2 | ¿La línea de corte está justificada por la capacidad del equipo, con el número explicado (Pareto, salto natural en E o ambos)? | ☐ | ☐ |
+| 3 | ¿Los riesgos que quedan sobre la línea de corte tienen plan de reducción y plan de contingencia en el informe? | ☐ | ☐ |
+| 4 | ¿El anexo contiene solo el detalle, sin información que falte en el informe? | ☐ | ☐ |
+
 ## Supuestos
 
 - `Supuesto:` la pregunta 5 de la checklist 2 se deriva de la regla de multiplicidades; no figura de forma literal en el issue.
-- `Supuesto:` los criterios se responden por documento. Las checklists 1 y 4 se aplican a cada HU y a cada riesgo.
+- `Supuesto:` la pregunta 11 de la checklist 3.1 sale de RNF-SEG-04 (`SPRINT-0/S0-04-rnf.md`); S1-03 no la menciona de forma literal.
+- `Supuesto:` los criterios se responden por documento. Las checklists 1 y 4.1 se aplican a cada HU y a cada riesgo; la 4.2, una vez por tabla.
+- `Supuesto:` las preguntas 9 y 10 de la checklist 3.2 y la 9 de la 3.1 se agregaron después del Sprint 1, a partir de reglas posteriores de `AGENTS.md` y de D-27; por eso 3.1 y 3.2 superan las 8 preguntas que pedía el issue #145.

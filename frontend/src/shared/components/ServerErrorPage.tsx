@@ -16,8 +16,10 @@ export function ServerErrorPage() {
       tono="danger"
       acciones={
         <>
-          <Button onClick={() => window.location.reload()}>Reintentar</Button>
-          <Button variant="outline" onClick={() => navigate('/')}>
+          <Button variant="brand-outline" onClick={() => window.location.reload()}>
+            Reintentar
+          </Button>
+          <Button variant="brand-outline" onClick={() => navigate('/')}>
             Volver al inicio
           </Button>
         </>

@@ -43,7 +43,7 @@ export function Sheet({
     <div className="fixed inset-0 z-50 flex">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity"
+        className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity dark:bg-[#020617]/70"
         aria-hidden="true"
         onClick={() => onOpenChange(false)}
       />
@@ -64,7 +64,7 @@ export function Sheet({
             type="button"
             onClick={() => onOpenChange(false)}
             aria-label="Cerrar menú móvil"
-            className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600"
+            className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
             <X className="h-4 w-4" />
           </button>

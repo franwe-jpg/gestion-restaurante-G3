@@ -1,11 +1,19 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ConfirmContext } from '../../../shared/components/ui/confirm-context';
 import { ToastContext } from '../../../shared/components/ui/toast-context';
-import { darDeBajaProducto, listarProductos } from '../api';
-import type { ProductoListado } from '../types';
+import {
+  crearProducto,
+  darDeBajaProducto,
+  listarProductos,
+  listarSeccionesHabilitadas,
+  modificarProducto,
+  obtenerProducto,
+} from '../api';
+import { usarRoles } from '../../../test/sesionDePrueba';
+import type { ProductoListado, ProductoSalida } from '../types';
 
 import { ProductosTab } from './ProductosTab';
 
@@ -21,27 +29,49 @@ const MILANESA: ProductoListado = {
   estado: 'HABILITADO',
 };
 
+const COMPLETO: ProductoSalida = {
+  ...MILANESA,
+  ingredientes: ['Pan'],
+  descripcion: null,
+  imagen_url: null,
+};
+
 const confirmar = vi.fn();
 
 function pagina(items: ProductoListado[], total = items.length) {
   return { datos: { items, total, limit: 50, offset: 0 }, exito: true };
 }
 
+const onIrASecciones = vi.fn();
+
 function abrir() {
   render(
     <ConfirmContext.Provider value={confirmar}>
       <ToastContext.Provider value={{ mostrarToast: vi.fn() }}>
         <MemoryRouter>
-          <Routes>
-            <Route path="/" element={<ProductosTab />} />
-            <Route path="/productos/platos/nuevo" element={<p>Formulario de plato</p>} />
-            <Route path="/productos/postres/nuevo" element={<p>Formulario de postre</p>} />
-            <Route path="/productos/bebidas/nuevo" element={<p>Formulario de bebida</p>} />
-          </Routes>
+          <ProductosTab onIrASecciones={onIrASecciones} />
         </MemoryRouter>
       </ToastContext.Provider>
     </ConfirmContext.Provider>,
   );
+}
+
+function seccionesHabilitadas(items: { id: number; nombre: string }[]) {
+  vi.mocked(listarSeccionesHabilitadas).mockResolvedValue({
+    datos: {
+      items: items.map((s) => ({
+        ...s,
+        orden: 1,
+        estado: 'HABILITADO' as const,
+        cantidad_productos: 0,
+        productos_habilitados: 0,
+      })),
+      total: items.length,
+      limit: 100,
+      offset: 0,
+    },
+    exito: true,
+  });
 }
 
 afterEach(() => {
@@ -108,7 +138,7 @@ describe('ProductosTab: filtro', () => {
   });
 });
 
-describe('ProductosTab: paginación, baja y alta', () => {
+describe('ProductosTab: paginación y baja', () => {
   it('muestra la paginación solo si hay más de una página (D-27)', async () => {
     vi.mocked(listarProductos).mockResolvedValue(pagina([MILANESA], 51));
     abrir();
@@ -153,17 +183,134 @@ describe('ProductosTab: paginación, baja y alta', () => {
     await waitFor(() => expect(listarProductos).toHaveBeenLastCalledWith('HABILITADO', 50, 0));
     expect(await screen.findByText('Milanesa')).toBeInTheDocument();
   });
+});
 
+describe('ProductosTab: diálogo de alta', () => {
   it.each([
-    ['Nuevo plato', 'Formulario de plato'],
-    ['Nuevo postre', 'Formulario de postre'],
-    ['Nueva bebida', 'Formulario de bebida'],
-  ])('«%s» lleva al formulario de alta', async (boton, formulario) => {
-    vi.mocked(listarProductos).mockResolvedValue(pagina([]));
+    ['Nuevo plato', 'PLATO'],
+    ['Nuevo postre', 'POSTRE'],
+    ['Nueva bebida', 'BEBIDA'],
+  ])('«%s» abre el formulario en un diálogo sobre la lista', async (boton) => {
+    vi.mocked(listarProductos).mockResolvedValue(pagina([MILANESA]));
+    seccionesHabilitadas([{ id: 3, nombre: 'Platos' }]);
     abrir();
 
     fireEvent.click(await screen.findByRole('button', { name: boton }));
 
-    expect(screen.getByText(formulario)).toBeInTheDocument();
+    expect(await screen.findByRole('dialog', { name: boton })).toBeInTheDocument();
+    expect(screen.getByText('Milanesa')).toBeInTheDocument();
   });
+
+  it('al crear cierra el diálogo y recarga la lista', async () => {
+    vi.mocked(listarProductos).mockResolvedValueOnce(pagina([]));
+    vi.mocked(listarProductos).mockResolvedValue(pagina([MILANESA]));
+    seccionesHabilitadas([{ id: 3, nombre: 'Platos' }]);
+    vi.mocked(crearProducto).mockResolvedValue({ datos: COMPLETO, exito: true });
+    abrir();
+    fireEvent.click(await screen.findByRole('button', { name: 'Nueva bebida' }));
+    fireEvent.change(await screen.findByLabelText(/Nombre/), { target: { value: 'Agua' } });
+    fireEvent.change(screen.getByLabelText(/Sección/), { target: { value: '3' } });
+    fireEvent.change(screen.getByLabelText(/Precio/), { target: { value: '1500' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar bebida' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(await screen.findByText('Milanesa')).toBeInTheDocument();
+    expect(listarProductos).toHaveBeenCalledTimes(2);
+  });
+
+  it('«Cancelar» cierra el diálogo sin recargar la lista', async () => {
+    vi.mocked(listarProductos).mockResolvedValue(pagina([]));
+    seccionesHabilitadas([]);
+    abrir();
+    fireEvent.click(await screen.findByRole('button', { name: 'Nuevo plato' }));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancelar' }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(listarProductos).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('ProductosTab: diálogo de edición', () => {
+  it('«Editar» abre el producto en un diálogo y al guardar recarga la lista', async () => {
+    vi.mocked(listarProductos).mockResolvedValue(pagina([MILANESA]));
+    seccionesHabilitadas([{ id: 3, nombre: 'Platos' }]);
+    vi.mocked(obtenerProducto).mockResolvedValue({ datos: COMPLETO, exito: true });
+    vi.mocked(modificarProducto).mockResolvedValue({ datos: COMPLETO, exito: true });
+    abrir();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar «Milanesa»' }));
+    // Primero se ve «Cargando plato...»; el formulario aparece cuando llega el producto.
+    expect(await screen.findByDisplayValue('Milanesa')).toBeInTheDocument();
+    const dialogo = screen.getByRole('dialog', { name: 'Editar plato' });
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Guardar cambios' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(obtenerProducto).toHaveBeenCalledWith('PLATO', 7);
+    await waitFor(() => expect(listarProductos).toHaveBeenCalledTimes(2));
+  });
+
+  it('«Ir a Secciones» cierra el diálogo y pide pasar a la pestaña', async () => {
+    vi.mocked(listarProductos).mockResolvedValue(pagina([]));
+    seccionesHabilitadas([]);
+    abrir();
+    fireEvent.click(await screen.findByRole('button', { name: 'Nuevo postre' }));
+
+    fireEvent.click(await screen.findByRole('link', { name: 'Ir a Secciones' }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(onIrASecciones).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('ProductosTab: baja desde el diálogo de edición', () => {
+  it('al dar de baja cierra el diálogo y recarga la lista', async () => {
+    confirmar.mockResolvedValue(true);
+    vi.mocked(listarProductos).mockResolvedValueOnce(pagina([MILANESA]));
+    vi.mocked(listarProductos).mockResolvedValue(pagina([]));
+    seccionesHabilitadas([{ id: 3, nombre: 'Platos' }]);
+    vi.mocked(obtenerProducto).mockResolvedValue({ datos: COMPLETO, exito: true });
+    vi.mocked(darDeBajaProducto).mockResolvedValue({ datos: COMPLETO, exito: true });
+    abrir();
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar «Milanesa»' }));
+    await screen.findByDisplayValue('Milanesa');
+    const dialogo = screen.getByRole('dialog', { name: 'Editar plato' });
+
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Dar de baja' }));
+
+    expect(await screen.findByText('No hay productos habilitados')).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(darDeBajaProducto).toHaveBeenCalledWith('PLATO', 7);
+  });
+});
+
+describe('ProductosTab: según el rol', () => {
+  it('el encargado ve los botones de alta y las acciones de fila', async () => {
+    usarRoles(['ENCARGADO']);
+    vi.mocked(listarProductos).mockResolvedValue(pagina([MILANESA]));
+    abrir();
+
+    expect(await screen.findByText('Milanesa')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Nuevo plato' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Editar «Milanesa»' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Dar de baja «Milanesa»' })).toBeInTheDocument();
+  });
+
+  it.each([['MOZO'], ['CHEF']] as const)(
+    'el %s ve el listado sin altas, modificar ni baja',
+    async (rol) => {
+      usarRoles([rol]);
+      vi.mocked(listarProductos).mockResolvedValue(pagina([MILANESA]));
+      abrir();
+
+      expect(await screen.findByText('Milanesa')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Nuevo plato' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Nuevo postre' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Nueva bebida' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Editar/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Dar de baja/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole('columnheader', { name: 'Acciones' })).not.toBeInTheDocument();
+    },
+  );
 });

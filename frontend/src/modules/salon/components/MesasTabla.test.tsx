@@ -107,3 +107,41 @@ describe('MesasTabla: acciones', () => {
     expect(onEditar).toHaveBeenCalledWith(SALON_2);
   });
 });
+
+describe('MesasTabla: abrir comanda', () => {
+  it('ofrece «Abrir comanda» solo en mesas LIBRE y llama a onAbrirComanda (E01, E03)', () => {
+    const onAbrirComanda = vi.fn();
+    render(
+      <MesasTabla
+        mesas={[SALON_1, SALON_2, TERRAZA_1]}
+        onEditar={vi.fn()}
+        onEliminar={vi.fn()}
+        onAbrirComanda={onAbrirComanda}
+      />,
+    );
+    expect(screen.getAllByRole('button', { name: /^Abrir comanda en la mesa/ })).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir comanda en la mesa 1' }));
+    expect(onAbrirComanda).toHaveBeenCalledWith(SALON_1);
+  });
+});
+
+describe('MesasTabla: solo lectura', () => {
+  it('sin acciones de gestión no hay columna de acciones', () => {
+    render(<MesasTabla mesas={[SALON_1, SALON_2]} />);
+
+    expect(screen.getAllByRole('row')).toHaveLength(3);
+    expect(screen.queryByRole('columnheader', { name: 'Acciones' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Editar|Eliminar/ })).not.toBeInTheDocument();
+  });
+
+  it('con solo «Abrir comanda» ofrece ese botón en las mesas libres y ningún otro', () => {
+    const onAbrirComanda = vi.fn();
+    render(<MesasTabla mesas={[SALON_1, SALON_2]} onAbrirComanda={onAbrirComanda} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir comanda en la mesa 1' }));
+
+    expect(onAbrirComanda).toHaveBeenCalledWith(SALON_1);
+    expect(screen.queryByRole('button', { name: 'Abrir comanda en la mesa 2' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Editar|Eliminar/ })).not.toBeInTheDocument();
+  });
+});

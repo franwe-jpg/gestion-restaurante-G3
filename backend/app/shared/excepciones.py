@@ -11,3 +11,11 @@ class ReglaDeNegocioError(Exception):
 
 class DatosInvalidosError(Exception):
     """Los datos recibidos no cumplen una regla de forma o de contenido (422)."""
+
+
+class NoAutenticadoError(Exception):
+    """No hay una sesion valida (401)."""
+
+
+class SinPermisoError(Exception):
+    """La sesion no tiene el permiso necesario (403)."""

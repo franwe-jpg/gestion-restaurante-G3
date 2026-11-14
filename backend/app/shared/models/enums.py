@@ -19,3 +19,9 @@ class Categoria(StrEnum):
     POSTRE = "POSTRE"
     BEBIDA = "BEBIDA"
     MENU_DEL_DIA = "MENU_DEL_DIA"
+
+
+class Rol(StrEnum):
+    ENCARGADO = "ENCARGADO"
+    MOZO = "MOZO"
+    CHEF = "CHEF"
