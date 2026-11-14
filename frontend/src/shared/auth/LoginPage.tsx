@@ -8,6 +8,7 @@ import { FormField } from '../components/ui/form-field';
 import { Input } from '../components/ui/input';
 import { BotonTema } from '../components/layout/BotonTema';
 
+import { CredencialesPrueba } from './CredencialesPrueba';
 import { origenDeLogin } from './origen';
 import { useSesion } from './useSesion';
 
@@ -43,19 +44,18 @@ function PanelDeMarca() {
   );
 }
 
-export function LoginPage() {
-  const { usuario, cargando, iniciarSesion } = useSesion();
+function mostrarCredenciales(): boolean {
+  return import.meta.env.VITE_MOSTRAR_CREDENCIALES === 'true';
+}
+
+function useFormularioLogin(origen: string) {
+  const { iniciarSesion } = useSesion();
   const navigate = useNavigate();
-  const location = useLocation();
   const [correo, setCorreo] = useState('');
   const [contrasena, setContrasena] = useState('');
   const [errores, setErrores] = useState<ErroresLogin>({});
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
-  const origen = origenDeLogin(location.state);
-
-  if (cargando) return null;
-  if (usuario !== null) return <Navigate to={origen} replace />;
 
   const enviar = async (evento: FormEvent) => {
     evento.preventDefault();
@@ -76,6 +76,72 @@ export function LoginPage() {
     setErrorGeneral(resultado.error ?? 'No se pudo iniciar sesión');
   };
 
+  const elegirCredencial = (correoElegido: string, contrasenaElegida: string) => {
+    setCorreo(correoElegido);
+    setContrasena(contrasenaElegida);
+    setErrores({});
+    setErrorGeneral(null);
+  };
+
+  return {
+    correo,
+    setCorreo,
+    contrasena,
+    setContrasena,
+    errores,
+    errorGeneral,
+    enviando,
+    enviar,
+    elegirCredencial,
+  };
+}
+
+type FormularioLoginEstado = ReturnType<typeof useFormularioLogin>;
+
+function FormularioLogin({ formulario }: { formulario: FormularioLoginEstado }) {
+  const { correo, contrasena, errores, errorGeneral, enviando } = formulario;
+  return (
+    <form
+      noValidate
+      onSubmit={(evento) => void formulario.enviar(evento)}
+      className="flex w-full max-w-sm flex-col gap-5"
+    >
+      <h2 className="text-3xl font-extrabold text-slate-900">Ingresá al sistema</h2>
+      {errorGeneral && <Alert variant="danger">{errorGeneral}</Alert>}
+      <FormField id="login-correo" label="Correo" error={errores.correo}>
+        <Input
+          id="login-correo"
+          type="email"
+          autoComplete="username"
+          value={correo}
+          onChange={(evento) => formulario.setCorreo(evento.target.value)}
+        />
+      </FormField>
+      <FormField id="login-contrasena" label="Contraseña" error={errores.contrasena}>
+        <Input
+          id="login-contrasena"
+          type="password"
+          autoComplete="current-password"
+          value={contrasena}
+          onChange={(evento) => formulario.setContrasena(evento.target.value)}
+        />
+      </FormField>
+      <Button type="submit" size="lg" disabled={enviando}>
+        Ingresar
+      </Button>
+    </form>
+  );
+}
+
+export function LoginPage() {
+  const { usuario, cargando } = useSesion();
+  const location = useLocation();
+  const origen = origenDeLogin(location.state);
+  const formulario = useFormularioLogin(origen);
+
+  if (cargando) return null;
+  if (usuario !== null) return <Navigate to={origen} replace />;
+
   return (
     <div className="relative flex min-h-screen flex-wrap bg-slate-50">
       <div className="absolute right-4 top-4 z-10">
@@ -83,35 +149,12 @@ export function LoginPage() {
       </div>
       <PanelDeMarca />
       <section className="flex flex-[999_1_480px] items-center justify-center px-6 py-12">
-        <form
-          noValidate
-          onSubmit={(evento) => void enviar(evento)}
-          className="flex w-full max-w-sm flex-col gap-5"
-        >
-          <h2 className="text-3xl font-extrabold text-slate-900">Ingresá al sistema</h2>
-          {errorGeneral && <Alert variant="danger">{errorGeneral}</Alert>}
-          <FormField id="login-correo" label="Correo" error={errores.correo}>
-            <Input
-              id="login-correo"
-              type="email"
-              autoComplete="username"
-              value={correo}
-              onChange={(evento) => setCorreo(evento.target.value)}
-            />
-          </FormField>
-          <FormField id="login-contrasena" label="Contraseña" error={errores.contrasena}>
-            <Input
-              id="login-contrasena"
-              type="password"
-              autoComplete="current-password"
-              value={contrasena}
-              onChange={(evento) => setContrasena(evento.target.value)}
-            />
-          </FormField>
-          <Button type="submit" size="lg" disabled={enviando}>
-            Ingresar
-          </Button>
-        </form>
+        <div className="flex w-full flex-wrap items-start justify-center gap-12">
+          <FormularioLogin formulario={formulario} />
+          {mostrarCredenciales() && (
+            <CredencialesPrueba onElegir={formulario.elegirCredencial} correo={formulario.correo} />
+          )}
+        </div>
       </section>
     </div>
   );

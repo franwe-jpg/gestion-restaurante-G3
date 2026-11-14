@@ -93,3 +93,5 @@ Sin `--reiniciar`, el script solo carga los datos si la base está vacía (despu
 | Mozo | `mozo@gmail.com` (y cuatro mozos más; uno está dado de baja) |
 | Chef | `chef@gmail.com` (y un chef más) |
 
+Con `VITE_MOSTRAR_CREDENCIALES=true` la pantalla de inicio de sesión muestra el panel «Credenciales de prueba», que completa el formulario con un clic. Ya está activo en `frontend/.env.example` y en Docker; la demo publicada necesita esa variable configurada en Cloudflare.
+

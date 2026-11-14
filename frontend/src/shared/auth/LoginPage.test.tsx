@@ -1,10 +1,14 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { expect, it, vi } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 
 import { sinSesion, usarRoles } from '../../test/sesionDePrueba';
 
 import { LoginPage } from './LoginPage';
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 function renderizar(estadoInicial?: unknown) {
   render(
@@ -113,4 +117,29 @@ it('mientras restaura la sesión no muestra el formulario', async () => {
   renderizar();
 
   await waitFor(() => expect(screen.queryByLabelText(/Correo/)).not.toBeInTheDocument());
+});
+
+it('con VITE_MOSTRAR_CREDENCIALES en true, tocar una credencial completa el formulario', () => {
+  vi.stubEnv('VITE_MOSTRAR_CREDENCIALES', 'true');
+  sinSesion({ iniciarSesion: vi.fn() });
+  renderizar();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Ingresar' }));
+  expect(screen.getByText('El correo es obligatorio.')).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole('button', { name: /Credenciales de prueba/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Usar credenciales de Encargado' }));
+
+  expect(screen.getByLabelText(/Correo/)).toHaveValue('encargado@gmail.com');
+  expect(screen.getByLabelText(/Contraseña/)).toHaveValue('Resto123!');
+  expect(screen.queryByText('El correo es obligatorio.')).not.toBeInTheDocument();
+});
+
+it('sin VITE_MOSTRAR_CREDENCIALES no muestra el panel de credenciales', () => {
+  vi.stubEnv('VITE_MOSTRAR_CREDENCIALES', undefined);
+  sinSesion();
+  renderizar();
+
+  expect(screen.getByLabelText(/Correo/)).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /Credenciales de prueba/ })).not.toBeInTheDocument();
 });

@@ -16,6 +16,7 @@ services:
       - "5173:5173"
     environment:
       VITE_API_URL: http://localhost:8000
+      VITE_MOSTRAR_CREDENCIALES: "true"
     volumes:
       - ./frontend:/app
       - /app/node_modules
