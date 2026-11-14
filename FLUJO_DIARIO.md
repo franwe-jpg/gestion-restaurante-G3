@@ -26,7 +26,7 @@ Levanta backend y frontend con un solo comando, sin instalar Python ni Node. Req
 2. Abrir http://localhost:5173 (frontend) y http://localhost:8000/docs (API)
 3. Detener:      Ctrl+C, o `docker compose down` si lo levantaste con `-d`
 
-- El backend aplica `alembic upgrade head` al arrancar. La base queda en un volumen de Docker: `docker compose down -v` la borra.
+- Cada `docker compose up` descarta la base local y la vuelve a generar con los datos de prueba y fechas actualizadas (ver «Datos de prueba»). Lo que se cargue mientras se prueba se pierde al reiniciar el backend; la recarga del código no lo reinicia, así que no borra nada.
 - Los cambios en el código se recargan solos, sin reconstruir.
 ### Me trabé con...
 
@@ -60,7 +60,7 @@ Levanta backend y frontend con un solo comando, sin instalar Python ni Node. Req
 
 ## Inicio de sesión y roles
 
-Todo el sistema pide inicio de sesión (HU-TR-01). Una base nueva, o una base anterior a esta HU, queda **sin usuarios**: hay que crear el primer encargado desde `backend/`, con el entorno virtual activo y después de `alembic upgrade head`:
+Todo el sistema pide inicio de sesión (HU-TR-01). Con los datos de prueba (sección «Datos de prueba») ya hay usuarios. Una base nueva sin esos datos, o una base anterior a esta HU, queda **sin usuarios**: hay que crear el primer encargado desde `backend/`, con el entorno virtual activo y después de `alembic upgrade head`:
 
 ```bash
 python -m scripts.crear_encargado --correo encargado@ejemplo.com
@@ -74,4 +74,22 @@ El script pide la contraseña por la terminal (de 8 a 72 bytes) y no la muestra.
 - La sesión dura mientras la pestaña esté abierta y se cierra desde el menú del encabezado.
 
 Después de un git pull, si cambiaron dependencias o migraciones, repetir los pasos 4, 6 y 8.
+
+## Datos de prueba
+
+`scripts/cargar_datos_demo.py` llena la base con tres meses de historial (productos, menús, promociones, salón, comandas, reservas, facturas y cobros), con fechas relativas al momento en que se ejecuta, para probar todas las pantallas y los reportes. Siempre genera los mismos datos.
+
+Con Docker se ejecuta solo: cada `docker compose up` borra la base local, aplica las migraciones y carga los datos de nuevo. Sin Docker, el mismo reinicio se hace desde `backend/`, con el entorno virtual activo y el backend detenido (borra `restaurante.db` y todo lo que tenga):
+
+```bash
+python -m scripts.cargar_datos_demo --reiniciar
+```
+
+Sin `--reiniciar`, el script solo carga los datos si la base está vacía (después de `alembic upgrade head`); si ya tiene datos, no cambia nada. Usuarios que crea, todos con la contraseña `Resto123!`:
+
+| Rol | Correo |
+| --- | --- |
+| Encargado | `encargado@gmail.com` |
+| Mozo | `mozo@gmail.com` (y cuatro mozos más; uno está dado de baja) |
+| Chef | `chef@gmail.com` (y un chef más) |
 
