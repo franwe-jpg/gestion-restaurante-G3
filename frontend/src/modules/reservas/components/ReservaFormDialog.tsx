@@ -35,14 +35,17 @@ interface CampoReservaProps {
 
 function CampoReserva({ formulario, campo, etiqueta, tipo, deshabilitado }: CampoReservaProps) {
   const id = `reserva-${campo}`;
+  const error = formulario.errores[campo];
   return (
-    <FormField id={id} label={etiqueta} required error={formulario.errores[campo]}>
+    <FormField id={id} label={etiqueta} required error={error}>
       <Input
         id={id}
         type={tipo}
         inputMode={tipo ? undefined : 'numeric'}
         value={formulario.datos[campo]}
         disabled={deshabilitado}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? `${id}-error` : undefined}
         onChange={(evento) => formulario.cambiar(campo, evento.target.value)}
       />
     </FormField>

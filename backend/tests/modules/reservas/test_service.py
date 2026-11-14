@@ -237,7 +237,7 @@ def test_crear_reserva_rechaza_cliente_positivo_que_m4_no_conoce(db: Session) ->
 
 # --- Cliente registrado o nuevo (issue #61, S39 a S43) ---
 
-CLIENTE_NUEVO = {"nombre": "Luis Gómez", "telefono": "+54 280 1234567"}
+CLIENTE_NUEVO = {"nombre": "Luis Gómez", "telefono": "+542801234567"}
 
 
 def _datos_con_cliente_nuevo(**cambios) -> ReservaCrear:
@@ -291,7 +291,7 @@ def test_crear_reserva_con_cliente_nuevo_lo_registra(db: Session, puente_doble) 
     salida = service.crear_reserva(db, _datos_con_cliente_nuevo())
 
     assert salida.cliente_id >= 100
-    assert puente_doble.registrados == [(salida.cliente_id, "Luis Gómez", "+54 280 1234567")]
+    assert puente_doble.registrados == [(salida.cliente_id, "Luis Gómez", "+542801234567")]
     db.expire_all()
     assert db.get(Reserva, salida.id).cliente_id == salida.cliente_id
 
@@ -309,7 +309,7 @@ def test_crear_reserva_dos_altas_con_cliente_nuevo_crean_dos_clientes(
 def test_crear_reserva_acepta_cliente_nuevo_con_acentos_y_prefijo(
     db: Session, puente_doble
 ) -> None:
-    telefono = "+54 280 123456"  # S66: antes "+54 280", de 5 digitos, que el esquema ya no admite
+    telefono = "+54280123456"  # S66: sin espacios; con 11 digitos, dentro de los limites
     datos = _datos(cliente_id=None, cliente_nuevo={"nombre": "María José", "telefono": telefono})
 
     service.crear_reserva(db, datos)

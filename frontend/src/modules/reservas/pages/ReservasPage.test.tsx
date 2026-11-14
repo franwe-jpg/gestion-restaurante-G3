@@ -11,6 +11,7 @@ import {
   cancelarReservaPorAusencia,
   crearComandaDesdeReserva,
   crearReserva,
+  listarClientes,
   listarMesasDisponibles,
   listarMozosHabilitados,
   listarProductosHabilitados,
@@ -167,6 +168,11 @@ beforeEach(() => {
   vi.mocked(listarMesasDisponibles).mockResolvedValue({ datos: [MESA_5], exito: true });
   vi.mocked(listarMozosHabilitados).mockResolvedValue({ exito: true, datos: [MOZO_31] });
   vi.mocked(buscarClientes).mockResolvedValue(clientes([ANA]));
+  // Sin clientes registrados por defecto: el buscador y el desplegable no ofrecen al mismo cliente.
+  vi.mocked(listarClientes).mockResolvedValue({
+    datos: { items: [], total: 0, limit: 100, offset: 0 },
+    exito: true,
+  });
 });
 
 afterEach(() => {
@@ -429,7 +435,7 @@ describe('ReservasPage: abrir el panel de edición', () => {
 
     expect(screen.getByRole('heading', { name: 'Nueva reserva' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Modificar reserva' })).toBeNull();
-    for (const etiqueta of [/Cliente/, /Fecha/, /Hora/, /Cantidad de personas/]) {
+    for (const etiqueta of [/^Cliente\*$/, /Fecha/, /Hora/, /Cantidad de personas/]) {
       expect(screen.getByLabelText(etiqueta)).toHaveValue('');
       expect(screen.getByLabelText(etiqueta)).toBeEnabled();
     }
@@ -495,14 +501,14 @@ describe('ReservasPage: una respuesta de guardado tardía no toca un modal disti
 
     await pulsar('Cancelar');
     await pulsar('Nueva reserva');
-    fireEvent.change(screen.getByLabelText(/Cliente/), { target: { value: '9' } });
+    fireEvent.change(screen.getByLabelText(/^Cliente\*$/), { target: { value: '9' } });
     await asentar();
 
     resolverPut({ datos: RESERVA, exito: true });
     await asentar();
 
     expect(screen.getByRole('heading', { name: 'Nueva reserva' })).toBeInTheDocument();
-    expect(screen.getByLabelText(/Cliente/)).toHaveValue('9');
+    expect(screen.getByLabelText(/^Cliente\*$/)).toHaveValue('9');
     expect(listarReservas).toHaveBeenCalledTimes(1);
   });
 
@@ -561,8 +567,9 @@ describe('ReservasPage: guardar la edición', () => {
 
 // S67 (corrección 2026-11-11, pendiente de validación del equipo): la cantidad de personas no puede
 // superar la capacidad de la mesa. El alta lo avisa en el formulario; la edición muestra el 409.
+// S72 (2026-11-13): los dos avisos van bajo el campo Mesa.
 describe('ReservasPage: capacidad de la mesa (S67)', () => {
-  it('el alta con más personas que la capacidad de la mesa elegida avisa y no envía el POST', async () => {
+  it('el alta con más personas que la capacidad de la mesa elegida avisa bajo Mesa y no envía el POST', async () => {
     abrir();
     await screen.findByText('Cliente n.º 7');
     await pulsar('Nueva reserva');
@@ -576,12 +583,15 @@ describe('ReservasPage: capacidad de la mesa (S67)', () => {
 
     await pulsar('Guardar reserva');
 
-    expect(screen.getByText('La mesa elegida admite hasta 4 personas.')).toBeVisible();
+    expect(screen.getByText('La mesa elegida admite hasta 4 personas.')).toHaveAttribute(
+      'id',
+      'reserva-mesa-error',
+    );
     expect(crearReserva).not.toHaveBeenCalled();
     expect(screen.getByRole('heading', { name: 'Nueva reserva' })).toBeInTheDocument();
   });
 
-  it('la edición con más personas que la capacidad muestra el 409 en el formulario y no la cierra', async () => {
+  it('la edición con más personas que la capacidad muestra el 409 bajo el campo Mesa y no la cierra', async () => {
     const detalle = 'La mesa 5 admite hasta 4 personas';
     vi.mocked(modificarReserva).mockResolvedValue({ datos: null, exito: false, error: detalle });
     abrir();
@@ -591,7 +601,7 @@ describe('ReservasPage: capacidad de la mesa (S67)', () => {
 
     await pulsar('Guardar reserva');
 
-    expect(screen.getByText(detalle)).toBeVisible();
+    expect(screen.getByText(detalle)).toHaveAttribute('id', 'reserva-mesa-error');
     expect(screen.getByRole('heading', { name: 'Modificar reserva' })).toBeInTheDocument();
     expect(screen.getByLabelText(/Cantidad de personas/)).toHaveValue('9');
     expect(listarReservas).toHaveBeenCalledTimes(1);

@@ -166,6 +166,19 @@ export function buscarClientes(q: string): Promise<RespuestaApi<Pagina<ClienteEn
   return clienteHttp.get<Pagina<ClienteEncontrado>>(`/clientes?${consulta.toString()}`);
 }
 
+/** Clientes del desplegable del alta: una sola página, del tamaño máximo que admite la API (S71). */
+export const LIMITE_LISTA_CLIENTES = 100;
+
+/**
+ * Los primeros clientes registrados, para el desplegable «Clientes registrados» del alta (S71):
+ * `GET /clientes?limit=100&offset=0` de M4, sin texto de búsqueda y sin leer más páginas. El
+ * `total` de la respuesta dice si hay más clientes de los que trae.
+ */
+export function listarClientes(): Promise<RespuestaApi<Pagina<ClienteEncontrado>>> {
+  const consulta = new URLSearchParams({ limit: String(LIMITE_LISTA_CLIENTES), offset: '0' });
+  return clienteHttp.get<Pagina<ClienteEncontrado>>(`/clientes?${consulta.toString()}`);
+}
+
 function consultaPeriodo(fechaDesde: string, fechaHasta: string): string {
   return new URLSearchParams({ fecha_desde: fechaDesde, fecha_hasta: fechaHasta }).toString();
 }

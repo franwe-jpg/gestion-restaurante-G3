@@ -3,7 +3,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { usarRoles } from '../../../test/sesionDePrueba';
-import { buscarClientes, listarMesasDisponibles, listarReservas } from '../api';
+import { buscarClientes, listarClientes, listarMesasDisponibles, listarReservas } from '../api';
 import type { Reserva } from '../types';
 
 import { ReservasPage } from './ReservasPage';
@@ -70,6 +70,7 @@ describe('Reservas: según el rol', () => {
 
     await screen.findByText('Mesa n.º 5');
     expect(buscarClientes).not.toHaveBeenCalled();
+    expect(listarClientes).not.toHaveBeenCalled();
     expect(listarMesasDisponibles).not.toHaveBeenCalled();
   });
 
@@ -80,5 +81,6 @@ describe('Reservas: según el rol', () => {
     await screen.findByText('Mesa n.º 5');
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(buscarClientes).not.toHaveBeenCalled();
+    expect(listarClientes).not.toHaveBeenCalled();
   });
 });

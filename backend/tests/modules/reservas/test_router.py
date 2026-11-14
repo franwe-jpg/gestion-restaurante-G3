@@ -28,7 +28,7 @@ CUERPO = {
     "hora": "21:30",
     "cantidad_personas": 4,
 }
-CLIENTE_NUEVO = {"nombre": "Luis Gómez", "telefono": "+54 280 1234567"}
+CLIENTE_NUEVO = {"nombre": "Luis Gómez", "telefono": "+542801234567"}
 SIN_CLIENTE = {k: v for k, v in CUERPO.items() if k != "cliente_id"}
 # S69: una reserva ACTIVA o ATENDIDA ocupa la mesa 2 horas desde su hora; el mensaje nombra la
 # reserva que conflicta, no el turno pedido.
@@ -1009,7 +1009,7 @@ def test_post_reservas_con_cliente_nuevo_devuelve_201(
     assert respuesta.status_code == 201
     cliente_id = respuesta.json()["cliente_id"]
     assert cliente_id >= 100
-    assert puente_doble.registrados == [(cliente_id, "Luis Gómez", "+54 280 1234567")]
+    assert puente_doble.registrados == [(cliente_id, "Luis Gómez", "+542801234567")]
     assert cliente.get(f"{RUTA}/{respuesta.json()['id']}").json()["cliente_id"] == cliente_id
 
 
@@ -1080,10 +1080,44 @@ def test_post_reservas_cliente_nuevo_valida_el_contenido_con_m4(
     assert _cantidad_reservas(db) == 1
 
 
-# Supuesto S66 (correccion 2026-11-11, pendiente de validacion del equipo): el esquema de M5 valida
-# el telefono del cliente nuevo antes de llamar a M4. El detalle nombra `cliente_nuevo.telefono:`,
-# que es lo que el frontend usa para llevar el error al campo Telefono.
-TELEFONO_CARACTERES = "telefono solo admite dígitos, espacios, guiones y + al inicio"
+# Supuesto S70 (2026-11-13, pendiente de validacion del equipo): el esquema de M5 acota el largo del
+# nombre del cliente nuevo a 60 caracteres. El contenido del nombre sigue siendo de M4 (S42). El
+# detalle nombra `cliente_nuevo.nombre:`, que es lo que el frontend usa para llevar el error al
+# campo Nombre.
+@pytest.mark.parametrize(
+    "nombre", ["a" * 60, "  " + "a" * 60 + "  "], ids=["60", "60-con-espacios"]
+)
+def test_post_reservas_nombre_de_hasta_60_caracteres_del_cliente_nuevo_devuelve_201(
+    cliente: TestClient, db: Session, puente_doble, nombre: str
+) -> None:
+    respuesta = cliente.post(
+        RUTA, json=SIN_CLIENTE | {"cliente_nuevo": CLIENTE_NUEVO | {"nombre": nombre}}
+    )
+
+    assert respuesta.status_code == 201
+    assert _cantidad_reservas(db) == 1
+
+
+@pytest.mark.parametrize("nombre", ["a" * 61, "a" * 300], ids=["61", "300"])
+def test_post_reservas_nombre_de_mas_de_60_caracteres_del_cliente_nuevo_devuelve_422(
+    cliente: TestClient, db: Session, puente_doble, nombre: str
+) -> None:
+    respuesta = cliente.post(
+        RUTA, json=SIN_CLIENTE | {"cliente_nuevo": CLIENTE_NUEVO | {"nombre": nombre}}
+    )
+
+    assert respuesta.status_code == 422
+    assert respuesta.json() == {
+        "detalle": "Datos invalidos. cliente_nuevo.nombre: nombre admite hasta 60 caracteres"
+    }
+    assert puente_doble.registrados == []
+    assert _cantidad_reservas(db) == 0
+
+
+# Supuesto S66 (correccion 2026-11-11, revisada el 2026-11-13, pendiente de validacion del equipo):
+# el esquema de M5 valida el telefono del cliente nuevo antes de llamar a M4. El detalle nombra
+# `cliente_nuevo.telefono:`, que es lo que el frontend usa para llevar el error al campo Telefono.
+TELEFONO_CARACTERES = "telefono solo admite dígitos, guiones y + al inicio"
 TELEFONO_LARGO = "telefono admite hasta 20 caracteres"
 TELEFONO_DIGITOS = "telefono debe tener entre 6 y 15 dígitos"
 
@@ -1098,7 +1132,7 @@ TELEFONO_DIGITOS = "telefono debe tener entre 6 y 15 dígitos"
         ("+", TELEFONO_CARACTERES),
         ("1", TELEFONO_DIGITOS),
         ("12345", TELEFONO_DIGITOS),
-        ("- - -", TELEFONO_DIGITOS),
+        ("---", TELEFONO_DIGITOS),
         ("1234567890123456", TELEFONO_DIGITOS),
         ("1" * 21, TELEFONO_LARGO),
         ("1" * 300, TELEFONO_LARGO),
@@ -1132,8 +1166,8 @@ def test_post_reservas_telefono_invalido_del_cliente_nuevo_devuelve_422(
 
 @pytest.mark.parametrize(
     "telefono",
-    ["123456", "123456789012345", "+123 456 789 012 345", "+54 280 1234567"],
-    ids=["seis-digitos", "quince-digitos", "veinte-caracteres", "con-prefijo"],
+    ["123456", "123456789012345", "+123-456-789-012-345", "+542801234567", "280-4123456"],
+    ids=["seis-digitos", "quince-digitos", "veinte-caracteres", "con-prefijo", "con-guion"],
 )
 def test_post_reservas_telefono_en_los_limites_del_cliente_nuevo_devuelve_201(
     cliente: TestClient, db: Session, puente_doble, telefono: str
@@ -1145,6 +1179,26 @@ def test_post_reservas_telefono_en_los_limites_del_cliente_nuevo_devuelve_201(
     assert respuesta.status_code == 201
     assert [t for _, _, t in puente_doble.registrados] == [telefono]
     assert _cantidad_reservas(db) == 1
+
+
+@pytest.mark.parametrize(
+    "telefono",
+    ["+54 280 1234567", "28 04 12 34 56", "280 4123456", "  280 4123456  "],
+    ids=["con-prefijo", "pares-de-digitos", "un-espacio", "con-extremos"],
+)
+def test_post_reservas_telefono_con_espacios_del_cliente_nuevo_devuelve_422(
+    cliente: TestClient, db: Session, puente_doble, telefono: str
+) -> None:
+    respuesta = cliente.post(
+        RUTA, json=SIN_CLIENTE | {"cliente_nuevo": CLIENTE_NUEVO | {"telefono": telefono}}
+    )
+
+    assert respuesta.status_code == 422
+    assert respuesta.json() == {
+        "detalle": f"Datos invalidos. cliente_nuevo.telefono: {TELEFONO_CARACTERES}"
+    }
+    assert puente_doble.registrados == []
+    assert _cantidad_reservas(db) == 0
 
 
 def test_post_reservas_recorta_los_espacios_del_telefono_antes_de_guardarlo(
