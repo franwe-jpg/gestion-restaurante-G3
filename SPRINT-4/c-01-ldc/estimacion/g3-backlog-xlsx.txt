@@ -1,0 +1,164 @@
+##### HOJA: Léeme
+ISFPP 2026 · Gestión de Restaurante · Grupo 3
+Ingeniería de Software III · Profs. Sebastián Schanz y Guillermo Urrutia
+Hojas
+Story Map: Tarea → Épica → Historia de usuario, por módulo. Es la base que Claude Code expande con criterios Dado/Cuando/Entonces (S0-03).
+Sprint 0, Sprint 1, ...: una hoja por sprint, con las tareas del sprint, su responsable y de qué tarea depende cada una. En cada sprint se agrega una hoja nueva.
+Los riesgos no están en esta planilla: tienen su propia planilla, G3_Riesgos.xlsx, y su informe en SPRINT-0/S0-10-riesgos.md.
+Módulos: quién es dueño de cada módulo y qué reporte define. Cada uno sigue con su módulo en los sprints siguientes.
+Roadmap: sprints, alcance y gateways hasta el 15/11 (a confirmar).
+##### HOJA: Módulos
+Módulo | Nombre | Responsable | Usuario GitHub | Alcance | Reporte propuesto
+M1 | Productos y Carta | Franco Martín Soler | Franwe-jpg | Platos, postres, bebidas y secciones de la carta (14 RF) | R1 · Productos más vendidos por período
+M2 | Menús y Promociones | Joaquín Cardoso Díaz | JotaDiaz | Menú ejecutivo, menú del día y promociones (9 RF) | R2 · Ventas de menús y promociones por período
+M3 | Salón y Mozos | Giuliano Giannoncelli | GiulianoMateo | Mesas, sectores y mozos (12 RF) | R3 · Mesas atendidas y ventas por mozo
+M4 | Atención al Público | Juan Ignacio Riquelme | Juanownn | Clientes y ciclo de la comanda (10 RF) | R4 · Comandas y ticket promedio por día/turno
+M5 | Reservas | Federico Cabaña | elfefedelagente | Reservas, cancelaciones y comanda con reserva (6 RF) | R5 · Reservas y ausentismo por período
+M6 | Pagos | Héctor Sánchez | bullmarketotal | Facturas, detalles facturas, cobros, comprobantes y medios de pago (7 RF) | R6 · Recaudación por medio de pago y deuda pendiente
+##### HOJA: Story Map
+ID | Módulo | Nombre módulo | Tarea | Épica | Historia de usuario | Actor | Prioridad | Revisa | Estado
+HU-M1-01 | M1 | Productos y Carta | Gestionar productos | Platos | Como encargado, quiero crear un plato para ofrecerlo en la carta. | Encargado | Alta | Franco Martín Soler | Revisada
+HU-M1-02 | M1 | Productos y Carta | Gestionar productos | Platos | Como encargado, quiero modificar un plato para mantener sus datos y precio al día. | Encargado | Alta | Franco Martín Soler | Revisada
+HU-M1-03 | M1 | Productos y Carta | Gestionar productos | Platos | Como encargado, quiero eliminar un plato para sacarlo de la oferta. | Encargado | Alta | Franco Martín Soler | Revisada
+HU-M1-04 | M1 | Productos y Carta | Gestionar productos | Postres | Como encargado, quiero crear un postre para ofrecerlo en la carta. | Encargado | Alta | Franco Martín Soler | Revisada
+HU-M1-05 | M1 | Productos y Carta | Gestionar productos | Postres | Como encargado, quiero modificar un postre para mantener sus datos y precio al día. | Encargado | Alta | Franco Martín Soler | Revisada
+HU-M1-06 | M1 | Productos y Carta | Gestionar productos | Postres | Como encargado, quiero eliminar un postre para sacarlo de la oferta. | Encargado | Alta | Franco Martín Soler | Revisada
+HU-M1-07 | M1 | Productos y Carta | Gestionar productos | Bebidas | Como encargado, quiero crear un bebida para ofrecerlo en la carta. | Encargado | Alta | Franco Martín Soler | Revisada
+HU-M1-08 | M1 | Productos y Carta | Gestionar productos | Bebidas | Como encargado, quiero modificar un bebida para mantener sus datos y precio al día. | Encargado | Alta | Franco Martín Soler | Revisada
+HU-M1-09 | M1 | Productos y Carta | Gestionar productos | Bebidas | Como encargado, quiero eliminar un bebida para sacarlo de la oferta. | Encargado | Alta | Franco Martín Soler | Revisada
+HU-M1-10 | M1 | Productos y Carta | Armar la carta | Secciones | Como encargado, quiero crear una sección de la carta para agrupar productos. | Encargado | Alta | Franco Martín Soler | Revisada
+HU-M1-11 | M1 | Productos y Carta | Armar la carta | Secciones | Como encargado, quiero modificar una sección para reorganizar la carta. | Encargado | Alta | Franco Martín Soler | Revisada
+HU-M1-12 | M1 | Productos y Carta | Armar la carta | Secciones | Como encargado, quiero eliminar una sección para quitar agrupaciones que no se usan. | Encargado | Alta | Franco Martín Soler | Revisada
+HU-M1-13 | M1 | Productos y Carta | Armar la carta | Consultar carta | Como mozo, quiero listar los productos para consultar qué se puede ofrecer. | Mozo | Alta | Franco Martín Soler | Revisada
+HU-M1-14 | M1 | Productos y Carta | Armar la carta | Consultar carta | Como mozo, quiero ver la carta para mostrarla al cliente. | Mozo | Alta | Franco Martín Soler | Revisada
+HU-M2-01 | M2 | Menús y Promociones | Ofrecer menús | Menú ejecutivo | Como encargado, quiero crear un menú ejecutivo para ofrecer una combinación a precio fijo. | Encargado | Media | Joaquín Cardoso Díaz | Revisada
+HU-M2-02 | M2 | Menús y Promociones | Ofrecer menús | Menú ejecutivo | Como encargado, quiero modificar un menú ejecutivo para cambiar su composición o precio. | Encargado | Media | Joaquín Cardoso Díaz | Revisada
+HU-M2-03 | M2 | Menús y Promociones | Ofrecer menús | Menú ejecutivo | Como encargado, quiero eliminar un menú ejecutivo para dejar de ofrecerlo. | Encargado | Media | Joaquín Cardoso Díaz | Revisada
+HU-M2-04 | M2 | Menús y Promociones | Ofrecer menús | Menú del día | Como encargado, quiero crear un menú del día para ofrecer una combinación a precio fijo. | Encargado | Media | Joaquín Cardoso Díaz | Revisada
+HU-M2-05 | M2 | Menús y Promociones | Ofrecer menús | Menú del día | Como encargado, quiero modificar un menú del día para cambiar su composición o precio. | Encargado | Media | Joaquín Cardoso Díaz | Revisada
+HU-M2-06 | M2 | Menús y Promociones | Ofrecer menús | Menú del día | Como encargado, quiero eliminar un menú del día para dejar de ofrecerlo. | Encargado | Media | Joaquín Cardoso Díaz | Revisada
+HU-M2-07 | M2 | Menús y Promociones | Gestionar promociones | Promociones | Como encargado, quiero crear una promoción para atraer ventas. | Encargado | Media | Joaquín Cardoso Díaz | Revisada
+HU-M2-08 | M2 | Menús y Promociones | Gestionar promociones | Promociones | Como encargado, quiero modificar una promoción para ajustar sus condiciones. | Encargado | Media | Joaquín Cardoso Díaz | Revisada
+HU-M2-09 | M2 | Menús y Promociones | Gestionar promociones | Promociones | Como encargado, quiero finalizar una promoción para que deje de aplicarse. | Encargado | Media | Joaquín Cardoso Díaz | Revisada
+HU-M3-01 | M3 | Salón y Mozos | Organizar el salón | Sectores | Como encargado, quiero crear un sector para organizar el salón. | Encargado | Media | Giuliano Giannoncelli | Revisada
+HU-M3-02 | M3 | Salón y Mozos | Organizar el salón | Sectores | Como encargado, quiero modificar un sector para actualizar sus datos. | Encargado | Baja | Giuliano Giannoncelli | Revisada
+HU-M3-03 | M3 | Salón y Mozos | Organizar el salón | Sectores | Como encargado, quiero eliminar un sector para quitarlo del salón. | Encargado | Media | Giuliano Giannoncelli | Revisada
+HU-M3-04 | M3 | Salón y Mozos | Organizar el salón | Sectores | Como encargado, quiero listar los sectores para consultar su distribución. | Mozo | Media | Giuliano Giannoncelli | Revisada
+HU-M3-05 | M3 | Salón y Mozos | Organizar el salón | Mesas | Como encargado, quiero crear una mesa para organizar el salón. | Encargado | Alta | Giuliano Giannoncelli | Revisada
+HU-M3-06 | M3 | Salón y Mozos | Organizar el salón | Mesas | Como encargado, quiero modificar una mesa para actualizar sus datos. | Encargado | Baja | Giuliano Giannoncelli | Revisada
+HU-M3-07 | M3 | Salón y Mozos | Organizar el salón | Mesas | Como encargado, quiero eliminar una mesa para quitarla del salón. | Encargado | Alta | Giuliano Giannoncelli | Revisada
+HU-M3-08 | M3 | Salón y Mozos | Organizar el salón | Mesas | Como mozo, quiero listar las mesas para saber dónde atender. | Mozo | Alta | Giuliano Giannoncelli | Revisada
+HU-M3-09 | M3 | Salón y Mozos | Gestionar personal | Mozos | Como encargado, quiero dar de alta un mozo para incorporarlo al personal. | Encargado | Alta | Giuliano Giannoncelli | Revisada
+HU-M3-10 | M3 | Salón y Mozos | Gestionar personal | Mozos | Como encargado, quiero modificar un mozo para actualizar sus datos. | Encargado | Media | Giuliano Giannoncelli | Revisada
+HU-M3-11 | M3 | Salón y Mozos | Gestionar personal | Mozos | Como encargado, quiero dar de baja un mozo para retirarlo del personal. | Encargado | Alta | Giuliano Giannoncelli | Revisada
+HU-M3-12 | M3 | Salón y Mozos | Gestionar personal | Mozos | Como encargado, quiero listar los mozos para consultar el personal disponible. | Encargado | Alta | Giuliano Giannoncelli | Revisada
+HU-M4-01 | M4 | Atención al Público | Atender clientes | Clientes | Como mozo, quiero crear un cliente para asociarlo a comandas y reservas. | Mozo | Alta | Juan Ignacio Riquelme | Revisada
+HU-M4-02 | M4 | Atención al Público | Atender clientes | Clientes | Como mozo, quiero modificar un cliente para corregir sus datos. | Mozo | Media | Juan Ignacio Riquelme | Revisada
+HU-M4-03 | M4 | Atención al Público | Atender clientes | Clientes | Como encargado, quiero listar los clientes para consultarlos. | Encargado | Alta | Juan Ignacio Riquelme | Revisada
+HU-M4-04 | M4 | Atención al Público | Tomar pedidos | Comandas | Como mozo, quiero crear una comanda para registrar el pedido de una mesa. | Mozo | Alta | Juan Ignacio Riquelme | Revisada
+HU-M4-05 | M4 | Atención al Público | Tomar pedidos | Comandas | Como mozo, quiero modificar una comanda para agregar o quitar productos. | Mozo | Alta | Juan Ignacio Riquelme | Revisada
+HU-M4-06 | M4 | Atención al Público | Tomar pedidos | Comandas | Como encargado, quiero eliminar una comanda para anular una carga errónea. | Encargado | Media | Juan Ignacio Riquelme | Revisada
+HU-M4-07 | M4 | Atención al Público | Tomar pedidos | Comandas | Como mozo, quiero listar las comandas para ver los pedidos en curso. | Mozo | Alta | Juan Ignacio Riquelme | Revisada
+HU-M4-08 | M4 | Atención al Público | Tomar pedidos | Ciclo de la comanda | Como mozo, quiero marcar un producto como entregado para saber qué falta servir. | Mozo | Alta | Juan Ignacio Riquelme | Revisada
+HU-M4-09 | M4 | Atención al Público | Tomar pedidos | Ciclo de la comanda | Como mozo, quiero cerrar una comanda para pasarla a facturación. | Mozo | Alta | Juan Ignacio Riquelme | Revisada
+HU-M4-10 | M4 | Atención al Público | Tomar pedidos | Ciclo de la comanda | Como encargado, quiero reabrir una comanda para corregirla antes de cobrar. | Encargado | Media | Juan Ignacio Riquelme | Revisada
+HU-M5-01 | M5 | Reservas | Gestionar reservas | Reservas | Como encargado, quiero crear una reserva para asegurar una mesa al cliente. | Encargado | Media | Federico Cabaña | Revisada
+HU-M5-02 | M5 | Reservas | Gestionar reservas | Reservas | Como encargado, quiero modificar una reserva para cambiar fecha, hora o comensales. | Encargado | Media | Federico Cabaña | Revisada
+HU-M5-03 | M5 | Reservas | Gestionar reservas | Reservas | Como encargado, quiero listar las reservas para planificar el servicio. | Encargado | Media | Federico Cabaña | Revisada
+HU-M5-04 | M5 | Reservas | Gestionar reservas | Cancelaciones | Como encargado, quiero cancelar una reserva anticipadamente para liberar la mesa. | Encargado | Media | Federico Cabaña | Revisada
+HU-M5-05 | M5 | Reservas | Gestionar reservas | Cancelaciones | Como encargado, quiero cancelar una reserva por ausencia para liberar la mesa y registrar el ausente. | Encargado | Media | Federico Cabaña | Revisada
+HU-M5-06 | M5 | Reservas | Gestionar reservas | Atención con reserva | Como mozo, quiero crear una comanda a partir de una reserva para atender al cliente que llegó. | Mozo | Media | Federico Cabaña | Revisada
+HU-M6-01 | M6 | Pagos | Cobrar | Facturación | Como cajero, quiero generar la factura de una comanda para cobrar el consumo. | Cajero | Alta | Héctor Sánchez | Revisada
+HU-M6-02 | M6 | Pagos | Cobrar | Facturación | Como cajero, quiero cobrar una factura adeudada para saldar la deuda. | Cajero | Alta | Héctor Sánchez | Revisada
+HU-M6-03 | M6 | Pagos | Cobrar | Facturación | Como cajero, quiero generar el comprobante de pago para entregarlo al cliente. | Cajero | Alta | Héctor Sánchez | Revisada
+HU-M6-04 | M6 | Pagos | Configurar pagos | Medios de pago | Como encargado, quiero crear un medio de pago para aceptarlo en el cobro. | Encargado | Alta | Héctor Sánchez | Revisada
+HU-M6-05 | M6 | Pagos | Configurar pagos | Medios de pago | Como encargado, quiero modificar un medio de pago para ajustar sus datos. | Encargado | Alta | Héctor Sánchez | Revisada
+HU-M6-06 | M6 | Pagos | Configurar pagos | Medios de pago | Como encargado, quiero eliminar un medio de pago para dejar de aceptarlo. | Encargado | Alta | Héctor Sánchez | Revisada
+HU-M6-07 | M6 | Pagos | Configurar pagos | Medios de pago | Como cajero, quiero listar los medios de pago para ver con qué se puede cobrar. | Cajero | Alta | Héctor Sánchez | Revisada
+HU-M1-15 | M1 | Productos y Carta | Consultar reportes | Reportes | Como encargado, quiero ver el reporte «productos más vendidos por período» para tomar decisiones del negocio. | Encargado | Media | Franco Martín Soler | Revisada
+HU-M2-10 | M2 | Menús y Promociones | Consultar reportes | Reportes | Como encargado, quiero ver el reporte «ventas de menús y promociones por período» para tomar decisiones del negocio. | Encargado | Media | Joaquín Cardoso Díaz | Revisada
+HU-M3-13 | M3 | Salón y Mozos | Consultar reportes | Reportes | Como encargado, quiero ver el reporte «mesas atendidas y ventas por mozo» para tomar decisiones del negocio. | Encargado | Media | Giuliano Giannoncelli | Revisada
+HU-M4-11 | M4 | Atención al Público | Consultar reportes | Reportes | Como encargado, quiero ver el reporte «comandas y ticket promedio por día/turno» para tomar decisiones del negocio. | Encargado | Media | Juan Ignacio Riquelme | Revisada
+HU-M5-07 | M5 | Reservas | Consultar reportes | Reportes | Como encargado, quiero ver el reporte «reservas y ausentismo por período» para tomar decisiones del negocio. | Encargado | Media | Federico Cabaña | Revisada
+HU-M6-08 | M6 | Pagos | Consultar reportes | Reportes | Como encargado, quiero ver el reporte «recaudación por medio de pago y deuda pendiente» para tomar decisiones del negocio. | Encargado | Media | Héctor Sánchez | Revisada
+##### HOJA: Sprint 0
+x | Tarea | Entregable | Módulo | Responsable | Depende de | Semana | Estado
+S0-01 | Plan de desarrollo e hitos | Roadmap, roles y responsabilidades, sprints y gateways | Transversal | Franco Martín Soler | — | 1 | Hecha
+S0-02 | Crear repositorios y tablero Project | Repo(s), ramas base, labels y Project cargado | Transversal | Franco Martín Soler | — | 1 | Hecha
+S0-03 | Generar Product Backlog base con Claude Code | HU con criterios Dado/Cuando/Entonces a partir del story map | Transversal | Franco Martín Soler | S0-02 | 1 | Hecha
+S0-04 | Requerimientos No Funcionales (RNF) | Rendimiento, seguridad y mantenibilidad según React/FastAPI/SQLite | Transversal | Héctor Sánchez | — | 1 | Hecha
+S0-05 | Decisiones de arquitectura y diseño | Arquitectura en capas, estructura de carpetas, API REST, justificación | Transversal | Héctor Sánchez | S0-04 | 1 | Hecha
+S0-M1a | Revisar y ajustar HU del módulo (M1 Productos y Carta) | Criterios Dado/Cuando/Entonces y prioridad revisados | M1 | Franco Martín Soler | S0-03 | 1 | Hecha
+S0-M1b | Definir el reporte del módulo (M1 Productos y Carta) | HU del reporte con datos, filtros y cálculo | M1 | Franco Martín Soler | S0-M1a | 2 | Hecha
+S0-M1c | Riesgos del módulo (M1 Productos y Carta) | Filas en la tabla de riesgos con P, I, E y planes | M1 | Franco Martín Soler | S0-M1a | 2 | Hecha
+S0-M1d | Diagrama de clases del módulo (M1 Productos y Carta) | Clases, atributos y relaciones del módulo | M1 | Franco Martín Soler | S0-M1a | 2 | Hecha
+S0-M2a | Revisar y ajustar HU del módulo (M2 Menús y Promociones) | Criterios Dado/Cuando/Entonces y prioridad revisados | M2 | Joaquín Cardoso Díaz | S0-03 | 1 | Hecha
+S0-M2b | Definir el reporte del módulo (M2 Menús y Promociones) | HU del reporte con datos, filtros y cálculo | M2 | Joaquín Cardoso Díaz | S0-M2a | 2 | Hecha
+S0-M2c | Riesgos del módulo (M2 Menús y Promociones) | Filas en la tabla de riesgos con P, I, E y planes | M2 | Joaquín Cardoso Díaz | S0-M2a | 2 | Hecha
+S0-M2d | Diagrama de clases del módulo (M2 Menús y Promociones) | Clases, atributos y relaciones del módulo | M2 | Joaquín Cardoso Díaz | S0-M2a | 2 | Hecha
+S0-M3a | Revisar y ajustar HU del módulo (M3 Salón y Mozos) | Criterios Dado/Cuando/Entonces y prioridad revisados | M3 | Giuliano Giannoncelli | S0-03 | 1 | Hecha
+S0-M3b | Definir el reporte del módulo (M3 Salón y Mozos) | HU del reporte con datos, filtros y cálculo | M3 | Giuliano Giannoncelli | S0-M3a | 2 | Hecha
+S0-M3c | Riesgos del módulo (M3 Salón y Mozos) | Filas en la tabla de riesgos con P, I, E y planes | M3 | Giuliano Giannoncelli | S0-M3a | 2 | Hecha
+S0-M3d | Diagrama de clases del módulo (M3 Salón y Mozos) | Clases, atributos y relaciones del módulo | M3 | Giuliano Giannoncelli | S0-M3a | 2 | Hecha
+S0-M4a | Revisar y ajustar HU del módulo (M4 Atención al Público) | Criterios Dado/Cuando/Entonces y prioridad revisados | M4 | Juan Ignacio Riquelme | S0-03 | 1 | Hecha
+S0-M4b | Definir el reporte del módulo (M4 Atención al Público) | HU del reporte con datos, filtros y cálculo | M4 | Juan Ignacio Riquelme | S0-M4a | 2 | Hecha
+S0-M4c | Riesgos del módulo (M4 Atención al Público) | Filas en la tabla de riesgos con P, I, E y planes | M4 | Juan Ignacio Riquelme | S0-M4a | 2 | Hecha
+S0-M4d | Diagrama de clases del módulo (M4 Atención al Público) | Clases, atributos y relaciones del módulo | M4 | Juan Ignacio Riquelme | S0-M4a | 2 | Hecha
+S0-M5a | Revisar y ajustar HU del módulo (M5 Reservas) | Criterios Dado/Cuando/Entonces y prioridad revisados | M5 | Federico Cabaña | S0-03 | 1 | Hecha
+S0-M5b | Definir el reporte del módulo (M5 Reservas) | HU del reporte con datos, filtros y cálculo | M5 | Federico Cabaña | S0-M5a | 2 | Hecha
+S0-M5c | Riesgos del módulo (M5 Reservas) | Filas en la tabla de riesgos con P, I, E y planes | M5 | Federico Cabaña | S0-M5a | 2 | Hecha |  |  | S
+S0-M5d | Diagrama de clases del módulo (M5 Reservas) | Clases, atributos y relaciones del módulo | M5 | Federico Cabaña | S0-M5a | 2 | Hecha
+S0-M6a | Revisar y ajustar HU del módulo (M6 Pagos) | Criterios Dado/Cuando/Entonces y prioridad revisados | M6 | Héctor Sánchez | S0-03 | 1 | Hecha
+S0-M6b | Definir el reporte del módulo (M6 Pagos) | HU del reporte con datos, filtros y cálculo | M6 | Héctor Sánchez | S0-M6a | 2 | Hecha
+S0-M6c | Riesgos del módulo (M6 Pagos) | Filas en la tabla de riesgos con P, I, E y planes | M6 | Héctor Sánchez | S0-M6a | 2 | Hecha
+S0-M6d | Diagrama de clases del módulo (M6 Pagos) | Clases, atributos y relaciones del módulo | M6 | Héctor Sánchez | S0-M6a | 2 | Hecha
+S0-09 | Integración del diagrama de clases | Diagrama único del dominio, sin duplicados | Transversal | Todo el equipo | S0-M1d, S0-M2d, S0-M3d, S0-M4d, S0-M5d, S0-M6d | 2 | Hecha
+S0-10 | Acomodar la tabla de riesgos y definir la línea de corte | Tabla ordenada por E, línea de corte justificada | Transversal | Juan Ignacio Riquelme | S0-M1c, S0-M2c, S0-M3c, S0-M4c, S0-M5c, S0-M6c | 2 | Hecha
+S0-11 | Review del Sprint 0 y gateway G0 (07/10) | Revisión cruzada y cierre del Sprint 0 | Transversal | Todo el equipo | S0-01, S0-04, S0-05, S0-09, S0-10 | 2 | Hecha
+S0-12 | Daily meeting en cada clase | Daily meeting corta al inicio de cada clase | Transversal | Todo el equipo | — | 1 y 2 | Hecha
+##### HOJA: Roadmap
+Sprint | Fechas | Duración | Alcance | Gateway
+Sprint 0 | 24/09 – 07/10 | 2 semanas | Planificación y Gestión (backlog, riesgos, plan) + RNF, decisiones de diseño y diagrama de clases | G0 · 07/10
+Sprint 1 | 08/10 – 21/10 | 2 semanas | Estimación por PF (PFNA, 14 factores, LDC, esfuerzo y cotización), estándares de codificación, AGENTS.md y CLAUDE.md, esqueletos, criterios de conformidad, diseño de pruebas, GitFlow y CI | G1 · 21/10
+Sprint 2 | 22/10 – 28/10 | 1 semana | Implementación: entidades base y ABM de cada módulo, con tests | —
+Sprint 3 | 31/10 – 06/11 | 1 semana | Implementación: flujos (comanda, reserva, facturación, promociones) | G2 · 06/11
+Sprint 4 | 07/11 – 13/11 | 1 semana | Implementación: reportes, integración entre módulos y correcciones | —
+Cierre | 14/11 – 15/11 | 2 días | Métricas LDC vs. estimación, análisis estático, retrospectiva de riesgos y entrega | Entrega · 15/11 (a confirmar)
+##### HOJA: Sprint 1
+ID | Tarea | Entregable | Módulo | Responsable | Depende de | Semana | Estado
+S1-01 | Instalar OpenCode y Gentle AI | OpenCode y Gentle AI instalados y funcionando en tu compu, con un modelo conectado | Transversal | Todo el equipo | — | 1 | Pendiente
+S1-02 | Estándares y guía de estilo frontend | React/TypeScript: nombres, estructura, lint y formato | Transversal | Joaquín Cardoso Díaz | S1-01 | 1 | Pendiente
+S1-03 | Estándares y guía de estilo backend | Python/FastAPI: PEP 8, capas, nombres, lint y formato | Transversal | Héctor Sánchez | S1-01 | 1 | Pendiente
+S1-04 | AGENTS.md y CLAUDE.md (SDD con OpenCode y Claude Code) | AGENTS.md y CLAUDE.md definitivos y SDD inicializado en el repositorio (openspec/) | Transversal | Franco Martín Soler | S1-02, S1-03 | 2 | Pendiente
+S1-05 | Esqueleto del backend | FastAPI+SQLite que arranca vacío, con lint y pruebas funcionando | Transversal | Héctor Sánchez | S1-01 | 2 | Pendiente
+S1-06 | Esqueleto del frontend | React+TS+Vite que arranca vacío, con lint y pruebas funcionando | Transversal | Joaquín Cardoso Díaz | S1-01 | 2 | Pendiente
+S1-07 | Diseño de pruebas: escribir los casos de prueba | Casos de prueba en el formato de la cátedra, con los datos derivados por clases de equivalencia | Transversal | Giuliano Giannoncelli | — | 1 y 2 | Pendiente
+S1-M1 | Contar los Puntos de Función del módulo (M1 Productos y Carta) | Tabla del módulo con el puntaje de cada función y entidad, y el total del módulo | M1 | Franco Martín Soler | — | 1 | Pendiente
+S1-M2 | Contar los Puntos de Función del módulo (M2 Menús y Promociones) | Tabla del módulo con el puntaje de cada función y entidad, y el total del módulo | M2 | Joaquín Cardoso Díaz | — | 1 | Pendiente
+S1-M3 | Contar los Puntos de Función del módulo (M3 Salón y Mozos) | Tabla del módulo con el puntaje de cada función y entidad, y el total del módulo | M3 | Giuliano Giannoncelli | — | 1 | Pendiente
+S1-M4 | Contar los Puntos de Función del módulo (M4 Atención al Público) | Tabla del módulo con el puntaje de cada función y entidad, y el total del módulo | M4 | Juan Ignacio Riquelme | — | 1 | Pendiente
+S1-M5 | Contar los Puntos de Función del módulo (M5 Reservas) | Tabla del módulo con el puntaje de cada función y entidad, y el total del módulo | M5 | Federico Cabaña | — | 1 | Pendiente
+S1-M6 | Contar los Puntos de Función del módulo (M6 Pagos) | Tabla del módulo con el puntaje de cada función y entidad, y el total del módulo | M6 | Héctor Sánchez | — | 1 | Pendiente
+S1-08 | Estimación de Puntos de Función del proyecto | Informe con las tablas y el resumen de los módulos, factores de ajuste, puntos ajustados, líneas de código, esfuerzo y cotización | Transversal | Juan Ignacio Riquelme | S1-M1 a S1-M6 | 2 | Pendiente
+S1-09 | Criterios de conformidad | 4 checklists: HU, diagrama de clases, estándares de código y tabla de riesgos | Transversal | Federico Cabaña | S1-02, S1-03 | 2 | Pendiente
+S1-10 | GitFlow y CI | Flujo de ramas, plantilla de PR con checklist y GitHub Actions que corre lint y pruebas | Transversal | Franco Martín Soler | S1-05, S1-06 | 2 | Pendiente
+##### HOJA: Sprint 2
+ID | Tarea | Entregable | Módulo | Responsable | Depende de | Semana | Estado
+S2-01 | Congelar el contrato de Comanda | Contrato de Comanda (campos, estados y operaciones crear, listar y cerrar) escrito en un documento, y un stub compartido para que M5 y M6 prueben sin esperar | Transversal | Juan Ignacio Riquelme | — | 1 | Hecha
+S2-02 | Confirmar con los docentes los supuestos y la fecha de entrega | Lista de supuestos del equipo llevada a los docentes y fecha de entrega confirmada por escrito (R06 y R20) | Transversal | Franco Martín Soler | — | 1 | Hecha
+S2-03 | Review del Sprint 2 y revisión de riesgos (28/10) | Cada módulo muestra su ABM, revisión cruzada entre módulos, riesgos R01 y R04 revisados e informe del Sprint 2 con burndown | Transversal | Todo el equipo | S2-M1 a S2-M6 | 1 | Hecha
+S2-M1 | Implementar las entidades base y el ABM de productos y carta (M1 Productos y Carta) | Entidades de producto (plato, postre y bebida) y de sección de la carta con su ABM y listado: HU-M1-01 a HU-M1-13, con migración, pruebas y pantallas | M1 | Franco Martín Soler | — | 1 | Hecha
+S2-M2 | Implementar las entidades base y el ABM de menús (M2 Menús y Promociones) | Entidades de menú ejecutivo y menú del día con su ABM: HU-M2-01 a HU-M2-06, con migración, pruebas y pantallas | M2 | Joaquín Cardoso Díaz | S2-M1 | 1 | Hecha
+S2-M3 | Implementar las entidades base y el ABM del salón (M3 Salón y Mozos) | Entidades de sector, mesa y mozo con su ABM y listado: HU-M3-01 a HU-M3-12, con migración, pruebas y pantallas | M3 | Giuliano Giannoncelli | — | 1 | Hecha
+S2-M4 | Implementar las entidades base y la comanda (M4 Atención al Público) | Entidad de cliente con su ABM y listado (HU-M4-01 a HU-M4-03) y comanda con crear, listar y cerrar (HU-M4-04, HU-M4-07 y HU-M4-09), con migración, pruebas y pantallas | M4 | Juan Ignacio Riquelme | S2-01, S2-M1, S2-M3 | 1 | Pasa al Sprint 3
+S2-M5 | Implementar la entidad base y el ABM de reservas (M5 Reservas) | Entidad Reserva con crear, modificar y listar: HU-M5-01 a HU-M5-03, con migración, pruebas y pantallas | M5 | Federico Cabaña | S2-M3, S2-M4 | 1 | Pasa al Sprint 3
+S2-M6 | Implementar las entidades base y el ABM de medios de pago (M6 Pagos) | Entidad de medio de pago con su ABM y listado: HU-M6-04 a HU-M6-07, con migración, pruebas y pantallas | M6 | Héctor Sánchez | — | 1 | Pasa al Sprint 3
+##### HOJA: Sprint 3
+ID | Tarea | Entregable | Módulo | Responsable | Depende de | Semana | Estado
+S3-01 | Plan y mensaje del Sprint 3 | Plan del Sprint 3 en SPRINT-0/Plan-de-trabajo-Sprint.md (tareas, reparto de HU, camino crítico y criterios de cierre), hoja «Sprint 3» del backlog, mensaje al equipo y cards del tablero | Transversal | Franco Martín Soler | — | 1 | Pendiente
+S3-M1 | Implementar crear, marcar como entregado y cerrar la comanda (M4 Atención al Público) | Comanda con crear (HU-M4-04), marcar un producto como entregado (HU-M4-08) y cerrar (HU-M4-09), con pruebas y pantallas. HU reasignadas de M4 | M4 | Franco Martín Soler | S3-M4 (cliente, PR #196) | 1 | Pendiente
+S3-M2 | Implementar las promociones (M2 Menús y Promociones) | Promociones con crear, modificar y finalizar (HU-M2-07 a HU-M2-09), con migración, pruebas y pantallas | M2 | Joaquín Cardoso Díaz | — | 1 | Pendiente
+S3-M3 | Implementar modificar y reabrir la comanda y cobrar una factura adeudada (M4 Atención al Público y M6 Pagos) | Modificar y reabrir una comanda (HU-M4-05 y HU-M4-10) y cobrar una factura adeudada (HU-M6-02), con pruebas y pantallas. HU reasignadas de M4 y M6 | M4 y M6 | Giuliano Giannoncelli | S3-M1 (crear y cerrar comanda), S3-M6 (factura) | 1 | Pendiente
+S3-M4 | Integrar el cliente e implementar listar y eliminar comandas (M4 Atención al Público) | Cliente en develop (HU-M4-01 a HU-M4-03, PR #196) y comandas con listar (HU-M4-07) y eliminar (HU-M4-06), con pruebas y pantallas | M4 | Juan Ignacio Riquelme | S3-M1 (crear comanda) | 1 | Pendiente
+S3-M5 | Integrar el ABM de reservas e implementar las cancelaciones y la comanda desde una reserva (M5 Reservas) | ABM de reservas en develop (HU-M5-01 a HU-M5-03), cancelación anticipada y por ausencia (HU-M5-04 y HU-M5-05) y comanda a partir de una reserva (HU-M5-06), con pruebas y pantallas | M5 | Federico Cabaña | S3-M4 (cliente), S3-M1 (crear comanda) | 1 | Pendiente
+S3-M6 | Implementar los medios de pago, la factura y el comprobante (M6 Pagos) | Medios de pago con su ABM y listado (HU-M6-04 a HU-M6-07), factura de una comanda (HU-M6-01) y comprobante de pago (HU-M6-03), con migración, pruebas y pantallas | M6 | Héctor Sánchez | S3-M1 (cerrar comanda), S3-M3 (cobro) | 1 | Pendiente

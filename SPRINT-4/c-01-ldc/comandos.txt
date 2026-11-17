@@ -1,0 +1,56 @@
+Comandos usados para la parte 1 del informe de cierre (C-01, issue #228): métricas de LDC.
+Fecha de la medición: 2026-11-17. Commit medido: 86bb44f6fab07eac6c84a073fb165cde2c012e34 (origin/develop).
+Herramienta: cloc 2.12 (cloc-2.12.pl, SHA-256 621592d34f835ef178115a1643f15ebc8e73ec1d47b5484c46376fc15b78f03e).
+
+Variables de ejemplo (rutas del equipo donde se hizo la medición):
+  REPO=<RAIZ_DEL_REPOSITORIO>
+  OUT=<DIRECTORIO_DE_SALIDA>/crudos
+  TRABAJO=<directorio temporal nuevo>            # aquí quedan el árbol exportado y cloc
+  HASH=86bb44f6fab07eac6c84a073fb165cde2c012e34
+
+1. Commit exacto de origin/develop (solo lectura sobre el remoto)
+   git -C $REPO fetch origin
+   git -C $REPO rev-parse origin/develop
+   git -C $REPO diff --stat origin/develop origin/main -- backend/app frontend/src     # sin cambios: main y develop tienen el mismo código
+
+2. Exportar, descargar cloc, verificar SHA-256 y medir (un solo script; ver su contenido para las líneas exactas de cloc)
+   c-01-ldc/scripts/medir-ldc.sh $HASH $REPO $TRABAJO $OUT
+   -> git archive $HASH | tar -x -C $TRABAJO/arbol
+   -> curl -sSL -o cloc-2.12.pl https://github.com/AlDanial/cloc/releases/download/v2.12/cloc-2.12.pl ; sha256sum -c
+   -> bwrap (sin red, árbol y herramienta de solo lectura) perl cloc-2.12.pl --quiet --skip-uniqueness \
+        --exclude-dir=node_modules,.venv,dist,build,__pycache__ --include-lang=Python,TypeScript,CSS \
+        --by-file --csv --report-file=/salida/cloc-por-archivo.csv backend/app backend/scripts backend/tests frontend/src
+   -> los controles cloc-control-*.txt y cloc-informativo-migraciones-alembic.txt (ver el script)
+
+3. Agrupar por ámbito y módulo, y verificar contra los controles de cloc
+   python3 -I c-01-ldc/scripts/agrupar_ldc.py $OUT/cloc-por-archivo.csv $OUT
+
+4. Conteos complementarios (docstrings, comentarios JSX, className=, archivos vacíos, marcas de código generado)
+   python3 -I c-01-ldc/scripts/contar_extras.py $TRABAJO/arbol $OUT/conteos-complementarios.json
+
+5. Crecimiento neto de LDC de producción de cada cambio de alcance (cloc --diff entre dos commits del historial)
+   python3 -I c-01-ldc/scripts/medir_incrementos.py $REPO $TRABAJO $OUT
+
+6. Tablas y cifras del informe
+   python3 -I c-01-ldc/scripts/generar_tablas.py $OUT <bloques.json>
+   python3 -I c-01-ldc/scripts/armar_informe.py c-01-ldc/scripts/plantilla-informe.md <bloques.json> C-01-parte1-metricas-ldc.md
+
+7. Estimación previa (solo lectura; biblioteca estándar de Python, no se ejecuta nada del documento)
+   python3 -I c-01-ldc/scripts/docx_a_texto.py "SPRINT-1/Estimación de Puntos de Función del proyecto (v2).docx" c-01-ldc/estimacion/estimacion-pf-v2.txt
+   python3 -I c-01-ldc/scripts/docx_extra.py   "SPRINT-1/Estimación de Puntos de Función del proyecto (v2).docx" > c-01-ldc/estimacion/estimacion-pf-v2-ecuaciones-comentarios.txt
+   python3 -I c-01-ldc/scripts/xlsx_a_texto.py G3_Backlog.xlsx c-01-ldc/estimacion/g3-backlog-xlsx.txt
+   git show 69736f5:"SPRINT-1/Estimación de Puntos de Función del proyecto.docx" > v1.docx   # versión anterior; se extrajo igual y se comparó con difflib
+   (las dos entradas se leen del árbol exportado del commit medido, no del directorio de trabajo)
+
+8. Evidencia de GitHub y del historial (solo lectura)
+   git log $HASH --first-parent --format='%h %p | %ci | %s'                      -> evidencia/git-primer-padre-develop.txt
+   git log $HASH --follow --format='%h %ci %s' -- "SPRINT-1/Estimación ... (v2).docx"  -> evidencia/git-historial-estimacion.txt
+   gh pr list --state merged --limit 400 --json number,title,mergedAt,additions,deletions,baseRefName  -> evidencia/prs-integrados.tsv
+   gh issue list --state all --limit 400 --json number,title,state,createdAt,labels                    -> evidencia/issues-citados.tsv (solo los citados)
+   gh issue view <172|213|223|224|225|242|251> --json title,body,createdAt,closedAt                   (se leyeron; no se modificó nada)
+   gh pr list --state open                                                                             (sin PR abiertos)
+
+Notas
+- No había Docker utilizable en el equipo (WSL sin integración de Docker Desktop), por eso se usó bubblewrap en lugar de un contenedor.
+- La alternativa con Docker del informe (sección 9) no se probó.
+- No se modificó el repositorio (solo `git fetch origin` y `git archive`) y no se escribió nada en GitHub.

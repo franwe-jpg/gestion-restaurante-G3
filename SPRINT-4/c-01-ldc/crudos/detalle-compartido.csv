@@ -1,0 +1,38 @@
+ambito,capa,subgrupo,lenguaje,archivos_con_lineas,blank,comment,code,no_vacias
+produccion,backend,app/*.py (config.py),Python,1,9,2,12,14
+produccion,backend,app/*.py (database.py),Python,1,17,4,35,39
+produccion,backend,app/*.py (main.py),Python,1,32,3,98,101
+produccion,backend,app/shared/base_repository.py,Python,1,0,1,0,1
+produccion,backend,app/shared/contratos,Python,3,23,3,54,57
+produccion,backend,app/shared/credenciales.py,Python,1,7,1,19,20
+produccion,backend,app/shared/excepciones.py,Python,1,10,6,5,11
+produccion,backend,app/shared/models,Python,3,20,6,56,62
+produccion,backend,app/shared/paginacion.py,Python,1,10,3,18,21
+produccion,backend,app/shared/pdf.py,Python,1,23,7,127,134
+produccion,backend,app/shared/permisos.py,Python,1,8,2,50,52
+produccion,backend,app/shared/seguridad.py,Python,1,12,6,29,35
+produccion,frontend,shared/api,TypeScript,2,30,6,117,123
+produccion,frontend,shared/auth,TypeScript,12,69,19,543,562
+produccion,frontend,shared/components/*.tsx,TypeScript,15,104,4,1683,1687
+produccion,frontend,shared/components/inicio,TypeScript,19,155,99,1535,1634
+produccion,frontend,shared/components/layout,TypeScript,8,48,12,480,492
+produccion,frontend,shared/components/ui,TypeScript,41,218,11,1615,1626
+produccion,frontend,shared/hooks,TypeScript,5,24,4,125,129
+produccion,frontend,shared/lib,TypeScript,3,6,1,52,53
+produccion,frontend,shared/types,TypeScript,1,2,0,16,16
+produccion,frontend,src/ raíz (App.tsx),TypeScript,1,15,0,136,136
+produccion,frontend,src/ raíz (index.css),CSS,1,37,8,206,214
+produccion,frontend,src/ raíz (main.tsx),TypeScript,1,5,0,18,18
+produccion,frontend,src/ raíz (vite-env.d.ts),TypeScript,1,2,2,7,9
+pruebas,backend,tests/ raíz (conftest.py y pruebas de app/*.py),Python,5,99,9,198,207
+pruebas,backend,tests/shared,Python,11,331,26,1076,1102
+pruebas,frontend,shared/api,TypeScript,1,90,0,344,344
+pruebas,frontend,shared/auth,TypeScript,7,135,0,496,496
+pruebas,frontend,shared/components/*.tsx,TypeScript,6,82,0,307,307
+pruebas,frontend,shared/components/inicio,TypeScript,9,239,1,1161,1162
+pruebas,frontend,shared/components/layout,TypeScript,4,43,0,150,150
+pruebas,frontend,shared/hooks,TypeScript,3,31,0,99,99
+pruebas,frontend,shared/lib,TypeScript,1,5,0,21,21
+pruebas,frontend,src/ raíz (App.rutas.test.tsx),TypeScript,1,26,0,86,86
+pruebas,frontend,src/ raíz (App.test.tsx),TypeScript,1,24,0,149,149
+pruebas,frontend,src/test (infraestructura de pruebas),TypeScript,3,20,4,77,81

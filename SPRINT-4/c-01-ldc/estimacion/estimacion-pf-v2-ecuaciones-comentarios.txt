@@ -1,0 +1,28 @@
+== ECUACIONES (texto plano de m:oMath, en orden) ==
+1 PFA=PFSA×[0,65+(0,01×Fi)]
+2 PFA=392×[0,65+(0,01×39)]
+3 PFA=392×1,04
+4 PFA
+5 Productividad
+6 Esfuerzo=PFAProductividad
+7 Esfuerzo=407,6820
+8 Esfuerzo
+9 Duración=EsfuerzoIntegrantes
+10 Duración=20,386
+11 Duración
+12 Esfuerzo=407,6810
+13 Esfuerzo
+14 Duración=40,776
+15 Duración
+16 Costo=Esfuerzo×CostoMensual
+== COMENTARIOS ==
+Guillermo Urrutia 2026-10-30T19:06:47Z | https://www.fing.edu.uy/tecnoinf/mvd/cursos/ingsoft/material/teorico/is05-PuntosFuncionComp.pdfPara contrastar con los valores obtenidos en la estimación de PF
+Guillermo Urrutia 2026-10-30T15:22:14Z | Pueden agregar 10PF para comparativa del peor caso. Ver cuánta diferencia hay en el costo obtenido.
+Guillermo Urrutia 2026-10-23T18:51:39Z | https://cpcipc.org.ar/honorarios-recomendados/
+Guillermo Urrutia 2026-10-23T18:54:00Z | https://teclab.edu.ar/tecnologia-y-desarrollo/cuanto-cobra-un-programador-en-argentina/
+Guillermo Urrutia 2026-10-30T15:05:35Z | Revisen el siguiente artículo: https://www.isbsg.org/wp-content/uploads/2023/03/Short-Paper-2023-02-Analysis-Project-Cost-per-FP.pdfPueden buscar otros.En el costo total solamente están teniendo en cuenta la remuneración del desarrollador.No incluye: cargas sociales, seguridad social, overhead de la empresa, infraestructura, herramientas, QA externo, despliegue, ni mantenimiento posterior. Para nombrar algunas cuestiones que se escapan en el cálculo total.Pueden tratar de agregar estas consideraciones diciendo que el costo obtenido no tiene en cuenta tal y tal otra cosa.
+== core.xml ==
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:creator></dc:creator><dc:description></dc:description><dc:language>es-ES</dc:language><cp:lastModifiedBy></cp:lastModifiedBy><dcterms:modified xsi:type="dcterms:W3CDTF">2026-10-31T13:35:16Z</dcterms:modified><cp:revision>1</cp:revision><dc:subject></dc:subject><dc:title></dc:title></cp:coreProperties>
+== ins/del (cambios con control) ==
+ins: 0 del: 0

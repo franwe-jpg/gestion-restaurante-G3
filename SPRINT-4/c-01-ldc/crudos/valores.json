@@ -1,0 +1,344 @@
+{
+  "fe_ts": {
+    "archivos": 333,
+    "blank": 2474,
+    "comment": 799,
+    "code": 24053,
+    "no_vacias": 24852
+  },
+  "fe_css": {
+    "archivos": 1,
+    "blank": 37,
+    "comment": 8,
+    "code": 206,
+    "no_vacias": 214
+  },
+  "be_py": {
+    "archivos": 66,
+    "blank": 1920,
+    "comment": 640,
+    "code": 6602,
+    "no_vacias": 7242
+  },
+  "herramientas": {
+    "archivos": 4,
+    "blank": 210,
+    "comment": 89,
+    "code": 1134,
+    "no_vacias": 1223
+  },
+  "pruebas_fe": {
+    "archivos": 164,
+    "blank": 4709,
+    "comment": 153,
+    "code": 21802,
+    "no_vacias": 21955
+  },
+  "pruebas_be": {
+    "archivos": 102,
+    "blank": 7533,
+    "comment": 894,
+    "code": 21123,
+    "no_vacias": 22017
+  },
+  "prod_total_sin_css": {
+    "archivos": 399,
+    "blank": 4394,
+    "comment": 1439,
+    "code": 30655,
+    "no_vacias": 32094
+  },
+  "prod_total_con_css": {
+    "archivos": 400,
+    "blank": 4431,
+    "comment": 1447,
+    "code": 30861,
+    "no_vacias": 32308
+  },
+  "pruebas_total": {
+    "archivos": 266,
+    "blank": 12242,
+    "comment": 1047,
+    "code": 42925,
+    "no_vacias": 43972
+  },
+  "total_archivos_cloc": 670,
+  "be_modelos": {
+    "archivos": 10,
+    "blank": 124,
+    "comment": 39,
+    "code": 514,
+    "no_vacias": 553
+  },
+  "be_sin_modelos": {
+    "archivos": 56,
+    "blank": 1796,
+    "comment": 601,
+    "code": 6088,
+    "no_vacias": 6689
+  },
+  "por_modulo": {
+    "productos": {
+      "id": "M1",
+      "nombre": "Productos y Carta",
+      "fe": {
+        "archivos": 40,
+        "blank": 350,
+        "comment": 76,
+        "code": 3237,
+        "no_vacias": 3313
+      },
+      "be": {
+        "archivos": 8,
+        "blank": 331,
+        "comment": 87,
+        "code": 1158,
+        "no_vacias": 1245
+      },
+      "pr_fe": {
+        "archivos": 30,
+        "blank": 831,
+        "comment": 8,
+        "code": 3853,
+        "no_vacias": 3861
+      },
+      "pr_be": {
+        "archivos": 11,
+        "blank": 1409,
+        "comment": 141,
+        "code": 3484,
+        "no_vacias": 3625
+      }
+    },
+    "menus": {
+      "id": "M2",
+      "nombre": "Menús y Promociones",
+      "fe": {
+        "archivos": 50,
+        "blank": 379,
+        "comment": 41,
+        "code": 3676,
+        "no_vacias": 3717
+      },
+      "be": {
+        "archivos": 7,
+        "blank": 302,
+        "comment": 75,
+        "code": 1279,
+        "no_vacias": 1354
+      },
+      "pr_fe": {
+        "archivos": 11,
+        "blank": 278,
+        "comment": 0,
+        "code": 1460,
+        "no_vacias": 1460
+      },
+      "pr_be": {
+        "archivos": 17,
+        "blank": 763,
+        "comment": 51,
+        "code": 2510,
+        "no_vacias": 2561
+      }
+    },
+    "salon": {
+      "id": "M3",
+      "nombre": "Salón y Mozos",
+      "fe": {
+        "archivos": 48,
+        "blank": 322,
+        "comment": 90,
+        "code": 2854,
+        "no_vacias": 2944
+      },
+      "be": {
+        "archivos": 7,
+        "blank": 257,
+        "comment": 72,
+        "code": 785,
+        "no_vacias": 857
+      },
+      "pr_fe": {
+        "archivos": 30,
+        "blank": 984,
+        "comment": 1,
+        "code": 4214,
+        "no_vacias": 4215
+      },
+      "pr_be": {
+        "archivos": 14,
+        "blank": 959,
+        "comment": 105,
+        "code": 2575,
+        "no_vacias": 2680
+      }
+    },
+    "atencion": {
+      "id": "M4",
+      "nombre": "Atención al Público",
+      "fe": {
+        "archivos": 33,
+        "blank": 201,
+        "comment": 38,
+        "code": 3380,
+        "no_vacias": 3418
+      },
+      "be": {
+        "archivos": 7,
+        "blank": 275,
+        "comment": 103,
+        "code": 1096,
+        "no_vacias": 1199
+      },
+      "pr_fe": {
+        "archivos": 17,
+        "blank": 295,
+        "comment": 5,
+        "code": 2539,
+        "no_vacias": 2544
+      },
+      "pr_be": {
+        "archivos": 14,
+        "blank": 1178,
+        "comment": 33,
+        "code": 3893,
+        "no_vacias": 3926
+      }
+    },
+    "reservas": {
+      "id": "M5",
+      "nombre": "Reservas",
+      "fe": {
+        "archivos": 30,
+        "blank": 326,
+        "comment": 333,
+        "code": 2467,
+        "no_vacias": 2800
+      },
+      "be": {
+        "archivos": 8,
+        "blank": 244,
+        "comment": 173,
+        "code": 671,
+        "no_vacias": 844
+      },
+      "pr_fe": {
+        "archivos": 25,
+        "blank": 1283,
+        "comment": 129,
+        "code": 5329,
+        "no_vacias": 5458
+      },
+      "pr_be": {
+        "archivos": 13,
+        "blank": 1896,
+        "comment": 403,
+        "code": 4991,
+        "no_vacias": 5394
+      }
+    },
+    "pagos": {
+      "id": "M6",
+      "nombre": "Pagos",
+      "fe": {
+        "archivos": 23,
+        "blank": 218,
+        "comment": 63,
+        "code": 2112,
+        "no_vacias": 2175
+      },
+      "be": {
+        "archivos": 8,
+        "blank": 238,
+        "comment": 61,
+        "code": 836,
+        "no_vacias": 897
+      },
+      "pr_fe": {
+        "archivos": 15,
+        "blank": 343,
+        "comment": 5,
+        "code": 1517,
+        "no_vacias": 1522
+      },
+      "pr_be": {
+        "archivos": 12,
+        "blank": 671,
+        "comment": 118,
+        "code": 1798,
+        "no_vacias": 1916
+      }
+    },
+    "usuarios": {
+      "id": "-",
+      "nombre": "Usuarios (autenticación y roles)",
+      "fe": {
+        "archivos": 0,
+        "blank": 0,
+        "comment": 0,
+        "code": 0,
+        "no_vacias": 0
+      },
+      "be": {
+        "archivos": 5,
+        "blank": 102,
+        "comment": 25,
+        "code": 274,
+        "no_vacias": 299
+      },
+      "pr_fe": {
+        "archivos": 0,
+        "blank": 0,
+        "comment": 0,
+        "code": 0,
+        "no_vacias": 0
+      },
+      "pr_be": {
+        "archivos": 3,
+        "blank": 159,
+        "comment": 3,
+        "code": 408,
+        "no_vacias": 411
+      }
+    }
+  },
+  "compartido": {
+    "fe": {
+      "archivos": 109,
+      "blank": 678,
+      "comment": 158,
+      "code": 6327,
+      "no_vacias": 6485
+    },
+    "css": {
+      "archivos": 1,
+      "blank": 37,
+      "comment": 8,
+      "code": 206,
+      "no_vacias": 214
+    },
+    "be": {
+      "archivos": 16,
+      "blank": 171,
+      "comment": 44,
+      "code": 503,
+      "no_vacias": 547
+    },
+    "pr_fe": {
+      "archivos": 36,
+      "blank": 695,
+      "comment": 5,
+      "code": 2890,
+      "no_vacias": 2895
+    },
+    "pr_be": {
+      "archivos": 16,
+      "blank": 430,
+      "comment": 35,
+      "code": 1274,
+      "no_vacias": 1309
+    }
+  },
+  "otros_grupos": []
+}
