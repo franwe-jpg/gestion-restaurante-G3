@@ -1,0 +1,174 @@
+# Partes del zip: [Content_Types].xml, _rels/, _rels/.rels, docProps/, docProps/core.xml, customXML/, customXML/_rels/, customXML/_rels/item1.xml.rels, customXML/item1.xml, customXML/itemProps1.xml, word/, word/theme/, word/theme/theme1.xml, word/_rels/, word/_rels/document.xml.rels, word/document.xml, word/commentsExtended.xml, word/styles.xml, word/fontTable.xml, word/comments.xml, word/settings.xml, word/numbering.xml, word/header3.xml, word/header2.xml, word/header1.xml
+
+Estimación de Puntos de Función del proyecto
+Tablas de cada módulo:
+M1 - Carta
+[TABLA 1]
+HU | Función o entidad | Tipo | Puntos
+- | Producto | ILF | 10
+- | Sección | ILF | 10
+HU-M1-01 | Crear un plato | EI | 4
+HU-M1-02 | Modificar un plato | EI | 4
+HU-M1-03 | Dar de baja un plato | EI | 4
+HU-M1-04 | Crear un postre | EI | 4
+HU-M1-05 | Modificar un postre | EI | 4
+HU-M1-06 | Dar de baja un postre | EI | 4
+HU-M1-07 | Crear una bebida | EI | 4
+HU-M1-08 | Modificar una bebida | EI | 4
+HU-M1-09 | Dar de baja una bebida | EI | 4
+HU-M1-10 | Crear una sección de la carta | EI | 4
+HU-M1-11 | Modificar una sección | EI | 4
+HU-M1-12 | Dar de baja una sección | EI | 4
+HU-M1-13 | Listar los productos | EQ | 4
+HU-M1-14 | Ver la carta | EQ | 4
+HU-M1-15 | Ver el reporte «productos más vendidos por período» | EO | 5
+ | TOTAL DEL MODULO |  | 82
+[FIN TABLA 1]
+M2 - Menús y Promociones
+[TABLA 2]
+HU | Función o entidad | Tipo | Puntos
+- | MenuEjecutivo | ILF | 10
+- | Promocion | ILF | 10
+HU-M2-01 | Crear un menú ejecutivo | EI | 4
+HU-M2-02 | Modificar un menú ejecutivo | EI | 4
+HU-M2-03 | Eliminar un menú ejecutivo | EI | 4
+HU-M2-04 | Crear un menú del día | EI | 4
+HU-M2-05 | Modificar un menú del día | EI | 4
+HU-M2-06 | Eliminar un menú del día | EI | 4
+HU-M2-07 | Crear una promoción | EI | 4
+HU-M2-08 | Modificar una promoción | EI | 4
+HU-M2-09 | Finalizar una promoción | EI | 4
+HU-M2-10 | Ver el reporte «ventas de menús y promociones por período» | EO | 5
+ | TOTAL DEL MODULO |  | 61
+[FIN TABLA 2]
+M3 - Salón y Mozos
+[TABLA 3]
+HU | Función o entidad | Tipo | Puntos
+- | Sector | ILF | 10
+- | Mesa | ILF | 10
+- | Mozo | ILF | 10
+HU-M3-01 | Agregar un sector | EI | 4
+HU-M3-02 | Modificar un sector | EI | 4
+HU-M3-03 | Eliminar un sector | EI | 4
+HU-M3-04 | Listar los sectores | EQ | 4
+HU-M3-05 | Crear una mesa | EI | 4
+HU-M3-06 | Modificar una mesa | EI | 4
+HU-M3-07 | Eliminar una mesa | EI | 4
+HU-M3-08 | Listar las mesas | EQ | 4
+HU-M3-09 | Dar de alta un mozo | EI | 4
+HU-M3-10 | Modificar un mozo | EI | 4
+HU-M3-11 | Dar de baja un mozo | EI | 4
+HU-M3-12 | Listar los mozos | EQ | 4
+HU-M3-13 | Ver el reporte «mesas atendidas y ventas por mozo» | EO | 5
+ | TOTAL DEL MÓDULO |  | 86
+[FIN TABLA 3]
+M4 - Atención al Público
+[TABLA 4]
+HU | Función o entidad | Tipo | Puntos
+- | Comanda (con su detalle) | ILF | 10
+- | Cliente | ILF | 10
+HU-M4-01 | Crear un cliente | EI | 4
+HU-M4-02 | Modificar un cliente | EI | 4
+HU-M4-03 | Listar los clientes | EQ | 4
+HU-M4-04 | Crear una comanda | EI | 4
+HU-M4-05 | Modificar una comanda | EI | 4
+HU-M4-06 | Eliminar una comanda | EI | 4
+HU-M4-07 | Listar las comandas | EQ | 4
+HU-M4-08 | Marcar un producto como entregado | EI | 4
+HU-M4-09 | Cerrar una comanda | EI | 4
+HU-M4-10 | Reabrir una comanda | EI | 4
+HU-M4-11 | Ver el reporte «comandas y ticket promedio por día/turno» | EO | 5
+ | TOTAL DEL MÓDULO |  | 67
+[FIN TABLA 4]
+M5 - Reservas
+[TABLA 5]
+HU | Función o entidad | Tipo | Puntos
+- | Reserva | ILF | 10
+HU-M5-01 | Crear una reserva | EI | 4
+HU-M5-02 | Modificar una reserva | EI | 4
+HU-M5-03 | Listar las reservas | EQ | 4
+HU-M5-04 | Cancelar una reserva anticipadamente | EI | 4
+HU-M5-05 | Cancelar una reserva por ausencia | EI | 4
+HU-M5-06 | Crear una comanda a partir de una reserva | EI | 4
+HU-M5-07 | Ver el reporte «reservas y ausentismo por período» | EO | 5
+ | TOTAL DEL MÓDULO |  | 40
+[FIN TABLA 5]
+M6 - Pagos
+[TABLA 6]
+HU | Función o entidad | Tipo | Puntos
+- | Factura (con su detalle) | ILF | 10
+- | Cobro | ILF | 10
+- | MedioPago | ILF | 10
+HU-M6-01 | Generar la factura de una comanda | EI | 4
+HU-M6-02 | Cobrar una factura adeudada | EI | 4
+HU-M6-03 | Generar el comprobante de pago | EQ | 4
+HU-M6-04 | Crear un medio de pago | EI | 4
+HU-M6-05 | Modificar un medio de pago | EI | 4
+HU-M6-06 | Eliminar un medio de pago | EI | 4
+HU-M6-07 | Listar los medios de pago | EQ | 4
+HU-M6-08 | Ver el reporte «recaudación por medio de pago y deuda pendiente» | EO | 5
+ | TOTAL DEL MÓDULO |  | 64
+[FIN TABLA 6]
+Resumen de puntos de función:
+[TABLA 7]
+Módulo | ILF | EIF | EI | EO | EQ | PFSA
+M1 – Carta | 2 | 0 | 12 | 1 | 2 | 81
+M2 – Menús y promociones | 2 | 0 | 9 | 1 | 0 | 61
+M3 – Sectores, mesas y mozos | 3 | 0 | 9 | 1 | 3 | 83
+M4 – Clientes y comandas | 2 | 0 | 8 | 1 | 2 | 65
+M5 – Reservas | 1 | 0 | 5 | 1 | 1 | 39
+M6 – Facturación y cobros | 3 | 0 | 5 | 1 | 2 | 63
+TOTAL | 13 | 0 | 48 | 6 | 10 | 392
+[FIN TABLA 7]
+Resultado: 77 funciones identificadas con 392 PFSA en los 6 módulos.
+Factores de ajuste:
+[TABLA 8]
+N.° | Factor | Fi | Justificación
+1 | Comunicación de datos | 3 | Se intercambia información entre las áreas funcionales del restaurante.
+2 | Procesamiento distribuido | 1 | El procesamiento se concentra en un único servidor (FastAPI y SQLite). El frontend corre en el navegador de cada equipo y solo valida y presenta los datos que recibe
+3 | Rendimiento | 3 | Las operaciones de comandas, reservas y cobros requieren respuestas ágiles.
+4 | Uso intensivo de la configuración | 1 | No se identifican restricciones especiales de hardware.
+5 | Tasa de transacciones | 3 | En los horarios de atención se registran múltiples operaciones.
+6 | Entrada de datos en línea | 5 | La mayoría de las funciones permiten ingresar datos de manera interactiva.
+7 | Eficiencia para el usuario final | 4 | El personal debe gestionar las operaciones cotidianas con facilidad.
+8 | Actualización en línea | 5 | Comandas, reservas y cobros requieren actualización de los datos.
+9 | Procesamiento complejo | 2 | Existen cálculos de facturación y reportes, sin algoritmos especialmente complejos.
+10 | Reusabilidad | 2 | Pueden compartirse componentes entre módulos.
+11 | Facilidad de instalación | 3 | Se considera conveniente simplificar la puesta en funcionamiento.
+12 | Facilidad de operación | 4 | El sistema debe ser fácil de utilizar por el personal del restaurante.
+13 | Múltiples sitios | 0 | No se especifica funcionamiento en múltiples sucursales.
+14 | Facilidad de cambios | 3 | Deben poder modificarse cartas, promociones y datos operativos.
+ | TOTAL | 39 | 
+[FIN TABLA 8]
+Puntos de función ajustados:
+Fórmula:
+Sustituimos:
+ = 407,68
+El sistema tiene un tamaño estimado de 407,68 Puntos de Función Ajustados (unos 408 PFA).
+Estimación de líneas de código (LDC):
+[TABLA 9]
+Capa | Reparto | PFA asignados | LDC/PF | LDC
+Frontend | 45% | 183,46 | 47 | 8622,43
+Backend | 45% | 183,46 | 30 | 5503,68
+Base de datos | 10% | 40,77 | 15 | 611,52
+TOTAL | 100% | 407,68 |  | 14737,63
+[FIN TABLA 9]
+Las líneas de código quedaron en 14738 aproximadamente.
+Justificación: Se adopta el reparto inicial presentado en el material de la cátedra, considerando que las interfaces de usuario y la lógica de negocio concentran la mayor parte de las funcionalidades, mientras que la base de datos gestiona su almacenamiento. Esta distribución deberá revisarse en función de la implementación real. 
+Estimación del esfuerzo:
+Al ser un equipo nuevo, que trabaja junto por primera vez, no contamos con mediciones históricas propias de productividad. Por eso se adopta el valor más alto del rango de 13 a 20 PF por persona-mes indicado por la cátedra.
+Productividad adoptada:
+ = 20 PF por persona-mes
+La productividad es la cantidad de Puntos de Función que cada integrante completa por mes.
+Se toma el valor más alto del rango por cuatro razones. Las HU ya están especificadas desde el Sprint 0, con criterios de aceptación, modelo de dominio y RNF. El equipo trabaja con desarrollo asistido por agentes de IA bajo Spec Driven Development: los agentes generan el código y las pruebas a partir de la spec de cada HU, y una persona del equipo los revisa. La mayoría de las funciones son ABM (48 de las 77 son entradas externas) y el procesamiento complejo es bajo (Fi = 2). Además, el repositorio base compartido (D-05) evita repetir el mismo código en los 6 módulos.
+Esfuerzo:
+ ≈ 20,38 personas-mes
+Duración:
+ ≈ 3,4 meses
+El plazo fijado por la cátedra es de 3 meses. Con 6 integrantes que trabajan de lunes a viernes, 20 días por mes y 8 horas por día, el cálculo da 3,4 meses: unos 8 días hábiles más que el plazo. El equipo planifica el proyecto con los 3 meses y las 8 horas diarias, y considera esa diferencia parte del margen de error de la estimación. Se controla con la validación de la productividad al cierre del Sprint 2.
+Supuesto: la productividad de 20 PF por persona-mes se valida al cierre del Sprint 2, midiendo los PF terminados en relación con el esfuerzo invertido. Si resulta menor, se recalcula el esfuerzo y se prioriza el backlog.
+Estimación del costo:
+Fórmula:
+Se utiliza como costo mensual la remuneración recomendada por el Consejo Profesional de Ciencias Informáticas de la Provincia de Córdoba (CPCI) para un Analista Junior, actualizada a septiembre de 2026: $2.235.187,83 por persona-mes. Se elige este perfil porque el equipo está formado por analistas programadores junior que trabajan a tiempo completo (8 horas diarias, de lunes a viernes). Como referencia de mercado, la mediana del sueldo de un programador junior en la Encuesta de Sueldos 2026.1 de Sysarmy es de $1.538.500 brutos (Teclab). El costo considera solo la remuneración del equipo. Para expresarlo en dólares se usa la cotización del dólar oficial del Banco Nación del 23/10/2026: $1.550 por dólar (venta). 
+Costo = 20,38 × $2.235.187,83
+Costo ≈ $45.553.128 (≈ USD 29.389)

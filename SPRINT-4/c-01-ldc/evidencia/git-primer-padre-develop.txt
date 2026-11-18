@@ -1,0 +1,93 @@
+86bb44f 9dfb249 | 2026-11-14 14:46:50 -0300 | feat: agrega panel de credenciales de prueba en el inicio de sesión
+9dfb249 2407da2 | 2026-11-14 13:01:37 -0300 | feat: agrega datos de prueba y reinicio de la base al levantar con Docker
+2407da2 77e8d8a | 2026-11-14 10:19:59 -0300 | docs: agrega cantidad entregada y cantidad lista al detalle de comanda en el diagrama unificado (S0-09)
+77e8d8a 1aa5397 3ae7f2b | 2026-11-14 10:10:08 -0300 | Merge pull request #254 from franwe-jpg/feature/S1-09-conformidad-y-riesgos
+1aa5397 2a218fb 7faccee | 2026-11-14 10:04:36 -0300 | Merge pull request #253 from franwe-jpg/feature/HU-M5-01-validaciones-del-formulario
+2a218fb 226abc6 | 2026-11-13 14:58:39 -0600 | fix: formato prettier en sesion, botones y menu
+226abc6 ff0890a | 2026-11-13 14:47:29 -0600 | feat(pagos): rediseno con jerarquia de montos y cobro destacado
+ff0890a e9577b4 | 2026-11-13 14:47:28 -0600 | feat(reservas): rediseno con motivo visible en acciones
+e9577b4 8c8dd77 | 2026-11-13 14:47:28 -0600 | feat(salon): resumen, plano y filtros de mesas
+8c8dd77 bf26505 | 2026-11-13 14:47:21 -0600 | feat(menus): rediseno con filtro de promos y formularios agrupados
+bf26505 4fa37b4 | 2026-11-13 14:47:21 -0600 | feat(productos): rediseno de carta y formulario de producto
+4fa37b4 e8a6c1c | 2026-11-13 14:47:17 -0600 | feat(shell): rediseno del shell y guia de componentes
+e8a6c1c cf4a2af | 2026-11-13 14:47:11 -0600 | fix(ui): deshabilitados grises sin highlight y modo oscuro calido
+cf4a2af af0c7df | 2026-11-13 14:47:08 -0600 | feat(layout): menu de sesion en navbar y usuario al pie del sidebar
+af0c7df 10ee2d6 | 2026-11-13 14:47:03 -0600 | feat(ui): DropdownMenu con disparador, encabezado y marcados
+10ee2d6 52bd5f7 | 2026-11-13 14:46:58 -0600 | feat(auth): agrega rol activo como filtro visual de la sesion
+52bd5f7 3b79713 | 2026-11-13 12:36:15 -0300 | feat(frontend): estandariza vistas, agrega modo oscuro y botones de marca
+3b79713 0152156 5fc6b58 | 2026-11-12 23:19:24 -0300 | Merge pull request #250 from franwe-jpg/feature/S4-04-reasignar-mozo
+0152156 e148aef b17ada4 | 2026-11-12 23:14:33 -0300 | Merge pull request #249 from franwe-jpg/feature/HU-TR-01-mozos-solo-sesion
+e148aef 42a00a7 80135bd | 2026-11-12 23:14:09 -0300 | Merge pull request #248 from franwe-jpg/feature/HU-M4-12-listo-en-cocina
+42a00a7 2799d58 2eed2dd | 2026-11-12 22:16:45 -0300 | Merge pull request #247 from franwe-jpg/feature/HU-M4-11-reporte-comandas
+2799d58 103bfae 2dc9c61 | 2026-11-12 21:26:50 -0300 | Merge pull request #246 from franwe-jpg/feature/HU-TR-01-login-y-roles
+103bfae 66e416c 43f3c18 | 2026-11-12 20:37:48 -0300 | Merge pull request #244 from franwe-jpg/feature/S4-04-mozo-comanda
+66e416c 1f52540 7d8abc4 | 2026-11-12 20:19:02 -0300 | Merge pull request #245 from franwe-jpg/feature/HU-M5-01-ocupacion-de-mesa
+1f52540 7464fc3 2fabc65 | 2026-11-12 20:18:15 -0300 | Merge pull request #243 from franwe-jpg/feature/HU-M5-06-selector-de-productos
+7464fc3 7cd2554 ea985bf | 2026-11-12 10:42:48 -0300 | Merge pull request #240 from franwe-jpg/feature/HU-M5-01-validar-telefono-y-capacidad
+7cd2554 e0f4d24 dda5034 | 2026-11-11 17:37:32 -0300 | Merge pull request #241 from franwe-jpg/feature/HU-M6-08-reporte-recaudacion
+e0f4d24 760dfce df1eecd | 2026-11-11 16:50:37 -0300 | Merge pull request #238 from franwe-jpg/feature/HU-M5-06-comanda-desde-reserva
+760dfce e1c0a57 ecd2e43 | 2026-11-10 08:38:29 -0300 | Merge pull request #236 from franwe-jpg/feature/HU-M5-06-contrato-comanda-reserva
+e1c0a57 d88ce0d d6e8050 | 2026-11-09 21:24:58 -0600 | Merge pull request #237 from franwe-jpg/feature/HU-M2-10-reporte-impacto-promociones
+d88ce0d d77771f 5487336 | 2026-11-09 20:29:58 -0600 | Merge pull request #235 from franwe-jpg/feature/S4-02-aplicar-promociones
+d77771f 1111dd1 eb39a28 | 2026-11-09 23:26:35 -0300 | Merge pull request #233 from franwe-jpg/feature/S4-06-pagina-inicio
+1111dd1 00ab5da 9d564a7 | 2026-11-09 19:43:16 -0600 | Merge pull request #234 from franwe-jpg/feature/HU-M3-13-reporte-mesas-ventas-mozo
+00ab5da a145adb 2675553 | 2026-11-09 21:59:52 -0300 | Merge pull request #232 from franwe-jpg/feature/S4-03-selectores-y-enlaces
+a145adb ccd74f6 0d2c7c1 | 2026-11-09 21:59:39 -0300 | Merge pull request #231 from franwe-jpg/feature/S1-09-checklist-por-lenguaje
+ccd74f6 79cff1b 7ae8c42 | 2026-11-09 17:49:58 -0300 | Merge pull request #230 from franwe-jpg/feature/HU-M4-06-eliminar-comanda
+79cff1b c2399f7 6c47196 | 2026-11-09 17:49:43 -0300 | Merge pull request #229 from franwe-jpg/feature/HU-M5-07-reporte-reservas-ausentismo
+c2399f7 1676f1d 26d1d7f | 2026-11-06 15:10:01 -0300 | Merge pull request #222 from franwe-jpg/feature/HU-M6-03-comprobante-pago
+1676f1d d3d05ff 929bbf8 | 2026-11-06 14:15:27 -0300 | Merge pull request #221 from franwe-jpg/feature/HU-M6-02-cobrar-factura-adeudada
+d3d05ff 9fed30b 04411d6 | 2026-11-06 11:57:02 -0300 | Merge pull request #220 from franwe-jpg/feature/HU-M1-15-reporte-productos-mas-vendidos
+9fed30b 42e153c eaab0d7 | 2026-11-06 11:56:48 -0300 | Merge pull request #219 from franwe-jpg/feature/S3-M4-integracion-clientes
+42e153c dd579e1 5761908 | 2026-11-06 08:10:01 -0300 | Merge pull request #218 from franwe-jpg/feature/HU-M6-01-generar-factura
+dd579e1 09c8951 56cbcd5 | 2026-11-05 15:30:11 -0300 | Merge pull request #217 from franwe-jpg/feature/S3-M3-modificar-reabrir-comanda
+09c8951 bb65d7c a5d98eb | 2026-11-05 08:46:04 -0300 | Merge pull request #216 from franwe-jpg/feature/HU-M3-abm-mozos
+bb65d7c 0112fc0 c654619 | 2026-11-05 00:12:14 -0300 | Merge pull request #215 from franwe-jpg/feature/HU-M2-07-08-09-promociones
+0112fc0 29e9e2d dfb28a6 | 2026-11-02 19:09:09 -0300 | Merge pull request #214 from franwe-jpg/feature/HU-M5-04-05-cancelaciones
+29e9e2d 22a0a48 3154846 | 2026-11-02 14:24:55 -0300 | Merge pull request #212 from franwe-jpg/feature/HU-M4-01-HU-M5-01-cliente-en-reserva
+22a0a48 d77595a 49129a4 | 2026-11-02 12:36:59 -0300 | Merge pull request #211 from franwe-jpg/feature/HU-M5-01-02-03-abm-reservas-v2
+d77595a cd63fe0 b01fa69 | 2026-11-01 14:43:40 -0300 | Merge pull request #210 from franwe-jpg/feature/S2-04-nota-formularios-en-modal
+cd63fe0 3c5d7cf 2820b97 | 2026-11-01 14:30:15 -0300 | Merge pull request #209 from franwe-jpg/feature/HU-M4-08-marcar-entregado
+3c5d7cf d18c23b c659055 | 2026-11-01 14:26:29 -0300 | Merge pull request #208 from franwe-jpg/feature/HU-M1-formulario-producto-en-modal
+d18c23b fe08fc9 0c32828 | 2026-11-01 14:16:50 -0300 | Merge pull request #207 from franwe-jpg/feature/HU-M4-04-integra-mesas-y-catalogo
+fe08fc9 9f1229b 2efd22a | 2026-11-01 12:06:15 -0300 | Merge pull request #205 from franwe-jpg/feature/HU-M6-04-05-06-07-abm-medio-pago
+9f1229b dfd151f a646a2e | 2026-11-01 11:04:49 -0300 | Merge pull request #206 from franwe-jpg/feature/HU-M4-04-07-09-comandas
+dfd151f dfdff1b 55d2ec4 | 2026-10-31 14:27:07 -0300 | Merge pull request #196 from franwe-jpg/feature/HU-M4-01-02-03-clientes
+dfdff1b 33ad371 cef28d2 | 2026-10-31 13:50:34 -0300 | Merge pull request #204 from franwe-jpg/feature/S3-01-plan-sprint-3
+33ad371 aa28d15 80fd972 | 2026-10-30 22:41:11 -0300 | Merge pull request #195 from franwe-jpg/feature/S2-M3-integra-main-en-develop
+aa28d15 82cd7fa ff7c3f6 | 2026-10-30 08:37:42 -0300 | Merge pull request #193 from franwe-jpg/feature/S2-01-contrato-comanda
+82cd7fa d23f6d4 6454154 | 2026-10-28 23:56:13 -0300 | Merge pull request #191 from franwe-jpg/feature/HU-M2-04-05-06-abm-menu-del-dia
+d23f6d4 0bff1e0 1e3a6d8 | 2026-10-28 21:30:17 -0300 | Merge pull request #190 from franwe-jpg/feature/HU-M2-02-03-modificar-baja-menu-ejecutivo
+0bff1e0 97e5766 d1bf127 | 2026-10-26 09:37:12 -0300 | Merge pull request #189 from franwe-jpg/feature/archiva-sdd-hu-m1-14
+97e5766 b09d497 c089483 | 2026-10-26 09:29:19 -0300 | Merge pull request #188 from franwe-jpg/feature/HU-M3-05-crear-mesa
+b09d497 0e7d192 5e8ce03 | 2026-10-26 09:29:07 -0300 | Merge pull request #187 from franwe-jpg/feature/HU-M3-01-agregar-sector
+0e7d192 0066647 55b2d21 | 2026-10-26 09:28:23 -0300 | Merge pull request #186 from franwe-jpg/feature/HU-M1-14-ver-carta
+0066647 5b86e5f 8019d0c | 2026-10-26 09:28:06 -0300 | Merge pull request #185 from franwe-jpg/feature/archiva-sdd-m1-bebida-seccion
+5b86e5f 84ce289 a6dfab1 | 2026-10-26 08:50:16 -0300 | Merge pull request #184 from franwe-jpg/feature/HU-M1-11-12-modificar-baja-seccion
+84ce289 242c7af ee28718 | 2026-10-26 08:27:32 -0300 | Merge pull request #183 from franwe-jpg/feature/HU-M1-07-08-09-bebida
+242c7af 2377ccb b9719b5 | 2026-10-26 08:27:22 -0300 | Merge pull request #182 from franwe-jpg/feature/archiva-sdd-m1
+2377ccb f8e8014 77bb4cc | 2026-10-25 23:59:52 -0300 | Merge pull request #181 from franwe-jpg/feature/HU-M1-05-06-modificar-baja-postre
+f8e8014 13a02d1 d9030fa | 2026-10-25 22:01:51 -0300 | Merge pull request #180 from franwe-jpg/feature/HU-M1-02-03-modificar-baja-plato
+13a02d1 9bc9a74 017132f | 2026-10-25 22:01:43 -0300 | Merge pull request #179 from franwe-jpg/feature/regla-abm-listado
+9bc9a74 69bdb2c c4fa37c | 2026-10-25 19:14:12 -0300 | Merge pull request #178 from franwe-jpg/feature/HU-M1-04-crear-postre
+69bdb2c b93ca61 fcb381d | 2026-10-25 18:48:16 -0300 | Merge pull request #177 from franwe-jpg/feature/HU-M1-01-crear-plato
+b93ca61 6b68af8 ccdfcba | 2026-10-25 17:54:43 -0300 | Merge pull request #176 from franwe-jpg/feature/HU-M1-10-crear-seccion
+6b68af8 5f04d29 69736f5 | 2026-10-25 16:10:43 -0300 | Merge pull request #175 from franwe-jpg/feature/S2-04-maqueta
+5f04d29 e325808 424d32f | 2026-10-25 16:10:34 -0300 | Merge pull request #174 from franwe-jpg/feature/S2-02-supuestos-y-fecha
+e325808 2de0d23 5114ff2 | 2026-10-24 20:43:16 -0300 | Merge pull request #171 from franwe-jpg/feature/161-plan-sprint-2
+2de0d23 6385557 adf1e92 | 2026-10-23 16:09:56 -0300 | Merge pull request #160 from franwe-jpg/feature/159-docker-compose
+6385557 55b8c88 c99fec9 | 2026-10-23 15:52:48 -0300 | Merge pull request #158 from franwe-jpg/feature/S1-07-casos-de-prueba
+55b8c88 30bb7fb 127e7c5 | 2026-10-22 08:31:57 -0300 | Merge pull request #157 from franwe-jpg/feature/S1-04-agents-claude
+30bb7fb 460d37a c9e684e | 2026-10-21 22:03:12 -0300 | Merge pull request #155 from franwe-jpg/feature/S1-09-criterios-de-conformidad
+460d37a 7da27ca be4a57b | 2026-10-21 22:01:03 -0300 | Merge pull request #156 from franwe-jpg/feature/S1-10-gitflow-ci
+7da27ca f045520 cfdf6dd | 2026-10-21 16:40:34 -0300 | Merge pull request #153 from franwe-jpg/feature/S1-05-esqueleto-backend
+f045520 cfe670c 0f5abc6 | 2026-10-21 16:40:21 -0300 | Merge pull request #152 from franwe-jpg/feature/S1-03-estandares-backend
+cfe670c 792aafa 746358b | 2026-10-21 08:33:58 -0300 | Merge pull request #154 from franwe-jpg/feature/S1-06-esqueleto-frontend
+792aafa e86fb9e 499d395 | 2026-10-10 14:26:59 -0300 | Merge pull request #151 from franwe-jpg/feature/S0-10-nombre-backlog
+e86fb9e 3666b63 ddb7d53 | 2026-10-10 13:39:53 -0300 | Merge pull request #150 from franwe-jpg/feature/S0-10-planillas-en-raiz
+3666b63 5e97742 3094316 | 2026-10-10 13:31:34 -0300 | Merge pull request #149 from franwe-jpg/feature/S0-11-cierre-sprint-0-y-plan-sprint-1
+5e97742 c4b7a55 7300e9f | 2026-10-05 20:46:08 -0300 | Merge pull request #137 from franwe-jpg/feature/S0-05-arquitectura
+c4b7a55 c616d26 6af757b | 2026-10-05 20:45:32 -0300 | Merge pull request #136 from franwe-jpg/feature/S0-M5d-diagrama-reservas
+c616d26 7bd3877 1c2c7eb | 2026-10-01 08:46:51 -0300 | Merge pull request #135 from franwe-jpg/feature/S0-04-RNF
+7bd3877 e9a07c3 3a5585b | 2026-09-24 23:07:48 -0300 | Merge pull request #130 from franwe-jpg/feature/S0-01-plan-desarrollo
+e9a07c3  | 2026-09-24 20:43:58 -0300 | chore: add sprint 0 work plan and GitHub loader script

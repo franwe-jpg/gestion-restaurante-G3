@@ -1,0 +1,12 @@
+{
+ "fe_prod_archivos_ts": 333,
+ "className_ocurrencias_prod": 886,
+ "className_archivos_prod": 156,
+ "comentarios_jsx_prod": 10,
+ "py_app_archivos": 76,
+ "py_app_lineas_que_abren_docstring": 448,
+ "py_app_asignaciones_triple_comilla": 0,
+ "archivos_con_marca_de_codigo_generado": [],
+ "archivos_de_codigo_en_alcance": 690,
+ "archivos_de_codigo_vacios_no_contados": 20
+}

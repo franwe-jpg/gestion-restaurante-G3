@@ -1,0 +1,82 @@
+numero	integrado_utc	base	adiciones	eliminaciones	titulo
+130	2026-09-25T02:07:49Z	develop	251	52	docs: reorganizar el alcance del Sprint 0 y agregar reglas temporales para agentes
+135	2026-10-01T11:46:51Z	develop	94	0	docs: agrega borrador de RNF (S0-04)
+136	2026-10-05T23:45:33Z	develop	77	0	docs: agrega diagrama de clases del módulo Reservas (S0-M5d)
+137	2026-10-05T23:46:08Z	develop	263	0	docs: agrega arquitectura y decisiones de diseno (S0-05)
+149	2026-10-10T16:31:35Z	develop	2088	100	docs: cierre del Sprint 0 y plan del Sprint 1
+150	2026-10-10T16:39:54Z	develop	10	10	docs: planillas de gestión y riesgos en la raíz del repositorio
+151	2026-10-10T17:27:00Z	develop	4	4	docs: nombre definitivo del backlog (G3_Backlog.xlsx)
+152	2026-10-21T19:40:21Z	develop	246	0	docs: agrega guia de estandares del backend (S1-03)
+153	2026-10-21T19:40:34Z	develop	684	0	feat: agrega esqueleto del backend (S1-05)
+154	2026-10-21T11:33:58Z	develop	9954	0	Feature/s1 06 esqueleto frontend
+155	2026-10-22T01:03:12Z	develop	65	0	docs: agrega los criterios de conformidad (S1-09)
+156	2026-10-22T01:01:03Z	develop	387	0	ci: agrega CI, plantilla de PR y GitFlow (S1-10)
+157	2026-10-22T11:31:58Z	develop	296	68	docs: agrega AGENTS.md, CLAUDE.md, flujo diario e inicializa SDD (S1-04)
+158	2026-10-23T18:52:48Z	develop	349	0	docs(S1-07): agregar casos de prueba
+160	2026-10-23T19:09:57Z	develop	73	0	chore: agrega Docker Compose para levantar frontend y backend (#159)
+171	2026-10-24T23:43:16Z	develop	38	0	docs: agrega el plan y el mensaje del Sprint 2 (#161)
+174	2026-10-25T19:10:34Z	develop	19	0	docs: agrega los supuestos del equipo y el pedido de la fecha de entrega (S2-02)
+175	2026-10-25T19:10:43Z	develop	2088	1	S2-04 Maqueta de las pantallas del sistema
+176	2026-10-25T20:54:43Z	develop	2646	29	feat: crear una sección de la carta (HU-M1-10)
+177	2026-10-25T21:48:17Z	develop	4595	45	feat: crear un plato (HU-M1-01)
+178	2026-10-25T22:14:12Z	develop	1343	306	feat: crear un postre (HU-M1-04)
+179	2026-10-26T01:01:43Z	develop	7	7	docs: permite agrupar el ABM y el listado de una entidad en un solo cambio
+180	2026-10-26T01:01:52Z	develop	5048	293	feat: modificar, dar de baja y listar productos (HU-M1-02-03-13)
+181	2026-10-26T02:59:52Z	develop	1419	53	feat: modificar y dar de baja un postre (HU-M1-05-06)
+182	2026-10-26T11:27:22Z	develop	2153	3	docs: archiva los cambios de SDD de M1 (HU-M1-01, 04, 02-03-13 y 05-06)
+183	2026-10-26T11:27:33Z	develop	4699	30	feat: crear, modificar y dar de baja una bebida (HU-M1-07-08-09)
+184	2026-10-26T11:50:17Z	develop	2271	135	feat: modificar y dar de baja una sección (HU-M1-11-12)
+185	2026-10-26T12:28:07Z	develop	1173	30	docs: archiva los cambios de SDD de bebidas y secciones (HU-M1-07-08-09 y HU-M1-11-12)
+186	2026-10-26T12:28:23Z	develop	3090	65	feat: ver la carta (HU-M1-14)
+187	2026-10-26T12:29:08Z	develop	1741	15	Feature/hu m3 01 agregar sector
+188	2026-10-26T12:29:19Z	develop	4041	21	Feature/hu m3 05 crear mesa
+189	2026-10-26T12:37:12Z	develop	453	0	docs: archiva el cambio de SDD de HU-M1-14
+190	2026-10-29T00:30:17Z	develop	3474	29	Feature/hu m2 02 03 modificar baja menu ejecutivo
+191	2026-10-29T02:56:13Z	develop	3577	502	Feature/hu m2 04 05 06 abm menu del dia
+192	2026-10-30T13:38:13Z	main	50263	52	Feature/hu m3 07 eliminar mesa
+193	2026-10-30T11:37:42Z	develop	2101	0	feat(m4): agregar contrato y stub compartido de Comanda
+194	2026-10-30T13:38:44Z	main	51339	52	Feature/hu m3 abm mozos
+195	2026-10-31T01:41:12Z	develop	6040	187	chore: integra en develop el ABM del salón que quedó solo en main (S2-M3)
+196	2026-10-31T17:27:08Z	develop	1783	21	feat(m4): implementar gestión de clientes (HU-M4-01/02/03)
+204	2026-10-31T16:50:35Z	develop	60	6	docs: agrega el plan y el mensaje del Sprint 3 (S3-01)
+205	2026-11-01T15:06:15Z	develop	2961	27	Feature/hu m6 04 05 06 07 abm medio pago
+206	2026-11-01T14:04:50Z	develop	3733	323	Feature/hu m4 04 07 09 comandas
+207	2026-11-01T17:16:51Z	develop	681	33	feat: conecta la comanda con mesas y catálogo y libera la mesa al cerrar (HU-M4-04, HU-M4-09)
+208	2026-11-01T17:26:29Z	develop	673	526	fix: abre el formulario de productos en un modal (HU-M1)
+209	2026-11-01T17:30:15Z	develop	2515	44	feat: permite marcar entregas por cantidad en la comanda (HU-M4-08)
+210	2026-11-01T17:43:40Z	develop	3	0	docs: aclara que los formularios se abren en un modal y no como en la maqueta (S2-04)
+211	2026-11-02T15:36:59Z	develop	10900	29	feat: ABM de reservas, mesas disponibles, zona horaria y modal (HU-M5-01-02-03)
+212	2026-11-02T17:24:56Z	develop	2797	195	feat: registra el cliente junto con la reserva (HU-M4-01, HU-M5-01)
+214	2026-11-02T22:09:09Z	develop	2623	24	feat: cancelar una reserva anticipadamente o por ausencia (HU-M5-04-05)
+215	2026-11-05T03:12:14Z	develop	3921	21	Feature/hu m2 07 08 09 promociones
+216	2026-11-05T11:46:05Z	develop	1757	39	abm mozos
+217	2026-11-05T18:30:12Z	develop	700	56	feat: permite modificar y reabrir una comanda (HU-M4-05, HU-M4-10)
+218	2026-11-06T11:10:02Z	develop	1505	15	Feature/hu m6 01 generar factura
+219	2026-11-06T14:56:48Z	develop	588	43	feat(m4): mejorar integración de Cliente con Reservas (S3-M4)
+220	2026-11-06T14:57:02Z	develop	3622	9	feat: agrega el reporte de productos más vendidos por período (HU-M1-15)
+221	2026-11-06T17:15:27Z	develop	1545	27	feat: cobrar fact adeudada
+222	2026-11-06T18:10:02Z	develop	1200	20	Feature/hu m6 03 comprobante pago
+229	2026-11-09T20:49:43Z	develop	3094	6	feat: agrega el reporte de reservas y ausentismo por período (HU-M5-07)
+230	2026-11-09T20:49:58Z	develop	998	2	feat(m4): implementar anulación de comandas (HU-M4-06)
+231	2026-11-10T00:59:40Z	develop	33	9	docs: separa el checklist de codificación en Python y TypeScript (S1-09)
+232	2026-11-10T00:59:52Z	develop	1893	139	feat: agrega selectores a la comanda y enlaces entre pantallas (S4-03)
+233	2026-11-10T02:26:35Z	develop	4443	104	feat: agrega la página de inicio con plano del local y caja del día (S4-06)
+234	2026-11-10T01:43:16Z	develop	1552	2	feat: agrega el reporte de mesas atendidas y ventas por mozo (HU-M3-13)
+235	2026-11-10T02:29:58Z	develop	974	7	feat: aplica promociones en la comanda y la factura (S4-02)
+236	2026-11-10T11:38:29Z	develop	128	10	feat: permite crear una comanda vinculada a una reserva desde M5 (HU-M5-06)
+237	2026-11-10T03:24:58Z	develop	1685	13	feat: agrega reporte de impacto de promociones (HU-M2-10)
+238	2026-11-11T19:50:38Z	develop	5572	17	feat: permite crear una comanda a partir de una reserva (HU-M5-06)
+239	2026-11-11T19:51:14Z	feature/HU-M5-06-comanda-desde-reserva	1127	104	fix: valida el teléfono y la capacidad de la mesa al reservar (HU-M5-01)
+240	2026-11-12T13:42:48Z	develop	1127	104	fix: valida el teléfono y la capacidad de la mesa al reservar (HU-M5-01)
+241	2026-11-11T20:37:32Z	develop	2541	57	feat: agrega el reporte de recaudación por medio de pago y deuda pendiente (HU-M6-08)
+243	2026-11-12T23:18:16Z	develop	1761	131	feat: elige el producto por nombre y limita la comanda al día y horario de la reserva (HU-M5-06)
+244	2026-11-12T23:37:49Z	develop	2702	189	feat(m4): registrar mozo en comandas (S4-04)
+245	2026-11-12T23:19:02Z	develop	910	122	feat: impide reservar una mesa a menos de 2 horas de otra reserva (HU-M5-01)
+246	2026-11-13T00:26:50Z	develop	10309	1439	feat: agrega el inicio de sesión y el control de acceso por rol (HU-TR-01)
+247	2026-11-13T01:16:45Z	develop	1001	4	feat(m4): reporte de comandas y ticket promedio (HU-M4-11)
+248	2026-11-13T02:14:09Z	develop	2563	52	feat(m4): marcar un producto como listo en cocina (HU-M4-12)
+249	2026-11-13T02:14:33Z	develop	19	7	fix: cualquier usuario con sesión lista los mozos (HU-TR-01)
+250	2026-11-13T02:19:25Z	develop	489	197	feat(m4): cambiar el mozo de una comanda desde el listado (S4-04)
+253	2026-11-14T13:04:37Z	develop	1625	203	feat: valida nombre y teléfono, lista clientes y ubica el error de capacidad en la mesa (HU-M5-01)
+254	2026-11-14T13:10:08Z	develop	32	13	docs: actualiza los criterios de conformidad y la planilla de riesgos (S1-09)
+255	2026-11-14T13:33:44Z	main	98413	1680	chore: gateway de entrega final (Cierre)

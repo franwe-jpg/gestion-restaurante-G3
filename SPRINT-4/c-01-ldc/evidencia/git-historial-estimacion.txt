@@ -1,0 +1,4 @@
+cef28d2 2026-10-31 13:46:50 -0300 docs: agrega el plan y el mensaje del Sprint 3 (S3-01)
+69736f5 2026-10-25 16:03:51 -0300 docs: mantiene la jornada de 8 horas en la estimación de la duración
+e1a116b 2026-10-25 16:01:16 -0300 docs: corrige la estimación de puntos de función, esfuerzo y costo
+6bf97b2 2026-10-22 08:26:04 -0300 docs: agrega la estimación de puntos de función del proyecto (S1-08)

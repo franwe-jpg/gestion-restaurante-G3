@@ -1,0 +1,3 @@
+Control: crecimiento neto por `cloc --diff` (agregadas - quitadas) frente a la resta de conteos absolutos.
+Cambios con diferencia: ninguno (coinciden en Python, TypeScript y CSS)
+Commit medido con el filtro de incrementos: Python=6602 TypeScript=24053 CSS=206

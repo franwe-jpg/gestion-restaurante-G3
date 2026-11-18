@@ -1,0 +1,12 @@
+Comparación de la agrupación (agrupar_ldc.py) contra los totales de los controles de cloc (líneas de código):
+
+OK       backend produccion (backend/app): agrupación=6602 control_cloc=6602
+OK       backend herramientas (backend/scripts): agrupación=1134 control_cloc=1134
+OK       backend pruebas (backend/tests): agrupación=21123 control_cloc=21123
+OK       frontend produccion TypeScript: agrupación=24053 control_cloc=24053
+OK       frontend produccion CSS: agrupación=206 control_cloc=206
+OK       frontend pruebas *.test.ts(x): agrupación=21750 control_cloc=21750
+OK       frontend src/test (infraestructura; incluye setup.test.tsx): agrupación=77 control_cloc=77
+OK       frontend src total (produccion + pruebas): agrupación=46061 control_cloc=46061
+
+RESULTADO: todas las cifras coinciden

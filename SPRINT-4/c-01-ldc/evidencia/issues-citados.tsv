@@ -1,0 +1,11 @@
+numero	estado	creado_utc	titulo
+172	CLOSED	2026-10-25T00:15:22Z	Inicio de sesión y usuarios con roles
+213	CLOSED	2026-11-02T17:23:11Z	S4-06 Página de inicio con accesos rápidos, mapa del local y estado de la caja
+223	CLOSED	2026-11-06T18:32:21Z	S4-02 Aplicar las promociones en la comanda y la factura (M2 Menús y Promociones y M4 Atención al Público)
+224	CLOSED	2026-11-06T18:32:23Z	S4-03 Agregar selectores a la comanda y enlaces entre pantallas (M4 Atención al Público)
+225	CLOSED	2026-11-06T18:32:25Z	S4-04 Registrar el mozo en la comanda (M3 Salón y Mozos y M4 Atención al Público)
+226	CLOSED	2026-11-06T19:07:54Z	S4-01 Armar el plan y el mensaje del Sprint 4
+227	OPEN	2026-11-06T19:07:56Z	S4-05 Probar el sistema completo
+228	OPEN	2026-11-06T19:15:18Z	C-01 Armar el informe de cierre (métricas, riesgos y calidad del código)
+242	CLOSED	2026-11-11T21:11:53Z	HU-M4-12 Marcar un producto como listo en cocina
+251	CLOSED	2026-11-13T21:24:15Z	S4-08 Correcciones estéticas del frontend
